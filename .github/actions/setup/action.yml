@@ -1,0 +1,13 @@
+name: Set up .NET
+description: .NET 8 and a read-only NuGet cache. Only main saves it (see the save step in each job).
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+    - uses: actions/cache/restore@v4
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+        restore-keys: nuget-${{ runner.os }}-
