@@ -6,8 +6,8 @@ namespace Tafs.App;
 
 /// <summary>
 /// tafs for Windows. It draws what tafs cloud sends; this first shell has no network yet.
-/// Options: --lang &lt;code&gt; to speak a shipped language, --theme light|dark, and --screenshot &lt;file.png&gt;
-/// to save the window and quit.
+/// Options: --lang &lt;code&gt; to speak a shipped language, --theme light|dark, --page pair to open a screen,
+/// --view-only to show the session as view-only, and --screenshot &lt;file.png&gt; to save the window and quit.
 /// </summary>
 public partial class App : Application
 {
@@ -34,7 +34,7 @@ public partial class App : Application
             : Windows.System.UserProfile.GlobalizationPreferences.Languages.Append(CultureInfo.CurrentUICulture.Name);
         Words = WordBook.Load(strings, AppLanguage.Pick(wanted, shipped));
 
-        window = new MainWindow(Option("--screenshot"), Option("--theme"));
+        window = new MainWindow(Option("--screenshot"), Option("--theme"), Option("--page"), options.Contains("--view-only"));
         window.Activate();
     }
 }

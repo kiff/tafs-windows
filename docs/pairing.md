@@ -2,7 +2,7 @@
 
 Adding a computer gives it approval authority, so only a device that can already approve adds it.
 This app follows KIFF's desktop client contract (§2 signatures, §5 pairing). This page covers the
-portable core in `Tafs.Core`; the screen and the Windows key store come in their own changes.
+portable core in `Tafs.Core` and the screen; the Windows key store comes in its own change.
 
 ## The keys
 
@@ -41,6 +41,23 @@ this against KIFF's worked example (§2.4), down to verifying its signature.
 5. **The session** (`PairedSession`) is handed over once. Its `ToString()` never shows the token, and
    an unreadable answer is never echoed, since a 200 holds the token.
 
-**Not yet:** the TPM keys and Hello prompt (after the key design note is reviewed); the screen (QR,
-check code, the pinned `pair.*` words); the view-only state, which waits on how KIFF tells a session
-it holds no approval authority.
+## The screen
+
+`PairingScreen` says what the screen shows at each step; the app's `PairingPage` only draws it.
+
+| Step | Shows |
+| :- | :- |
+| Waiting | the QR, the steps on the phone (its own menu names: Account, Devices, Add a computer), the check code, "Waiting for your phone…" |
+| Expired | "This code expired." and Show a new code |
+| Failed | why, as KIFF's status only (`KIFF answered 403`), and Show a new code |
+| Added | added; or, with no approval key, that approvals go through the phone or a passkey |
+
+The QR is black on white in both themes, so any phone camera reads it. The code is counted down and
+expires with the offer. A view-only session shows a notice above every screen, with Add this
+Windows PC opening this screen.
+
+**Not yet:**
+- The claim isn't sent: it waits on KIFF serving `/v1/pair/claim`.
+- The TPM keys and the Hello prompt.
+- Until the TPM keys come, the QR carries a public key with no private half anywhere: a point on the curve, found from a random x rather than from a secret. Nothing can sign a claim for it, and no private key is ever in memory.
+- The view-only notice is shown with `--view-only`. It waits on how KIFF tells a session that it holds no approval authority.

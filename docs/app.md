@@ -21,7 +21,7 @@ One sidebar for the whole app, as on the iPad:
 
 The chosen screen opens beside it. The colours are the iPad's `Theme.swift`, light and dark (`Theme.xaml`), and they follow Windows' setting. The selection marker is tafs amber.
 
-This change draws the Overview's empty state. Other screens show only their title until they're built, in the order of the desktop spec. Nothing goes to the network yet.
+Built so far: the Overview's empty state, and Add this Windows PC with its view-only notice ([pairing](pairing.md)). Other screens show only their title until they're built, in the order of the desktop spec. Nothing goes to the network yet.
 
 ## Language
 
@@ -33,6 +33,8 @@ The app speaks the first of the person's Windows languages that tafs ships (`App
 | :- | :- |
 | `--lang fr` | speak a shipped language |
 | `--theme light` or `dark` | force the appearance |
+| `--page pair` | open Add this Windows PC |
+| `--view-only` | show the session as view-only |
 | `--screenshot out.png` | save the window (1280×800) as a PNG and quit |
 
-CI's `app` job builds the app on Windows when `src/Tafs.App/**` changes, and nightly. It saves the Overview in en, fr and pt, light and dark, as the `screenshots` artifact of the run.
+CI's `app` job builds the app on Windows when `src/Tafs.App/**` changes, and nightly. It saves the Overview, the view-only notice and the pairing screen in en, fr and pt, light and dark, as the `screenshots` artifact of the run. The job fails if any of the 18 is missing: a crash at launch, or a word missing at the pin, stops the app before it saves.

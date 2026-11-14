@@ -47,7 +47,21 @@
         <NavigationViewItem x:Name="AccountItem" Tag="account" Icon="Contact" />
       </NavigationView.FooterMenuItems>
 
-      <Frame x:Name="Pages" />
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <!-- A session with no approval key yet (§4.3): it reads everything and approves nothing. -->
+        <InfoBar x:Name="ViewOnly" Severity="Informational" IsClosable="False" Margin="40,20,40,0"
+                 Background="{ThemeResource TafsRaised}" Foreground="{ThemeResource TafsInk}">
+          <InfoBar.IconSource><FontIconSource Glyph="&#xE7B3;" Foreground="{StaticResource TafsAmber}" /></InfoBar.IconSource>
+          <InfoBar.ActionButton>
+            <Button x:Name="AddThisDevice" Click="OnAddThisDevice" />
+          </InfoBar.ActionButton>
+        </InfoBar>
+        <Frame x:Name="Pages" Grid.Row="1" />
+      </Grid>
     </NavigationView>
   </Grid>
 </Window>

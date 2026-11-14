@@ -98,15 +98,29 @@ jobs:
         run: dotnet run --project tools/Tafs.Ci -- sync
       - name: Build
         run: dotnet build src/Tafs.App -c Release -p:Platform=x64
+      # Each screen in en, fr and pt, light and dark. The job fails if any is missing: a crash at launch
+      # or a missing word stops the app before it saves.
       - name: Screenshots
-        continue-on-error: true
         run: |
           exe=src/Tafs.App/bin/x64/Release/net8.0-windows10.0.19041.0/Tafs.App.exe
           mkdir -p screenshots
-          for lang in en fr pt; do for theme in light dark; do
-            timeout 120 "$exe" --lang "$lang" --theme "$theme" --screenshot "screenshots/overview-$lang-$theme.png"
-          done; done
+          missing=0
+          for screen in overview view-only pair; do
+            case $screen in
+              overview) opts=() ;;
+              view-only) opts=(--view-only) ;;
+              pair) opts=(--page pair) ;;
+            esac
+            for lang in en fr pt; do for theme in light dark; do
+              file="screenshots/$screen-$lang-$theme.png"
+              timeout 120 "$exe" "${opts[@]}" --lang "$lang" --theme "$theme" --screenshot "$file" || true
+              if [ ! -s "$file" ]; then echo "::error::no screenshot: $file"; missing=$((missing + 1)); fi
+            done; done
+          done
+          echo "$(ls screenshots | wc -l) screenshots, $missing missing"
+          [ "$missing" -eq 0 ]
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
         with:
           name: screenshots
           path: screenshots/
