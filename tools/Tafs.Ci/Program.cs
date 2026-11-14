@@ -39,7 +39,7 @@ int Sync()
     var tmp = Path.Combine(Path.GetTempPath(), "tafs-sync-" + Guid.NewGuid().ToString("N"));
     try
     {
-        Run("git", $"clone --quiet --filter=blob:none --no-checkout --sparse https://github.com/{pin.Repo}.git \"{tmp}\"");
+        Run("git", $"-c gc.auto=0 -c maintenance.auto=false clone --quiet --filter=blob:none --no-checkout --sparse https://github.com/{pin.Repo}.git \"{tmp}\"");
         Run("git", $"-C \"{tmp}\" sparse-checkout set {string.Join(' ', pin.Paths)}");
         Run("git", $"-C \"{tmp}\" checkout --quiet {pin.Commit}");
         if (Directory.Exists(dest)) Directory.Delete(dest, recursive: true);
@@ -50,13 +50,18 @@ int Sync()
     }
     finally
     {
-        // Git's object files are read-only on Windows.
-        if (Directory.Exists(tmp))
+        // Best effort: git's object files are read-only on Windows, and a leftover temp folder is harmless.
+        try
         {
-            foreach (var f in Directory.EnumerateFiles(tmp, "*", SearchOption.AllDirectories))
-                File.SetAttributes(f, FileAttributes.Normal);
-            Directory.Delete(tmp, recursive: true);
+            if (Directory.Exists(tmp))
+            {
+                foreach (var f in Directory.EnumerateFiles(tmp, "*", SearchOption.AllDirectories))
+                    File.SetAttributes(f, FileAttributes.Normal);
+                Directory.Delete(tmp, recursive: true);
+            }
         }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 }
 
