@@ -4,8 +4,8 @@ using System.Text.Json;
 using Tafs.Core.Ci;
 
 // Small CI helper, run the same way on a laptop and on a runner:
-//   Tafs.Ci parts [--base <ref> | --all]   which test parts a change touches (JSON array)
-//   Tafs.Ci test <part|all> [<part>...]    run the tests of one or more parts
+//   Tafs.Ci parts [--base <ref> | --all | --only <part|all>]   which test parts to run (JSON array)
+//   Tafs.Ci test <part>... | all           run one or more parts; "all" runs every test, unfiltered
 //   Tafs.Ci sync                           fetch words and contracts at the pin into shared/
 //   Tafs.Ci drift                          fail when the pin is more than 7 days or 20 commits behind main
 var root = FindRoot();
@@ -31,7 +31,7 @@ catch (Exception e) when (e is InvalidDataException or InvalidOperationException
 
 int Usage()
 {
-    Console.Error.WriteLine("usage: Tafs.Ci parts [--base <ref> | --all] | test <part|all>... | sync | drift");
+    Console.Error.WriteLine("usage: Tafs.Ci parts [--base <ref> | --all | --only <part|all>] | test <part>... | all | sync | drift");
     Console.Error.WriteLine("parts: " + string.Join(", ", config.Parts.Keys));
     return 2;
 }
@@ -39,7 +39,15 @@ int Usage()
 int Parts(string[] a)
 {
     IReadOnlyList<string> parts;
+    var only = Array.IndexOf(a, "--only");
     if (a.Contains("--all")) parts = PartSelector.All(config);
+    else if (only >= 0)
+    {
+        // A part asked for by hand (workflow_dispatch): a declared name or "all", nothing else.
+        var name = only + 1 < a.Length ? a[only + 1] : "";
+        if (name != "all") CheckParts(new[] { name });
+        parts = new[] { name };
+    }
     else
     {
         var i = Array.IndexOf(a, "--base");
@@ -52,14 +60,25 @@ int Parts(string[] a)
 
 int Test(string[] a)
 {
-    var wanted = a.Contains("all") ? PartSelector.All(config) : a;
-    if (wanted.Count == 0) return Usage();
-    var unknown = wanted.Where(p => !config.Parts.ContainsKey(p)).ToList();
-    if (unknown.Count > 0) throw new InvalidOperationException("unknown part: " + string.Join(", ", unknown));
+    var project = Path.Combine(root, "tests", "Tafs.Core.Tests");
+    // "all" runs with no filter at all, so even a test that names no part runs (nightly, part=all).
+    if (a.Contains("all"))
+    {
+        Run("dotnet", $"test \"{project}\" --nologo");
+        return 0;
+    }
+    if (a.Length == 0) return Usage();
+    CheckParts(a);
 
-    var filter = string.Join("|", wanted.Select(p => $"Part={p}"));
-    Run("dotnet", $"test \"{Path.Combine(root, "tests", "Tafs.Core.Tests")}\" --filter \"{filter}\" --nologo");
+    var filter = string.Join("|", a.Select(p => $"Part={p}"));
+    Run("dotnet", $"test \"{project}\" --filter \"{filter}\" --nologo");
     return 0;
+}
+
+void CheckParts(IEnumerable<string> names)
+{
+    var unknown = names.Where(p => !config.Parts.ContainsKey(p)).ToList();
+    if (unknown.Count > 0) throw new InvalidOperationException("unknown part: " + string.Join(", ", unknown));
 }
 
 int Sync()
@@ -75,7 +94,8 @@ int Sync()
     var tmp = Path.Combine(Path.GetTempPath(), "tafs-sync-" + Guid.NewGuid().ToString("N"));
     try
     {
-        Run("git", $"-c gc.auto=0 -c maintenance.auto=false clone --quiet --filter=blob:none --no-checkout --sparse https://github.com/{pin.Repo}.git \"{tmp}\"");
+        // -c after clone writes these into the new clone's config, so the later commands keep them too.
+        Run("git", $"clone -c gc.auto=0 -c maintenance.auto=false --quiet --filter=blob:none --no-checkout --sparse https://github.com/{pin.Repo}.git \"{tmp}\"");
         Run("git", $"-C \"{tmp}\" sparse-checkout set {string.Join(' ', pin.Paths)}");
         Run("git", $"-C \"{tmp}\" checkout --quiet {pin.Commit}");
         if (Directory.Exists(dest)) Directory.Delete(dest, recursive: true);
@@ -96,8 +116,10 @@ int Sync()
                 Directory.Delete(tmp, recursive: true);
             }
         }
-        catch (IOException) { }
-        catch (UnauthorizedAccessException) { }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"warning: left the temporary clone at {tmp}: {e.Message}");
+        }
     }
 }
 

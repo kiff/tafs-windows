@@ -72,7 +72,12 @@ A part with no tests yet passes with a "no test matches" note; the parts fill in
 ## The full suite
 
 Runs nightly (02:17 UTC) and is what a release is cut from (a release job joins this workflow when
-packaging lands).
+packaging lands). `test all` runs **with no filter**, so even a test that names no part runs there.
+That is a backstop: `Every_test_names_its_part` already fails, naming the method, when a `[Fact]` or
+`[Theory]` has no `[Part]` on itself or its class, because no part's job would ever run it.
+
+A dispatched `part` goes through `Tafs.Ci parts --only`, which accepts only a declared part or `all`.
+The actions are pinned by commit sha, with the version in a comment.
 
 ## Budget
 

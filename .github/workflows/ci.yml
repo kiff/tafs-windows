@@ -1,7 +1,7 @@
 name: CI
 
 # Tests are grouped by part. A change runs only the parts it touches, plus strings and contracts.
-# The full suite runs nightly. One part can be run alone: Actions > CI > Run workflow > part.
+# The full suite runs nightly, unfiltered, so a test that names no part still runs. One part can be run alone: Actions > CI > Run workflow > part.
 on:
   pull_request:
   push:
@@ -32,7 +32,7 @@ jobs:
     outputs:
       parts: ${{ steps.parts.outputs.parts }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -43,10 +43,10 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           ci="dotnet tools/Tafs.Ci/bin/Release/net8.0/Tafs.Ci.dll"
-          if [ -n "$INPUT_PART" ] && [ "$INPUT_PART" != "all" ]; then
-            parts="[\"$INPUT_PART\"]"
-          elif [ "$INPUT_PART" = "all" ] || [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
-            parts=$($ci parts --all)
+          if [ -n "$INPUT_PART" ]; then
+            parts=$($ci parts --only "$INPUT_PART")   # refuses anything but a declared part or all
+          elif [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            parts=$($ci parts --only all)             # the full suite, unfiltered
           elif [ -z "$BASE_REF" ] || [ "$BASE_REF" = "0000000000000000000000000000000000000000" ]; then
             parts=$($ci parts --all)
           else
@@ -55,7 +55,7 @@ jobs:
           echo "parts=$parts" >> "$GITHUB_OUTPUT"
           echo "Parts to run: $parts"
       - if: github.ref == 'refs/heads/main'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         continue-on-error: true
         with:
           path: ~/.nuget/packages
@@ -71,7 +71,7 @@ jobs:
         part: ${{ fromJSON(needs.plan.outputs.parts) }}
     name: test (${{ matrix.part }})
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup
       - name: Words and contracts at the pin
         run: dotnet run --project tools/Tafs.Ci -- sync
@@ -84,7 +84,7 @@ jobs:
   pin-drift:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/setup
       - run: dotnet run --project tools/Tafs.Ci -- drift
         env:

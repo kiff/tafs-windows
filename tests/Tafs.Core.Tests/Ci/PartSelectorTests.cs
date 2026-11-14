@@ -55,6 +55,19 @@ public class PartSelectorTests
     }
 
     [Fact]
+    public void Every_test_names_its_part()
+    {
+        // A test with no part matches no job's filter, so only the unfiltered nightly would run it.
+        var untagged = typeof(PartSelectorTests).Assembly.GetTypes()
+            .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly))
+            .Where(m => m.GetCustomAttribute<FactAttribute>() != null)
+            .Where(m => m.GetCustomAttribute<PartAttribute>() == null && m.DeclaringType!.GetCustomAttribute<PartAttribute>() == null)
+            .Select(m => $"{m.DeclaringType!.Name}.{m.Name}")
+            .ToList();
+        Assert.True(untagged.Count == 0, "tests with no [Part]: " + string.Join(", ", untagged));
+    }
+
+    [Fact]
     public void An_always_part_must_exist() =>
         Assert.Throws<InvalidDataException>(() =>
             PartsConfig.Parse("""{"always":["nope"],"parts":{"a":["x/**"]}}"""));
