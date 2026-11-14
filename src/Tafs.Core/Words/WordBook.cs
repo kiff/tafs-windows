@@ -1,0 +1,123 @@
+using System.Globalization;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+
+namespace Tafs.Core.Words;
+
+/// <summary>
+/// The app's words in one language, read from the shared repository's `app/strings/&lt;lang&gt;/*.json`
+/// at the pinned commit. Nothing is translated here: a missing key is an error, never English.
+/// </summary>
+public sealed partial class WordBook
+{
+    /// <summary>A name's possessive by the language's rule: "Refunds'", "Rae's". Other languages keep the name.</summary>
+    static readonly Dictionary<string, (string Ends, string After, string Other)> Possessive = new()
+    {
+        ["en"] = ("s", "'", "'s"),
+        ["de"] = ("sßxz", "'", "s"),
+    };
+
+    [GeneratedRegex(@"\{(\w+)(\|possessive)?\}")]
+    private static partial Regex Placeholder();
+
+    readonly Dictionary<string, Line> lines;
+
+    WordBook(string language, Dictionary<string, Line> lines)
+    {
+        Language = language;
+        this.lines = lines;
+    }
+
+    public string Language { get; }
+    public IReadOnlyCollection<string> Keys => lines.Keys;
+    public bool Has(string key) => lines.ContainsKey(key);
+
+    /// <summary>The languages the app ships, from languages.json.</summary>
+    public static IReadOnlyList<string> Shipped(string stringsRoot)
+    {
+        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(stringsRoot, "languages.json")));
+        return doc.RootElement.GetProperty("shipped").EnumerateArray().Select(e => e.GetString()!).ToList();
+    }
+
+    public static WordBook Load(string stringsRoot, string language)
+    {
+        var folder = Path.Combine(stringsRoot, language);
+        if (!Directory.Exists(folder))
+            throw new DirectoryNotFoundException($"no words for '{language}' in {stringsRoot}. Run the pin sync first.");
+
+        var lines = new Dictionary<string, Line>();
+        foreach (var file in Directory.EnumerateFiles(folder, "*.json").Order(StringComparer.Ordinal))
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(file));
+            foreach (var p in doc.RootElement.EnumerateObject())
+            {
+                var line = p.Value.ValueKind == JsonValueKind.String
+                    ? new Line(p.Value.GetString()!, null)
+                    : new Line(null, p.Value.EnumerateObject().ToDictionary(f => f.Name, f => f.Value.GetString()!));
+                if (!lines.TryAdd(p.Name, line))
+                    throw new InvalidDataException($"{language}: key '{p.Name}' is in two files");
+            }
+        }
+        return new WordBook(language, lines);
+    }
+
+    /// <summary>A line with no count: values fill {name} and {name|possessive}.</summary>
+    public string Get(string key, params (string Name, string Value)[] values)
+    {
+        var line = Find(key);
+        if (line.Text is null) throw new ArgumentException($"'{key}' is a count: use Count", nameof(key));
+        return Fill(key, line.Text, values);
+    }
+
+    /// <summary>A line with a count: picks the form the language gives this number, and fills {count} too.</summary>
+    public string Count(string key, long count, params (string Name, string Value)[] values)
+    {
+        var line = Find(key);
+        if (line.Forms is null) throw new ArgumentException($"'{key}' has no count: use Get", nameof(key));
+        var form = PluralRules.Form(Language, count);
+        var text = line.Forms.TryGetValue(form, out var t) ? t : line.Forms["other"];
+        return Fill(key, text, values.Append(("count", count.ToString(CultureInfo.InvariantCulture))).ToArray());
+    }
+
+    /// <summary>The names a line fills, across all its forms, without the possessive marker.</summary>
+    public IReadOnlySet<string> Placeholders(string key)
+    {
+        var line = Find(key);
+        var texts = line.Text is not null ? new[] { line.Text } : line.Forms!.Values.ToArray();
+        return texts.SelectMany(t => Placeholder().Matches(t).Select(m => m.Groups[1].Value)).ToHashSet();
+    }
+
+    /// <summary>The plural forms a count line has; empty for a line with no count.</summary>
+    public IReadOnlySet<string> Forms(string key) =>
+        (Find(key).Forms?.Keys ?? Enumerable.Empty<string>()).ToHashSet();
+
+    /// <summary>True when a line uses {name|possessive}: only languages with a rule may.</summary>
+    public bool UsesPossessive(string key)
+    {
+        var line = Find(key);
+        var texts = line.Text is not null ? new[] { line.Text } : line.Forms!.Values.ToArray();
+        return texts.Any(t => Placeholder().Matches(t).Any(m => m.Groups[2].Success));
+    }
+
+    public string PossessiveOf(string name)
+    {
+        if (name.Length == 0 || !Possessive.TryGetValue(Language, out var rule)) return name;
+        return name + (rule.Ends.Contains(char.ToLowerInvariant(name[^1])) ? rule.After : rule.Other);
+    }
+
+    Line Find(string key) =>
+        lines.TryGetValue(key, out var line) ? line : throw new KeyNotFoundException($"{Language}: no words for '{key}'");
+
+    string Fill(string key, string text, (string Name, string Value)[] values)
+    {
+        var byName = values.ToDictionary(v => v.Name, v => v.Value);
+        return Placeholder().Replace(text, m =>
+        {
+            if (!byName.TryGetValue(m.Groups[1].Value, out var value))
+                throw new ArgumentException($"'{key}' needs a value for {{{m.Groups[1].Value}}}");
+            return m.Groups[2].Success ? PossessiveOf(value) : value;
+        });
+    }
+
+    sealed record Line(string? Text, Dictionary<string, string>? Forms);
+}
