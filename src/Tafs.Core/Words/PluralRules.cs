@@ -11,9 +11,10 @@ public static class PluralRules
         var n = Math.Abs(count);
         switch (language)
         {
-            case "en": case "de": case "es": case "it": case "nl":
+            // pt is European Portuguese (pt-PT), where only 1 is "one"; Brazil's rule would make 0 "one" too.
+            case "en": case "de": case "es": case "it": case "nl": case "pt":
                 return n == 1 ? "one" : "other";
-            case "fr": case "pt":
+            case "fr":
                 return n <= 1 ? "one" : "other";
             case "pl":
                 if (n == 1) return "one";
