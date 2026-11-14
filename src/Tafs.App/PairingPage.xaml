@@ -1,0 +1,40 @@
+<!-- Add this computer with your phone (desktop spec §4.2): the steps and the check code on the left,
+     the QR on the right, on white so any phone camera reads it in light and dark. -->
+<Page x:Class="Tafs.App.PairingPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{ThemeResource TafsBackground}">
+  <ScrollViewer>
+    <Grid Margin="40,32,40,32" MaxWidth="880" HorizontalAlignment="Left" ColumnSpacing="40">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+
+      <StackPanel Spacing="14">
+        <TextBlock x:Name="Heading" FontSize="28" FontWeight="Bold" TextWrapping="Wrap" Foreground="{ThemeResource TafsInk}" />
+        <TextBlock x:Name="Steps" FontSize="15" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+
+        <Border x:Name="CheckCard" Margin="0,10,0,0" Background="{ThemeResource TafsPanel}" CornerRadius="14"
+                BorderBrush="{ThemeResource TafsLine}" BorderThickness="1" Padding="20,16">
+          <StackPanel Spacing="8">
+            <TextBlock x:Name="CheckLead" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+            <TextBlock x:Name="CheckCode" FontSize="34" FontWeight="SemiBold" FontFamily="Consolas"
+                       CharacterSpacing="220" Foreground="{ThemeResource TafsInk}" />
+          </StackPanel>
+        </Border>
+
+        <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,6,0,0">
+          <ProgressRing x:Name="Busy" Width="18" Height="18" IsActive="False" Foreground="{StaticResource TafsAmber}" />
+          <TextBlock x:Name="Status" FontSize="15" TextWrapping="Wrap" MaxWidth="520" Foreground="{ThemeResource TafsInk}" />
+        </StackPanel>
+        <Button x:Name="NewCode" Click="OnNewCode" Visibility="Collapsed" Style="{StaticResource AccentButtonStyle}" />
+      </StackPanel>
+
+      <Border x:Name="QrCard" Grid.Column="1" VerticalAlignment="Top" Background="White" CornerRadius="18"
+              BorderBrush="{ThemeResource TafsLine}" BorderThickness="1" Padding="18">
+        <Image x:Name="Qr" Width="260" Height="260" />
+      </Border>
+    </Grid>
+  </ScrollViewer>
+</Page>
