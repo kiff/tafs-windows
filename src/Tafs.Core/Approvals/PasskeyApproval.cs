@@ -1,0 +1,101 @@
+using System.Buffers.Binary;
+using System.Security.Cryptography;
+using System.Text.Json;
+using Tafs.Core.Kiff;
+
+namespace Tafs.Core.Approvals;
+
+/// <summary>
+/// Windows Hello as a platform passkey for kiff.dev: an ES256 key in the TPM that Windows itself asks
+/// the person for on every assertion. Off until KIFF registers a computer's own passkey at pairing.
+/// </summary>
+public static class Features
+{
+    public static readonly bool WindowsPasskeyApprovals = false;
+}
+
+/// <summary>authenticatorData's fixed head: rpIdHash (32), flags (1), signCount (4).</summary>
+public readonly record struct AuthenticatorData(byte[] RpIdHash, byte Flags, uint SignCount)
+{
+    public bool UserPresent => (Flags & 0x01) != 0;
+    public bool UserVerified => (Flags & 0x04) != 0;
+    public bool BackupEligible => (Flags & 0x08) != 0;
+    public bool BackedUp => (Flags & 0x10) != 0;
+    public bool HasCredentialData => (Flags & 0x40) != 0;
+
+    public static AuthenticatorData Parse(byte[] data)
+    {
+        if (data.Length < 37) throw new InvalidDataException("authenticator data is shorter than 37 bytes");
+        return new AuthenticatorData(data[..32], data[32], BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(33, 4)));
+    }
+}
+
+/// <summary>What the authenticator returns for one assertion.</summary>
+public sealed record PasskeyAssertion(byte[] AuthenticatorData, byte[] SignatureDer);
+
+/// <summary>The Windows WebAuthn call (it shows Windows Hello). Implemented in the app; faked in tests.</summary>
+public interface IPasskeyAuthenticator
+{
+    Task<PasskeyAssertion> GetAssertionAsync(string rpId, byte[] credentialId, byte[] clientDataJson, CancellationToken cancel);
+}
+
+/// <summary>Refused on this computer, before anything is sent: the reason is safe to show and log.</summary>
+public sealed class PasskeyRefusedException(string reason) : Exception(reason);
+
+/// <summary>
+/// Approves one exact request with this computer's passkey (KIFF-Passkey-Assertion). The challenge is
+/// base64url(sha256(kiff.request.v1)), so the assertion is bound to that request, as an approval key's
+/// signature would be. KIFF verifies; this side refuses early what KIFF would refuse anyway.
+/// </summary>
+public sealed class PasskeyApprover(IPasskeyAuthenticator authenticator, byte[] credentialId, bool enabled)
+{
+    public const string RpId = "kiff.dev";
+    public const string Origin = "https://kiff.dev";
+    public const string HeaderName = "KIFF-Passkey-Assertion";
+
+    public static string Challenge(byte[] requestMessage) => KiffSigning.Base64Url(SHA256.HashData(requestMessage));
+
+    /// <summary>The exact clientDataJSON bytes this app builds and the authenticator hashes.</summary>
+    public static byte[] ClientDataJson(byte[] requestMessage) => JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, object>
+    {
+        ["type"] = "webauthn.get",
+        ["challenge"] = Challenge(requestMessage),
+        ["origin"] = Origin,
+        ["crossOrigin"] = false,
+    });
+
+    /// <summary>
+    /// Why KIFF would refuse an assertion with this authenticator data, or null: the wrong relying
+    /// party, no presence or no verification (Windows Hello not shown), or a passkey that can leave
+    /// this computer (backup eligible or backed up), which is then not this computer's own.
+    /// </summary>
+    public static string? Refusal(AuthenticatorData a)
+    {
+        if (!a.RpIdHash.AsSpan().SequenceEqual(SHA256.HashData("kiff.dev"u8))) return "the passkey isn't for kiff.dev";
+        if (!a.UserPresent || !a.UserVerified) return "Windows Hello didn't verify the person";
+        if (a.BackupEligible || a.BackedUp) return "this passkey can leave this computer, so it can't approve for it";
+        return null;
+    }
+
+    /// <summary>Signs the request with a fresh assertion and returns the header's value.</summary>
+    public async Task<string> ApproveAsync(
+        string tenant, string method, string pathAndQuery, byte[] body, DateTimeOffset signedAt, CancellationToken cancel = default)
+    {
+        if (!enabled) throw new PasskeyRefusedException("passkey approvals are off on Windows until KIFF accepts this computer's own passkey");
+
+        var message = KiffSigning.RequestV1(tenant, method, pathAndQuery, body, signedAt);
+        var clientData = ClientDataJson(message);
+        var assertion = await authenticator.GetAssertionAsync(RpId, credentialId, clientData, cancel);
+        var refusal = Refusal(AuthenticatorData.Parse(assertion.AuthenticatorData));
+        if (refusal is not null) throw new PasskeyRefusedException(refusal);
+
+        var json = JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, string>
+        {
+            ["credential_id"] = KiffSigning.Base64Url(credentialId),
+            ["client_data_json"] = KiffSigning.Base64Url(clientData),
+            ["authenticator_data"] = KiffSigning.Base64Url(assertion.AuthenticatorData),
+            ["signature"] = KiffSigning.Base64Url(assertion.SignatureDer),
+        });
+        return $"t={KiffSigning.Time(signedAt)},a={KiffSigning.Base64Url(json)}";
+    }
+}
