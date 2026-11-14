@@ -37,6 +37,11 @@ public class PartSelectorTests
         Assert.Equal(new[] { "pairing", "record", "strings", "contracts", "app" }.Order(),
             Select("src/Tafs.App/Pairing/QrView.xaml", "src/Tafs.Core/Record/Taf.cs").Order());
 
+    [Fact]
+    public void Signing_in_is_part_of_pairing() =>
+        Assert.Equal(new[] { "pairing", "strings", "contracts" }.Order(),
+            Select("src/Tafs.Core/SignIn/DeviceSignIn.cs", "tests/Tafs.Core.Tests/SignIn/DeviceSignInTests.cs").Order());
+
     [Theory]
     [InlineData("Directory.Build.props")]
     [InlineData("src/Tafs.Core/Tafs.Core.csproj")]

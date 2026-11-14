@@ -9,7 +9,7 @@
   ],
   "code_roots": ["src/", "tests/", "tools/"],
   "parts": {
-    "pairing": ["src/*/Pairing/**", "tests/*/Pairing/**", "src/*/Kiff/**", "tests/*/Kiff/**"],
+    "pairing": ["src/*/Pairing/**", "tests/*/Pairing/**", "src/*/SignIn/**", "tests/*/SignIn/**", "src/*/Kiff/**", "tests/*/Kiff/**"],
     "approvals": ["src/*/Approvals/**", "tests/*/Approvals/**", "src/*/Kiff/**", "tests/*/Kiff/**"],
     "coach": ["src/*/Coach/**", "tests/*/Coach/**"],
     "record": ["src/*/Record/**", "tests/*/Record/**"],
