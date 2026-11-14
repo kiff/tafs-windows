@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Words and contracts at the pin
+        run: dotnet run --project tools/Tafs.Ci -- sync
+      - run: dotnet test
+      - if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+
+  # Fails when the pin is more than 7 days or 20 commits behind the shared repository's main.
+  pin-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - run: dotnet run --project tools/Tafs.Ci -- drift
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

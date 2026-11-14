@@ -1,0 +1,7 @@
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+# Words and contracts are fetched at the pin, never committed.
+shared/
