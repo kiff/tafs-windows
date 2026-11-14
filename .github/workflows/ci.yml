@@ -126,6 +126,23 @@ jobs:
           path: screenshots/
           if-no-files-found: ignore
 
+  # The TPM key's tests need Windows: they're skipped on Linux. Here they run, or say why they can't
+  # (a runner with no TPM), whenever pairing or approvals change.
+  windows-keys:
+    needs: plan
+    if: contains(needs.plan.outputs.parts, '"pairing"') || contains(needs.plan.outputs.parts, '"approvals"') || contains(needs.plan.outputs.parts, '"all"')
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup
+      - name: Words and contracts at the pin
+        run: dotnet run --project tools/Tafs.Ci -- sync
+      - name: The TPM key, on Windows
+        run: dotnet test tests/Tafs.Core.Tests -c Release --filter "FullyQualifiedName~TpmKey" --logger "console;verbosity=normal"
+
   # Fails when the pin is more than 7 days or 20 commits behind the shared repository's main.
   pin-drift:
     runs-on: ubuntu-latest
