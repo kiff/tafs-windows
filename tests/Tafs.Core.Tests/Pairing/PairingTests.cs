@@ -86,6 +86,30 @@ public class PairingTests
     }
 
     [Fact]
+    public void The_check_code_matches_the_vector_every_app_and_KIFF_pin()
+    {
+        // The P-256 public keys of private keys 1 and 2, SPKI DER: the same pair the phones and KIFF test.
+        var one = Convert.FromHexString("3059301306072a8648ce3d020106082a8648ce3d030107034200046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5");
+        var two = Convert.FromHexString("3059301306072a8648ce3d020106082a8648ce3d030107034200047cf27b188d034f7e8a52380304b51ac3c08969e277f21b35a60b48fc4766997807775510db8ed040293d9ac69f7430dbba7dade63ce982299e04b79d227873d1");
+        Assert.Equal("H6SJNU", PairingOffer.Create(one, two, "tafs", Now, Nonce).CheckCode());
+        Assert.Equal("LTJFF6", PairingOffer.Create(one, null, "tafs", Now, Nonce).CheckCode());
+    }
+
+    [Fact]
+    public void A_device_key_in_software_says_so_and_pairs_only_as_passkey()
+    {
+        using var device = new TestSigner();
+        var offer = PairingOffer.Create(device.PublicKeyDer, null, "tafs", Now, Nonce, deviceKeyInSoftware: true);
+        using var qr = JsonDocument.Parse(offer.ToQrJson());
+        Assert.Equal("passkey", qr.RootElement.GetProperty("kind").GetString());
+        Assert.Equal("software", qr.RootElement.GetProperty("key_store").GetString());
+
+        using var hello = new TestSigner();
+        Assert.Throws<ArgumentException>(() =>
+            PairingOffer.Create(device.PublicKeyDer, hello.PublicKeyDer, "tafs", Now, Nonce, deviceKeyInSoftware: true));
+    }
+
+    [Fact]
     public void The_claim_proof_message_is_nonce_then_the_key_s_hash() =>
         Assert.Equal("7b29a32f4e0f67a7b21405099d7a1e47da6533233d4855b1717504341cff812c",
             KiffSigning.Sha256Hex(PairingClaim.ProofMessage("n0nce-example", ExampleKey)));
