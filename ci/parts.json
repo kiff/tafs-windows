@@ -1,0 +1,23 @@
+{
+  "always": ["strings", "contracts"],
+  "all_on": [
+    "Directory.Build.props",
+    "global.json",
+    "*.sln",
+    ".github/**",
+    "**/*.csproj"
+  ],
+  "code_roots": ["src/", "tests/", "tools/"],
+  "parts": {
+    "pairing": ["src/*/Pairing/**", "tests/*/Pairing/**"],
+    "approvals": ["src/*/Approvals/**", "tests/*/Approvals/**"],
+    "coach": ["src/*/Coach/**", "tests/*/Coach/**"],
+    "record": ["src/*/Record/**", "tests/*/Record/**"],
+    "connections": ["src/*/Connections/**", "tests/*/Connections/**"],
+    "calendar": ["src/*/Calendar/**", "tests/*/Calendar/**"],
+    "account": ["src/*/Account/**", "tests/*/Account/**"],
+    "strings": ["src/*/Words/**", "tests/*/Strings/**"],
+    "contracts": ["src/*/Contracts/**", "tests/*/Contracts/**"],
+    "ci": ["src/*/Ci/**", "tests/*/Ci/**", "tools/**", "ci/**"]
+  }
+}
