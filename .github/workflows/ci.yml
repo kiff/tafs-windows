@@ -1,5 +1,7 @@
 name: CI
 
+# Tests are grouped by part. A change runs only the parts it touches, plus strings and contracts.
+# The full suite runs nightly. One part can be run alone: Actions > CI > Run workflow > part.
 on:
   pull_request:
   push:
@@ -7,6 +9,11 @@ on:
   schedule:
     - cron: "17 2 * * *"
   workflow_dispatch:
+    inputs:
+      part:
+        description: "A part to run alone (for example approvals), or all. Empty: the parts this branch changes."
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -20,20 +27,58 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: "1"
 
 jobs:
-  test:
+  plan:
     runs-on: ubuntu-latest
+    outputs:
+      parts: ${{ steps.parts.outputs.parts }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup
-      - name: Words and contracts at the pin
-        run: dotnet run --project tools/Tafs.Ci -- sync
-      - run: dotnet test
+      - run: dotnet build tools/Tafs.Ci -c Release -v q
+      - id: parts
+        env:
+          INPUT_PART: ${{ inputs.part }}
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          ci="dotnet tools/Tafs.Ci/bin/Release/net8.0/Tafs.Ci.dll"
+          if [ -n "$INPUT_PART" ] && [ "$INPUT_PART" != "all" ]; then
+            parts="[\"$INPUT_PART\"]"
+          elif [ "$INPUT_PART" = "all" ] || [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            parts=$($ci parts --all)
+          elif [ -z "$BASE_REF" ] || [ "$BASE_REF" = "0000000000000000000000000000000000000000" ]; then
+            parts=$($ci parts --all)
+          else
+            parts=$($ci parts --base "$BASE_REF")
+          fi
+          echo "parts=$parts" >> "$GITHUB_OUTPUT"
+          echo "Parts to run: $parts"
       - if: github.ref == 'refs/heads/main'
         uses: actions/cache/save@v4
         continue-on-error: true
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+
+  test:
+    needs: plan
+    if: needs.plan.outputs.parts != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ${{ fromJSON(needs.plan.outputs.parts) }}
+    name: test (${{ matrix.part }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Words and contracts at the pin
+        run: dotnet run --project tools/Tafs.Ci -- sync
+      - name: Tests, part ${{ matrix.part }}
+        run: dotnet run --project tools/Tafs.Ci -- test "$PART"
+        env:
+          PART: ${{ matrix.part }}
 
   # Fails when the pin is more than 7 days or 20 commits behind the shared repository's main.
   pin-drift:

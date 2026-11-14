@@ -2,6 +2,7 @@ using Tafs.Core.Ci;
 
 namespace Tafs.Core.Tests.Ci;
 
+[Part("ci")]
 public class SharedPinTests
 {
     const string Sha = "0472dec59d4fee8d05a563ebcc9ce821dccc2255";

@@ -4,26 +4,62 @@ using System.Text.Json;
 using Tafs.Core.Ci;
 
 // Small CI helper, run the same way on a laptop and on a runner:
-//   Tafs.Ci sync    fetch words and contracts at the pin into shared/
-//   Tafs.Ci drift   fail when the pin is more than 7 days or 20 commits behind main
+//   Tafs.Ci parts [--base <ref> | --all]   which test parts a change touches (JSON array)
+//   Tafs.Ci test <part|all> [<part>...]    run the tests of one or more parts
+//   Tafs.Ci sync                           fetch words and contracts at the pin into shared/
+//   Tafs.Ci drift                          fail when the pin is more than 7 days or 20 commits behind main
 var root = FindRoot();
+var config = PartsConfig.Parse(File.ReadAllText(Path.Combine(root, "ci", "parts.json")));
 var pin = SharedPin.Parse(File.ReadAllText(Path.Combine(root, "shared-pin.json")));
 
 try
 {
-    switch (args.FirstOrDefault())
+    return args.FirstOrDefault() switch
     {
-        case "sync": return Sync();
-        case "drift": return await Drift();
-        default:
-            Console.Error.WriteLine("usage: Tafs.Ci sync | drift");
-            return 2;
-    }
+        "parts" => Parts(args.Skip(1).ToArray()),
+        "test" => Test(args.Skip(1).ToArray()),
+        "sync" => Sync(),
+        "drift" => await Drift(),
+        _ => Usage(),
+    };
 }
-catch (Exception e) when (e is InvalidOperationException or HttpRequestException)
+catch (Exception e) when (e is InvalidDataException or InvalidOperationException or HttpRequestException)
 {
     Console.Error.WriteLine(e.Message);
     return 1;
+}
+
+int Usage()
+{
+    Console.Error.WriteLine("usage: Tafs.Ci parts [--base <ref> | --all] | test <part|all>... | sync | drift");
+    Console.Error.WriteLine("parts: " + string.Join(", ", config.Parts.Keys));
+    return 2;
+}
+
+int Parts(string[] a)
+{
+    IReadOnlyList<string> parts;
+    if (a.Contains("--all")) parts = PartSelector.All(config);
+    else
+    {
+        var i = Array.IndexOf(a, "--base");
+        var baseRef = i >= 0 && i + 1 < a.Length ? a[i + 1] : "origin/main";
+        parts = PartSelector.Select(config, Run("git", $"diff --name-only {baseRef}...HEAD", capture: true).Split('\n'));
+    }
+    Console.WriteLine(JsonSerializer.Serialize(parts));
+    return 0;
+}
+
+int Test(string[] a)
+{
+    var wanted = a.Contains("all") ? PartSelector.All(config) : a;
+    if (wanted.Count == 0) return Usage();
+    var unknown = wanted.Where(p => !config.Parts.ContainsKey(p)).ToList();
+    if (unknown.Count > 0) throw new InvalidOperationException("unknown part: " + string.Join(", ", unknown));
+
+    var filter = string.Join("|", wanted.Select(p => $"Part={p}"));
+    Run("dotnet", $"test \"{Path.Combine(root, "tests", "Tafs.Core.Tests")}\" --filter \"{filter}\" --nologo");
+    return 0;
 }
 
 int Sync()
@@ -85,12 +121,14 @@ async Task<int> Drift()
     return result.Ok ? 0 : 1;
 }
 
-static void Run(string file, string arguments)
+static string Run(string file, string arguments, bool capture = false)
 {
-    using var p = Process.Start(new ProcessStartInfo(file, arguments) { UseShellExecute = false })
-        ?? throw new InvalidOperationException($"could not start {file}");
+    var psi = new ProcessStartInfo(file, arguments) { RedirectStandardOutput = capture, UseShellExecute = false };
+    using var p = Process.Start(psi) ?? throw new InvalidOperationException($"could not start {file}");
+    var output = capture ? p.StandardOutput.ReadToEnd() : "";
     p.WaitForExit();
     if (p.ExitCode != 0) throw new InvalidOperationException($"{file} {arguments} failed ({p.ExitCode})");
+    return output;
 }
 
 static void Copy(string from, string to)

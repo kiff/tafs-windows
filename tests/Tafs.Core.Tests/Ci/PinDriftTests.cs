@@ -2,6 +2,7 @@ using Tafs.Core.Ci;
 
 namespace Tafs.Core.Tests.Ci;
 
+[Part("ci")]
 public class PinDriftTests
 {
     static readonly DateTimeOffset Head = new(2026, 11, 14, 18, 0, 0, TimeSpan.Zero);
