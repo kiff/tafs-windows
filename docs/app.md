@@ -13,17 +13,17 @@ The build refuses to start without the words: they're copied from `shared/` (the
 
 ## The shell
 
-One sidebar for the whole app, as on the iPad:
-- the brand;
-- Overview, Needs you, Record, Calendar, Plan & usage, Connect apps;
+One sidebar for the whole app, as on the iPad ([the sidebar and the Overview](home.md)):
+- the mascot and "tafs", which open the Overview;
+- Needs you, Record, Calendar, Plan & usage, Connect apps;
 - Your tafs;
 - Coach and Account at the foot.
 
-The chosen screen opens beside it. The colours are the iPad's `Theme.swift`, light and dark (`Theme.xaml`), and they follow Windows' setting. The selection marker is tafs amber.
+The chosen screen opens beside it. The colours are the iPad's `Theme.swift`, light and dark (`Theme.xaml`), and they follow Windows' setting. The chosen row is a rounded fill, as on the iPad.
 
 Built so far:
 - [Sign in with KIFF](sign-in.md);
-- the Overview's empty state;
+- the sidebar and the Overview's empty state, as on the iPad ([home](home.md));
 - Add this Windows PC, with its view-only notice ([pairing](pairing.md)).
 
 Signing in is the only screen that reaches KIFF so far. Other screens show only their title until they're built, in the order of the desktop spec. 

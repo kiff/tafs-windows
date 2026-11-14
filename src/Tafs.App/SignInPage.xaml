@@ -7,7 +7,7 @@
   <ScrollViewer>
     <StackPanel Margin="40,48,40,32" MaxWidth="560" HorizontalAlignment="Left" Spacing="16">
       <StackPanel Orientation="Horizontal" Spacing="12">
-        <Ellipse Width="40" Height="40" Fill="{StaticResource TafsBrand}" />
+        <Image Source="ms-appx:///Assets/mascot.png" Width="40" Height="40" />
         <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" VerticalAlignment="Center" Foreground="{ThemeResource TafsInk}" />
       </StackPanel>
 

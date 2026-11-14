@@ -1,5 +1,5 @@
-<!-- One sidebar for the whole app, as on the iPad: the brand on top, the app's screens, the tafs,
-     and Coach and Account at the foot. The chosen screen opens beside it. -->
+<!-- One sidebar for the whole app, as on the iPad (HomeSplitView): the mascot and "tafs" on top, which open
+     the Overview; the app's screens; Your tafs; Coach and Account at the foot. The chosen screen opens beside it. -->
 <Window x:Class="Tafs.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
@@ -9,43 +9,60 @@
                     IsBackButtonVisible="Collapsed"
                     IsSettingsVisible="False"
                     IsPaneToggleButtonVisible="False"
-                    OpenPaneLength="280"
+                    OpenPaneLength="300"
                     SelectionChanged="OnSelectionChanged">
       <NavigationView.Resources>
-        <!-- The pane's colours are in Theme.xaml's theme dictionaries, so they follow light and dark. -->
-        <StaticResource x:Key="NavigationViewSelectionIndicatorForeground" ResourceKey="TafsAmber" />
+        <!-- The chosen row is a rounded fill (Theme.xaml), as on the iPad: no side marker. -->
+        <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="Transparent" />
+        <!-- The pane beside the screen, flush, as the iPad's sidebar: no rounded corner or line around the screen. -->
+        <SolidColorBrush x:Key="NavigationViewContentGridBorderBrush" Color="Transparent" />
+        <CornerRadius x:Key="NavigationViewContentGridCornerRadius">0</CornerRadius>
       </NavigationView.Resources>
 
-      <NavigationView.PaneHeader>
-        <StackPanel Orientation="Horizontal" Spacing="10" Margin="16,12,0,8">
-          <Ellipse Width="30" Height="30" Fill="{StaticResource TafsBrand}" />
-          <TextBlock x:Name="Brand" FontSize="22" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" VerticalAlignment="Center" />
-        </StackPanel>
-      </NavigationView.PaneHeader>
-
       <NavigationView.MenuItems>
-        <NavigationViewItem x:Name="OverviewItem" Tag="overview" Icon="ViewAll" />
-        <NavigationViewItem x:Name="NeedsYouItem" Tag="needs_you">
-          <NavigationViewItem.Icon><FontIcon Glyph="&#xEA8F;" /></NavigationViewItem.Icon>
+        <!-- The mascot and "tafs": the way to the Overview, so there's no Overview item beside it. -->
+        <NavigationViewItem x:Name="BrandItem" Style="{StaticResource TafsSidebarItem}" MinHeight="52" Margin="0,8,0,4">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Image Source="ms-appx:///Assets/mascot.png" Width="34" Height="34" />
+            <TextBlock x:Name="Brand" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" Foreground="{ThemeResource TafsInk}" />
+          </StackPanel>
         </NavigationViewItem>
-        <NavigationViewItem x:Name="RecordItem" Tag="record" Icon="List" />
-        <NavigationViewItem x:Name="CalendarItem" Tag="calendar" Icon="Calendar" />
-        <NavigationViewItem x:Name="UsageItem" Tag="usage">
-          <NavigationViewItem.Icon><FontIcon Glyph="&#xE9D2;" /></NavigationViewItem.Icon>
-        </NavigationViewItem>
-        <NavigationViewItem x:Name="ConnectItem" Tag="connect">
-          <NavigationViewItem.Icon><FontIcon Glyph="&#xE71B;" /></NavigationViewItem.Icon>
-        </NavigationViewItem>
-        <NavigationViewItemHeader x:Name="YourTafsHeader" />
-        <NavigationViewItem x:Name="NoTafsItem" SelectsOnInvoked="False" IsEnabled="False" />
+        <!-- The app's screens go here (Sidebar.Screens), then Your tafs. -->
+        <NavigationViewItemHeader x:Name="YourTafs" Style="{StaticResource TafsSidebarHeader}" />
+        <NavigationViewItemHeader x:Name="NoTafs" Style="{StaticResource TafsSidebarLine}" />
       </NavigationView.MenuItems>
 
-      <NavigationView.FooterMenuItems>
-        <NavigationViewItem x:Name="CoachItem" Tag="coach" Foreground="{ThemeResource TafsCoach}">
-          <NavigationViewItem.Icon><FontIcon Glyph="&#xE734;" /></NavigationViewItem.Icon>
-        </NavigationViewItem>
-        <NavigationViewItem x:Name="AccountItem" Tag="account" Icon="Contact" />
-      </NavigationView.FooterMenuItems>
+      <!-- Coach, then the account just under it: always in sight, never behind a menu. -->
+      <NavigationView.PaneFooter>
+        <StackPanel Spacing="8" Padding="16,12,16,16">
+          <Button x:Name="CoachButton" Click="OnCoach" HorizontalAlignment="Stretch" MinHeight="44" CornerRadius="14"
+                  BorderThickness="0" Background="{ThemeResource TafsInk}" Foreground="{ThemeResource TafsOnFill}">
+            <Button.Resources>
+              <StaticResource x:Key="ButtonBackgroundPointerOver" ResourceKey="TafsInk" />
+              <StaticResource x:Key="ButtonBackgroundPressed" ResourceKey="TafsSoft" />
+              <StaticResource x:Key="ButtonForegroundPointerOver" ResourceKey="TafsOnFill" />
+              <StaticResource x:Key="ButtonForegroundPressed" ResourceKey="TafsOnFill" />
+            </Button.Resources>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <FontIcon Glyph="&#xE734;" FontSize="16" />
+              <TextBlock x:Name="CoachText" FontSize="15" FontWeight="SemiBold" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="AccountButton" Click="OnAccount" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                  MinHeight="44" Padding="4,0" BorderThickness="0" Background="Transparent">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Grid>
+                <FontIcon x:Name="AccountIcon" Glyph="&#xE77B;" FontSize="20" Foreground="{ThemeResource TafsSoft}" />
+                <FontIcon x:Name="AccountIconChosen" Glyph="&#xE77B;" FontSize="20" Foreground="{ThemeResource TafsAmberText}" Visibility="Collapsed" />
+              </Grid>
+              <StackPanel Spacing="1" VerticalAlignment="Center">
+                <TextBlock x:Name="AccountTitle" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource TafsInk}" />
+                <TextBlock x:Name="AccountName" FontSize="12" Foreground="{ThemeResource TafsDim}" Visibility="Collapsed" />
+              </StackPanel>
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </NavigationView.PaneFooter>
 
       <Grid>
         <Grid.RowDefinitions>
@@ -53,7 +70,7 @@
           <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <!-- A session with no approval key yet (§4.3): it reads everything and approves nothing. -->
-        <InfoBar x:Name="ViewOnly" Severity="Informational" IsClosable="False" Margin="40,20,40,0"
+        <InfoBar x:Name="ViewOnly" Severity="Informational" IsClosable="False" Margin="24,20,24,0"
                  Background="{ThemeResource TafsRaised}" Foreground="{ThemeResource TafsInk}">
           <InfoBar.IconSource><FontIconSource Glyph="&#xE7B3;" Foreground="{StaticResource TafsAmber}" /></InfoBar.IconSource>
           <InfoBar.ActionButton>

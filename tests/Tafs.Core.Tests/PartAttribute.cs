@@ -4,7 +4,7 @@ using Xunit.Sdk;
 namespace Tafs.Core.Tests;
 
 /// <summary>
-/// Puts a test in a CI part (pairing, approvals, coach, record, connections, calendar, account,
+/// Puts a test in a CI part (pairing, approvals, home, coach, record, connections, calendar, account,
 /// strings, contracts, ci). A part runs alone with: dotnet run --project tools/Tafs.Ci -- test approvals
 /// </summary>
 [TraitDiscoverer("Tafs.Core.Tests.PartDiscoverer", "Tafs.Core.Tests")]
