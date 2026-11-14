@@ -7,11 +7,12 @@ namespace Tafs.Core.Approvals;
 
 /// <summary>
 /// Windows Hello as a platform passkey for kiff.dev: an ES256 key in the TPM that Windows itself asks
-/// the person for on every assertion. Off until KIFF registers a computer's own passkey at pairing.
+/// the person for on every assertion. On since KIFF accepts it: a Windows start says "approval": "passkey",
+/// is refused with neither key nor flag, and a passkey session approves only with KIFF-Passkey-Assertion.
 /// </summary>
 public static class Features
 {
-    public static readonly bool WindowsPasskeyApprovals = false;
+    public static readonly bool WindowsPasskeyApprovals = true;
 }
 
 /// <summary>authenticatorData's fixed head: rpIdHash (32), flags (1), signCount (4).</summary>

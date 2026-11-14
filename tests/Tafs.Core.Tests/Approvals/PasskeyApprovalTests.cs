@@ -99,9 +99,12 @@ public class PasskeyApprovalTests
     }
 
     [Fact]
-    public async Task It_is_off_until_KIFF_registers_a_computer_s_own_passkey()
+    public void It_is_on_now_that_KIFF_accepts_a_computer_s_own_passkey() =>
+        Assert.True(Features.WindowsPasskeyApprovals);
+
+    [Fact]
+    public async Task Switched_off_Windows_Hello_is_never_asked()
     {
-        Assert.False(Features.WindowsPasskeyApprovals);
         using var key = new TestSigner();
         var auth = new FakeAuthenticator(key, UP | UV);
         await Assert.ThrowsAsync<PasskeyRefusedException>(() => Approve(auth, enabled: false));
