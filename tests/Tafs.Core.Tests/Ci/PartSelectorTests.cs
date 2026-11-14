@@ -14,7 +14,11 @@ public class PartSelectorTests
     public void The_nine_parts_of_the_spec_exist() =>
         Assert.Equal(
             new[] { "pairing", "approvals", "coach", "record", "connections", "calendar", "account", "strings", "contracts" }.Order(),
-            Config.Parts.Keys.Where(k => k != "ci").Order());
+            Config.Parts.Keys.Where(k => k is not ("ci" or "app")).Order());
+
+    [Fact]
+    public void A_change_to_the_app_builds_it_on_Windows_and_runs_no_core_part_but_the_always_ones() =>
+        Assert.Equal(new[] { "strings", "contracts", "app" }.Order(), Select("src/Tafs.App/MainWindow.xaml").Order());
 
     [Fact]
     public void Strings_and_contracts_always_run() =>
@@ -29,7 +33,8 @@ public class PartSelectorTests
 
     [Fact]
     public void Two_parts_touched_run_both() =>
-        Assert.Equal(new[] { "pairing", "record", "strings", "contracts" }.Order(),
+        // A pairing screen in the app: its part, and the app's Windows build.
+        Assert.Equal(new[] { "pairing", "record", "strings", "contracts", "app" }.Order(),
             Select("src/Tafs.App/Pairing/QrView.xaml", "src/Tafs.Core/Record/Taf.cs").Order());
 
     [Theory]

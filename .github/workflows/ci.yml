@@ -69,6 +69,8 @@ jobs:
       fail-fast: false
       matrix:
         part: ${{ fromJSON(needs.plan.outputs.parts) }}
+        exclude:
+          - part: app # built on Windows by the app job
     name: test (${{ matrix.part }})
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -79,6 +81,36 @@ jobs:
         run: dotnet run --project tools/Tafs.Ci -- test "$PART"
         env:
           PART: ${{ matrix.part }}
+
+  # The WinUI app, on Windows, only when it changed (or nightly): it builds, then saves the main
+  # screens in en, fr and pt, light and dark, at a laptop's size, for the PR.
+  app:
+    needs: plan
+    if: contains(needs.plan.outputs.parts, '"app"') || contains(needs.plan.outputs.parts, '"all"')
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup
+      - name: Words and contracts at the pin
+        run: dotnet run --project tools/Tafs.Ci -- sync
+      - name: Build
+        run: dotnet build src/Tafs.App -c Release -p:Platform=x64
+      - name: Screenshots
+        continue-on-error: true
+        run: |
+          exe=src/Tafs.App/bin/x64/Release/net8.0-windows10.0.19041.0/Tafs.App.exe
+          mkdir -p screenshots
+          for lang in en fr pt; do for theme in light dark; do
+            timeout 120 "$exe" --lang "$lang" --theme "$theme" --screenshot "screenshots/overview-$lang-$theme.png"
+          done; done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: screenshots
+          path: screenshots/
+          if-no-files-found: ignore
 
   # Fails when the pin is more than 7 days or 20 commits behind the shared repository's main.
   pin-drift:

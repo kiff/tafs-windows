@@ -1,0 +1,7 @@
+<!-- A screen still to come in this app: its title, so the sidebar can be walked end to end. -->
+<Page x:Class="Tafs.App.ComingPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{ThemeResource TafsBackground}">
+  <TextBlock x:Name="Heading" Margin="40,32" FontSize="28" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
+</Page>

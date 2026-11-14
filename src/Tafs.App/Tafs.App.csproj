@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>Tafs.App</RootNamespace>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <!-- Unpackaged until the signing certificate is decided: team builds only. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!-- Brings the resource (PRI) build tasks, so plain `dotnet build` works with no Visual Studio. -->
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <AssemblyTitle>tafs</AssemblyTitle>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.240923002" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Tafs.Core\Tafs.Core.csproj" />
+  </ItemGroup>
+  <!-- The words, at the pin, beside the app: never copied into the repository. -->
+  <ItemGroup>
+    <Content Include="..\..\shared\app\strings\**\*.json" Link="Strings\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="NeedsTheWords" BeforeTargets="Build" Condition="!Exists('..\..\shared\app\strings\languages.json')">
+    <Error Text="The words aren't here. Run: dotnet run --project tools/Tafs.Ci -- sync" />
+  </Target>
+</Project>
