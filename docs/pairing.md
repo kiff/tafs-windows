@@ -26,9 +26,11 @@ this against KIFF's worked example (§2.4), down to verifying its signature.
 1. **The offer.** `PairingOffer.Create` takes the two public keys, the name ("tafs on this
    Windows PC", in the person's language) and makes the QR's `kiff.pair.v1` JSON: base64url without
    padding, a 32-byte random nonce, `exp` 4.5 minutes ahead (KIFF allows 5). `kind` is `hello`
-   with an approval key and `passkey` without one. No `key_store`: a TPM key is hardware.
+   with an approval key and `passkey` without one. A device key in the TPM sends no `key_store`; a
+   PC with no TPM sends `"key_store": "software"` (passkey only), and KIFF never lets that key approve.
 2. **The check code.** Both screens show `CheckCode()`, the first 6 characters of
-   base32(sha256(device key ‖ approval key)). The phone asks whether the computer shows it, so a
+   base32(sha256(device key ‖ approval key)). It's tested on the vector the phones and KIFF pin
+   (the public keys of private keys 1 and 2: `H6SJNU`; the first alone: `LTJFF6`). The phone asks whether the computer shows it, so a
    page showing its own QR can't get the phone to add someone else's key.
 3. **The phone approves** with its approval key and the person's fingerprint (`POST /v1/me/pairings`,
    the phone's side).

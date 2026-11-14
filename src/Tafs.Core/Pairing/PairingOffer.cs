@@ -22,12 +22,13 @@ public sealed class PairingOffer
     /// <summary>KIFF accepts up to 5 minutes; a little less leaves room for the clocks to differ.</summary>
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(4.5);
 
-    PairingOffer(byte[] pub, byte[]? approvalPub, string name, ApprovalKind kind, string nonce, DateTimeOffset expires)
+    PairingOffer(byte[] pub, byte[]? approvalPub, string name, ApprovalKind kind, bool keyInSoftware, string nonce, DateTimeOffset expires)
     {
         PublicKeyDer = pub;
         ApprovalPublicKeyDer = approvalPub;
         Name = name;
         Kind = kind;
+        DeviceKeyInSoftware = keyInSoftware;
         Nonce = nonce;
         Expires = expires;
     }
@@ -36,6 +37,12 @@ public sealed class PairingOffer
     public byte[]? ApprovalPublicKeyDer { get; }
     public string Name { get; }
     public ApprovalKind Kind { get; }
+
+    /// <summary>
+    /// The device key isn't in the TPM (a PC without one). The QR then says key_store "software", and
+    /// KIFF never lets that key approve: every approval goes through the phone or a passkey.
+    /// </summary>
+    public bool DeviceKeyInSoftware { get; }
     public string Nonce { get; }
     public DateTimeOffset Expires { get; }
 
@@ -44,8 +51,12 @@ public sealed class PairingOffer
     /// <param name="devicePub">The device key's SPKI DER (signs with no prompt).</param>
     /// <param name="approvalPub">The Hello key's SPKI DER, or null for <see cref="ApprovalKind.Passkey"/>.</param>
     /// <param name="name">"tafs on this Windows PC", in the person's language: 1 to 64 characters, no control characters.</param>
-    public static PairingOffer Create(byte[] devicePub, byte[]? approvalPub, string name, DateTimeOffset now, byte[]? nonce = null)
+    /// <param name="deviceKeyInSoftware">True when the device key isn't in the TPM: only with no approval key.</param>
+    public static PairingOffer Create(
+        byte[] devicePub, byte[]? approvalPub, string name, DateTimeOffset now, byte[]? nonce = null, bool deviceKeyInSoftware = false)
     {
+        if (deviceKeyInSoftware && approvalPub is not null)
+            throw new ArgumentException("a software device key pairs as passkey, with no approval key", nameof(approvalPub));
         if (!KiffSigning.IsP256Spki(devicePub))
             throw new ArgumentException("the device key must be a P-256 SPKI", nameof(devicePub));
         if (approvalPub is not null && !KiffSigning.IsP256Spki(approvalPub))
@@ -59,7 +70,7 @@ public sealed class PairingOffer
         if (nonce.Length != 32) throw new ArgumentException("the nonce is 32 random bytes", nameof(nonce));
 
         var kind = approvalPub is null ? ApprovalKind.Passkey : ApprovalKind.Hello;
-        return new PairingOffer(devicePub, approvalPub, name, kind, KiffSigning.Base64Url(nonce), now + Lifetime);
+        return new PairingOffer(devicePub, approvalPub, name, kind, deviceKeyInSoftware, KiffSigning.Base64Url(nonce), now + Lifetime);
     }
 
     /// <summary>The QR's text: kiff.pair.v1, keys in base64url without padding.</summary>
@@ -75,6 +86,7 @@ public sealed class PairingOffer
             w.WriteString("name", Name);
             w.WriteString("platform", "windows");
             w.WriteString("kind", Kind == ApprovalKind.Hello ? "hello" : "passkey");
+            if (DeviceKeyInSoftware) w.WriteString("key_store", "software");
             w.WriteString("nonce", Nonce);
             w.WriteString("exp", KiffSigning.Time(Expires));
             w.WriteEndObject();
