@@ -9,8 +9,11 @@ Why not a TPM key behind a prompt the app shows: the prompt would be the app's, 
 running as the person could sign with the key without it. Windows Hello's own key store is RSA only,
 and KIFF takes P-256 only.
 
-**Off for now** (`Features.WindowsPasskeyApprovals`), until KIFF registers a computer's own passkey
-when the computer is paired. Until then every approval goes to the phone.
+**On** (`Features.WindowsPasskeyApprovals`) since KIFF accepts a computer's own passkey:
+- a Windows sign-in asks for a passkey-only session (`"approval": "passkey"`), and KIFF refuses a Windows start with neither approval key nor that flag;
+- a passkey session approves only with `KIFF-Passkey-Assertion`.
+
+Until the Windows WebAuthn calls are built, this PC has no passkey to assert with, so its approvals go to the phone. Switched off, `PasskeyApprover` refuses before Windows Hello is asked.
 
 ## An approval (`PasskeyApprover`)
 
