@@ -15,6 +15,13 @@
       <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="#F3ECDF" />
       <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#F3ECDF" />
       <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#FBF7EE" />
+      <!-- The main button is tafs amber with ink text, not Windows' accent colour. -->
+      <SolidColorBrush x:Key="AccentButtonBackground" Color="#FF8A1F" />
+      <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#FF9B40" />
+      <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#E87A12" />
+      <SolidColorBrush x:Key="AccentButtonForeground" Color="#1B1726" />
+      <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#1B1726" />
+      <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#1B1726" />
     </ResourceDictionary>
     <ResourceDictionary x:Key="Dark">
       <SolidColorBrush x:Key="TafsBackground" Color="#141311" />
@@ -29,6 +36,13 @@
       <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="#2A2824" />
       <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#2A2824" />
       <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#141311" />
+      <!-- The main button is tafs amber with ink text, not Windows' accent colour. -->
+      <SolidColorBrush x:Key="AccentButtonBackground" Color="#FF8A1F" />
+      <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#FF9B40" />
+      <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#E87A12" />
+      <SolidColorBrush x:Key="AccentButtonForeground" Color="#1B1726" />
+      <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#1B1726" />
+      <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#1B1726" />
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>
 

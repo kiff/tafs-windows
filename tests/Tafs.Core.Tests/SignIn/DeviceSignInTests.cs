@@ -10,8 +10,8 @@ public class DeviceSignInTests
     static readonly DateTimeOffset Now = new(2026, 11, 14, 22, 0, 0, TimeSpan.Zero);
 
     const string Start = """
-        {"device_code":"dc-secret","user_code":"ABCD-EFGH","verification_uri":"https://kiff.dev/device",
-         "verification_uri_complete":"https://kiff.dev/device?code=ABCD-EFGH","expires_in":600,"interval":5}
+        {"device_code":"dc-secret","user_code":"ABCD-EFGH","verification_uri":"https://app.kiff.dev/auth/device",
+         "verification_uri_complete":"https://app.kiff.dev/auth/device?code=ABCD-EFGH","expires_in":600,"interval":5}
         """;
 
     static SignInCode Code() => DeviceSignIn.ReadStart(200, Start, Now)!;
@@ -56,7 +56,7 @@ public class DeviceSignInTests
     {
         var code = Code();
         Assert.Equal("ABCD-EFGH", code.UserCode);
-        Assert.Equal("https://kiff.dev/device?code=ABCD-EFGH", code.VerificationUriComplete.AbsoluteUri);
+        Assert.Equal("https://app.kiff.dev/auth/device?code=ABCD-EFGH", code.VerificationUriComplete.AbsoluteUri);
         Assert.Equal(Now.AddMinutes(10), code.Expires);
         Assert.Equal(TimeSpan.FromSeconds(5), code.Interval);
         Assert.DoesNotContain("dc-secret", code.ToString());
@@ -66,8 +66,29 @@ public class DeviceSignInTests
     [InlineData("http://kiff.dev/device")]
     [InlineData("file:///C:/Windows/System32/calc.exe")]
     [InlineData("ms-settings:privacy")]
-    public void A_link_that_isn_t_https_is_never_opened(string link) =>
-        Assert.Null(DeviceSignIn.ReadStart(200, Start.Replace("https://kiff.dev/device?code=ABCD-EFGH", link), Now));
+    [InlineData("https://kiff.dev.example.com/device")]
+    [InlineData("https://example.com/device?code=ABCD-EFGH")]
+    [InlineData("https://evilkiff.dev/device")]
+    [InlineData("https://app.kiff.dev:8443/auth/device")]
+    [InlineData("https://someone@kiff.dev/device")]
+    public void A_link_that_isn_t_https_on_KIFF_s_host_is_never_opened(string link) =>
+        Assert.Null(DeviceSignIn.ReadStart(200, Start.Replace("https://app.kiff.dev/auth/device?code=ABCD-EFGH", link), Now));
+
+    [Theory]
+    [InlineData("https://app.kiff.dev/auth/device?code=9VB4-WFRW")] // KIFF's answer on 14 Nov 2026
+    [InlineData("https://api.kiff.dev/device")]
+    [InlineData("https://kiff.dev/device")]
+    [InlineData("https://KIFF.dev/device")]
+    public void KIFF_s_own_hosts_are_opened(string link) =>
+        Assert.True(DeviceSignIn.IsKiffLink(new Uri(link), DeviceSignIn.Api));
+
+    [Theory]
+    [InlineData(400, """{"error":"invalid_device_name"}""", "400 invalid_device_name")]
+    [InlineData(429, """{"error":"Too many: see <a href=x>"}""", "429")]
+    [InlineData(500, "not json", "500")]
+    [InlineData(400, "[1]", "400")]
+    public void A_refused_start_says_KIFF_s_status_and_code_only(int status, string body, string expected) =>
+        Assert.Equal(expected, DeviceSignIn.StartRefusal(status, body));
 
     [Theory]
     [InlineData(400, """{"error":"invalid_request"}""")]

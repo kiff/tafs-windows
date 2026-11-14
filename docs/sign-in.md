@@ -1,8 +1,7 @@
 # Signing this computer in
 
-The same device authorization flow the phones use (KIFF's desktop client contract, §1.1). This page
-covers the portable core in `Tafs.Core/SignIn`. The screen follows once the device key is in the TPM,
-because a start sends that key.
+The same device authorization flow the phones use (KIFF's desktop client contract, §1.1). The core is
+in `Tafs.Core/SignIn`, and the page is `SignInPage` in the app.
 
 ## The flow (`DeviceSignIn`)
 
@@ -15,7 +14,7 @@ because a start sends that key.
    the device key isn't in hardware. It checks the same rules as the pairing offer: P-256, two
    different keys, and a name of 1 to 64 characters.
 2. **The code.** `ReadStart` returns the user code, the link and when it expires:
-   - **The app opens only an `https` link.** Anything else in the answer (`http`, `file:`, another app's scheme) and the answer is refused.
+   - **The app opens only an `https` link on KIFF's own domain**: `kiff.dev`, or a host under it (the sign-in page is on `app.kiff.dev`), on the default port and with no user info. Anything else (`http`, `file:`, another app's scheme, `evilkiff.dev`) refuses the whole answer.
    - The device code is a secret until it's used, so it's never printed.
    - The interval is at least 5 s.
 3. **The browser.** The person opens the link, signs in to KIFF, checks the code and approves.
@@ -40,3 +39,16 @@ that can already approve.
 
 Every line comes from the pinned words, and is tested in every shipped language. The tests run with
 the `pairing` part.
+
+## The page (`SignInPage`)
+
+- **Start:**
+  - it opens the device key in the TPM ([keys](keys.md)), or makes it the first time;
+  - it asks for a passkey-only session, because on Windows the approval key is a Windows Hello passkey (`Features.WindowsPasskeyApprovals`). The button shows only with that flag on.
+- **A refused start** shows KIFF's status and error code only (`KIFF answered 400 invalid_device_name`), never free text from the answer.
+- **The code:** the browser opens on the link, the code is shown to check, and Open KIFF to approve opens it again.
+- **The terms line** links tafs's Terms and Privacy policy (`kiff.dev/tafs/terms`, `/tafs/privacy`), as on the iPad.
+- **Signed in:**
+  - the window opens the Overview with the view-only notice, because the PC can't approve until it's paired or has its own passkey;
+  - **the session is kept in memory only, for now:** storing it in Windows' credential store is the next step for this screen.
+- **Tests:** checks that create state never run against KIFF's production API. They run against a local or CI KIFF.

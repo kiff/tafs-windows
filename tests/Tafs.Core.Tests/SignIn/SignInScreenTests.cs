@@ -45,8 +45,9 @@ public class SignInScreenTests
         var lines = SignInScreen.Lines(En, SignInStep.CouldNotFinish, why: why);
         Assert.Equal("Couldn't finish: KIFF answered 403. Try again.", lines.Status);
         Assert.Equal("Sign in with KIFF", lines.Button);
-        Assert.Equal("Couldn't start: KIFF answered ?. Try again.",
-            SignInScreen.Lines(En, SignInStep.CouldNotStart, why: SignInScreen.WhyStart(En, 0)).Status);
+        Assert.Equal("Couldn't start: KIFF answered 400 invalid_device_name. Try again.",
+            SignInScreen.Lines(En, SignInStep.CouldNotStart,
+                why: SignInScreen.WhyStart(En, DeviceSignIn.StartRefusal(400, """{"error":"invalid_device_name"}"""))).Status);
     }
 
     [Theory]
@@ -59,6 +60,25 @@ public class SignInScreenTests
 
     [Fact]
     public void Signed_in_closes_the_screen() => Assert.Null(SignInScreen.After(SignInStatus.SignedIn));
+
+    [Fact]
+    public void The_agreement_links_the_terms_and_the_privacy_policy()
+    {
+        var parts = SignInScreen.Agreement(En);
+        Assert.Equal("By signing in, you agree to KIFF's Terms, which cover tafs, and its Privacy policy.",
+            string.Concat(parts.Select(p => p.Text)));
+        Assert.Equal(new[] { SignInScreen.Terms, SignInScreen.Privacy }, parts.Where(p => p.Link is not null).Select(p => p.Link));
+        Assert.Equal("Terms", parts.Single(p => p.Link == SignInScreen.Terms).Text);
+    }
+
+    [Theory]
+    [MemberData(nameof(Shipped))]
+    public void The_agreement_has_both_links_in_every_shipped_language(string language)
+    {
+        var parts = SignInScreen.Agreement(WordBook.Load(SharedFiles.Strings, language));
+        Assert.Equal(2, parts.Count(p => p.Link is not null));
+        Assert.DoesNotContain(parts, p => p.Text.Contains('{') || p.Text.Any(char.IsControl));
+    }
 
     [Theory]
     [MemberData(nameof(Shipped))]

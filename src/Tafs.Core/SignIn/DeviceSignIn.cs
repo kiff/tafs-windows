@@ -30,6 +30,9 @@ public sealed record SignInResult(SignInStatus Status, SignedInSession? Session 
 /// </summary>
 public static class DeviceSignIn
 {
+    /// <summary>KIFF's API (the contract's §1).</summary>
+    public static readonly Uri Api = new("https://api.kiff.dev");
+
     public const string StartPath = "/v1/auth/device/start";
     public const string TokenPath = "/v1/auth/device/token";
 
@@ -53,9 +56,9 @@ public static class DeviceSignIn
 
     /// <summary>
     /// Reads the start's answer. Null when it can't be used, including a verification link that isn't
-    /// https: the app opens it in the browser, so it never opens anything else.
+    /// https on KIFF's own host: the app opens it in the browser, so it never opens anything else.
     /// </summary>
-    public static SignInCode? ReadStart(int status, string body, DateTimeOffset now)
+    public static SignInCode? ReadStart(int status, string body, DateTimeOffset now, Uri? api = null)
     {
         if (status != 200) return null;
         try
@@ -64,7 +67,7 @@ public static class DeviceSignIn
             var r = doc.RootElement;
             var uri = new Uri(r.GetProperty("verification_uri").GetString()!);
             var complete = new Uri(r.GetProperty("verification_uri_complete").GetString()!);
-            if (uri.Scheme != Uri.UriSchemeHttps || complete.Scheme != Uri.UriSchemeHttps) return null;
+            if (!IsKiffLink(uri, api ?? Api) || !IsKiffLink(complete, api ?? Api)) return null;
             var interval = r.TryGetProperty("interval", out var i) ? TimeSpan.FromSeconds(i.GetInt32()) : TimeSpan.Zero;
             return new SignInCode(
                 r.GetProperty("device_code").GetString()!,
@@ -77,6 +80,37 @@ public static class DeviceSignIn
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// An https link on KIFF's own domain: the API's host without its first label (kiff.dev for
+    /// api.kiff.dev), or a host under it (KIFF's sign-in page is on app.kiff.dev). So a wrong base URL or a
+    /// tampered answer never opens a page somewhere else.
+    /// </summary>
+    public static bool IsKiffLink(Uri link, Uri api)
+    {
+        var dot = api.Host.IndexOf('.');
+        var domain = dot > 0 && api.Host.IndexOf('.', dot + 1) > 0 ? api.Host[(dot + 1)..] : api.Host;
+        return link.IsAbsoluteUri && link.Scheme == Uri.UriSchemeHttps && link.UserInfo.Length == 0 && link.IsDefaultPort
+            && (link.Host.Equals(domain, StringComparison.OrdinalIgnoreCase)
+                || link.Host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Why KIFF refused a start, as its status and error code only (invalid_device_name, say).</summary>
+    public static string StartRefusal(int status, string body)
+    {
+        string? error = null;
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("error", out var e)
+                && e.ValueKind == JsonValueKind.String)
+                error = e.GetString();
+        }
+        catch (JsonException) { }
+        // Only a short code of letters and underscores: never free text from the answer.
+        var code = error is { Length: > 0 and <= 40 } && error.All(c => c is (>= 'a' and <= 'z') or '_') ? " " + error : "";
+        return status.ToString(System.Globalization.CultureInfo.InvariantCulture) + code;
     }
 
     /// <summary>KIFF's default; slow_down adds this much too (RFC 8628).</summary>
