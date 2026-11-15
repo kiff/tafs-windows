@@ -141,8 +141,8 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Words and contracts at the pin
         run: dotnet run --project tools/Tafs.Ci -- sync
-      - name: The TPM key, on Windows
-        run: dotnet test tests/Tafs.Core.Tests -c Release --filter "FullyQualifiedName~TpmKey" --logger "console;verbosity=normal"
+      - name: The TPM key and Windows Hello's native calls, on Windows
+        run: dotnet test tests/Tafs.Core.Tests -c Release --filter "FullyQualifiedName~TpmKey|FullyQualifiedName~WindowsHello" --logger "console;verbosity=normal"
 
   # Fails when the pin is more than 7 days or 20 commits behind the shared repository's main.
   pin-drift:

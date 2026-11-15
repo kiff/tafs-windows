@@ -13,7 +13,9 @@ and KIFF takes P-256 only.
 - a Windows sign-in asks for a passkey-only session (`"approval": "passkey"`), and KIFF refuses a Windows start with neither approval key nor that flag;
 - a passkey session approves only with `KIFF-Passkey-Assertion`.
 
-Until the Windows WebAuthn calls are built, this PC has no passkey to assert with, so its approvals go to the phone. Switched off, `PasskeyApprover` refuses before Windows Hello is asked.
+The Windows WebAuthn calls are built (`WindowsHello`, below). Until the pairing screen makes this PC's
+passkey and puts it in the QR (its own change), this PC has no passkey to assert with, so its approvals
+go to the phone. Switched off, `PasskeyApprover` refuses before Windows Hello is asked.
 
 ## An approval (`PasskeyApprover`)
 
@@ -36,6 +38,42 @@ Until the Windows WebAuthn calls are built, this PC has no passkey to assert wit
 Reads a new passkey's authenticator data: the credential id and its ES256 COSE key, turned into the
 SPKI DER KIFF stores. It refuses any other algorithm or curve, a point off the curve, another relying
 party, and the flags above.
+
+## The Windows calls (`WindowsHello`)
+
+`webauthn.dll`, Windows' WebAuthn API. Windows draws its own prompt every time, and the private key never
+leaves the TPM.
+
+- **`IsAvailable()`:** the API is there and a platform authenticator that verifies the person. It never
+  shows anything.
+- **`CreateAsync(userId, userName, displayName)`:** makes this PC's passkey for kiff.dev.
+  - The options: ES256 (`-7`) only, on this PC's platform authenticator (no phone, no security key),
+    `userVerification` required, attestation `none`. The challenge is random, and nothing is kept: the
+    pairing's check code and the phone's approval are what bind the credential to this PC.
+  - The caller passes the user fields: the account's subject and email when it's signed in, otherwise
+    random bytes and this PC's name.
+  - The authenticator data goes through `PasskeyRegistration.Read`, so a passkey that could leave this
+    PC (BE or BS set), another relying party, or another algorithm is refused before it's offered.
+- **`GetAssertionAsync`** is `IPasskeyAuthenticator` for `PasskeyApprover`. It's one assertion with this
+  PC's credential only, user verification required, over exactly the `clientDataJSON` this app built
+  (`WEBAUTHN_CLIENT_DATA` with SHA-256). Windows hashes those bytes as they are, so the challenge, and the
+  request it approves, are this app's.
+- **Errors:**
+  - Closing Windows Hello (`ERROR_CANCELLED`, `NTE_USER_CANCELLED`) is a cancel.
+  - Anything else is refused with Windows' own name for the error.
+
+**What isn't decided:**
+- Whether KIFF's new registration proof (a create over KIFF's challenge, `kiff.passkey.register.v1`)
+  applies to the pairing's credential too. That's with the server side. Until then, the create's
+  challenge is random.
+- `residentKey: preferred` needs the options' version 4. Version 1 asks for a non-discoverable
+  credential, which "preferred" allows.
+
+**Tests:**
+- Each native structure is pinned at `webauthn.h`'s x64 offsets (`WindowsHelloLayoutTests`), on CI's
+  Windows job, beside the TPM key.
+- Windows Hello's prompt itself needs a person. It's checked by hand on a PC with Windows Hello: make a
+  passkey, then assert with it. It's never run on CI.
 
 ## What a Windows passkey never does
 
