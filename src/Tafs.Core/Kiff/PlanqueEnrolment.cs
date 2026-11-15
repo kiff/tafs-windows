@@ -80,8 +80,9 @@ public static class PlanqueEnrolment
 
     /// <summary>
     /// Sets planque up, as the iPad's <c>enrolPlanque</c>: asked first with no key, a 2xx with <c>kept: true</c> is done and
-    /// mints nothing. Only <c>needs_key</c> (409), or the 400 of a planque from before, mints one key and enrols with it;
-    /// anything else (not reached, a 5xx, a replayed signature, a changed enrolment) stops with why, and nothing is minted.
+    /// mints nothing. Only <c>needs_key</c> (409) mints one key and enrols with it; anything else (not reached, a 400, a 5xx,
+    /// a replayed signature, a changed enrolment) stops with why, and nothing is minted. A code-less 409 on the second
+    /// enrolment is another device's; one with a code says why.
     /// KIFF refusing the key (403) is for an admin only; planque refusing the enrolment (409) is another device's; anything
     /// else says why. <paramref name="postToPlanque"/> signs and sends a body; <paramref name="mintKey"/> sends KIFF's signed
     /// mint. Each answers status and body, and throws <see cref="HttpRequestException"/> when not reached.
@@ -112,7 +113,8 @@ public static class PlanqueEnrolment
         {
             var (status, body) = await postToPlanque(Body(deviceKeyDer, key));
             if (status is >= 200 and <= 299) return new(EnrolOutcome.Enrolled);
-            if (status == 409) return new(EnrolOutcome.OtherDevice, w.Get("coach.connect_other_device"));
+            // Another device's enrolment only when planque says nothing more: a 409 with a code is that code's, and says why.
+            if (status == 409 && Code(body) is null) return new(EnrolOutcome.OtherDevice, w.Get("coach.connect_other_device"));
             return NotSetUp(w, CloudRead.Refused(w, status, body).Why);
         }
         catch (HttpRequestException) { return NotSetUp(w, CloudRead.Unreached(w).Why); }
@@ -121,19 +123,20 @@ public static class PlanqueEnrolment
     static EnrolResult NotSetUp(WordBook w, string? why) => new(EnrolOutcome.NotSetUp, w.Get("coach.connecting_not_set_up", ("why", why ?? "")));
 
     /// <summary>
-    /// planque needs a key: <c>409</c> with <c>needs_key</c>, or the <c>400</c> of a planque from before, which takes no
-    /// keyless enrolment. Nothing else: not a 5xx, a replayed signature or a changed enrolment.
+    /// planque needs a key: <c>409</c> with <c>needs_key</c>, and nothing else, not a 400, a 5xx, a replayed signature or a
+    /// changed enrolment.
     /// </summary>
-    static bool NeedsKey(int status, string body)
+    static bool NeedsKey(int status, string body) => status == 409 && Code(body) == "needs_key";
+
+    /// <summary>planque's <c>code</c> for a refusal, if it gave one.</summary>
+    static string? Code(string body)
     {
-        if (status == 400) return true;
-        if (status != 409) return false;
         try
         {
             using var doc = JsonDocument.Parse(body);
-            return Lenient.Text(doc.RootElement, "code") == "needs_key";
+            return Lenient.Text(doc.RootElement, "code");
         }
-        catch (JsonException) { return false; }
+        catch (JsonException) { return null; }
     }
 
     /// <summary>planque's answer says it kept the connector key it holds.</summary>

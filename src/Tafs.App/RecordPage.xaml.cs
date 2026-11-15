@@ -31,7 +31,7 @@ public sealed record RecordLineView(string Title, string Time, string Detail, Br
     }
 }
 
-/// <summary>The Record. Its lines come from tafs cloud and KIFF in their own change: until then none, or the iPad's sample.</summary>
+/// <summary>The Record: KIFF's activity for the session's tafs, or the iPad's sample; redrawn as each read lands.</summary>
 public sealed partial class RecordPage : Page
 {
     IReadOnlyList<RecordEntry> entries = [];
@@ -44,7 +44,13 @@ public sealed partial class RecordPage : Page
     {
         var w = App.Words;
         (Heading.Text, Lead.Text) = RecordScreen.Heading(w);
-        entries = e.Parameter as IReadOnlyList<RecordEntry> ?? [];
+        ShowEntries(e.Parameter as IReadOnlyList<RecordEntry> ?? []);
+    }
+
+    /// <summary>New lines, as a read lands: the chosen taf and filter stay, as the iPad's do across a refresh.</summary>
+    public void ShowEntries(IReadOnlyList<RecordEntry> lines)
+    {
+        entries = lines;
         Show();
     }
 

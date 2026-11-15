@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text.Json;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
@@ -52,12 +53,29 @@ public sealed class ConnectRowView
     public Visibility IsConnected { get; init; } = Visibility.Collapsed;
     public Visibility IsReconnect { get; init; } = Visibility.Collapsed;
     public Visibility HasButton { get; init; } = Visibility.Collapsed;
+    public Microsoft.UI.Xaml.Media.ImageSource? Logo { get; init; }
+    public Visibility HasLogo { get; init; } = Visibility.Collapsed;
 }
 
-/// <summary>Connect apps. Until tafs cloud's list is read, nothing is listed (or the iPad's sample); Connect stays dimmed.</summary>
+/// <summary>
+/// How Connect apps opens: the iPad's sample list for a screenshot, or tafs cloud's read as the session with this PC's
+/// signed grants read (the proof, as Setup sends it); with neither, only its title.
+/// </summary>
+public sealed record ConnectAppsOpening(ConnectAppsList? Sample, Func<string, string?, Task<Tafs.Core.Taf.CloudRead>>? Read, Func<Task<string?>>? Proof);
+
+/// <summary>
+/// Connect apps: tafs cloud's list read as the session, searched as the person types, More apps for its next page; or the
+/// iPad's sample. Connect stays dimmed until connecting is ported.
+/// </summary>
 public sealed partial class ConnectAppsPage : Page
 {
     readonly ConnectColumnsView columns = new();
+    ConnectAppsOpening? opening;
+    ConnectAppsList? shown;
+    /// <summary>The search shown, for its next page; only the newest read may replace the list, as the iPad's connectAppsRequest.</summary>
+    string query = "";
+    int request;
+    CancellationTokenSource? typing;
 
     public static event Action? AskCoachChosen;
 
@@ -70,8 +88,73 @@ public sealed partial class ConnectAppsPage : Page
         YoursTitle.Text = w.Get("connect.apps.yours");
         DiscoverTitle.Text = w.Get("connect.apps.discover");
         AskCoach.Content = w.Get("connect.apps.not_listed");
+        More.Content = w.Get("connect.more_apps");
+        Search.PlaceholderText = w.Get("connect.apps.search");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(Search, w.Get("connect.apps.search"));
+        opening = e.Parameter as ConnectAppsOpening;
+        Show(opening?.Sample);
+        if (opening?.Read is not null)
+        {
+            Search.Visibility = Visibility.Visible;
+            _ = ReadAsync("");
+        }
+    }
 
-        var list = e.Parameter as ConnectAppsList;
+    /// <summary>
+    /// The first page for what was typed, as the iPad's <c>loadConnectApps</c>: a new search empties the list while it's read;
+    /// the proof goes with it, so tafs cloud can say which removed tafs' connections may be cleared. A read that fails says so.
+    /// </summary>
+    async Task ReadAsync(string q)
+    {
+        if (opening?.Read is not { } read) return;
+        var mine = ++request;
+        if (q != query || shown is null)
+        {
+            Show(null);
+            Reading.Visibility = Visibility.Visible;
+        }
+        query = q;
+        var proof = opening.Proof is { } signed ? await signed() : null;
+        var answer = await read(ConnectAppsScreen.Path(q), proof);
+        if (mine != request) return;
+        Reading.Visibility = Visibility.Collapsed;
+        if (answer.Answer is { } json) Show(ConnectAppsScreen.Read(json.GetRawText()));
+        else Problem.Text = App.Words.Get("connect.apps_not_read", ("why", answer.Why ?? ""));
+        Problem.Visibility = Seen(answer.Answer is null);
+    }
+
+    /// <summary>More apps, as the iPad's <c>loadMoreConnectApps</c>: the same search's next page, added only if nothing changed meanwhile.</summary>
+    async void OnMore(object sender, RoutedEventArgs e)
+    {
+        if (opening?.Read is not { } read || shown is not { NextCursor: { } cursor } before) return;
+        var (mine, q) = (request, query);
+        More.Content = App.Words.Get("common.loading");
+        More.IsEnabled = false;
+        var answer = await read(ConnectAppsScreen.Path(q, before.Provider, cursor), null);
+        More.Content = App.Words.Get("connect.more_apps");
+        More.IsEnabled = true;
+        if (mine != request || q != query || shown?.NextCursor != cursor) return;
+        if (answer.Answer is { } json) Show(ConnectAppsScreen.More(before, ConnectAppsScreen.Read(json.GetRawText())));
+        else Problem.Text = App.Words.Get("connect.more_apps_could_not_listed", ("why", answer.Why ?? ""));
+        Problem.Visibility = Seen(answer.Answer is null);
+    }
+
+    /// <summary>As the person types, a moment after the last key, as the iPad's .task(id: query): 0.3 s, at once when it's emptied.</summary>
+    async void OnSearch(object sender, TextChangedEventArgs e)
+    {
+        typing?.Cancel();
+        typing = new CancellationTokenSource();
+        var token = typing.Token;
+        var q = Search.Text;
+        try { if (q.Length > 0) await Task.Delay(300, token); }
+        catch (TaskCanceledException) { return; }
+        await ReadAsync(q);
+    }
+
+    void Show(ConnectAppsList? list)
+    {
+        var w = App.Words;
+        shown = list;
         var (yours, discover) = list is null ? ([], []) : ConnectAppsScreen.Split(list.Apps);
         // The column names head the first table shown, as on the iPad.
         Yours.ItemsSource = Rows(yours, header: true);
@@ -81,6 +164,7 @@ public sealed partial class ConnectAppsPage : Page
         MakeOneText.Text = w.Get("connect.apps_connect_taf_make_one");
         MakeOne.Visibility = Seen(ConnectAppsScreen.SaysMakeATaf(discover.Count));
         AskCoachPanel.Visibility = Seen(list?.ByKey == true);
+        MorePanel.Visibility = Seen(list?.NextCursor is not null);
     }
 
     static Visibility Seen(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
@@ -111,6 +195,8 @@ public sealed partial class ConnectAppsPage : Page
                 IsConnected = Seen(app.Connected && said.Setup is null), IsReconnect = Seen(app.NeedsReconnect && said.Setup is null),
                 UsedBy = said.Setup is null ? said.UsedBy ?? "" : "", HasUsedBy = Seen(said.Setup is null && said.UsedBy is not null),
                 Button = button ?? "", HasButton = Seen(button is not null),
+                Logo = ConnectAppsScreen.LogoUrl(app.Logo) is { } logo ? new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(logo) : null,
+                HasLogo = Seen(ConnectAppsScreen.LogoUrl(app.Logo) is not null),
             });
         }
         return rows;

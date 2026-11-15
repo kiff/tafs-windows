@@ -22,6 +22,8 @@ public sealed record ConnectApp(string Entry)
     public string? SetupWords { get; init; }
     public string? Whose { get; init; }
     public IReadOnlyList<string>? UsedBy { get; init; }
+    /// <summary>tafs cloud's logo path for it (<c>/v1/logos/…</c>), drawn only through <see cref="ConnectAppsScreen.LogoUrl"/>.</summary>
+    public string? Logo { get; init; }
 
     public string DisplayName => Name ?? Title;
     public bool Connected => State == "connected" || ConnectedFlag;
@@ -32,8 +34,11 @@ public sealed record ConnectApp(string Entry)
     public bool Yours => Connected || NeedsReconnect || State == "signed_in";
 }
 
-/// <summary>tafs cloud's Connect apps list: the apps in its order, whether more can be listed, and whether Coach connects others.</summary>
-public sealed record ConnectAppsList(IReadOnlyList<ConnectApp> Apps, bool ByKey, string? NextCursor);
+/// <summary>
+/// tafs cloud's Connect apps list: the apps in its order, whether Coach connects others, and for More apps the cursor of the
+/// next page and the catalog it's from (<paramref name="Provider"/>).
+/// </summary>
+public sealed record ConnectAppsList(IReadOnlyList<ConnectApp> Apps, bool ByKey, string? NextCursor, string? Provider = null);
 
 /// <summary>What a row says: how it connects, whose it is, where it stands, who uses it, or tafs cloud's setup line.</summary>
 public sealed record ConnectRow(string How, string? Whose, string? Status, string? UsedBy, string? Setup);
@@ -63,9 +68,48 @@ public static class ConnectAppsScreen
                         SetupWords = Text(a, "words"),
                         Whose = Text(a, "whose"),
                         UsedBy = Names(a),
+                        Logo = Text(a, "logo"),
                     });
         var byKey = root.TryGetProperty("by_key", out var k) && k.ValueKind == JsonValueKind.True;
-        return new ConnectAppsList(apps, byKey, Text(root, "next_cursor"));
+        return new ConnectAppsList(apps, byKey, Text(root, "next_cursor"), Text(root, "provider"));
+    }
+
+    public const string ListPath = "/v1/connect/apps";
+
+    /// <summary>
+    /// The read of a page, as the iPad's <c>connectApps</c>: <c>GET /v1/connect/apps</c> with what was typed (trimmed of spaces
+    /// and tabs, none when blank), and for a next page its catalog and cursor. Each value is escaped whole, so a cursor's
+    /// + or / is never a separator.
+    /// </summary>
+    public static string Path(string? q = null, string? provider = null, string? cursor = null)
+    {
+        var items = new List<string>();
+        if (q?.Trim(' ', '\t') is { Length: > 0 } words) items.Add("q=" + Taf.CloudRead.QueryPart(words));
+        if (provider is not null) items.Add("provider=" + Taf.CloudRead.QueryPart(provider));
+        if (cursor is not null) items.Add("cursor=" + Taf.CloudRead.QueryPart(cursor));
+        return items.Count == 0 ? ListPath : ListPath + "?" + string.Join('&', items);
+    }
+
+    /// <summary>
+    /// More apps, as the iPad's <c>loadMoreConnectApps</c>: the next page added under those shown, an app listed already not
+    /// again; Coach connects others if either page says so; the next page's cursor and catalog go on.
+    /// </summary>
+    public static ConnectAppsList More(ConnectAppsList shown, ConnectAppsList page)
+    {
+        var seen = shown.Apps.Select(a => a.Entry).ToHashSet();
+        return page with { Apps = shown.Apps.Concat(page.Apps.Where(a => !seen.Contains(a.Entry))).ToList(), ByKey = shown.ByKey || page.ByKey };
+    }
+
+    /// <summary>
+    /// A logo's address, as the iPad's <c>logoURL</c>: only tafs cloud's own <c>/v1/logos/</c> with a 32-character lowercase hex
+    /// key, on tafs cloud; anything else draws no logo. It's fetched as an image, with no token.
+    /// </summary>
+    public static Uri? LogoUrl(string? path)
+    {
+        const string prefix = "/v1/logos/";
+        if (path is null || !path.StartsWith(prefix, StringComparison.Ordinal)) return null;
+        var key = path[prefix.Length..];
+        return key.Length == 32 && key.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f') ? new Uri(Kiff.KeptSessions.TafsCloud, path) : null;
     }
 
     /// <summary>A string field, trimmed; null when it's missing, blank or not a string.</summary>
