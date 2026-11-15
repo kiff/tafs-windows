@@ -1,7 +1,9 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Tafs.Core.Home;
 using Tafs.Core.Pairing;
 using Windows.Graphics;
 using Windows.Graphics.Imaging;
@@ -26,16 +28,25 @@ public sealed partial class MainWindow : Window
         AppWindow.Resize(LaptopSize);
 
         Brand.Text = w.Get("app.name");
-        OverviewItem.Content = w.Get("home.overview.title");
-        NeedsYouItem.Content = w.Get("needs_you.title");
-        RecordItem.Content = w.Get("record.title");
-        CalendarItem.Content = w.Get("calendar.heading");
-        UsageItem.Content = w.Get("usage.title");
-        ConnectItem.Content = w.Get("connect.apps.title");
-        YourTafsHeader.Content = w.Get("home.your_tafs");
-        NoTafsItem.Content = w.Get("home.no_tafs");
-        CoachItem.Content = w.Get("coach.title");
-        AccountItem.Content = w.Get("settings.title");
+        AutomationProperties.SetName(BrandItem, w.Get("home.overview.title"));
+        var at = Nav.MenuItems.IndexOf(BrandItem) + 1;
+        foreach (var item in Sidebar.Screens(w))
+            Nav.MenuItems.Insert(at++, new NavigationViewItem
+            {
+                Content = item.Title,
+                Tag = item.Screen,
+                Icon = new FontIcon { Glyph = item.Glyph },
+                Style = (Style)Application.Current.Resources["TafsSidebarItem"],
+            });
+        YourTafs.Content = Sidebar.Eyebrow(w, "home.your_tafs");
+        // No tafs list yet: it comes from tafs cloud in its own change.
+        NoTafs.Content = Sidebar.NoTafs(w);
+
+        var foot = Sidebar.Foot(w);
+        CoachText.Text = foot.Coach;
+        AutomationProperties.SetName(CoachButton, w.Get("coach.coach_mode"));
+        AccountTitle.Text = foot.Account;
+        AutomationProperties.SetName(AccountButton, foot.AccountLabel);
 
         var notice = PairingScreen.ViewOnly(w);
         ViewOnly.Title = notice.Title;
@@ -48,37 +59,54 @@ public sealed partial class MainWindow : Window
         {
             // Kept in memory for now. Until this PC is paired (or has its own passkey), it reads and doesn't approve.
             ViewOnly.IsOpen = true;
-            Nav.SelectedItem = OverviewItem;
+            Nav.SelectedItem = BrandItem;
         };
 
         if (page == "pair") OpenPairing();
         else if (page == "sign-in") OpenSignIn();
-        else Nav.SelectedItem = OverviewItem;
+        else Nav.SelectedItem = BrandItem;
         if (screenshot is not null) Root.Loaded += async (_, _) => await SaveAndQuitAsync(screenshot);
     }
 
     void OnSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is not NavigationViewItem item) return;
-        if ((string)item.Tag == "overview") Pages.Navigate(typeof(OverviewPage));
+        ShowAccountChosen(false);
+        if (item == BrandItem) Pages.Navigate(typeof(OverviewPage));
         else Pages.Navigate(typeof(ComingPage), item.Content);
+    }
+
+    /// <summary>Coach at the sidebar's foot. Coach itself comes in its own change, in the spec's order.</summary>
+    void OnCoach(object sender, RoutedEventArgs e) => OpenBeside(typeof(ComingPage), CoachText.Text);
+
+    /// <summary>Account, at the very foot: it opens beside the sidebar, and its icon shows it's open.</summary>
+    void OnAccount(object sender, RoutedEventArgs e)
+    {
+        OpenBeside(typeof(ComingPage), AccountTitle.Text);
+        ShowAccountChosen(true);
+    }
+
+    void ShowAccountChosen(bool chosen)
+    {
+        AccountIcon.Visibility = chosen ? Visibility.Collapsed : Visibility.Visible;
+        AccountIconChosen.Visibility = chosen ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>A screen that isn't a sidebar row: no row stays chosen while it's open.</summary>
+    void OpenBeside(Type page, object? parameter = null)
+    {
+        Nav.SelectedItem = null;
+        ShowAccountChosen(false);
+        Pages.Navigate(page, parameter);
     }
 
     void OnAddThisDevice(object sender, RoutedEventArgs e) => OpenPairing();
 
     /// <summary>Add this computer with your phone. It isn't a sidebar item: it opens from the notice, and from sign-in.</summary>
-    void OpenPairing()
-    {
-        Nav.SelectedItem = null;
-        Pages.Navigate(typeof(PairingPage));
-    }
+    void OpenPairing() => OpenBeside(typeof(PairingPage));
 
     /// <summary>Sign in with KIFF: the first screen of a PC with no session.</summary>
-    void OpenSignIn()
-    {
-        Nav.SelectedItem = null;
-        Pages.Navigate(typeof(SignInPage));
-    }
+    void OpenSignIn() => OpenBeside(typeof(SignInPage));
 
     /// <summary>Saves the window as a PNG and quits: the screenshots posted with each PR that changes a screen.</summary>
     async Task SaveAndQuitAsync(string file)

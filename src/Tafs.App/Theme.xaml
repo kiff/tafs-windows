@@ -15,6 +15,20 @@
       <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="#F3ECDF" />
       <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#F3ECDF" />
       <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#FBF7EE" />
+      <!-- Text and marks on an ink fill (Coach's button): white in light, the dark ground in dark. -->
+      <SolidColorBrush x:Key="TafsOnFill" Color="#FFFFFF" />
+      <!-- The sidebar's chosen row: a rounded fill of the ink, as the iPad's list draws it, not a side bar. -->
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#1F1B1726" />
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#291B1726" />
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#331B1726" />
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="#0F1B1726" />
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundPressed" Color="#1A1B1726" />
+      <SolidColorBrush x:Key="NavigationViewItemForeground" Color="#1B1726" />
+      <SolidColorBrush x:Key="NavigationViewItemForegroundPointerOver" Color="#1B1726" />
+      <SolidColorBrush x:Key="NavigationViewItemForegroundSelected" Color="#1B1726" />
+      <SolidColorBrush x:Key="NavigationViewItemForegroundSelectedPointerOver" Color="#1B1726" />
+      <SolidColorBrush x:Key="NavigationViewItemForegroundPressed" Color="#1B1726" />
+      <SolidColorBrush x:Key="NavigationViewItemForegroundSelectedPressed" Color="#1B1726" />
       <!-- The main button is tafs amber with ink text, not Windows' accent colour. -->
       <SolidColorBrush x:Key="AccentButtonBackground" Color="#FF8A1F" />
       <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#FF9B40" />
@@ -36,6 +50,18 @@
       <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="#2A2824" />
       <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#2A2824" />
       <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#141311" />
+      <SolidColorBrush x:Key="TafsOnFill" Color="#141311" />
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#24F2EFE9" />
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#2EF2EFE9" />
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#38F2EFE9" />
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="#12F2EFE9" />
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundPressed" Color="#1CF2EFE9" />
+      <SolidColorBrush x:Key="NavigationViewItemForeground" Color="#F2EFE9" />
+      <SolidColorBrush x:Key="NavigationViewItemForegroundPointerOver" Color="#F2EFE9" />
+      <SolidColorBrush x:Key="NavigationViewItemForegroundSelected" Color="#F2EFE9" />
+      <SolidColorBrush x:Key="NavigationViewItemForegroundSelectedPointerOver" Color="#F2EFE9" />
+      <SolidColorBrush x:Key="NavigationViewItemForegroundPressed" Color="#F2EFE9" />
+      <SolidColorBrush x:Key="NavigationViewItemForegroundSelectedPressed" Color="#F2EFE9" />
       <!-- The main button is tafs amber with ink text, not Windows' accent colour. -->
       <SolidColorBrush x:Key="AccentButtonBackground" Color="#FF8A1F" />
       <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#FF9B40" />
@@ -53,11 +79,44 @@
     <GradientStop Color="#2A64F5" Offset="1" />
   </LinearGradientBrush>
 
-  <!-- The sidebar's section labels (the iPad's Eyebrow). -->
+  <!-- A section's label (the iPad's Eyebrow): monospaced, 12, tracked, in capitals (Sidebar.Eyebrow). -->
   <Style x:Key="TafsEyebrow" TargetType="TextBlock">
-    <Setter Property="FontSize" Value="11" />
-    <Setter Property="FontWeight" Value="SemiBold" />
-    <Setter Property="CharacterSpacing" Value="60" />
+    <Setter Property="FontFamily" Value="Cascadia Mono, Consolas" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="CharacterSpacing" Value="58" />
     <Setter Property="Foreground" Value="{ThemeResource TafsDim}" />
+  </Style>
+
+  <!-- A sidebar section's label: the eyebrow, lined up with the rows' icons. WinUI's own header draws its
+       text in a fixed style, so it gets this template (the pane never folds: PaneDisplayMode Left). -->
+  <Style x:Key="TafsSidebarHeader" TargetType="NavigationViewItemHeader">
+    <Setter Property="IsTabStop" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="NavigationViewItemHeader">
+          <TextBlock Margin="16,18,12,6" Text="{TemplateBinding Content}" Style="{StaticResource TafsEyebrow}" TextWrapping="Wrap" />
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- A line under a section's label, such as Your tafs with none yet: 13, dim. -->
+  <Style x:Key="TafsSidebarLine" TargetType="NavigationViewItemHeader">
+    <Setter Property="IsTabStop" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="NavigationViewItemHeader">
+          <TextBlock Margin="16,0,12,6" Text="{TemplateBinding Content}" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsDim}" />
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- The sidebar's rows: 15 semibold, as the iPad's items, on a rounded fill when chosen. -->
+  <Style x:Key="TafsSidebarItem" TargetType="NavigationViewItem">
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="MinHeight" Value="40" />
   </Style>
 </ResourceDictionary>

@@ -31,6 +31,7 @@ A test says which part it belongs to with `[Part("approvals")]` on its class or 
 | :- | :- |
 | pairing | adding a computer, the view-only sign-in |
 | approvals | the signed action digest, the approval window |
+| home | the sidebar and the Overview |
 | coach | Coach chat, creating a taf, connecting an app |
 | record | the Record and a taf's detail |
 | connections | connection rows, health, actions |

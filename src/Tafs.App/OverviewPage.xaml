@@ -1,40 +1,42 @@
-<!-- Overview: today across the tafs, one line each (the iPad's Overview). With no tafs yet, its empty state. -->
+<!-- Overview: today across the tafs, one line each (the iPad's OverviewView). No calendar button: Calendar is in
+     the sidebar. With no tafs yet, its empty line. -->
 <Page x:Class="Tafs.App.OverviewPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       Background="{ThemeResource TafsBackground}">
   <ScrollViewer>
-    <!-- Up to 720 wide, from the leading edge, as on the iPad. -->
-    <Grid Margin="40,32,40,32">
+    <!-- Up to 980 wide with its padding of 24, from the leading edge, as on the iPad. -->
+    <Grid Padding="24">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" MaxWidth="720" />
+        <ColumnDefinition Width="*" MaxWidth="932" />
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
-    <StackPanel Spacing="6">
-      <TextBlock x:Name="Heading" FontSize="28" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
-      <TextBlock x:Name="Subtitle" FontSize="15" Foreground="{ThemeResource TafsSoft}" />
+    <StackPanel Spacing="20">
+      <StackPanel Spacing="4">
+        <TextBlock x:Name="Heading" FontSize="30" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
+        <TextBlock x:Name="Subtitle" FontSize="14" Foreground="{ThemeResource TafsDim}" />
+      </StackPanel>
 
-      <Border Margin="0,20,0,0" Background="{ThemeResource TafsPanel}" CornerRadius="14"
-              BorderBrush="{ThemeResource TafsLine}" BorderThickness="1" Padding="20,14">
-        <StackPanel Spacing="14">
-          <Grid ColumnSpacing="16">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="2*" />
-              <ColumnDefinition Width="2*" />
-              <ColumnDefinition Width="1*" />
-              <ColumnDefinition Width="2*" />
-            </Grid.ColumnDefinitions>
-            <TextBlock x:Name="ColumnTaf" Grid.Column="0" Style="{StaticResource TafsEyebrow}" />
-            <TextBlock x:Name="ColumnNow" Grid.Column="1" Style="{StaticResource TafsEyebrow}" />
-            <TextBlock x:Name="ColumnCard" Grid.Column="2" Style="{StaticResource TafsEyebrow}" />
-            <TextBlock x:Name="ColumnLast" Grid.Column="3" Style="{StaticResource TafsEyebrow}" />
-          </Grid>
-          <Rectangle Height="1" Fill="{ThemeResource TafsLine}" />
-          <TextBlock x:Name="Empty" FontSize="15" Foreground="{ThemeResource TafsDim}" Margin="0,8" />
-        </StackPanel>
-      </Border>
+      <!-- One grid, so each heading sits over its column: four equal columns, a line between rows, on the ground. -->
+      <Grid x:Name="Table" ColumnSpacing="16" RowSpacing="12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <TextBlock x:Name="ColumnTaf" Grid.Column="0" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource TafsDim}" />
+        <TextBlock x:Name="ColumnNow" Grid.Column="1" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource TafsDim}" />
+        <TextBlock x:Name="ColumnCard" Grid.Column="2" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource TafsDim}" />
+        <TextBlock x:Name="ColumnLast" Grid.Column="3" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource TafsDim}" />
+        <TextBlock x:Name="Empty" Grid.Row="1" Grid.ColumnSpan="4" FontSize="14" Foreground="{ThemeResource TafsDim}" />
+      </Grid>
 
-      <TextBlock x:Name="Footnote" FontSize="13" Foreground="{ThemeResource TafsDim}" Margin="0,4,0,0" />
+      <TextBlock x:Name="Footnote" FontSize="12" Foreground="{ThemeResource TafsDim}" />
     </StackPanel>
     </Grid>
   </ScrollViewer>

@@ -14,7 +14,13 @@ public class PartSelectorTests
     public void The_nine_parts_of_the_spec_exist() =>
         Assert.Equal(
             new[] { "pairing", "approvals", "coach", "record", "connections", "calendar", "account", "strings", "contracts" }.Order(),
-            Config.Parts.Keys.Where(k => k is not ("ci" or "app")).Order());
+            Config.Parts.Keys.Where(k => k is not ("ci" or "app" or "home")).Order());
+
+    /// <summary>The sidebar and the Overview aren't one of the spec's nine: they're their own part, beside ci and app.</summary>
+    [Fact]
+    public void Beside_the_nine_are_ci_app_and_home() =>
+        Assert.Equal(new[] { "app", "ci", "home" }, Config.Parts.Keys.Except(
+            ["pairing", "approvals", "coach", "record", "connections", "calendar", "account", "strings", "contracts"]).Order());
 
     [Fact]
     public void A_change_to_the_app_builds_it_on_Windows_and_runs_no_core_part_but_the_always_ones() =>
@@ -41,6 +47,11 @@ public class PartSelectorTests
     public void Signing_in_is_part_of_pairing() =>
         Assert.Equal(new[] { "pairing", "strings", "contracts" }.Order(),
             Select("src/Tafs.Core/SignIn/DeviceSignIn.cs", "tests/Tafs.Core.Tests/SignIn/DeviceSignInTests.cs").Order());
+
+    [Fact]
+    public void The_sidebar_and_the_Overview_are_the_home_part() =>
+        Assert.Equal(new[] { "home", "strings", "contracts" }.Order(),
+            Select("src/Tafs.Core/Home/Sidebar.cs", "tests/Tafs.Core.Tests/Home/SidebarTests.cs").Order());
 
     [Theory]
     [InlineData("Directory.Build.props")]
