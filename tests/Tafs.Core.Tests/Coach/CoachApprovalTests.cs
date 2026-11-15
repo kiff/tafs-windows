@@ -1,8 +1,12 @@
 using System.Text;
 using System.Text.Json;
+using Tafs.Core.Approvals;
 using Tafs.Core.Coach;
 using Tafs.Core.Kiff;
+using Tafs.Core.Taf;
 using Tafs.Core.Tests.Kiff;
+using Tafs.Core.Tests.Strings;
+using Tafs.Core.Words;
 
 namespace Tafs.Core.Tests.Coach;
 
@@ -198,5 +202,159 @@ public class CoachApprovalTests
         var header = CoachApproval.ReportSignature(SignedAt, await key.SignDerAsync(message));
         Assert.StartsWith($"t={SignedAt},v1=", header);
         Assert.True(TestSigner.Verify(key.PublicKeyDer, message, Convert.FromBase64String(header[$"t={SignedAt},v1=".Length..])));
+    }
+
+    static readonly WordBook En = WordBook.Load(SharedFiles.Strings, "en");
+
+    const string CardsAsk = """{"outcome": "sign", "ask": {"id": "ask_2", "step": "cards", "message": "tafs.cards.v1|t_01|d_01|v3", "reason": "r", "kiff": {"draft": "d_01", "version": "v3"}}}""";
+
+    /// <summary>tafs cloud, planque's proof, Windows Hello, KIFF and the device key as fakes: what each answers, and what was sent.</summary>
+    sealed class Fakes
+    {
+        public string AskAnswer { get; init; } = CardsAsk;
+        public CloudRead? AskRead { get; init; }
+        public (int, string) Confirmed { get; init; } = (200, """{"id": "d_01", "status": "confirmed"}""");
+        public bool ConfirmUnreached { get; init; }
+        public Exception? Hello { get; init; }
+        public string ReportAnswer { get; init; } = """{"outcome": "answered", "answer": "approved", "note": "Approved", "session": "s1", "run": "r2"}""";
+        public string? SignOutAfter { get; init; }
+        public List<string> Sent { get; } = [];
+        public string? ReportSent;
+        public string? ReportHeader;
+        public string? ReportProof;
+        int proofs;
+        bool current = true;
+        readonly TestSigner key = new();
+
+        void Did(string what)
+        {
+            Sent.Add(what);
+            if (what == SignOutAfter) current = false;
+        }
+
+        public ApproveCalls Calls => new(
+            () => { Did("proof"); return Task.FromResult<string?>($"proof{++proofs}"); },
+            (path, body, proof) => { Did($"ask {path} {proof}"); return Task.FromResult(AskRead ?? CloudRead.Of(JsonDocument.Parse(AskAnswer).RootElement)); },
+            (path, body) =>
+            {
+                if (Hello is { } e) return Task.FromException<(string, string)>(e);
+                Did($"hello {path} {Encoding.UTF8.GetString(body)}");
+                return Task.FromResult(("KIFF-Passkey-Assertion", "t=x,a=y"));
+            },
+            (path, body, signature) =>
+            {
+                Did($"confirm {path} {signature.Header}");
+                return ConfirmUnreached ? Task.FromException<(int, string)>(new HttpRequestException("x")) : Task.FromResult(Confirmed);
+            },
+            async message => { Did("sign report"); return await key.SignDerAsync(message); },
+            (path, body, signature, proof) =>
+            {
+                Did($"report {path}");
+                (ReportSent, ReportHeader, ReportProof) = (Encoding.UTF8.GetString(body), signature, proof);
+                return Task.FromResult(CloudRead.Of(JsonDocument.Parse(ReportAnswer).RootElement));
+            },
+            () => "2026-11-15T22:30:00.123Z", () => current, e => $"0x{e.HResult:X8}");
+
+        public Task<ApproveResult> Approve(CoachCard? card = null, string? shownDraft = "v3") =>
+            CoachApproval.ApproveAsync(En, "taf_coach", card ?? Card, "t_01", "s1", Digest, shownDraft, Calls);
+    }
+
+    static readonly CoachCard Card = new("approval", "a1") { Grant = "g_01", Draft = "d_01" };
+
+    /// <summary>
+    /// The cards step, as the iPad's approve: the ask with the proof, one Windows Hello over KIFF's confirm of the version
+    /// shown, the confirm, a fresh proof, and the report signed by the device key over this very request; then tafs cloud's note.
+    /// </summary>
+    [Fact]
+    public async Task The_Card_is_asked_signed_once_confirmed_and_reported()
+    {
+        var fakes = new Fakes();
+        Assert.Equal(new ApproveResult("Approved", ReadAgain: true), await fakes.Approve());
+        Assert.Equal([
+            "proof", "ask /v1/tafs/taf_coach/components/a1/approval proof1",
+            """hello /v1/me/agent-drafts/d_01/confirm {"version":"v3"}""", "confirm /v1/me/agent-drafts/d_01/confirm KIFF-Passkey-Assertion",
+            "proof", "sign report", "report /v1/tafs/taf_coach/components/a1/approval/ask_2"], fakes.Sent);
+        Assert.Equal("""{"result":"confirmed","session":"s1"}""", fakes.ReportSent);
+        Assert.Equal("proof2", fakes.ReportProof);
+        Assert.StartsWith("t=2026-11-15T22:30:00.123Z,v1=", fakes.ReportHeader);
+    }
+
+    /// <summary>KIFF's refusal or no answer is reported as failed, with why: never an answer, only what happened.</summary>
+    [Fact]
+    public async Task A_confirm_that_fails_is_reported_as_failed_with_why()
+    {
+        var refused = new Fakes { Confirmed = (409, """{"error": "version_changed"}""") };
+        await refused.Approve();
+        Assert.Equal("""{"result":"failed","why":"version_changed","session":"s1"}""", refused.ReportSent);
+        var unreached = new Fakes { ConfirmUnreached = true };
+        await unreached.Approve();
+        Assert.Contains("\"result\":\"failed\"", unreached.ReportSent);
+    }
+
+    /// <summary>
+    /// Nothing is signed for an ask this card doesn't imply (another version, another draft), a step not on this PC yet, or one
+    /// its mark says it doesn't sign; tafs cloud's answered and read-again notes show as they are.
+    /// </summary>
+    [Fact]
+    public async Task Nothing_is_signed_but_this_card_s_Card()
+    {
+        async Task<(ApproveResult, List<string>)> Run(string answer, CoachCard? card = null, string? shown = "v3")
+        {
+            var f = new Fakes { AskAnswer = answer };
+            return (await f.Approve(card, shown), f.Sent);
+        }
+        var (other, sent) = await Run(CardsAsk, shown: "v2");
+        Assert.Equal(new ApproveResult(En.Get("coach.ask_not_this_cards")), other);
+        Assert.DoesNotContain(sent, s => s.StartsWith("hello") || s.StartsWith("confirm") || s.StartsWith("report"));
+        (other, _) = await Run(CardsAsk.Replace("tafs.cards.v1|t_01|d_01|v3", "tafs.cards.v1|t_01|d_01|v4"));
+        Assert.Equal(new ApproveResult(En.Get("coach.ask_not_this_cards")), other);
+        (other, sent) = await Run($$"""{"outcome": "sign", "ask": {"id": "a", "step": "connect", "message": "tafs.connect.v1|t_01|g_01|{{Digest}}", "reason": "r", "planque": {"grant": "g_01", "body": {"digest": "{{Digest}}"} } } }""");
+        Assert.Equal(new ApproveResult(En.Get("coach.unknown_answer")), other);
+        Assert.Equal(2, sent.Count);
+        (other, _) = await Run(CardsAsk, Card with { Signs = new CardSigns(false, null, null) });
+        Assert.Equal(new ApproveResult(En.Get("version.out_of_date_card"), ReadAgain: true), other);
+        (other, _) = await Run("""{"outcome": "answered", "answer": "approved", "note": "Already approved", "session": "s1", "run": "r1"}""");
+        Assert.Equal(new ApproveResult("Already approved", ReadAgain: true), other);
+        (other, _) = await Run("""{"outcome": "read_again"}""");
+        Assert.Equal(new ApproveResult(En.Get("version.out_of_date_card"), ReadAgain: true), other);
+        (other, _) = await Run("""{"outcome": "something_new"}""");
+        Assert.Equal(new ApproveResult(En.Get("coach.unknown_answer")), other);
+    }
+
+    /// <summary>
+    /// Windows Hello closed sends nothing and says nothing; a refusal or a TPM error says why; tafs cloud not reached says the
+    /// answer didn't reach Setup, and a sign-in it doesn't confirm yet says tafs cloud's own line.
+    /// </summary>
+    [Fact]
+    public async Task A_failure_says_why_and_sends_nothing_more()
+    {
+        var closed = new Fakes { Hello = new OperationCanceledException() };
+        Assert.Equal(new ApproveResult(null), await closed.Approve());
+        Assert.Equal(2, closed.Sent.Count);
+        var tpm = new System.Security.Cryptography.CryptographicException("x");
+        var failed = new Fakes { Hello = tpm };
+        Assert.Equal(new ApproveResult($"0x{tpm.HResult:X8}"), await failed.Approve());
+        Assert.Equal(2, failed.Sent.Count);
+        Assert.Equal(new ApproveResult("no user verification"), await new Fakes { Hello = new PasskeyRefusedException("no user verification") }.Approve());
+
+        var down = new Fakes { AskRead = new CloudRead(null, "It didn't reach the server.") };
+        Assert.Equal(new ApproveResult(En.Get("coach.answer_not_reached", ("why", "It didn't reach the server.")), ReadAgain: true), await down.Approve());
+        var notConfirmed = new Fakes { AskRead = new CloudRead(null, "Approve again to confirm the sign-in.", 409, CoachApproval.SignInNotConfirmed) };
+        Assert.Equal(new ApproveResult("Approve again to confirm the sign-in.", ReadAgain: true), await notConfirmed.Approve());
+        var unreadable = new Fakes { AskAnswer = """{"note": "no outcome"}""" };
+        Assert.Equal(new ApproveResult(En.Get("coach.answer_not_reached", ("why", En.Get("kiff.kiff_did_not_answer_expected"))), ReadAgain: true), await unreadable.Approve());
+    }
+
+    /// <summary>A sign-out after any step sends nothing more, as the iPad's accountGeneration checks.</summary>
+    [Theory]
+    [InlineData("proof", 1)]
+    [InlineData("ask /v1/tafs/taf_coach/components/a1/approval proof1", 2)]
+    [InlineData("confirm /v1/me/agent-drafts/d_01/confirm KIFF-Passkey-Assertion", 4)]
+    [InlineData("report /v1/tafs/taf_coach/components/a1/approval/ask_2", 7)]
+    public async Task A_sign_out_meanwhile_sends_nothing_more(string after, int sent)
+    {
+        var fakes = new Fakes { SignOutAfter = after };
+        Assert.Equal(ApproveResult.Stopped, await fakes.Approve());
+        Assert.Equal(sent, fakes.Sent.Count);
     }
 }

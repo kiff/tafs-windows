@@ -2,8 +2,10 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Tafs.Core.Approvals;
 using Tafs.Core.Kiff;
 using Tafs.Core.Taf;
+using Tafs.Core.Words;
 
 namespace Tafs.Core.Coach;
 
@@ -125,4 +127,119 @@ public static class CoachApproval
                 => $"tafs.cards.v1|{tenant}|{draft}|{shownDraft}",
             _ => null,
         };
+
+    /// <summary>KIFF's confirm of the draft the ask names, at its version, as the iPad's <c>KIFFClient.confirmDraft(id:version:)</c>.</summary>
+    public static (string Path, byte[] Body) ConfirmRequest(ApprovalKiff kiff) =>
+        (KiffDrafts.Path(kiff.Draft) + "/confirm", Encoding.UTF8.GetBytes(new JsonObject { ["version"] = kiff.Version }.ToJsonString()));
+
+    /// <summary>
+    /// Approve on a Coach card, as the iPad's <c>approve</c>: tafs cloud decides. This PC sends that Approve was tapped, with
+    /// what the card showed (the grant, the digest and the draft's version), and planque's read proof. With nothing to sign,
+    /// tafs cloud answers Coach itself and the card shows its note. Asked to sign the Card (<c>cards</c>), this PC rebuilds
+    /// the message from what it holds and refuses any other; one Windows Hello, this PC's passkey asserting KIFF's confirm
+    /// itself, signs and sends it; then it reports what came of it, signed by its device key with a fresh read proof, and
+    /// shows tafs cloud's note. The other steps (connecting an app, its tools with the Card, a key) aren't on this PC yet.
+    /// Windows Hello closed sends nothing and says nothing.
+    /// </summary>
+    public static async Task<ApproveResult> ApproveAsync(WordBook w, string coach, CoachCard card, string tenant, string? session,
+        string? shownDigest, string? shownDraft, ApproveCalls calls)
+    {
+        if (card.Grant is not { } grant) return new(null);
+        var proof = await calls.Proof();
+        if (!calls.Current()) return ApproveResult.Stopped;
+        var asked = await calls.Ask(Path(coach, card.Id), AskBody(grant, shownDigest, card.Draft, shownDraft, session), proof);
+        if (!calls.Current()) return ApproveResult.Stopped;
+        if (Decided(w, asked) is not { } decision) return NotReached(w, asked);
+        switch (decision.Outcome)
+        {
+            case "answered":
+                return new(decision.Note, ReadAgain: true);
+            case "read_again":
+                return new(decision.Note ?? w.Get("version.out_of_date_card"), ReadAgain: true);
+            case "sign":
+                break;
+            default:
+                return new(w.Get("coach.unknown_answer"));
+        }
+        if (decision.Ask is not { } ask) return new(null);
+        // What the card said this signs must be what it signs now: else it's out of date, and read again.
+        if (!StepMatchesMark(card.Signs, ask.Step)) return new(w.Get("version.out_of_date_card"), ReadAgain: true);
+        if (ask.Step != "cards" || ask.Kiff is not { } kiff) return new(w.Get("coach.unknown_answer"));
+        // The last check, not a signing service: only the message this card implies, rebuilt from what this PC holds.
+        if (ask.Message != ExpectedMessage(ask, grant, card.Draft, tenant, shownDigest, shownDraft)) return new(w.Get("coach.ask_not_this_cards"));
+
+        var (path, body) = ConfirmRequest(kiff);
+        (string Header, string Value) signature;
+        try { signature = await calls.SignConfirm(path, body); }
+        catch (OperationCanceledException) { return calls.Current() ? new(null) : ApproveResult.Stopped; }
+        catch (Exception e) when (e is PasskeyRefusedException or InvalidDataException or System.Runtime.InteropServices.COMException
+            or System.Security.Cryptography.CryptographicException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            return calls.Current() ? new(e is PasskeyRefusedException ? e.Message : calls.Why(e)) : ApproveResult.Stopped;
+        }
+        if (!calls.Current()) return ApproveResult.Stopped;
+        // What came of it, as the report says it: never an answer, only what happened.
+        string result = "confirmed";
+        string? why = null;
+        try
+        {
+            var (status, answer) = await calls.Confirm(path, body, signature);
+            if (status is < 200 or > 299) (result, why) = ("failed", CoachStart.KiffRefused(w, status, answer));
+        }
+        catch (System.Net.Http.HttpRequestException) { (result, why) = ("failed", w.Get("error.offline")); }
+        if (!calls.Current()) return ApproveResult.Stopped;
+
+        // A fresh read proof: planque takes each signed request once.
+        var reportProof = await calls.Proof();
+        if (!calls.Current()) return ApproveResult.Stopped;
+        var reportPath = ReportPath(coach, card.Id, ask.Id);
+        var report = ReportBody(result, null, why, session);
+        var signedAt = calls.SignedAt();
+        string reportSignature;
+        try { reportSignature = ReportSignature(signedAt, await calls.SignReport(ReportMessage(tenant, reportPath, report, signedAt))); }
+        catch (Exception e) when (e is System.Security.Cryptography.CryptographicException or InvalidOperationException)
+        {
+            return calls.Current() ? new(w.Get("coach.answer_not_reached", ("why", calls.Why(e))), ReadAgain: true) : ApproveResult.Stopped;
+        }
+        var reported = await calls.Report(reportPath, report, reportSignature, reportProof);
+        if (!calls.Current()) return ApproveResult.Stopped;
+        return Decided(w, reported) is { } outcome ? new(outcome.Note, ReadAgain: true) : NotReached(w, reported);
+    }
+
+    static ApprovalDecision? Decided(WordBook w, CloudRead r) => r.Answer is { } json ? Read(json) : null;
+
+    /// <summary>
+    /// tafs cloud's answer didn't come, or can't be read: its refusal, else that the answer didn't reach Setup, and the thread
+    /// is read again. A sign-in planque holds that isn't confirmed yet (<see cref="SignInNotConfirmed"/>) says tafs cloud's
+    /// own line, as it is.
+    /// </summary>
+    static ApproveResult NotReached(WordBook w, CloudRead r) =>
+        r.Code == SignInNotConfirmed && r.Why is { } line ? new(line, ReadAgain: true)
+        : new(w.Get("coach.answer_not_reached", ("why", r.Answer is null ? r.Why ?? "" : w.Get("kiff.kiff_did_not_answer_expected"))), ReadAgain: true);
+}
+
+/// <summary>
+/// What Approve sends, given by the app and faked in tests: planque's read proof (none when it can't be made), tafs cloud's
+/// ask (path, body, proof), the passkey's header for KIFF's confirm (it throws <see cref="OperationCanceledException"/>
+/// when Windows Hello is closed), the confirm (it throws <see cref="System.Net.Http.HttpRequestException"/> when not
+/// reached), the device key's DER signature over the report's message, the report (path, body, its
+/// <c>KIFF-Device-Signature</c>, proof), <see cref="SigningTime.Next"/>'s time, whether the session Approve began in is still
+/// signed in, and an error's code in words.
+/// </summary>
+public sealed record ApproveCalls(
+    Func<Task<string?>> Proof,
+    Func<string, byte[], string?, Task<CloudRead>> Ask,
+    Func<string, byte[], Task<(string Header, string Value)>> SignConfirm,
+    Func<string, byte[], (string Header, string Value), Task<(int Status, string Body)>> Confirm,
+    Func<byte[], Task<byte[]>> SignReport,
+    Func<string, byte[], string, string?, Task<CloudRead>> Report,
+    Func<string> SignedAt,
+    Func<bool> Current,
+    Func<Exception, string> Why);
+
+/// <summary>What Approve came to: the card's note (none to say nothing), and whether the thread is read again.</summary>
+public sealed record ApproveResult(string? Note, bool ReadAgain = false, bool Stop = false)
+{
+    /// <summary>Another session began meanwhile: nothing more was sent, and nothing is shown.</summary>
+    public static readonly ApproveResult Stopped = new(null, Stop: true);
 }

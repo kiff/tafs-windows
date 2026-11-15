@@ -68,7 +68,7 @@ static class KiffHttp
     /// </summary>
     /// <exception cref="HttpRequestException">It wasn't reached, or isn't a host the session's token may go to.</exception>
     public static async Task<(int Status, string Body)> PostAsync(Uri url, byte[] body, string bearer, string language, CancellationToken cancel = default,
-        (string Header, string Value)? signature = null)
+        (string Header, string Value)? signature = null, (string Header, string Value)? extra = null)
     {
         if (!Tafs.Core.Kiff.KeptSessions.MaySendTo(url, DeviceSignIn.Api)) throw new HttpRequestException("not a host the session goes to");
         using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = new ByteArrayContent(body) };
@@ -77,6 +77,8 @@ static class KiffHttp
         request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         if (signature is { } signed) request.Headers.Add(signed.Header, signed.Value);
+        // planque's read proof beside KIFF's signature, as the iPad's approvalReport sends both.
+        if (extra is { } more) request.Headers.Add(more.Header, more.Value);
         return await SendAsync(request, cancel, Patient);
     }
 

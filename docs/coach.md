@@ -90,7 +90,7 @@ work, where the iPad's decoder fails the thread.
   Show them again). Answered, it's one line, "Your answers · Test mode · Weekdays", and the answer's bubble is folded in.
 - **A notice** (as `SetupComponentView.notice`): its title at 14 in its tone's colour (error the red, warning the amber,
   success the green, else soft), its words in the ink, on that colour at 10%.
-- **An approval** (as `SetupApproval`), its Approve and Decline off until approving is ported:
+- **An approval** (as `SetupApproval`):
   - "NEEDS YOU · APPROVE", and planque's own words for the connection, read from planque as this device with its digest
     checked (`PlanqueGrants`); its exact terms under Details; "This request doesn't match what it shows" when the digest
     doesn't; "Reading the request…" until it's read. A connection already connected says so in one line (tafs cloud's
@@ -101,6 +101,27 @@ work, where the iPad's decoder fails the thread.
     declined; didn't go through, with why, or planque's reason when it failed the grant.
   - Answered, one line ("Approved · Refunds' Card", "Declined · Stripe"), with the Card KIFF signed under it. A newer
     request for the same connection folds the earlier one ("Approved · Setup asked for more below").
+  - **Decline** is the card's own answer, `declined`, sent as any card's (`CoachChat.AnswerRequest`).
+  - **Approve** (`CoachApproval.ApproveAsync`, as the iPad's `approve`) shows only for a session that approves with
+    this PC's passkey; any other reads the iPad's gate line in its place. Approve stays off until what's signed is drawn:
+    the grant read, its digest matching (or the app connected), and the taf's Card read when the card names one.
+    - **One approval at a time:** another card's Approve meanwhile says "Another approval is going through…".
+    - **tafs cloud decides first.** This PC sends what the card showed (the grant, the digest and the Card's version
+      shown, its conversation) with planque's read proof (`POST …/components/{card}/approval`). If tafs cloud answers
+      Coach itself (`answered`) or the card is out of date (`read_again`), the card shows its note and the thread is read
+      again.
+    - **Asked to sign the Card** (`cards`): the card's mark must say it signs the Card, or it's out of date. The message
+      must be `tafs.cards.v1|{tenant}|{draft}|{version shown}`, rebuilt from what this PC holds, or nothing is signed
+      ("…isn't this card's").
+    - **One Windows Hello signs it:** this PC's passkey asserts KIFF's confirm of that version itself
+      (`POST /v1/me/agent-drafts/{draft}/confirm`, `KIFF-Passkey-Assertion`), as Start signs Setup's draft. Closing
+      Windows Hello sends nothing and says nothing; a refusal or a TPM error says why.
+    - **What came of it is reported**, never an answer: `confirmed`, or `failed` with KIFF's words, to
+      `…/approval/{ask}`. It's signed by the TPM device key (`KIFF-Device-Signature`, `kiff.request.v1` over that
+      request), with a fresh read proof. tafs cloud's note then shows, and the thread is read again.
+    - **Not yet on this PC:** connecting an app (planque's approve and the vendor's sign-in), its tools with the Card in
+      one Windows Hello, and a key and its Card. Asked for any of them, the card says so, and nothing is signed.
+    - **A sign-out meanwhile** sends nothing more and shows nothing.
   - Not yet: KIFF's words for a connection's profile (it says they aren't read), opening a folded card again, and the
     key sheet.
 - **A confirm** (as `SetupComponentView.confirm`): Coach's question and its options as capsules; a tap answers the card with
@@ -151,7 +172,7 @@ a second reference.
 - **A Coach with an empty thread:** the iPad shows `starts` ("Ask anything"); here the intro stays until writing is ported.
 - **See version 3,** which opens the taf's Versions on the iPad: Versions aren't ported, so the made line shows instead,
   as the iPad does when it can't find the taf.
-- **Coach's other cards** (sign-ins), approving, and the conversation read's proof and `?can=`
+- **Coach's other cards** (sign-ins), connecting an app from an approval, and the conversation read's proof and `?can=`
   (they mark approval cards).
 - **After an answer:** the iPad follows the run's stream as it writes; here the thread is read again, until the stream is
   ported. The AI-data consent's screen isn't ported, so a refusal for it leaves the card as it was, with no line.

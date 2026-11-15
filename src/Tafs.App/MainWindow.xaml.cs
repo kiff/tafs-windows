@@ -290,6 +290,9 @@ public sealed partial class MainWindow : Window
         ReceiptSheet.Read = path => KiffBytesAsync(bearer, path);
         // Given before Coach's read, which reads them as it draws its approvals.
         CoachMode.Grants = () => GrantsAsync(session);
+        // Approve on Coach's approval cards: only a passkey session that knows its passkey signs; any other keeps the gate.
+        CoachMode.Approves = Tafs.Core.Coach.CoachStart.MayStart(session);
+        CoachMode.Approve = CoachMode.Approves ? (card, conversation, digest, version) => ApproveCardAsync(session, card, conversation, digest, version) : null;
         CoachMode.Drafts = async id => (await KiffReadAsync(bearer, Tafs.Core.Approvals.KiffDrafts.Path(id))).Answer is { } d ? Tafs.Core.Approvals.KiffDrafts.Read(d) : null;
         CoachMode.Read = path => CloudReadAsync(bearer, path);
         // Start, as the iPad's: off for a session that can't approve.
@@ -329,6 +332,8 @@ public sealed partial class MainWindow : Window
         planqueReady = false;
         CoachMode.Report = null;
         CoachMode.Grants = null;
+        CoachMode.Approve = null;
+        CoachMode.Approves = false;
         CoachMode.Drafts = null;
         CoachMode.Forget();
     }
@@ -482,6 +487,60 @@ public sealed partial class MainWindow : Window
             if (gen == sessions) deviceId = device;
             return device;
         }, key, () => SigningTime.Next(DateTimeOffset.UtcNow));
+    }
+
+    /// <summary>
+    /// Approve on one of Coach's approval cards, as the iPad's <c>approve</c> (<see cref="Tafs.Core.Coach.CoachApproval.ApproveAsync"/>):
+    /// tafs cloud's ask with planque's read proof, one Windows Hello (this PC's passkey asserting KIFF's confirm), the confirm,
+    /// and the report signed by the TPM device key, which asks no one, with a fresh proof.
+    /// </summary>
+    async Task<Tafs.Core.Coach.ApproveResult> ApproveCardAsync(KeptSession session, Tafs.Core.Coach.CoachCard card, string? conversation,
+        string? shownDigest, string? shownDraft)
+    {
+        var w = App.Words;
+        var bearer = session.AccessToken;
+        var gen = sessions;
+        if (CoachMode.CoachId is not { } coach || session.PasskeyId is not { } passkeyId) return new(null);
+        var calls = new Tafs.Core.Coach.ApproveCalls(
+            async () => { try { return await SetupProofAsync(session); } catch (System.Security.Cryptography.CryptographicException) { return null; } },
+            async (path, body, proof) =>
+            {
+                try
+                {
+                    var (status, answer) = await KiffHttp.PostAsync(new Uri(HomeList.Api, path), body, bearer, w.Language,
+                        signature: proof is null ? null : ("Planque-Device-Signature", proof));
+                    return Answered(w, status, answer);
+                }
+                catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
+            },
+            async (path, body) =>
+            {
+                var passkey = new PasskeyApprover(new WindowsHello(() => App.WindowHandle), KiffSigning.FromBase64Url(passkeyId), Features.WindowsPasskeyApprovals);
+                return (PasskeyApprover.HeaderName, await passkey.ApproveAsync(session.Tenant, "POST", path, body, SigningTime.Next(DateTimeOffset.UtcNow)));
+            },
+            (path, body, signature) => KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), body, bearer, w.Language, signature: signature),
+            async message =>
+            {
+                using var key = TpmKey.Open(session.KeyName);
+                return await key.SignDerAsync(message);
+            },
+            async (path, body, signature, proof) =>
+            {
+                try
+                {
+                    var (status, answer) = await KiffHttp.PostAsync(new Uri(HomeList.Api, path), body, bearer, w.Language,
+                        signature: ("KIFF-Device-Signature", signature), extra: proof is null ? null : ("Planque-Device-Signature", proof));
+                    return Answered(w, status, answer);
+                }
+                catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
+            },
+            () => SigningTime.Next(DateTimeOffset.UtcNow), () => gen == sessions, SessionStore.Why);
+        try { return await Tafs.Core.Coach.CoachApproval.ApproveAsync(w, coach, card, session.Tenant, conversation, shownDigest, shownDraft, calls); }
+        // A kept passkey id that can't be read, or anything else unforeseen: the card says why, and never stays waiting.
+        catch (Exception e) when (e is FormatException or System.Security.Cryptography.CryptographicException)
+        {
+            return gen == sessions ? new(w.Get("coach.answer_not_reached", ("why", SessionStore.Why(e)))) : Tafs.Core.Coach.ApproveResult.Stopped;
+        }
     }
 
     /// <summary>
