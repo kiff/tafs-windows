@@ -75,8 +75,8 @@ public class CoachStartTests
             () => "2026-11-15T18:00:00.123Z",
             () => current);
 
-        public Task<StartResult> Run(KeptSession session, bool planqueReady = false, bool? pair = null) =>
-            CoachStart.StartAsync(En, session, planqueReady, Calls_(), pair);
+        public Task<StartResult> Run(KeptSession session, bool planqueReady = false) =>
+            CoachStart.StartAsync(En, session, planqueReady, Calls_());
     }
 
     /// <summary>The iPad's order: planque first, then Setup's draft, signed before anything is sent, then tafs cloud claims its key.</summary>
@@ -215,7 +215,7 @@ public class CoachStartTests
         var answer = Contract("setup-start.json");
         var first = FirstStart.Read(answer)!;
         var stubs = new Stubs { Setup = CloudRead.Of(answer) };
-        Assert.Equal(new StartResult(StartOutcome.Started, Coach: "taf_coach"), await stubs.Run(Session(ApprovalMode.Passkey, "AQI"), pair: true));
+        Assert.Equal(new StartResult(StartOutcome.Started, Coach: "taf_coach"), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
 
         Assert.Equal(["read", "sign together connect draft", "enrol", "batch", "draft", "claim"], stubs.Calls);
         Assert.Equal(first.Connect!.Body, stubs.BatchSent);
@@ -225,10 +225,10 @@ public class CoachStartTests
 
         // The batch refused, as KIFF's send reads it: the draft isn't sent.
         stubs = new Stubs { Setup = CloudRead.Of(answer), Batch = (409, """{"error": "a tool named tafs_state exists", "words": "not KIFF's"}""") };
-        Assert.Equal(new StartResult(StartOutcome.Failed, "Couldn't start. a tool named tafs_state exists"), await stubs.Run(Session(ApprovalMode.Passkey, "AQI"), pair: true));
+        Assert.Equal(new StartResult(StartOutcome.Failed, "Couldn't start. a tool named tafs_state exists"), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
         Assert.Equal(["read", "sign together connect draft", "enrol", "batch"], stubs.Calls);
         stubs = new Stubs { Setup = CloudRead.Of(answer), Batch = (502, "") };
-        Assert.Equal(new StartResult(StartOutcome.Failed, "Couldn't start. KIFF answered 502"), await stubs.Run(Session(ApprovalMode.Passkey, "AQI"), pair: true));
+        Assert.Equal(new StartResult(StartOutcome.Failed, "Couldn't start. KIFF answered 502"), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
 
         // A sign-out after the pair's signature, the enrolment, the batch or the draft: nothing more is sent.
         foreach (var (after, sent) in new[] { ("sign together connect draft", new[] { "read", "sign together connect draft" }),
@@ -236,18 +236,13 @@ public class CoachStartTests
             ("draft", ["read", "sign together connect draft", "enrol", "batch", "draft"]) })
         {
             stubs = new Stubs { Setup = CloudRead.Of(answer), SignOutAfter = after };
-            Assert.Equal(new StartResult(StartOutcome.Cancelled), await stubs.Run(Session(ApprovalMode.Passkey, "AQI"), pair: true));
+            Assert.Equal(new StartResult(StartOutcome.Cancelled), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
             Assert.Equal(sent, stubs.Calls);
         }
 
-        // With the pair off (Features.PasskeyPair, until KIFF's contract for the passkey with= header is pinned): nothing asked or sent.
-        stubs = new Stubs { Setup = CloudRead.Of(answer) };
-        Assert.Equal(new StartResult(StartOutcome.FirstStart), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
-        Assert.Equal(["read"], stubs.Calls);
-
         // A key session never signs the pair: it reads, asks and sends nothing.
         stubs = new Stubs { Setup = CloudRead.Of(answer) };
-        Assert.Equal(StartOutcome.CantApprove, (await stubs.Run(Session(ApprovalMode.Key), pair: true)).Outcome);
+        Assert.Equal(StartOutcome.CantApprove, (await stubs.Run(Session(ApprovalMode.Key))).Outcome);
         Assert.Empty(stubs.Calls);
     }
 
@@ -276,13 +271,13 @@ public class CoachStartTests
     public async Task Closing_Hello_on_the_pair_and_an_undrawn_start_send_nothing()
     {
         var stubs = new Stubs { Setup = CloudRead.Of(Contract("setup-start.json")), Hello = () => throw new OperationCanceledException() };
-        Assert.Equal(new StartResult(StartOutcome.Cancelled), await stubs.Run(Session(ApprovalMode.Passkey, "AQI"), pair: true));
+        Assert.Equal(new StartResult(StartOutcome.Cancelled), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
         Assert.Equal(["read"], stubs.Calls);
 
         var json = Node(Contract("setup-start.json"));
         json["start"]!.AsObject().Remove("words");
         stubs = new Stubs { Setup = Json(json.ToJsonString()) };
-        Assert.Equal(new StartResult(StartOutcome.FirstStart), await stubs.Run(Session(ApprovalMode.Passkey, "AQI"), pair: true));
+        Assert.Equal(new StartResult(StartOutcome.FirstStart), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
         Assert.Equal(["read"], stubs.Calls);
 
         var given = new Stubs { Setup = Json("""{"setup": null, "start": {"state": "given"}}""") };

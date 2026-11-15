@@ -15,13 +15,6 @@ public static class Features
     public static readonly bool WindowsPasskeyApprovals = true;
 
     /// <summary>
-    /// tafs cloud's pair (the tools batch and the draft) under one passkey assertion, <c>KIFF-Passkey-Assertion: t=…,a=…,with=…</c>
-    /// over <c>kiff.requests.v1</c>. Off until a KIFF contract defines that header on both the API and the gateway, which
-    /// refuses it today: a first start that asks for the pair then asks and sends nothing.
-    /// </summary>
-    public static readonly bool PasskeyPair = false;
-
-    /// <summary>
     /// The pairing claim proves this PC's passkey was made for this pairing: the create's challenge is
     /// <see cref="Pairing.PairingClaim.PasskeyChallenge"/>, and the claim sends client_data_json and attestation_object.
     /// Off until KIFF takes them: the QR's credential ships as it is.

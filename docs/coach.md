@@ -77,10 +77,11 @@ Ported from the iPad's `AppModel.startSetup`, which its Start calls (`SetupChatV
     `kiff.request.v1`.
 - **Signed only as Start's screen draws it.** A first start without tafs cloud's words opens the iPad's tools step, which
   isn't on this PC yet. Here it asks and sends nothing, and Start turns off.
-- **The pair** (`kiff.requests.v1`), **off for now** (`Features.PasskeyPair`): the iPad signs it only with its approval
-  key under a biometric Face ID, and this PC's only such key is its passkey. The passkey form of the header
-  (`KIFF-Passkey-Assertion: t=…,a=…,with=sha256:…`) waits for KIFF's contract to be cited and pinned in a test; until
-  then a first start that asks for the pair asks and sends nothing (Start stays off, as before the pair). When on:
+- **The pair** (`kiff.requests.v1`): the iPad signs it only with its approval key under a biometric Face ID, and this
+  PC's only such key is its passkey. Its header is KIFF's passkey form for two requests under one approval,
+  `KIFF-Passkey-Assertion: t=…,a=…,with=sha256:…` (KIFF's client spec §2.3 and §2.6; its API's `parsePasskeyHeader` and
+  `VerifyRequestPasskey`), which KIFF's API and gateway both take. `PasskeyPairContractTests` checks each header the way
+  KIFF does. How it goes:
   - Both requests are built in full, with one `signed_at` (`SigningTime.Next`'s, milliseconds kept as written), before
     anything is sent. Each body is exactly the bytes tafs cloud wrote (`GetRawText`).
   - One Windows Hello assertion signs once, its challenge base64url(sha256) of the scheme, the account, `signed_at` and

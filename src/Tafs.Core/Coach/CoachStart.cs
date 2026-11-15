@@ -19,7 +19,7 @@ public sealed record StartResult(StartOutcome Outcome, string? Why = null, strin
 /// <summary>
 /// What Start sends, and how, given by the app and faked in tests. <see cref="SignDraft"/> signs a draft with this PC's
 /// passkey, which is its one Windows Hello. <see cref="SignTogether"/> signs tafs cloud's pair once, the same way
-/// (<see cref="RequestsTogether"/>, behind <see cref="Approvals.Features.PasskeyPair"/>); <see cref="SendBatch"/> sends its batch
+/// (<see cref="RequestsTogether"/>); <see cref="SendBatch"/> sends its batch
 /// to KIFF's gateway. <see cref="Confirm"/> asks Windows Hello over a message. Each send throws
 /// <see cref="HttpRequestException"/> when not reached. <see cref="SignedAt"/> is <see cref="SigningTime.Next"/>'s time, kept as
 /// written. <see cref="Current"/> says whether the session Start began in is still signed in.
@@ -106,11 +106,10 @@ public static class CoachStart
     /// over <see cref="Message"/>. <c>/v1/setup</c> is read before it, so nothing is asked for what won't be sent.
     /// With tafs cloud's first start (<see cref="FirstStart"/>, as the iPad's <c>startCoachTogether</c>), its draft goes in
     /// place of Setup's: alone, signed as Setup's is; or with the tools batch, both signed once (<c>kiff.requests.v1</c>, by
-    /// this PC's passkey, its one Windows Hello, behind <see cref="Approvals.Features.PasskeyPair"/>), the batch first and the
-    /// draft once the batch answered.
+    /// this PC's passkey, its one Windows Hello, in KIFF's <c>KIFF-Passkey-Assertion</c> with <c>with=</c>), the batch first
+    /// and the draft once the batch answered.
     /// </summary>
-    /// <param name="pairOn">Whether the pair is on: <see cref="Approvals.Features.PasskeyPair"/> unless a test says.</param>
-    public static async Task<StartResult> StartAsync(WordBook w, KeptSession session, bool planqueReady, StartCalls calls, bool? pairOn = null)
+    public static async Task<StartResult> StartAsync(WordBook w, KeptSession session, bool planqueReady, StartCalls calls)
     {
         if (!MayStart(session)) return new(StartOutcome.CantApprove, w.Get("approval.device_can_not_approve_approve"));
         var read = await calls.ReadSetup();
@@ -121,9 +120,6 @@ public static class CoachStart
         // Signed only as Start's own screen draws it (its words, Coach's Cards in KIFF's): the tools step that shows them
         // otherwise isn't on this PC yet.
         if (first is { OneScreen: false }) return new(StartOutcome.FirstStart);
-        // The pair under one passkey assertion (kiff.requests.v1 with with=) isn't in a KIFF contract, and the gateway refuses
-        // it: until both take it, a Together first start asks and sends nothing, as before the pair. The draft alone stays on.
-        if (first is { Together: true } && !(pairOn ?? Approvals.Features.PasskeyPair)) return new(StartOutcome.FirstStart);
 
         byte[]? draft = null;
         (string Header, string Value) signature = default;

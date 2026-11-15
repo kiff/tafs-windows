@@ -127,8 +127,9 @@ public static class RequestsTogether
     /// <summary>
     /// The pair signed by this PC's passkey, the only key that signs it here (the iPad's is its approval key under Face ID;
     /// this PC's device key asks no one): one Windows Hello, its assertion's challenge base64url(sha256) of the message, in
-    /// <c>KIFF-Passkey-Assertion: t=…,a=…,with=sha256:…</c>, each header with the other request's hash. Behind
-    /// <see cref="Approvals.Features.PasskeyPair"/>.
+    /// <c>KIFF-Passkey-Assertion: t=…,a=…,with=sha256:…</c>, each header with the other request's hash. That's KIFF's
+    /// header for two requests under one passkey approval (its client spec §2.3 and §2.6; its API's
+    /// <c>parsePasskeyHeader</c> and <c>VerifyRequestPasskey</c>), which its API and gateway both take.
     /// </summary>
     public static async Task<(string Header, string Batch, string Draft)> SignAsync(Approvals.PasskeyApprover passkey, string tenant,
         StartRequest connect, StartRequest draft, string signedAt, CancellationToken cancel = default)
