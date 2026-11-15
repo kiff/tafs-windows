@@ -173,13 +173,17 @@ sealed class QuestionsCardView : StackPanel
     }
 
     /// <summary>An answered card, folded to one line, as the iPad's <c>OutcomeLine</c>: a tick in the green, its words soft, at 14.</summary>
-    internal static Border Outcome(string text, Func<string, Brush> brush)
+    internal static Border Outcome(string text, Func<string, Brush> brush, string glyph = "\uEC61", string tone = "TafsOk",
+        IReadOnlyList<string>? detail = null)
     {
         var line = new Grid { ColumnSpacing = 8 };
         line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         line.ColumnDefinitions.Add(new ColumnDefinition());
-        line.Children.Add(new FontIcon { Glyph = "\uEC61", FontSize = 14, Foreground = brush("TafsOk"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0) });
-        var words = CoachPanel.Words(text, 14, "TafsSoftText");
+        line.Children.Add(new FontIcon { Glyph = glyph, FontSize = 14, Foreground = brush(tone), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0) });
+        var words = new StackPanel { Spacing = 2 };
+        words.Children.Add(CoachPanel.Words(text, 14, "TafsSoftText"));
+        // What was approved, under the line, as the iPad's OutcomeLine's detail.
+        foreach (var more in detail ?? []) words.Children.Add(CoachPanel.Words(more, 12, "TafsDimText"));
         Grid.SetColumn(words, 1);
         line.Children.Add(words);
         var raised = ((SolidColorBrush)brush("TafsRaised")).Color;
