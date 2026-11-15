@@ -85,20 +85,21 @@ read as the iPad's `KIFFMapping.taf`:
 - **The headline** ("0 tafs working.") is read as tafs cloud counts it, never counted here: a taf whose work needs looking
   at is neither working nor paused. The iPad's Overview draws none, so neither does this one yet.
 
-An answer that can't be read, or isn't a 200, leaves the Overview as it was. A screenshot never reads tafs cloud;
-`--home shared/contracts/home.json` reads the contract instead (CI's `overview-home`).
+**LAST RESULT** (`TafRuns.LastResultAsync`): once Home is read, each taf's runs, `GET /v1/tafs/{id}/runs`
+(`contracts/taf-runs.json`), then the report of the newest run that started, `GET /v1/tafs/{id}/runs/{session}`
+(`taf-run-report.json`, `-running`, `-terminated`), all tafs at once. The Overview is then drawn again with them.
+Runs that can't be read leave "–". A report that can't be read leaves why the run stopped, else when it ran.
 
-**tafs cloud's runs** (`TafRuns`): `GET /v1/tafs/{id}/runs` (`contracts/taf-runs.json`) and one run's report,
-`GET /v1/tafs/{id}/runs/{session}` (`taf-run-report.json`, `-running`, `-terminated`). The Overview reads the report of
-the newest run that started. What can't be read reads as none.
+An answer that can't be read, or isn't a 200, leaves the Overview as it was. A screenshot never reads tafs cloud.
+`--home shared/contracts/home.json` reads the contracts instead: Home's from that file, and each taf's runs and report
+from `taf-runs.json` and `taf-run-report.json` beside it (CI's `overview-home`).
 
 ## Not yet
 
 - **+ New**, above Coach on the iPad, comes with Coach: on Windows it would have nothing to open yet.
 - **Where a held call opens.** On the iPad, a held call opens its taf's page, from the sidebar and from
   the Overview, with the call at its top. Here both open Needs you, since a taf's page doesn't draw its held calls yet.
-- **The held calls** come from KIFF in their own change, and **Last result** from each taf's runs and their reports.
-  Until then `--sample` shows the iPad's two sample calls, and a taf from tafs cloud shows "–".
+- **The held calls** come from KIFF in their own change. Until then `--sample` shows the iPad's two sample calls.
 - **A taf from tafs cloud's Activity, Setup and Card tabs** come with their reads; its Card tab also needs who issued it.
 - **Reading Home again:** it's read once, at launch. An expired session (401) isn't told apart yet.
 - **The line's colour** for what went wrong: the iPad's is amber, red when it's failing; here it's the soft colour.

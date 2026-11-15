@@ -52,6 +52,39 @@ public class TafRunsTests
     public void Its_Markdown_is_dropped_and_blank_lines_skipped() =>
         Assert.Equal("Done: 3 refunds", TafRuns.LastResult(En, Runs, new RunReport("sess3", "idle", "\n  ## **Done**: 3 refunds\nmore", null), TimeZoneInfo.Utc));
 
+    /// <summary>tafs cloud's answers by path, from the contracts; a path not given reads as none, as a failed read does.</summary>
+    static Func<string, Task<JsonElement?>> Cloud(List<string> asked, params (string Path, string File)[] answers) => path =>
+    {
+        asked.Add(path);
+        return Task.FromResult(answers.FirstOrDefault(a => a.Path == path).File is { } file ? Answer(file) : (JsonElement?)null);
+    };
+
+    [Fact]
+    public async Task Last_result_reads_its_runs_then_the_newest_started_run_s_report()
+    {
+        var asked = new List<string>();
+        var read = Cloud(asked, ("/v1/tafs/taf-1/runs", "taf-runs.json"), ("/v1/tafs/taf-1/runs/sess3", "taf-run-report.json"));
+
+        Assert.Equal("Evidence went on the disputes; one waits for you.", await TafRuns.LastResultAsync(En, "taf-1", read, TimeZoneInfo.Utc));
+        Assert.Equal(new[] { "/v1/tafs/taf-1/runs", "/v1/tafs/taf-1/runs/sess3" }, asked);
+    }
+
+    /// <summary>A report that can't be read leaves when it ran; runs that can't be read leave "–", and no report is asked for.</summary>
+    [Fact]
+    public async Task What_it_can_t_read_leaves_when_it_ran_or_a_dash()
+    {
+        var asked = new List<string>();
+        Assert.Equal("Last ran at 12:00",
+            await TafRuns.LastResultAsync(En, "taf-1", Cloud(asked, ("/v1/tafs/taf-1/runs", "taf-runs.json")), TimeZoneInfo.Utc));
+        asked.Clear();
+        Assert.Equal("–", await TafRuns.LastResultAsync(En, "taf-1", Cloud(asked), TimeZoneInfo.Utc));
+        Assert.Equal(new[] { "/v1/tafs/taf-1/runs" }, asked);
+    }
+
+    [Fact]
+    public void A_taf_s_id_and_a_session_are_escaped_in_the_path() =>
+        Assert.Equal("/v1/tafs/a%2Fb%3F/runs/s%23", TafRuns.ReportPath("a/b?", "s#"));
+
     [Fact]
     public void What_it_can_t_read_reads_as_none()
     {

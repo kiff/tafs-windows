@@ -148,27 +148,50 @@ public sealed partial class MainWindow : Window
             OpenBeside(typeof(TafPage), SampleTaf(w, page switch { "taf-setup" => TafTab.Setup, "taf-card" => TafTab.Card, _ => TafTab.Activity }));
         else Nav.SelectedItem = BrandItem;
         if (screenshot is not null) Root.Loaded += async (_, _) => await SaveAndQuitAsync(screenshot);
-        if (homeFile is not null) ShowHome(HomeList.Read(w, Tafs.Core.Contracts.ContractFile.Answer(homeFile), TimeZoneInfo.Local));
-        else if (screenshot is null && !sample && App.Sessions.Kept() is { } session) Root.Loaded += async (_, _) => await ReadHomeAsync(session.AccessToken);
+        // From files, every read is done before the window first draws, so the screenshot has them.
+        if (homeFile is not null) _ = ReadHomeAsync(path => Task.FromResult(ContractRead(homeFile, path)));
+        else if (screenshot is null && !sample && App.Sessions.Kept() is { } session)
+            Root.Loaded += async (_, _) => await ReadHomeAsync(path => CloudReadAsync(session.AccessToken, path));
     }
 
     /// <summary>
-    /// Home's list from tafs cloud, as the session, once the window is up: the Overview's lines and Your tafs. An answer
-    /// that can't be read leaves them as they were ("No tafs yet."). A screenshot never reads it.
+    /// Home's list, once the window is up: the Overview's lines and Your tafs, then each taf's Last result from its runs.
+    /// An answer that can't be read leaves what it would fill as it was ("No tafs yet.", "–"). A screenshot never reads
+    /// tafs cloud.
     /// </summary>
-    async Task ReadHomeAsync(string bearer)
+    async Task ReadHomeAsync(Func<string, Task<System.Text.Json.JsonElement?>> read)
     {
         var w = App.Words;
-        HomeAnswer read;
+        if (await read(HomeList.Path) is not { } answer) return;
+        ShowHome(HomeList.Read(w, answer, TimeZoneInfo.Local));
+        var tafs = home!.Tafs;
+        var results = await Task.WhenAll(tafs.Select(t => TafRuns.LastResultAsync(w, t.Id, read, TimeZoneInfo.Local)));
+        overviewRows = overviewRows.Select((r, i) => r with { LastResult = results[i] }).ToList();
+        if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows);
+    }
+
+    /// <summary>A read from tafs cloud as the session: its answer on a 200, else none. Bodies are never logged.</summary>
+    static async Task<System.Text.Json.JsonElement?> CloudReadAsync(string bearer, string path)
+    {
         try
         {
-            var (status, body) = await KiffHttp.GetAsync(new Uri(HomeList.Api, HomeList.Path), bearer, w.Language);
-            if (status != 200) return;
+            var (status, body) = await KiffHttp.GetAsync(new Uri(HomeList.Api, path), bearer, App.Words.Language);
+            if (status != 200) return null;
             using var json = System.Text.Json.JsonDocument.Parse(body);
-            read = HomeList.Read(w, json.RootElement, TimeZoneInfo.Local);
+            return json.RootElement.Clone();
         }
-        catch (Exception e) when (e is System.Net.Http.HttpRequestException or System.Text.Json.JsonException) { return; }
-        ShowHome(read);
+        catch (Exception e) when (e is System.Net.Http.HttpRequestException or System.Text.Json.JsonException) { return null; }
+    }
+
+    /// <summary>
+    /// For screenshots, tafs cloud's answers from the contracts beside <paramref name="homeFile"/>: Home's from it, a taf's
+    /// runs from taf-runs.json and a run's report from taf-run-report.json. None when there's no such file.
+    /// </summary>
+    static System.Text.Json.JsonElement? ContractRead(string homeFile, string path)
+    {
+        var file = path == HomeList.Path ? homeFile
+            : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!, path.EndsWith("/runs") ? "taf-runs.json" : "taf-run-report.json");
+        return File.Exists(file) ? Tafs.Core.Contracts.ContractFile.Answer(file) : null;
     }
 
     /// <summary>Home's answer on the Overview and under Your tafs, and for a taf's page.</summary>

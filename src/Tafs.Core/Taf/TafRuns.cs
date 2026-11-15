@@ -28,6 +28,23 @@ public static class TafRuns
             ? new RunReport(session, Lenient.Text(r, "status") ?? "", Lenient.Text(r, "text") ?? "", Lenient.Text(r, "counted"))
             : null;
 
+    public static string RunsPath(string taf) => $"/v1/tafs/{Uri.EscapeDataString(taf)}/runs";
+
+    public static string ReportPath(string taf, string session) => $"{RunsPath(taf)}/{Uri.EscapeDataString(session)}";
+
+    /// <summary>
+    /// A taf's Last result, read through <paramref name="read"/> (a path to tafs cloud's answer, none when it can't be read):
+    /// its runs, then the report of the newest that started. Runs that can't be read show "–"; a report that can't be read
+    /// leaves why it stopped, else when it ran.
+    /// </summary>
+    public static async Task<string> LastResultAsync(WordBook w, string taf, Func<string, Task<JsonElement?>> read, TimeZoneInfo zone)
+    {
+        if (await read(RunsPath(taf)) is not { } answer) return LastResult(w, null, null, zone);
+        var runs = Read(answer);
+        var report = Latest(runs) is { Session: { } session } && await read(ReportPath(taf, session)) is { } r ? ReadReport(r) : null;
+        return LastResult(w, runs, report, zone);
+    }
+
     /// <summary>The run whose report the Overview reads: the newest one that started (has a session).</summary>
     public static TafRun? Latest(IReadOnlyList<TafRun> runs) => runs.FirstOrDefault(r => r.Session is not null);
 
