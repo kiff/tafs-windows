@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Tafs.Core.Taf;
 using Tafs.Core.Words;
 
@@ -43,6 +44,9 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
     IReadOnlyList<ShownCard>? Cards = null)
 {
     public IReadOnlyList<ShownCard> Shown => Cards ?? [];
+
+    /// <summary>The plan, shown pinned above the thread rather than in it, as the iPad's <c>SetupThread.plan</c>.</summary>
+    public ShownCard? Plan => Shown.LastOrDefault(c => c.Card.Kind == "steps");
 
     /// <summary>
     /// The thread from tafs cloud's answer, as the iPad's <c>setupThread(decoding:)</c>: a message without its time, sender,
@@ -126,6 +130,16 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
             || CardReply.Parse(m.Text) is not { Failed: false } a || !Shown.Any(c => c.Card.Id == a.Id && kinds.Contains(c.Card.Kind))).ToList();
 
     /// <summary>
+    /// The card an answer for <paramref name="id"/> is for, as the iPad's <c>cardRef</c>: the one waiting under that id, since
+    /// Coach can use an id again, else the latest. Its ref keys what's answered here; its conversation goes with the answer.
+    /// </summary>
+    public ShownCard? CardFor(string id) =>
+        Shown.LastOrDefault(c => c.Card.Id == id && c.Answer is null) ?? Shown.LastOrDefault(c => c.Card.Id == id);
+
+    /// <summary>The ref an answer for <paramref name="id"/> is kept under, as the iPad's <c>cardRef</c>.</summary>
+    public string CardRef(string id) => CardFor(id)?.Ref ?? "#" + id;
+
+    /// <summary>
     /// The person's latest answer to a card, as the iPad's <c>answer(to:)</c>: the one kiff/agents recorded on it, else one
     /// sent as a message since the card first appeared.
     /// </summary>
@@ -147,19 +161,19 @@ public static class CoachChat
     /// <c>GET /v1/setup</c>, its conversations from <c>…/chats</c>, the newest by when it was updated, then that one's
     /// <c>…/conversation/{session}</c>, or the whole thread without a list. With no Coach, or <c>/v1/setup</c> unread, none
     /// and no error, as the iPad's <c>try?</c>; a list it can't read, or an empty one, is no list. A conversation that can't be read, or that
-    /// doesn't decode, says "The conversation couldn't be loaded:" and why, as the iPad's <c>setupError</c>.
+    /// doesn't decode, says "The conversation couldn't be loaded:" and why, as the iPad's <c>setupError</c>. Coach's id, to answer its cards.
     /// </summary>
-    public static async Task<(CoachThread? Thread, string? Error)> LoadAsync(WordBook w, Func<string, Task<CloudRead>> read)
+    public static async Task<(CoachThread? Thread, string? Error, string? Coach)> LoadAsync(WordBook w, Func<string, Task<CloudRead>> read)
     {
         var setup = await read("/v1/setup");
-        if (setup.Answer is not { } s || Lenient.Text(Lenient.Field(s, "setup") ?? default, "id") is not { } coach) return (null, null);
+        if (setup.Answer is not { } s || Lenient.Text(Lenient.Field(s, "setup") ?? default, "id") is not { } coach) return (null, null, null);
         var id = CloudRead.PathPart(coach);
         var chats = await read($"/v1/tafs/{id}/chats");
         var newest = chats.Answer is { } c && Chats(c) is { Count: > 0 } list ? list.MaxBy(x => x.Updated).Session : null;
         var thread = await read($"/v1/tafs/{id}/conversation" + (newest is null ? "" : "/" + CloudRead.PathPart(newest)));
         // A thread that doesn't decode: the iPad says the system's words for it; this app has its own.
         var why = thread.Answer is { } t ? (CoachThread.Read(t) is { } read2 ? null : w.Get("error.ours")) : thread.Why;
-        return why is null ? (CoachThread.Read(thread.Answer!.Value), null) : (null, w.Get("coach.conversation_not_loaded", ("why", why)));
+        return why is null ? (CoachThread.Read(thread.Answer!.Value), null, coach) : (null, w.Get("coach.conversation_not_loaded", ("why", why)), coach);
     }
 
     /// <summary>
@@ -196,6 +210,34 @@ public static class CoachChat
             "questions" => QuestionAnswers.Words(w, a.Text, card?.Questions ?? []) ?? a.Text,
             _ => a.Text,
         };
+    }
+
+    /// <summary>
+    /// What tafs cloud's answer to a card's answer comes to, in the iPad's order: sent only when it reads as the iPad's
+    /// <c>CardAnswered</c> (its session, run and status), a 409 before the consent's code, anything else not reached.
+    /// </summary>
+    public static CardSent Sent(CloudRead r) =>
+        r.Answer is { } a ? (Shape.Required(a, "session", Shape.Text) && Shape.Required(a, "run", Shape.Text) && Shape.Required(a, "status", Shape.Text)
+            ? CardSent.Sent : CardSent.NotReached)
+        : r.Status == 409 ? CardSent.ReadAgain
+        : r.Code == "ai_consent_required" ? CardSent.Consent : CardSent.NotReached;
+
+    /// <summary>
+    /// A card's answer as tafs cloud takes it (<c>POST /v1/tafs/{id}/components/{card}/answer</c>), as the iPad's
+    /// <c>answerCard</c> with <c>answerValue</c>: <c>{"answer": …, "session": …}</c>. For a questions card, its answers as
+    /// chosen; none for an answer the card doesn't take.
+    /// </summary>
+    public static (string Path, byte[] Body)? AnswerRequest(string coach, ShownCard card, string text)
+    {
+        JsonNode? value = card.Card.Kind switch
+        {
+            "questions" => QuestionAnswers.Decode(text) is not null ? JsonNode.Parse(text) : null,
+            _ => null,
+        };
+        if (value is null) return null;
+        var body = new JsonObject { ["answer"] = value, ["session"] = card.Session };
+        return ($"/v1/tafs/{CloudRead.PathPart(coach)}/components/{CloudRead.PathPart(card.Card.Id)}/answer",
+            System.Text.Encoding.UTF8.GetBytes(body.ToJsonString()));
     }
 
     /// <summary>

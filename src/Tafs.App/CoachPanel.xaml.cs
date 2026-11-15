@@ -31,6 +31,46 @@ public sealed partial class CoachPanel : UserControl
 
     Func<string, Task<CloudRead>>? read;
 
+    /// <summary>
+    /// How the panel sends a card's answer to tafs cloud (path and body), as the session: only for someone who may use Coach;
+    /// none for a screenshot. Without it, a card's Send stays off. Given while it's open, the thread is drawn again.
+    /// </summary>
+    public Func<string, byte[], Task<CloudRead>>? Answer
+    {
+        get => answer;
+        set
+        {
+            answer = value;
+            Redraw();
+        }
+    }
+
+    Func<string, byte[], Task<CloudRead>>? answer;
+
+    /// <summary>Which account the panel's state is for: each sign-out moves it on, so an answer or read in flight is dropped, as the iPad's <c>accountGeneration</c>.</summary>
+    int generation;
+
+    /// <summary>Signed out: the thread, Coach's id and what was answered here go, as the iPad's sign-out; the intro comes back.</summary>
+    public void Forget()
+    {
+        generation++;
+        (coach, thread) = (null, null);
+        answered.Clear();
+        notes.Clear();
+        cards.Clear();
+        ThreadItems.Children.Clear();
+        IntroError.Visibility = Visibility.Collapsed;
+        ThreadView.Visibility = Visibility.Collapsed;
+        Intro.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>Coach's id, its thread as last read, and each card's state here, as the iPad's model keeps them.</summary>
+    string? coach;
+    CoachThread? thread;
+    readonly HashSet<string> answered = [];
+    readonly Dictionary<string, string> notes = [];
+    readonly Dictionary<string, QuestionsCardState> cards = [];
+
     public CoachPanel()
     {
         InitializeComponent();
@@ -83,11 +123,15 @@ public sealed partial class CoachPanel : UserControl
     async Task LoadThreadAsync()
     {
         if (read is not { } reader) return;
-        var (thread, error) = await CoachChat.LoadAsync(App.Words, reader);
+        var gen = generation;
+        var (loaded, error, id) = await CoachChat.LoadAsync(App.Words, reader);
+        if (gen != generation) return;
         IntroError.Text = error ?? "";
         IntroError.Visibility = error is null ? Visibility.Collapsed : Visibility.Visible;
-        if (thread is null || thread.Drawn().Count == 0) return;
-        ShowThread(thread);
+        coach = id;
+        if (loaded is null || loaded.Drawn(Kinds).Count == 0) return;
+        thread = loaded;
+        ShowThread(loaded);
         Intro.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Visible;
     }
@@ -101,13 +145,20 @@ public sealed partial class CoachPanel : UserControl
     {
         var w = App.Words;
         ThreadItems.Children.Clear();
-        // No card is drawn yet: each kind comes in its own change, and until then its answer reads in a bubble.
-        var items = thread.Drawn();
+        ShowPlan(thread.Plan);
+        var items = thread.Drawn(Kinds);
         for (var i = 0; i < items.Count; i++)
         {
-            var m = items[i].Message!;
             if (CoachChat.GapTime(w, items, i, DateTimeOffset.Now, TimeZoneInfo.Local) is { } gap)
                 ThreadItems.Children.Add(Words(gap, 12, "TafsDimText", HorizontalAlignment.Center));
+            // A card, as the iPad's SetupComponentView: the questions card in this change; the other kinds come in their own.
+            if (items[i].Card is { } shown)
+            {
+                if (shown.Card.Kind == "questions") ThreadItems.Children.Add(QuestionsCard(thread, shown));
+                else if (shown.Card.Kind == "notice") ThreadItems.Children.Add(Notice(shown.Card));
+                continue;
+            }
+            var m = items[i].Message!;
             // As the iPad's ChatBubble: a run's start is a line, inside either branch, so its work and answered line still show.
             if (m.From == ChatFrom.Owner)
             {
@@ -152,6 +203,165 @@ public sealed partial class CoachPanel : UserControl
         }
         foreach (var line in thread.Lines.Where(l => !l.Away))
             ThreadItems.Children.Add(Words($"↳ {line.Taf}: {line.Said}", 13, "TafsSoftText"));
+    }
+
+    /// <summary>
+    /// A notice, as the iPad's <c>SetupComponentView.notice</c>: its title at 14 in its tone's colour (the red, the amber, the
+    /// green, else soft), its words in the ink, on its tone at 10%.
+    /// </summary>
+    Border Notice(CoachCard c)
+    {
+        var tone = c.Tone switch { "error" => "TafsNo", "warning" => "TafsAmber", "success" => "TafsOk", _ => "TafsSoft" };
+        var words = new StackPanel { Spacing = 4 };
+        if (c.Title is { } title)
+        {
+            var head = Words(title, 14, "TafsInkText");
+            head.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+            head.Foreground = Brush(tone);
+            words.Children.Add(head);
+        }
+        words.Children.Add(Words(c.Text ?? "", 14, "TafsInkText"));
+        return new Border { Child = words, Padding = new Thickness(12), CornerRadius = new CornerRadius(14), Background = Faint(tone, 0.10) };
+    }
+
+    /// <summary>The plan pinned above the thread is folded to its step in progress until opened, so the chat comes first.</summary>
+    bool planOpen;
+
+    /// <summary>
+    /// The plan, as the iPad's <c>SetupPlan</c>: "PLAN · 2 OF 5" and the step it's at, with its mark; a tap opens every step
+    /// (the active one in bold, a skipped one struck through, those to come dimmed), and folds it again.
+    /// </summary>
+    void ShowPlan(ShownCard? plan)
+    {
+        PlanHost.Visibility = plan is null ? Visibility.Collapsed : Visibility.Visible;
+        if (plan is null) return;
+        var w = App.Words;
+        var steps = plan.Card.Steps ?? [];
+        var now = PlanStep.Current(steps);
+        var head = new Grid { ColumnSpacing = 10 };
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        head.ColumnDefinitions.Add(new ColumnDefinition());
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var mark = now is null ? null : StepMark(now.Status);
+        if (mark is not null) head.Children.Add(mark);
+        var words = new StackPanel { Spacing = 2 };
+        words.Children.Add(new TextBlock { Style = (Style)Application.Current.Resources["TafsEyebrow"], Text = w.Get("coach.plan.progress",
+            ("done", steps.Count(s => s.Status == "done").ToString()), ("total", steps.Count.ToString())).ToUpper(new System.Globalization.CultureInfo(w.Language)) });
+        var at = Words(now?.Label ?? plan.Card.Title ?? w.Get("coach.plan_title"), 14, "TafsInkText");
+        at.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+        at.TextWrapping = TextWrapping.NoWrap;
+        at.TextTrimming = TextTrimming.CharacterEllipsis;
+        words.Children.Add(at);
+        Grid.SetColumn(words, 1);
+        head.Children.Add(words);
+        var chevron = new FontIcon { FontSize = 12, Foreground = Brush("TafsDim") };
+        Grid.SetColumn(chevron, 2);
+        head.Children.Add(chevron);
+        var toggle = new Button { Content = head, Style = (Style)Application.Current.Resources["TafsQuietButton"], Padding = new Thickness(0),
+            HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        var all = new StackPanel { Spacing = 8 };
+        foreach (var step in steps)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+            row.Children.Add(StepMark(step.Status));
+            var label = Words(step.Label, 14, step.Status is "pending" or "skipped" ? "TafsDimText" : "TafsInkText");
+            if (step.Status == "skipped") label.TextDecorations = Windows.UI.Text.TextDecorations.Strikethrough;
+            if (step.Status == "active") label.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+            row.Children.Add(label);
+            all.Children.Add(row);
+        }
+        // Folding changes what shows in place, so the button keeps its focus.
+        void Fold()
+        {
+            if (mark is not null) mark.Visibility = planOpen ? Visibility.Collapsed : Visibility.Visible;
+            at.Visibility = planOpen ? Visibility.Collapsed : Visibility.Visible;
+            all.Visibility = planOpen ? Visibility.Visible : Visibility.Collapsed;
+            chevron.Glyph = planOpen ? "\uE70E" : "\uE70D";
+            AutomationProperties.SetHelpText(toggle, w.Get(planOpen ? "coach.folds_plan" : "coach.shows_whole_plan"));
+        }
+        toggle.Click += (_, _) => { planOpen = !planOpen; Fold(); };
+        Fold();
+        var panel = new StackPanel { Spacing = 12 };
+        panel.Children.Add(toggle);
+        panel.Children.Add(all);
+        PlanHost.Child = new Border { Style = (Style)Application.Current.Resources["TafsCard"], Child = panel };
+    }
+
+    /// <summary>
+    /// A plan step's mark, as the iPad's <c>StepMark</c>, 18 across: done, a tick on the green; failed, a cross on the red; at
+    /// work, a ring in the amber; to do, a faint ring. Narrator reads its status, as the iPad's.
+    /// </summary>
+    Grid StepMark(string status)
+    {
+        var mark = new Grid { Width = 18, Height = 18, VerticalAlignment = VerticalAlignment.Center };
+        var circle = new Microsoft.UI.Xaml.Shapes.Ellipse();
+        switch (status)
+        {
+            case "done" or "failed":
+                circle.Fill = Brush(status == "done" ? "TafsOk" : "TafsNo");
+                mark.Children.Add(circle);
+                mark.Children.Add(new FontIcon { Glyph = status == "done" ? "\uE73E" : "\uE711", FontSize = 9, FontWeight = Microsoft.UI.Text.FontWeights.Black,
+                    Foreground = Brush("TafsOnFill") });
+                break;
+            case "active":
+                circle.Stroke = Brush("TafsAmber");
+                circle.StrokeThickness = 2.5;
+                mark.Children.Add(circle);
+                break;
+            default:
+                circle.Stroke = Faint("TafsInk", 0.25);
+                circle.StrokeThickness = 1.5;
+                mark.Children.Add(circle);
+                break;
+        }
+        AutomationProperties.SetName(mark, status);
+        return mark;
+    }
+
+    /// <summary>A theme colour at a fraction of its opacity, as the iPad's <c>.opacity</c>.</summary>
+    Microsoft.UI.Xaml.Media.SolidColorBrush Faint(string key, double alpha)
+    {
+        var c = ((Microsoft.UI.Xaml.Media.SolidColorBrush)Brush(key)).Color;
+        c.A = (byte)Math.Round(c.A * alpha);
+        return new(c);
+    }
+
+    /// <summary>The kinds of card drawn so far: the others come in their own changes, their answers in bubbles until then.</summary>
+    static readonly string[] Kinds = ["questions", "notice"];
+
+    QuestionsCardView QuestionsCard(CoachThread thread, ShownCard shown)
+    {
+        if (!cards.TryGetValue(shown.Ref, out var state)) cards[shown.Ref] = state = new QuestionsCardState();
+        // Busy as the iPad's isAnswered: by cardRef, so every card under one id goes quiet together.
+        return new QuestionsCardView(shown, thread.AnswerTo(shown.Card.Id), state, answered.Contains(thread.CardRef(shown.Card.Id)),
+            notes.GetValueOrDefault(shown.Card.Id), answer is null ? null : text => _ = AnswerAsync(thread, shown.Card.Id, text), Brush);
+    }
+
+    /// <summary>
+    /// A card's answer, as the iPad's <c>answer(_:_:)</c>: sent as data, the card busy meanwhile. Sent, the thread is read
+    /// again (the iPad then follows the run's stream, which comes with writing to Coach); a card that doesn't wait any more
+    /// (409) is read again; refused for want of the AI-data consent, the card stays as chosen; else it says it didn't reach.
+    /// </summary>
+    async Task AnswerAsync(CoachThread thread, string id, string text)
+    {
+        // The card it's for, as the iPad's cardRef: the one waiting under that id, else the latest; its conversation goes with it.
+        if (answer is not { } post || coach is null || thread.CardFor(id) is not { } shown
+            || CoachChat.AnswerRequest(coach, shown, text) is not { } request) return;
+        var gen = generation;
+        answered.Add(shown.Ref);
+        notes.Remove(id);
+        Redraw();
+        var sent = CoachChat.Sent(await post(request.Path, request.Body));
+        if (gen != generation) return;
+        if (sent != CardSent.Sent) answered.Remove(shown.Ref);
+        if (sent == CardSent.NotReached) notes[id] = App.Words.Get("coach.answer_did_not_reach_setup");
+        if (sent is CardSent.Sent or CardSent.ReadAgain) await LoadThreadAsync();
+        else Redraw();
+    }
+
+    void Redraw()
+    {
+        if (thread is not null) ShowThread(thread);
     }
 
     /// <summary>A run's start, as the iPad's kickoff line: "Run started 09:00 · …", centred, two lines at most.</summary>
@@ -220,7 +430,7 @@ public sealed partial class CoachPanel : UserControl
         return (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources[key];
     }
 
-    static TextBlock Words(string text, double size, string style, HorizontalAlignment align = HorizontalAlignment.Left) =>
+    internal static TextBlock Words(string text, double size, string style, HorizontalAlignment align = HorizontalAlignment.Left) =>
         new() { Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, HorizontalAlignment = align,
             TextAlignment = align == HorizontalAlignment.Center ? TextAlignment.Center : TextAlignment.Left,
             Style = (Style)Application.Current.Resources[style] };
