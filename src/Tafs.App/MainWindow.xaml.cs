@@ -148,15 +148,11 @@ public sealed partial class MainWindow : Window
         AccountPage.SignInChosen += OpenSignIn;
         AccountPage.AlertsChosen += () => OpenBeside(typeof(ComingPage), w.Get("settings.alerts"));
         AccountPage.AddThisDeviceChosen += OpenPairing;
-        // As the iPad's sign-out: Coach reads and answers as no one, and forgets the thread and what was answered; the device's
-        // id goes, so the next session reads its own.
+        // As the iPad's sign-out (its forgetSession): everything read as the last session goes, and nothing reads as anyone.
         AccountPage.SignedOut += () =>
         {
             ViewOnly.IsOpen = false;
-            deviceId = null;
-            CoachMode.Read = null;
-            CoachMode.Answer = null;
-            CoachMode.Forget();
+            ForgetSession();
             OpenSignIn();
         };
         // Leaving the sample: the app starts again without it, as the iPad's Clear the sample leaves it.
@@ -255,17 +251,31 @@ public sealed partial class MainWindow : Window
     void UseSession(KeptSession session)
     {
         var bearer = session.AccessToken;
-        sessions++;
-        cloudRead = null;
-        deviceId = null;
+        ForgetSession();
         cloudReadWithProof = (path, proof) => CloudReadAsync(bearer, path, proof);
         setupProof = () => SetupProofAsync(session);
-        ShowHome(new HomeAnswer([], null));
-        CoachMode.Answer = null;
-        CoachMode.Forget();
         CoachMode.Read = path => CloudReadAsync(bearer, path);
         _ = ReadHomeAsync(path => CloudReadAsync(bearer, path));
         _ = AllowCoachAsync(bearer);
+    }
+
+    /// <summary>
+    /// As the iPad's <c>forgetSession</c>, at sign-out and before each new session: what the last session read goes
+    /// (Home's list, on the Overview and under Your tafs; the pages' reads and Setup's proof; this device's id; Coach's
+    /// thread, what was answered and whether it may answer), and a read it started that lands later is dropped. Until a
+    /// session is used, nothing reads as anyone.
+    /// </summary>
+    void ForgetSession()
+    {
+        sessions++;
+        cloudRead = null;
+        cloudReadWithProof = null;
+        setupProof = null;
+        deviceId = null;
+        ShowHome(new HomeAnswer([], null));
+        CoachMode.Read = null;
+        CoachMode.Answer = null;
+        CoachMode.Forget();
     }
 
     /// <summary>
@@ -333,7 +343,7 @@ public sealed partial class MainWindow : Window
     /// <summary>
     /// For screenshots, tafs cloud's answers from the contracts beside <paramref name="homeFile"/>: Home's from it, a taf's
     /// runs from taf-runs.json, a run's report from taf-run-report.json, its Activity from taf-activity.json and its Setup from
-    /// taf-setup.json; Coach's from coach-setup.json, coach-chats.json and coach-conversation.json; Connect apps' from
+    /// taf-setup.json; Coach's from setup-coach.json, coach-chats.json and coach-conversation.json; Connect apps' from
     /// connect-apps.json. With no such file, it reads as not reached.
     /// </summary>
     static CloudRead ContractRead(Tafs.Core.Words.WordBook w, string homeFile, string path)
@@ -341,7 +351,7 @@ public sealed partial class MainWindow : Window
         var file = path == HomeList.Path ? homeFile
             : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!,
                 path.StartsWith(ConnectAppsScreen.ListPath, StringComparison.Ordinal) ? "connect-apps.json"
-                : path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "coach-setup.json"
+                : path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "setup-coach.json"
                 : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json"
                 : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
         return File.Exists(file) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(file)) : CloudRead.Unreached(w);
