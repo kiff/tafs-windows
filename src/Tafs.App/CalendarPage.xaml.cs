@@ -25,9 +25,9 @@ public sealed partial class CalendarPage : Page
         today = DateOnly.FromDateTime(DateTime.Now);
         state = CalendarScreen.Opening(today) with { Mode = e.Parameter as CalendarMode? ?? CalendarMode.Week };
         NavTitle.Text = CalendarScreen.Heading(w);
-        // The date in the person's language, "Nov 15, 2026" or "15 nov. 2026", as the iPad's date pill.
+        // The date in the person's language, "November 15, 2026" or "15 novembre 2026": the full month, so juin and juillet never read alike.
         Picker.Language = w.Language;
-        Picker.DateFormat = w.Language == "en" ? "{month.abbreviated} {day.integer}, {year.full}" : "{day.integer} {month.abbreviated} {year.full}";
+        Picker.DateFormat = w.Language == "en" ? "{month.full} {day.integer}, {year.full}" : "{day.integer} {month.full} {year.full}";
         AutomationProperties.SetName(Picker, w.Get("calendar.choose_date"));
         for (var hour = 0; hour < 24; hour++) Hours.Children.Add(HourRow(hour));
         HoursScroll.Loaded += (_, _) => HoursScroll.ChangeView(null, CalendarScreen.FirstHour * HourHeight, null, true);
