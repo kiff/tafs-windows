@@ -319,4 +319,19 @@ public class CoachCardsTests
     [InlineData("k3f9a2_", "k3f9a2")]
     [InlineData("___", "___")]
     public void A_tool_reads_in_words(string tool, string words) => Assert.Equal(words, CoachChat.ToolWords(tool));
+
+    /// <summary>A hand-over set up but not listed asks for Home once; listed, failed, an improvement or still setting up, never.</summary>
+    [Fact]
+    public void A_set_up_taf_not_listed_reads_Home_again_once()
+    {
+        var setUp = OneResult(Result, """{"taf_id": "taf-1"}""");
+        var thread = new CoachThread([], [], null, [setUp]);
+        var asked = new HashSet<string>();
+
+        Assert.True(thread.ReadHomeFor(["rae"], asked));
+        Assert.False(thread.ReadHomeFor(["rae"], asked));
+        Assert.False(thread.ReadHomeFor(["refunds-x"], new HashSet<string>()));
+        Assert.False(new CoachThread([], [], null, [OneResult(Result)]).ReadHomeFor([], new HashSet<string>()));
+        Assert.False(new CoachThread([], [], null, [OneResult(Result, """{"failed": "no"}""")]).ReadHomeFor([], new HashSet<string>()));
+    }
 }
