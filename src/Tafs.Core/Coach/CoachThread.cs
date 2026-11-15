@@ -264,7 +264,7 @@ public static class CoachChat
     /// <summary>
     /// A card's answer as tafs cloud takes it (<c>POST /v1/tafs/{id}/components/{card}/answer</c>), as the iPad's
     /// <c>answerCard</c> with <c>answerValue</c>: <c>{"answer": …, "session": …}</c>. For a questions card, its answers as
-    /// chosen; none for an answer the card doesn't take.
+    /// chosen; for an approval, its outcome; none for an answer the card doesn't take.
     /// </summary>
     public static (string Path, byte[] Body)? AnswerRequest(string coach, ShownCard card, string text)
     {
@@ -273,6 +273,7 @@ public static class CoachChat
             "questions" => QuestionAnswers.Decode(text) is not null ? JsonNode.Parse(text) : null,
             // A confirm's answer is its option's value, as answerValue's .text; an empty one isn't an answer.
             "confirm" => text.Length > 0 ? JsonValue.Create(text) : null,
+            "approval" => ApprovalValue(text) is { } approval ? JsonValue.Create(approval) : null,
             _ => null,
         };
         if (value is null) return null;
@@ -280,6 +281,16 @@ public static class CoachChat
         return ($"/v1/tafs/{CloudRead.PathPart(coach)}/components/{CloudRead.PathPart(card.Card.Id)}/answer",
             System.Text.Encoding.UTF8.GetBytes(body.ToJsonString()));
     }
+
+    /// <summary>
+    /// An approval's answer, as the iPad's <c>answerValue</c>: "approved" (whatever follows "approved,"), "declined", one
+    /// signed earlier ("already approved: …") or "failed: why" as written; none for anything else.
+    /// </summary>
+    static string? ApprovalValue(string text) =>
+        text == "approved" || text.StartsWith("approved,", StringComparison.Ordinal) ? "approved"
+        : text == "declined" ? "declined"
+        : text.StartsWith("already approved:", StringComparison.Ordinal) || text.StartsWith("failed:", StringComparison.Ordinal) ? text
+        : null;
 
     /// <summary>"Refunds wasn't set up: why.", as the iPad's <c>notSetUp</c>: the why without its end's dots and spaces.</summary>
     public static string NotSetUp(WordBook w, string name, string why) => w.Get("coach.not_set_up", ("name", name), ("why", why.Trim('.', ' ')));
