@@ -216,6 +216,7 @@ public class CoachApprovalTests
         public (int, string) Confirmed { get; init; } = (200, """{"id": "d_01", "status": "confirmed"}""");
         public bool ConfirmUnreached { get; init; }
         public Exception? Hello { get; init; }
+        public Exception? ReportKey { get; init; }
         public string ReportAnswer { get; init; } = """{"outcome": "answered", "answer": "approved", "note": "Approved", "session": "s1", "run": "r2"}""";
         public string? SignOutAfter { get; init; }
         public List<string> Sent { get; } = [];
@@ -246,7 +247,12 @@ public class CoachApprovalTests
                 Did($"confirm {path} {signature.Header}");
                 return ConfirmUnreached ? Task.FromException<(int, string)>(new HttpRequestException("x")) : Task.FromResult(Confirmed);
             },
-            async message => { Did("sign report"); return await key.SignDerAsync(message); },
+            async message =>
+            {
+                if (ReportKey is { } e) throw e;
+                Did("sign report");
+                return await key.SignDerAsync(message);
+            },
             (path, body, signature, proof) =>
             {
                 Did($"report {path}");
@@ -343,6 +349,20 @@ public class CoachApprovalTests
         Assert.Equal(new ApproveResult("Approve again to confirm the sign-in.", ReadAgain: true), await notConfirmed.Approve());
         var unreadable = new Fakes { AskAnswer = """{"note": "no outcome"}""" };
         Assert.Equal(new ApproveResult(En.Get("coach.answer_not_reached", ("why", En.Get("kiff.kiff_did_not_answer_expected"))), ReadAgain: true), await unreadable.Approve());
+    }
+
+    /// <summary>
+    /// The device key failing over the report after the confirm went through: the report isn't sent, the card says the answer
+    /// didn't reach Setup, and the thread is read again (tafs cloud learns of the confirm from KIFF).
+    /// </summary>
+    [Fact]
+    public async Task A_report_that_can_t_be_signed_says_so_and_reads_again()
+    {
+        var tpm = new System.Security.Cryptography.CryptographicException("gone");
+        var fakes = new Fakes { ReportKey = tpm };
+        Assert.Equal(new ApproveResult(En.Get("coach.answer_not_reached", ("why", $"0x{tpm.HResult:X8}")), ReadAgain: true), await fakes.Approve());
+        Assert.Contains(fakes.Sent, s => s.StartsWith("confirm"));
+        Assert.DoesNotContain(fakes.Sent, s => s.StartsWith("report"));
     }
 
     /// <summary>A sign-out after any step sends nothing more, as the iPad's accountGeneration checks.</summary>
