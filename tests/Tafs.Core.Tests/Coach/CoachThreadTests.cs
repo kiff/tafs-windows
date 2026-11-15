@@ -34,8 +34,8 @@ public class CoachThreadTests
     {
         var thread = CoachThread.Read(Json(Thread))!;
 
-        Assert.Equal(new[] { "Hello", "Set up refunds", "Done." }, thread.Items.Select(m => m.Text));
-        var answer = thread.Items[2];
+        Assert.Equal(new[] { "Hello", "Set up refunds", "Done." }, thread.Items.Select(i => i.Message!.Text));
+        var answer = thread.Items[2].Message!;
         Assert.Equal((ChatFrom.Taf, 12400, 4), (answer.From, answer.Work!.Ms, answer.Work.Steps.Count));
         Assert.Equal(("From the record: 1 done", (string?)null), (answer.Counted, answer.Delivered));
         Assert.Equal(new[] { "Coach couldn't connect Shippo yet", "Try again" }, answer.Refused);
@@ -144,7 +144,7 @@ public class CoachThreadTests
     [Fact]
     public void Coach_s_work_folds_into_rows_in_its_own_words()
     {
-        var work = CoachThread.Read(Json(Thread))!.Items[2].Work!;
+        var work = CoachThread.Read(Json(Thread))!.Items[2].Message!.Work!;
 
         var rows = WorkLog.CoachRows(En, work);
 
