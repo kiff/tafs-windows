@@ -42,6 +42,21 @@ public static class Sidebar
     public static string Eyebrow(WordBook w, string key) => w.Get(key).ToUpper(CultureInfo.GetCultureInfo(w.Language));
 
     /// <summary>
+    /// Whether a taf belongs in the sidebar's Your tafs, as the iPad's relevantNow (one sidebar for the whole app shows only
+    /// the tafs relevant now; all of them are on the Overview): a call of its waits, a step or a knock is open, or it ran or
+    /// changed in the last 24 hours.
+    /// </summary>
+    public static bool RelevantNow(bool held, bool step, bool knock, DateTimeOffset? lastRun, DateTimeOffset? lastChange, DateTimeOffset now) =>
+        held || step || knock || new[] { lastRun, lastChange }.Any(at => at is { } t && now - t < TimeSpan.FromHours(24));
+
+    /// <summary>The sample's Your tafs, as overview.png: its tafs relevant now, the two a call waits on, each with what it's doing.</summary>
+    public static IReadOnlyList<OverviewRow> SampleYourTafs(WordBook w, DateTimeOffset now)
+    {
+        var held = NeedsYou.NeedsYouScreen.Sample(w, now).Select(h => h.Taf).ToHashSet();
+        return OverviewScreen.SampleRows(w, now).Where(r => RelevantNow(held.Contains(r.Taf), false, false, null, null, now)).ToList();
+    }
+
+    /// <summary>
     /// Under Your tafs while there are none: tafs cloud's line when it sends one, otherwise the app's own:
     /// connect an app for someone who may use Coach, or where shared tafs will show.
     /// </summary>

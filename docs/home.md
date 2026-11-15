@@ -20,6 +20,12 @@ From the top:
   language's own rules). With no tafs yet, the line under it is tafs cloud's when it sends one,
   otherwise "Connect an app to set up your first taf." (or, for someone who can't use Coach, where
   shared tafs will show).
+  - **Its rows** are the tafs relevant now, as the iPad's one sidebar for the whole app (`Sidebar.RelevantNow`): a call
+    of its waits, a step or a knock is open, or it ran or changed in the last 24 hours. All of them are on the
+    Overview.
+  - **Each row:** the avatar (34), the name in 15 semibold, and what it's doing in 13 soft, on one line each. A row
+    opens its taf's page.
+  - **The sample's** are Deploys and Bill pay, the two a call waits on, as overview.png.
 - **Coach and Account at the foot**, always in sight:
   - Coach is the ink button (light in dark, with the dark ground's colour on it), 44 high, corners
     of 14.
@@ -71,8 +77,6 @@ the newest run that started. What can't be read reads as none.
   the Overview, with the call at its top. Here both open Needs you, since a taf's page doesn't draw its held calls yet.
 - **The held calls and the tafs** come from KIFF and tafs cloud in their own changes, with the runs and their reports
   for Last result. Until then `--sample` shows the iPad's two sample calls and five tafs.
-- **Your tafs in the sidebar:** the iPad lists the sample's tafs there too (Deploys, Bill pay). Here it still says
-  "Connect an app to set up your first taf."
 - **Who uses a taf,** under its name on the Overview ("Support · 3 people"), for whoever manages it.
 - **Coach's sparkle**: the iPad's Coach button has a sparkle (sparkles while Coach drives). Segoe
   Fluent Icons has no sparkle, so it's the closest it has, a star (U+E734).
