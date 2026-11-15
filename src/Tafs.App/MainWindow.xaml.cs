@@ -125,7 +125,13 @@ public sealed partial class MainWindow : Window
         SignInPage.PairInsteadChosen += OpenPairing;
         NeedsYouPage.AddThisDeviceChosen += OpenPairing;
         // F5 on Needs you: Home and KIFF's held calls read again, as the iPad's pull-to-refresh.
-        NeedsYouPage.RefreshChosen += () => { if (cloudRead is { } read) _ = ReadHomeAsync(read); };
+        NeedsYouPage.RefreshChosen += () =>
+        {
+            if (cloudRead is not { } read) return;
+            _ = ReadHomeAsync(read);
+            // Did this happen? read again too, as the iPad's refresh then loadUnproven.
+            _ = ReadUnprovenAsync(sessions);
+        };
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
         // Focus goes back to the sidebar's Coach when Coach mode has gone.
         CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
