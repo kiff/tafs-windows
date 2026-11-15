@@ -42,6 +42,15 @@ public static class PlanqueProof
     public static string GrantsPath(string tenant) => $"/v1/accounts/{CloudRead.PathPart(tenant)}/grants";
 
     /// <summary>
+    /// Whether a planque call may go to <paramref name="url"/>: https, on exactly planque's host, on the default port, with no
+    /// user in it. It carries this device's signature only: KIFF's token never goes to planque (<see cref="KeptSessions.MaySendTo"/>
+    /// doesn't list it).
+    /// </summary>
+    public static bool IsPlanque(Uri url) =>
+        url.IsAbsoluteUri && url.Scheme == Uri.UriSchemeHttps && url.UserInfo.Length == 0 && url.IsDefaultPort
+        && string.Equals(url.Host, Api.Host, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// <c>t=…,v1=…,d=…</c>: the time, the signature over planque's <c>GET</c> of the account's grants, and this device's id
     /// in KIFF, loaded when it isn't known. None with no account or no device, as the iPad's <c>notSigning</c> and
     /// <c>noDevice</c>; a signature that fails is the caller's to treat as none, as the iPad's <c>try?</c>.

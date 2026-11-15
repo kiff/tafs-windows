@@ -47,6 +47,30 @@ grants, in its own change.
 - **An integer beyond 2^53 - 1 is refused,** as planque and KIFF refuse it: 2^53 and 2^53 + 1 would hash the same.
 - **Tested** with planque's own `jcs_test.go` cases and the iPad's grant vector, which was made with planque's Go code.
 
+## planque's grants, read as this device
+
+What a taf asks to connect, as planque lists it (`PlanqueGrants`, ported from the iPad's `PlanqueClient.grants`
+and `Grant`), read before anything is approved:
+
+- **The read:** `GET /v1/accounts/{tenant}/grants` on planque, with the same `Planque-Device-Signature` as the
+  proof above, in the app's language (`KiffHttp.PlanqueGetAsync`). It's shown in its own change, with the approval
+  cards; this one reads and checks.
+- **Only planque's exact host** (`PlanqueProof.IsPlanque`): https, `planque.kiff.dev`, the default port, no user. It
+  carries the device's signature and never KIFF's token: `KeptSessions.MaySendTo` still lists only KIFF's API and
+  tafs cloud.
+- **Read as strictly as the iPad's decoder:** a grant without its id, status, words, digest, request (its server,
+  agent and each tool's tool) or events, or with a field of another shape, fails the whole read. Health and
+  actions are read leniently, as the iPad's.
+- **The digest check:** each grant's `digest` must be the SHA-256 of what it covers, in RFC 8785's canonical form
+  (`Jcs`, above), from the answer's own bytes, numbers as written:
+  - with no `digest_v`, the request alone;
+  - with `digest_v: 2`, `{"lang", "request", "text"}`: the words the person reads, and their language, are signed too;
+  - any other version, or v2 without its words or language, covers nothing, so it never matches.
+  `DigestMatches` is set here, never read from planque. Only a grant that matches will be approvable.
+- **Each grant against its own bytes:** paired with its entry by its place in the list, never looked up by its id. A
+  repeated id, or bytes listing another number of grants, fails the read: one request's digest never vouches for
+  another's. (The iPad looks its entry up by id.)
+
 The approval key isn't here. On Windows it's a Windows Hello passkey (see [approvals](approvals.md)).
 
 ## Tests
