@@ -124,4 +124,48 @@ public class TafSetupTests
     }
 
     public static IEnumerable<object[]> Shipped() => WordBook.Shipped(SharedFiles.Strings).Select(l => new object[] { l });
+
+    [Fact]
+    public void A_connection_reads_its_action_count_and_whether_it_runs()
+    {
+        var gmail = Assert.Single(Contract("taf-setup-connected.json").Connections);
+        Assert.Equal((1, false), (gmail.ActionCount, gmail.Running));
+        Assert.True(Json("""{"connections": [{"id": "g", "name": "Gmail", "action_count": 2, "running": true}]}""").Connections[0].Running);
+    }
+
+    static SetupConnection App(string id, string name, int actions = 0, bool reconnect = false) =>
+        new(id, name, "", "", reconnect, "", [], null, "", null, actions);
+
+    /// <summary>The iPad's nodes: one an app, in the order of its first connection; the one with actions shown, else one to sign in again.</summary>
+    [Fact]
+    public void The_ring_has_one_node_an_app_the_one_with_actions_in_front()
+    {
+        var nodes = TafSetup.Nodes([App("s1", "Stripe"), App("g1", "Gmail", reconnect: true), App("s2", "Stripe", actions: 2), App("g2", "Gmail")]);
+
+        Assert.Equal(new[] { "s2", "g1" }, nodes.Select(n => n.App.Id));
+        Assert.Equal(new[] { "s1" }, nodes[0].Others.Select(o => o.Id));
+        Assert.Equal(new[] { "g2" }, nodes[1].Others.Select(o => o.Id));
+        Assert.Equal("g", TafSetup.Nodes([App("g", "Gmail"), App("h", "Gmail")])[0].App.Id);
+    }
+
+    /// <summary>As the iPad's loadTafSetup: the page once read, kept when a later read fails, which says why.</summary>
+    [Fact]
+    public async Task Setup_reads_without_the_proof_and_a_failure_keeps_the_page()
+    {
+        var asked = new List<string>();
+        var answer = CloudRead.Of(ContractFile.Answer(SharedFiles.Contract("taf-setup-connected.json")));
+        var setup = new SetupRead();
+        Assert.Null(setup.Page);
+
+        await setup.LoadAsync("taf/1", path => { asked.Add(path); return Task.FromResult(answer); });
+        Assert.Equal(new[] { "/v1/tafs/taf%2F1/setup" }, asked);
+        Assert.Equal("Gmail", setup.Page?.Connections[0].Name);
+        Assert.Null(setup.Error);
+
+        await setup.LoadAsync("taf/1", _ => Task.FromResult(CloudRead.Refused(En, 503, """{"words": "Try again in a minute."}""")));
+        Assert.Equal("Gmail", setup.Page?.Connections[0].Name);
+        Assert.Equal("Try again in a minute.", setup.Error);
+    }
+
+    static readonly WordBook En = WordBook.Load(SharedFiles.Strings, "en");
 }
