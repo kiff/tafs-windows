@@ -73,7 +73,7 @@ PC's passkey (`WindowsHello.CreateAsync`, ES256, the person verified), then show
 
 | Step | Shows |
 | :- | :- |
-| Waiting | the QR, the steps on the phone (its own menu names: Account, Devices, Add a device), the check code, "Waiting for your phone…" |
+| Waiting | the QR, the steps on the phone (its own menu names: Account, Devices, Add a computer), the check code, "Waiting for your phone…" |
 | Expired | "This code expired." and Show a new code |
 | Failed | why, as KIFF's status only (`KIFF answered 403`), and Show a new code |
 | Offline | KIFF wasn't reached, and Show a new code |
