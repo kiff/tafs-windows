@@ -1,0 +1,46 @@
+<!-- Calendar (the iPad's CalendarView, compact, as in the reference set): the date's title, Today and the arrows,
+     the date, Day / Week / Month, the strip of days, then the hours (Day), the day's list (Week) or the month. -->
+<Page x:Class="Tafs.App.CalendarPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{ThemeResource TafsBackground}">
+  <ScrollViewer>
+    <StackPanel Padding="24,16,24,24" Spacing="14" MaxWidth="1180" HorizontalAlignment="Stretch">
+      <TextBlock x:Name="NavTitle" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource TafsInk}" />
+      <TextBlock x:Name="Title" FontSize="18" FontWeight="Bold" Margin="0,8,0,0" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
+
+      <Grid>
+        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+          <Button x:Name="TodayPill" Click="OnToday" />
+          <Button x:Name="Previous" Click="OnPrevious" Style="{StaticResource TafsArrow}"><FontIcon Glyph="&#xE76B;" FontSize="16" /></Button>
+          <Button x:Name="Next" Click="OnNext" Style="{StaticResource TafsArrow}"><FontIcon Glyph="&#xE76C;" FontSize="16" /></Button>
+        </StackPanel>
+        <CalendarDatePicker x:Name="Picker" HorizontalAlignment="Right" DateChanged="OnPicked" FirstDayOfWeek="Monday" />
+      </Grid>
+
+      <!-- Day / Week / Month: the iPad's segmented control. -->
+      <Border Background="{ThemeResource TafsRaised}" CornerRadius="9" Padding="2">
+        <Grid x:Name="Modes" ColumnSpacing="2" />
+      </Border>
+
+      <ScrollViewer x:Name="DayStripScroll" HorizontalScrollBarVisibility="Hidden" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+        <StackPanel x:Name="DayStrip" Orientation="Horizontal" Spacing="6" />
+      </ScrollViewer>
+      <Grid x:Name="WeekStrip" ColumnSpacing="6" />
+
+      <!-- Day: the hours, opened at 08:00, and what's on them. -->
+      <ScrollViewer x:Name="HoursScroll" Height="520">
+        <StackPanel x:Name="Hours" />
+      </ScrollViewer>
+      <TextBlock x:Name="NothingDay" FontSize="13" HorizontalAlignment="Center" Margin="0,6" Style="{StaticResource TafsDimText}" />
+
+      <Grid x:Name="Month" RowSpacing="4" ColumnSpacing="4" />
+
+      <!-- Week and Month: the selected day's list. -->
+      <StackPanel x:Name="DayList" Spacing="8">
+        <TextBlock x:Name="DayListHeading" Style="{StaticResource TafsEyebrow}" />
+        <TextBlock x:Name="DayListNothing" FontSize="13" Margin="0,6" Style="{StaticResource TafsDimText}" />
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</Page>
