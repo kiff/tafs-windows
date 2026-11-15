@@ -71,6 +71,7 @@ public class DeviceSignInTests
     [InlineData("https://evilkiff.dev/device")]
     [InlineData("https://app.kiff.dev:8443/auth/device")]
     [InlineData("https://someone@kiff.dev/device")]
+    [InlineData("https://docs.kiff.dev/device")] // an exact list: no other subdomain
     public void A_link_that_isn_t_https_on_KIFF_s_host_is_never_opened(string link) =>
         Assert.Null(DeviceSignIn.ReadStart(200, Start.Replace("https://app.kiff.dev/auth/device?code=ABCD-EFGH", link), Now));
 
@@ -116,6 +117,7 @@ public class DeviceSignInTests
             """{"access_token":"tok-secret","token_type":"Bearer","expires_in":3600,"tenant":"t1","subject":"s1"}""");
         Assert.Equal(SignInStatus.SignedIn, result.Status);
         Assert.Equal("tok-secret", result.Session!.AccessToken);
+        Assert.Equal(Tafs.Core.Kiff.ApprovalMode.View, result.Session.Mode);
         Assert.DoesNotContain("tok-secret", result.Session.ToString());
         Assert.DoesNotContain("tok-secret", result.ToString());
     }
