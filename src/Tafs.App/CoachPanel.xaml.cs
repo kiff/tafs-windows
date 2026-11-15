@@ -58,6 +58,7 @@ public sealed partial class CoachPanel : UserControl
         answered.Clear();
         notes.Clear();
         cards.Clear();
+        homeAsked.Clear();
         ThreadItems.Children.Clear();
         IntroError.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Collapsed;
@@ -146,6 +147,8 @@ public sealed partial class CoachPanel : UserControl
         var w = App.Words;
         ThreadItems.Children.Clear();
         ShowPlan(thread.Plan);
+        // Asked once the thread is drawn: Home's read can answer at once, and it draws the thread again.
+        if (Tafs is { } tafs && thread.ReadHomeFor(tafs().Select(t => t.Agent), homeAsked)) DispatcherQueue.TryEnqueue(() => HomeWanted?.Invoke());
         var items = thread.Drawn(Kinds);
         for (var i = 0; i < items.Count; i++)
         {
@@ -233,6 +236,12 @@ public sealed partial class CoachPanel : UserControl
 
     /// <summary>A result card's Choose a plan: Plan &amp; usage, where a plan is chosen, as the iPad's <c>usageRequested</c>.</summary>
     public event Action? PlanChosen;
+
+    /// <summary>A hand-over set up whose taf isn't on Home's list yet: the window reads Home again, once for each card.</summary>
+    public event Action? HomeWanted;
+
+    /// <summary>The result cards Home was read again for.</summary>
+    readonly HashSet<string> homeAsked = [];
 
     /// <summary>
     /// A result, as the iPad's <c>SetupComponentView.result</c>: a new taf's hand-over, or an improvement's when it names the
@@ -453,7 +462,8 @@ public sealed partial class CoachPanel : UserControl
         else Redraw();
     }
 
-    void Redraw()
+    /// <summary>The thread drawn again: after an answer, and when Home's list changes, so a result card finds its taf.</summary>
+    public void Redraw()
     {
         if (thread is not null) ShowThread(thread);
     }

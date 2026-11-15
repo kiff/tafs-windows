@@ -116,6 +116,10 @@ public sealed partial class MainWindow : Window
             CoachMode.Close();
             OpenBeside(typeof(TafPage), OpenTaf(w, key));
         };
+        CoachMode.HomeWanted += () =>
+        {
+            if (cloudRead is { } read) _ = ReadHomeAsync(read);
+        };
         CoachMode.PlanChosen += () =>
         {
             CoachMode.Close();
@@ -323,6 +327,8 @@ public sealed partial class MainWindow : Window
         NoTafs.Visibility = home.Tafs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         YourTafs.Visibility = home.Tafs.Count > 0 && yours.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows);
+        // Coach's result cards name and open the tafs on this list.
+        CoachMode.Redraw();
     }
 
     /// <summary>

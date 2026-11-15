@@ -150,6 +150,19 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
         return (outcome?.TafId is not null || listed ? HandOverState.SetUp : HandOverState.SettingUp, null);
     }
 
+    /// <summary>
+    /// Whether Home's list should be read again for a hand-over, as the iPad's "the list is being read again for it": a
+    /// result tafs cloud set up (its taf's id answered) whose taf isn't listed yet. Once per card: its ref goes into
+    /// <paramref name="asked"/>, so a list that still lacks it isn't read again and again.
+    /// </summary>
+    public bool ReadHomeFor(IEnumerable<string?> listedAgents, ISet<string> asked)
+    {
+        var listed = listedAgents.OfType<string>().ToHashSet();
+        var wanting = Shown.Where(c => c.Card is { Kind: "result", Taf: { Improves: null } t } && !listed.Contains(t.Agent)
+            && HandOver(c.Ref, listed: false).State == HandOverState.SetUp).Select(c => c.Ref).Where(asked.Add).ToList();
+        return wanting.Count > 0;
+    }
+
     /// <summary>tafs cloud's words when the taf was made with no plan, so no run started, as the iPad's <c>planNeeded</c>.</summary>
     public string? PlanNeeded(string cardRef) => Shown.FirstOrDefault(c => c.Ref == cardRef)?.Answer?.Outcome?.PlanNeeded;
 
