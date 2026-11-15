@@ -53,7 +53,8 @@ the iPad's `refresh` does:
   that refused it before sending says so.
 - **The title:** the tool's title from KIFF, else the action in words, then its amount: "Refund a payment
   · €150" (`titleWithAmount`). Money is written as the app writes it everywhere; another unit as KIFF
-  wrote it ("3 seats"); a value that isn't a number, none. Money moved counts it.
+  wrote it ("3 seats"); a value that isn't a number, or can't be written as the money it is (more than
+  18 decimals, or more minor units than a whole number holds), none: never a crash on KIFF's answer. Money moved counts it.
 - **The detail,** once there's an answer or a receipt: who decided and what became of it, "approved by
   you · done", "refused by an admin · nothing sent" (`decidedLine`, `resultLine`). Otherwise what the tool
   did.

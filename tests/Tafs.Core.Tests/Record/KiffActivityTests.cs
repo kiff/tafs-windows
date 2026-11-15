@@ -118,6 +118,23 @@ public class KiffActivityTests
         Assert.Equal((title, amount, "Refunds", 4), (line.Title, line.Amount, line.Taf, line.TafColor));
     }
 
+    /// <summary>
+    /// An amount that can't be written as the money it is (more than 18 decimals, or more minor units than a whole number
+    /// holds) shows none, never a crash on KIFF's answer; 18 decimals are written. A figure made with a scale past 18,
+    /// as the Card tab's are, reads "–".
+    /// </summary>
+    [Theory]
+    [InlineData("0.0000000000000000001", null)]
+    [InlineData("1.00000000000000000000000000000", null)]
+    [InlineData("99999999999.999999999", null)]
+    [InlineData("0.000000000000000005", "€0.000000000000000005")]
+    public void An_amount_that_can_t_be_written_shows_none(string value, string? text)
+    {
+        Assert.Equal(text, KiffActivity.AmountText(En, new CallAmount(value, "EUR")));
+        Assert.Equal("–", new Tafs.Core.Taf.KiffAmount(5, "EUR", 29).Figure(En));
+        Assert.Equal("–", new Tafs.Core.Taf.KiffAmount(5, "EUR", 64).Formatted(En));
+    }
+
     /// <summary>As the iPad's RecordRow.detail: with an answer or a receipt, who decided · what became of it.</summary>
     [Theory]
     [InlineData(""", "held": true, "tool_outcome": {"status": "done"}, "answer": {"decision": "approved", "you": true}""", "approved by you · done")]
