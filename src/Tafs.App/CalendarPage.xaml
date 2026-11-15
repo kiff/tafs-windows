@@ -15,7 +15,14 @@
           <Button x:Name="Previous" Click="OnPrevious" Style="{StaticResource TafsArrow}"><FontIcon Glyph="&#xE76B;" FontSize="16" /></Button>
           <Button x:Name="Next" Click="OnNext" Style="{StaticResource TafsArrow}"><FontIcon Glyph="&#xE76C;" FontSize="16" /></Button>
         </StackPanel>
-        <CalendarDatePicker x:Name="Picker" HorizontalAlignment="Right" DateChanged="OnPicked" FirstDayOfWeek="Monday" />
+        <!-- The date, on a raised pill, as the iPad's date picker. -->
+        <CalendarDatePicker x:Name="Picker" HorizontalAlignment="Right" DateChanged="OnPicked" FirstDayOfWeek="Monday"
+                            Background="{ThemeResource TafsRaised}" BorderThickness="0" CornerRadius="18" MinHeight="40" FontSize="15">
+          <CalendarDatePicker.Resources>
+            <StaticResource x:Key="CalendarDatePickerBackgroundPointerOver" ResourceKey="TafsRaised" />
+            <StaticResource x:Key="CalendarDatePickerTextForeground" ResourceKey="TafsInk" />
+          </CalendarDatePicker.Resources>
+        </CalendarDatePicker>
       </Grid>
 
       <!-- Day / Week / Month: the iPad's segmented control. -->

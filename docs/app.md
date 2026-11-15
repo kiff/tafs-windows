@@ -26,7 +26,8 @@ Built so far:
 - the sidebar and the Overview's empty state, as on the iPad ([home](home.md));
 - Add this Windows PC, with its view-only notice ([pairing](pairing.md));
 - Needs you's cards, as on the iPad ([needs you](needs-you.md));
-- the Record, as on the iPad ([record](record.md)).
+- the Record, as on the iPad ([record](record.md));
+- Calendar, Day, Week and Month, as on the iPad ([calendar](calendar.md)).
 
 Signing in is the only screen that reaches KIFF so far. Other screens show only their title until they're built, in the order of the desktop spec. 
 
@@ -40,9 +41,9 @@ The app speaks the first of the person's Windows languages that tafs ships (`App
 | :- | :- |
 | `--lang fr` | speak a shipped language |
 | `--theme light` or `dark` | force the appearance |
-| `--page pair`, `sign-in`, `needs-you` or `record` | open Add this Windows PC, Sign in with KIFF, Needs you, or the Record |
+| `--page pair`, `sign-in`, `needs-you`, `record`, `calendar`, `calendar-week` or `calendar-month` | open Add this Windows PC, Sign in with KIFF, Needs you, the Record, or Calendar in Day, Week or Month |
 | `--view-only` | show the session as view-only |
 | `--sample` | show the iPad's sample held calls and Record |
 | `--screenshot out.png` | save the window (1280×800) as a PNG and quit |
 
-CI's `app` job builds the app on Windows when `src/Tafs.App/**` changes, and nightly. It saves sign-in, the Overview, Needs you and the Record (with the samples), the view-only notice and the pairing screen in en, fr and pt, light and dark, as the `screenshots` artifact of the run. The job fails if any of the 36 is missing: a crash at launch, or a word missing at the pin, stops the app before it saves.
+CI's `app` job builds the app on Windows when `src/Tafs.App/**` changes, and nightly. It saves sign-in, the Overview, Needs you and the Record (with the samples), Calendar in Day and Week, the view-only notice and the pairing screen in en, fr and pt, light and dark, as the `screenshots` artifact of the run. The job fails if any of the 48 is missing: a crash at launch, or a word missing at the pin, stops the app before it saves.

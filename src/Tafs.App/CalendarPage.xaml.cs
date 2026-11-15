@@ -25,7 +25,9 @@ public sealed partial class CalendarPage : Page
         today = DateOnly.FromDateTime(DateTime.Now);
         state = CalendarScreen.Opening(today) with { Mode = e.Parameter as CalendarMode? ?? CalendarMode.Week };
         NavTitle.Text = CalendarScreen.Heading(w);
+        // The date in the person's language, "Nov 15, 2026" or "15 nov. 2026", as the iPad's date pill.
         Picker.Language = w.Language;
+        Picker.DateFormat = w.Language == "en" ? "{month.abbreviated} {day.integer}, {year.full}" : "{day.integer} {month.abbreviated} {year.full}";
         AutomationProperties.SetName(Picker, w.Get("calendar.choose_date"));
         for (var hour = 0; hour < 24; hour++) Hours.Children.Add(HourRow(hour));
         HoursScroll.Loaded += (_, _) => HoursScroll.ChangeView(null, CalendarScreen.FirstHour * HourHeight, null, true);
@@ -76,8 +78,9 @@ public sealed partial class CalendarPage : Page
             NothingDay.Text = CalendarScreen.Nothing(w);
             // The selected day's week first, as the iPad scrolls it.
             var at = CalendarScreen.StripDays(state).ToList().IndexOf(CalendarScreen.WeekStart(state.Selected));
-            DayStripScroll.UpdateLayout();
-            DayStripScroll.ChangeView(at * (46 + 6), null, null, true);
+            // Once the strip is laid out: before that there's nothing to scroll.
+            DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+                () => DayStripScroll.ChangeView(at * (46 + 6), null, null, true));
         }
         else if (week)
         {
@@ -141,7 +144,14 @@ public sealed partial class CalendarPage : Page
             {
                 Content = Text(day.Day.ToString(), 13, chosen ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.Normal,
                     day.Month == state.Selected.Month ? "TafsInkText" : "TafsDimText"),
-                Style = (Style)Application.Current.Resources[chosen ? "TafsMonthChosen" : day == today ? "TafsMonthToday" : "TafsMonthDay"],
+                // Selected and today are separate marks, as on the iPad: the fill, and the ring.
+                Style = (Style)Application.Current.Resources[(chosen, day == today) switch
+                {
+                    (true, true) => "TafsMonthChosenToday",
+                    (true, false) => "TafsMonthChosen",
+                    (false, true) => "TafsMonthToday",
+                    _ => "TafsMonthDay",
+                }],
             };
             AutomationProperties.SetName(cell, CalendarScreen.DayHeading(w, day));
             cell.Click += (_, _) => { state = state with { Selected = day }; Show(); };
@@ -156,6 +166,7 @@ public sealed partial class CalendarPage : Page
     {
         var row = new Border { Height = HourHeight, BorderThickness = new Thickness(0, 1, 0, 0), Style = (Style)Application.Current.Resources["TafsHourLine"] };
         var label = Text($"{hour:00}:00", 11, Microsoft.UI.Text.FontWeights.Normal, "TafsDimText");
+        label.HorizontalAlignment = HorizontalAlignment.Left;
         label.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas");
         label.Margin = new Thickness(0, 3, 0, 0);
         row.Child = label;

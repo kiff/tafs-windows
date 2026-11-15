@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Tafs.Core.Calendar;
 using Tafs.Core.Home;
 using Tafs.Core.NeedsYou;
 using Tafs.Core.Record;
@@ -25,7 +26,10 @@ public sealed partial class MainWindow : Window
     /// <summary>The Record's lines: from tafs cloud and KIFF in their own change; until then none, or the iPad's sample.</summary>
     readonly IReadOnlyList<RecordEntry> record;
 
-    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you", "record". Otherwise the Overview.</param>
+    /// <summary>The view the Calendar opens on: Week; Day or Month for `--page calendar` or `calendar-month`.</summary>
+    CalendarMode calendarOpensOn = CalendarMode.Week;
+
+    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you", "record", "calendar" (Day), "calendar-week" or "calendar-month". Otherwise the Overview.</param>
     /// <param name="viewOnly">The session can't approve yet: show the View only notice above every screen.</param>
     /// <param name="sample">Show the iPad's sample held calls and Record: for screenshots.</param>
     public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false)
@@ -82,6 +86,12 @@ public sealed partial class MainWindow : Window
 
         if (page == "pair") OpenPairing();
         else if (page == "sign-in") OpenSignIn();
+        else if (page is "calendar" or "calendar-week" or "calendar-month")
+        {
+            // The reference set's two Calendar screenshots: Day, and Week (what the Calendar opens on).
+            calendarOpensOn = page switch { "calendar" => CalendarMode.Day, "calendar-month" => CalendarMode.Month, _ => CalendarMode.Week };
+            Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Calendar);
+        }
         else if (page == "record") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
         else if (page == "needs-you") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         else Nav.SelectedItem = BrandItem;
@@ -163,6 +173,7 @@ public sealed partial class MainWindow : Window
         if (item == BrandItem) Pages.Navigate(typeof(OverviewPage), held);
         else if (item.Tag is Screen.NeedsYou or HeldCall) Pages.Navigate(typeof(NeedsYouPage), held);
         else if (item.Tag is Screen.Record) Pages.Navigate(typeof(RecordPage), record);
+        else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
         else Pages.Navigate(typeof(ComingPage), item.Content);
     }
 

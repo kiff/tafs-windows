@@ -19,6 +19,10 @@
       <SolidColorBrush x:Key="TafsOnFill" Color="#FFFFFF" />
       <!-- Done and refused, as on the iPad (Theme.ok, Theme.no). -->
       <SolidColorBrush x:Key="TafsOk" Color="#198056" />
+      <!-- The ink at 40%: the Today pill's line. -->
+      <SolidColorBrush x:Key="TafsInkLine" Color="#661B1726" />
+      <!-- The chosen segment of Day / Week / Month: lighter than its track, in both. -->
+      <SolidColorBrush x:Key="TafsSegmentFill" Color="#FFFFFF" />
       <SolidColorBrush x:Key="TafsNo" Color="#DB1F25" />
       <!-- The taf's own words on a held call: the soft colour at 8%. -->
       <SolidColorBrush x:Key="TafsSoftWash" Color="#144F4A5E" />
@@ -57,6 +61,8 @@
       <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#141311" />
       <SolidColorBrush x:Key="TafsOnFill" Color="#141311" />
       <SolidColorBrush x:Key="TafsOk" Color="#4CC38A" />
+      <SolidColorBrush x:Key="TafsInkLine" Color="#66F2EFE9" />
+      <SolidColorBrush x:Key="TafsSegmentFill" Color="#4A4740" />
       <SolidColorBrush x:Key="TafsNo" Color="#FF8A73" />
       <SolidColorBrush x:Key="TafsSoftWash" Color="#14A8A49C" />
       <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#24F2EFE9" />
@@ -84,6 +90,8 @@
   <!-- A held call's edge (amber at 40%) and its reason's pill (amber at 14%), as on the iPad. -->
   <SolidColorBrush x:Key="TafsAmberEdge" Color="#66FF8A1F" />
   <SolidColorBrush x:Key="TafsAmberWash" Color="#24FF8A1F" />
+  <!-- The month's selected day: amber at 18%. -->
+  <SolidColorBrush x:Key="TafsAmberSelect" Color="#2EFF8A1F" />
   <LinearGradientBrush x:Key="TafsBrand" StartPoint="0,0" EndPoint="1,1">
     <GradientStop Color="#B35C00" Offset="0" />
     <GradientStop Color="#E8003A" Offset="0.5" />
@@ -210,6 +218,111 @@
       </Setter.Value>
     </Setter>
   </Style>
+
+  <!-- Words that follow the theme from code. -->
+  <Style x:Key="TafsInkText" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsInk}" /></Style>
+  <Style x:Key="TafsDimText" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsDim}" /></Style>
+  <Style x:Key="TafsOnAmberText" TargetType="TextBlock"><Setter Property="Foreground" Value="White" /></Style>
+
+  <!-- A box that's a button: the Calendar's tiles, segments, pills and arrows. Its own template, so Windows' hover
+       fill never covers their colours: pointing dims it a little. Windows' focus ring still shows. -->
+  <Style x:Key="TafsBox" TargetType="Button">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="UseSystemFocusVisuals" Value="True" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"
+                  Padding="{TemplateBinding Padding}" MinHeight="{TemplateBinding MinHeight}">
+            <VisualStateManager.VisualStateGroups>
+              <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal" />
+                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.85" /></VisualState.Setters></VisualState>
+                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.7" /></VisualState.Setters></VisualState>
+              </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Foreground="{TemplateBinding Foreground}" />
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Today, a pill sized to its word: 15 medium, a line around of the ink at 40%; at today, the line and the soft colour. -->
+  <Style x:Key="TafsTodayPill" TargetType="Button" BasedOn="{StaticResource TafsBox}">
+    <Setter Property="BorderBrush" Value="{ThemeResource TafsInkLine}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="20" />
+    <Setter Property="Padding" Value="16,0" />
+    <Setter Property="MinHeight" Value="40" />
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Foreground" Value="{ThemeResource TafsInk}" />
+  </Style>
+  <Style x:Key="TafsTodayPillAt" TargetType="Button" BasedOn="{StaticResource TafsTodayPill}">
+    <Setter Property="BorderBrush" Value="{ThemeResource TafsLine}" />
+    <Setter Property="Foreground" Value="{ThemeResource TafsSoft}" />
+  </Style>
+  <Style x:Key="TafsArrow" TargetType="Button" BasedOn="{StaticResource TafsBox}">
+    <Setter Property="Foreground" Value="{ThemeResource TafsAmberText}" />
+    <Setter Property="Width" Value="32" />
+    <Setter Property="Height" Value="40" />
+  </Style>
+
+  <!-- Day / Week / Month: the chosen segment lighter than its track, the others on the raised ground. -->
+  <Style x:Key="TafsSegment" TargetType="Button" BasedOn="{StaticResource TafsBox}">
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="CornerRadius" Value="7" />
+    <Setter Property="MinHeight" Value="30" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{ThemeResource TafsInk}" />
+  </Style>
+  <Style x:Key="TafsSegmentChosen" TargetType="Button" BasedOn="{StaticResource TafsSegment}">
+    <Setter Property="Background" Value="{ThemeResource TafsSegmentFill}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <!-- The strip's days: 66 high, corners of 12, on the panel; the selected one amber; today ringed in amber. -->
+  <Style x:Key="TafsDay" TargetType="Button" BasedOn="{StaticResource TafsBox}">
+    <Setter Property="Background" Value="{ThemeResource TafsPanel}" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Height" Value="66" />
+  </Style>
+  <Style x:Key="TafsDayChosen" TargetType="Button" BasedOn="{StaticResource TafsDay}">
+    <Setter Property="Background" Value="{StaticResource TafsAmber}" />
+  </Style>
+  <Style x:Key="TafsDayToday" TargetType="Button" BasedOn="{StaticResource TafsDay}">
+    <Setter Property="BorderBrush" Value="{StaticResource TafsAmber}" />
+    <Setter Property="BorderThickness" Value="1.5" />
+  </Style>
+
+  <!-- The month's days: 38 high, corners of 8; the selected one on amber at 18%; today ringed. -->
+  <Style x:Key="TafsMonthDay" TargetType="Button" BasedOn="{StaticResource TafsBox}">
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Height" Value="38" />
+  </Style>
+  <Style x:Key="TafsMonthChosen" TargetType="Button" BasedOn="{StaticResource TafsMonthDay}">
+    <Setter Property="Background" Value="{StaticResource TafsAmberSelect}" />
+  </Style>
+  <Style x:Key="TafsMonthChosenToday" TargetType="Button" BasedOn="{StaticResource TafsMonthChosen}">
+    <Setter Property="BorderBrush" Value="{StaticResource TafsAmber}" />
+    <Setter Property="BorderThickness" Value="1.5" />
+  </Style>
+  <Style x:Key="TafsMonthToday" TargetType="Button" BasedOn="{StaticResource TafsMonthDay}">
+    <Setter Property="BorderBrush" Value="{StaticResource TafsAmber}" />
+    <Setter Property="BorderThickness" Value="1.5" />
+  </Style>
+
+  <!-- An hour's line across the day. -->
+  <Style x:Key="TafsHourLine" TargetType="Border"><Setter Property="BorderBrush" Value="{ThemeResource TafsLine}" /></Style>
 
   <!-- The sidebar's rows: 15 semibold, as the iPad's items, on a rounded fill when chosen. -->
   <Style x:Key="TafsSidebarItem" TargetType="NavigationViewItem">
