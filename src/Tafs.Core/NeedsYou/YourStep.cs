@@ -193,13 +193,14 @@ public static class YourSteps
         if (handoff is null) return NotAnswered(w, Other(w, w.Get("error.ours")));
         if (!handoff.Waiting) return (StepAnswered.Ended, w.Get("needs_you.your_step.ended"));
 
-        var at = signedAt();
-        var message = Message(tenant, handoff.Id, answer, handoff.Version, at);
         var confirmed = await confirm(Prompt(step, done));
         if (!current()) return (StepAnswered.Stopped, null);
         if (confirmed != StepConfirmed.Yes)
             return (StepAnswered.NotAnswered, w.Get(confirmed == StepConfirmed.Cancelled
                 ? "approval.cancelled_nothing_approved_request_kept" : "needs_you.your_step.not_answered_unconfirmed"));
+        // signed_at once Windows Hello answered: a slow confirmation never ages the answer KIFF checks for skew.
+        var at = signedAt();
+        var message = Message(tenant, handoff.Id, answer, handoff.Version, at);
         string value;
         try { value = await sign(message); }
         catch (Exception e) when (e is System.Security.Cryptography.CryptographicException or InvalidOperationException)
