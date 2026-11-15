@@ -58,6 +58,15 @@ public sealed class TpmKey : IKiffSigner, IDisposable
         var key = CngKey.Exists(name, Provider)
             ? CngKey.Open(name, Provider)
             : CngKey.Create(CngAlgorithm.ECDsaP256, name, Parameters());
+        return Checked(key);
+    }
+
+    /// <summary>The key with this name, only when it's there: never made here, as for a read's proof.</summary>
+    /// <exception cref="CryptographicException">There's no such key, or it isn't a P-256 key in the TPM.</exception>
+    public static TpmKey Open(string name) => Checked(CngKey.Open(name, Provider));
+
+    static TpmKey Checked(CngKey key)
+    {
         // The TPM names its keys "ECDSA" whatever the curve: the public key says which curve it is.
         var tpm = new TpmKey(key);
         if (key.Provider?.Provider != Provider.Provider || !KiffSigning.IsP256Spki(tpm.PublicKeyDer))

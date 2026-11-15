@@ -30,6 +30,7 @@ public class HomeListTests
         Assert.Equal("Its last 2 checks found work too big for one run, so nothing ran", taf.Attention);
         Assert.Equal("card_rae", Assert.Single(taf.Cards).Id);
         Assert.Equal(new DateTimeOffset(2026, 10, 15, 9, 0, 0, TimeSpan.Zero), taf.LastChange);
+        Assert.Equal("Ask Coach to describe this taf's job", taf.Job);
         Assert.Null(taf.LastRun);
     }
 
@@ -72,6 +73,12 @@ public class HomeListTests
             Assert.Single(HomeList.YourTafs(En, home, SameDay)).Now);
         Assert.Empty(HomeList.YourTafs(En, home, SameDay.AddDays(2)));
     }
+
+    /// <summary>With no job from Coach, as the iPad's: an agent tafs doesn't run is described by its Cards.</summary>
+    [Fact]
+    public void With_no_job_it_works_under_its_Cards() =>
+        Assert.Equal("Works under 2 KIFF Cards.",
+            Home("""{"tafs": [{"id": "t", "name": "T", "card": {"ids": ["a", "b"]}}]}""", TimeZoneInfo.Utc).Tafs[0].Job);
 
     [Theory]
     [InlineData("""{"state": "waiting", "waiting": 1}""", "Waiting for you", "waiting")]
