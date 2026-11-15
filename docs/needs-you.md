@@ -71,8 +71,8 @@ Ported from the iPad's `DidThisHappenCard` (NeedsYouView.swift), `KIFFClient.Unp
 - **What it is:** a money call whose outcome KIFF can't prove: its answer was lost, the app refused it with nothing
   showing it had no effect, or it's one of the first calls of a new money operation. The person says whether it
   happened.
-- **The read:** `GET /v1/me/did-this-happen`, a plain read as the session, when Needs you opens, as the iPad reads it on
-  open. Only for someone who answers held calls (KIFF's `holds.answer` in `GET /v1/me`'s capabilities; an account that
+- **The read:** `GET /v1/me/did-this-happen`, a plain read as the session, when Needs you opens and with F5, as the iPad reads it on
+  open and on pull-to-refresh. Only for someone who answers held calls (KIFF's `holds.answer` in `GET /v1/me`'s capabilities; an account that
   lists none may). A call needs its proposal; its title is "" and its status unknown when not said; any other field of
   the wrong kind fails the read, which keeps the list. No `calls` is none. A sign-out clears it.
 - **Its card,** before the held calls: the amber edge; "Did this happen?" in amber, 13 semibold; KIFF's words for the
