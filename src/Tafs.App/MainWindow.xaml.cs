@@ -72,6 +72,7 @@ public sealed partial class MainWindow : Window
 
         SignInPage.PairInsteadChosen += OpenPairing;
         NeedsYouPage.AddThisDeviceChosen += OpenPairing;
+        OverviewPage.NeedsYouChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         SignInPage.SignedIn += _ =>
         {
             // Kept in memory for now. Until this PC is paired (or has its own passkey), it reads and doesn't approve.
