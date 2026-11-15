@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Tafs.Core.Account;
 using Tafs.Core.Calendar;
 using Tafs.Core.Connections;
 using Tafs.Core.Home;
@@ -47,7 +48,8 @@ public sealed partial class MainWindow : Window
     public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false, string? homeFile = null)
     {
         InitializeComponent();
-        if (theme is "light" or "dark") Root.RequestedTheme = theme == "light" ? ElementTheme.Light : ElementTheme.Dark;
+        // --theme for CI's screenshots, else the one chosen in Account last time, else the system's.
+        Root.RequestedTheme = Element(ThemeChoices.AtLaunch(theme, screenshot is not null, () => ThemeChoices.Read(ThemeFile)));
         this.sample = sample;
         var w = App.Words;
         Title = w.Get("app.name");
@@ -110,7 +112,11 @@ public sealed partial class MainWindow : Window
         PairingPage.Paired += session => ViewOnly.IsOpen = session.Mode == ApprovalMode.View;
         this.screenshot = screenshot;
 
-        AccountPage.ThemeChosen += chosen => Root.RequestedTheme = chosen;
+        AccountPage.ThemeChosen += chosen =>
+        {
+            Root.RequestedTheme = chosen;
+            if (screenshot is null) Keep(chosen);
+        };
         AccountPage.SignInChosen += OpenSignIn;
         AccountPage.AlertsChosen += () => OpenBeside(typeof(ComingPage), w.Get("settings.alerts"));
         AccountPage.AddThisDeviceChosen += OpenPairing;
@@ -344,6 +350,24 @@ public sealed partial class MainWindow : Window
             ? new(head, TafScreen.SampleCard(w), activity, new SetupOpening(TafSetup.SampleJob(w), TafSetup.SampleNotes(w, now)), opensOn,
                 TafScreen.SampleCards(w), w.Get("common.you"))
             : new(head, taf.Card.Bar(w, 1), activity);
+    }
+
+    /// <summary>Where Account's theme is kept, beside the session: one word, as the iPad keeps tafs.theme.</summary>
+    static readonly string ThemeFile =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "tafs", "theme");
+
+    static ElementTheme Element(ThemeChoice theme) =>
+        theme switch { ThemeChoice.Light => ElementTheme.Light, ThemeChoice.Dark => ElementTheme.Dark, _ => ElementTheme.Default };
+
+    /// <summary>Keeps the theme for the next launch. One that can't be written still shows now; it's chosen again next time.</summary>
+    static void Keep(ElementTheme theme)
+    {
+        try
+        {
+            ThemeChoices.Write(ThemeFile, theme switch { ElementTheme.Light => ThemeChoice.Light, ElementTheme.Dark => ThemeChoice.Dark, _ => ThemeChoice.System });
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 
     /// <summary>A screen that isn't a sidebar row: no row stays chosen while it's open.</summary>
