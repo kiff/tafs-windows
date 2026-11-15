@@ -11,8 +11,7 @@ The iPad's Calendar (`CalendarView`, `CalendarMath`), on Windows, as the referen
   or years when the week crosses them), "November 2026".
 - **Today,** a pill sized to its word, 15 medium with a line around; at today, quieter and inert.
 - **The arrows** step a day, a week or a month (to the month's last day when it has fewer).
-- **The date** on a raised pill in the person's language, the month in full ("November 15, 2026"), so
-  months never read alike; it opens a calendar to pick.
+- **The date** on a raised pill, the month in full ("November 15, 2026"); it opens a calendar to pick.
 - **Day / Week / Month,** the iPad's segmented control, the chosen segment lighter. It opens on Week.
 - **The strip:** in Week, the seven days its title names, sharing the width; in Day, the month's six
   weeks scrolling to the selected week. Each day is 66 high with corners of 12, weekday 11 bold, number
