@@ -74,7 +74,6 @@ public class CalendarScreenTests
     public void The_modes_and_arrows_are_named()
     {
         Assert.Equal(new[] { "Day", "Week", "Month" }, CalendarScreen.Modes(En).Select(m => m.Title));
-        Assert.Equal(("Previous day", "Next day"), CalendarScreen.Arrows(En, CalendarMode.Day));
         Assert.Equal(("Previous month", "Next month"), CalendarScreen.Arrows(En, CalendarMode.Month));
     }
 

@@ -6,20 +6,13 @@ namespace Tafs.Core.Calendar;
 /// <summary>The calendar's three views (kiff/tafs#534). Week is the one it opens on.</summary>
 public enum CalendarMode { Day, Week, Month }
 
-/// <summary>
-/// Wide (a month beside the calendar, the agenda under it) or compact (the strip, the day's list under it), by the
-/// calendar's own pane, as the iPad's CalendarLayout.of: wide from 700 wide, wider than high, and 600 high.
-/// </summary>
+/// <summary>Wide or compact by the calendar's own pane, as the iPad's CalendarLayout.of.</summary>
 public enum CalendarLayout { Compact, Wide }
 
 /// <summary>What the calendar shows: its view and the selected date.</summary>
 public sealed record CalendarState(CalendarMode Mode, DateOnly Selected);
 
-/// <summary>
-/// The iPad's calendar (CalendarView, CalendarMath), compact as in the reference set: the date's title, Today
-/// and the arrows, Day / Week / Month, the strip of days, then the hours (Day), the day's list (Week) or the
-/// month (Month). Dates are the account's days on the Gregorian calendar, and weeks start on Monday.
-/// </summary>
+/// <summary>The iPad's calendar (CalendarView, CalendarMath): Gregorian days, weeks from Monday.</summary>
 public static class CalendarScreen
 {
     public static CalendarState Opening(DateOnly today) => new(CalendarMode.Week, today);
@@ -79,10 +72,7 @@ public static class CalendarScreen
     public static string WeekdayName(WordBook w, DateOnly day) => w.Get("calendar.weekday." + Weekdays[WeekdayIndex(day)]);
     static string MonthName(WordBook w, int month) => w.Get("calendar.month_name." + Months[month - 1]);
 
-    /// <summary>
-    /// The view's title, in the order the language writes a date: "Sun 15 November 2026", "9 – 15 November 2026",
-    /// a week across months or years, "November 2026".
-    /// </summary>
+    /// <summary>The view's title in the language's order: "Sun 15 November 2026", "9 – 15 November 2026", "November 2026".</summary>
     public static string Title(WordBook w, CalendarState s)
     {
         var d = s.Selected;

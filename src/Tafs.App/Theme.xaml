@@ -222,7 +222,6 @@
   <Style x:Key="TafsInkText" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsInk}" /></Style>
   <Style x:Key="TafsDimText" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsDim}" /></Style>
   <Style x:Key="TafsOnAmberText" TargetType="TextBlock"><Setter Property="Foreground" Value="White" /></Style>
-
   <!-- A button drawn as a box (Calendar's tiles, segments, pills, arrows): pointing dims it; the focus ring shows. -->
   <Style x:Key="TafsBox" TargetType="Button">
     <Setter Property="Background" Value="Transparent" />
@@ -252,7 +251,6 @@
       </Setter.Value>
     </Setter>
   </Style>
-
   <!-- Today: 15 medium, the ink's line around; at today, fainter. -->
   <Style x:Key="TafsTodayPill" TargetType="Button" BasedOn="{StaticResource TafsBox}">
     <Setter Property="BorderBrush" Value="{ThemeResource TafsInkLine}" />
@@ -273,7 +271,6 @@
     <Setter Property="Width" Value="28" />
     <Setter Property="Height" Value="40" />
   </Style>
-
   <!-- Day / Week / Month: the chosen segment lighter than its track, the others on the raised ground. -->
   <Style x:Key="TafsSegment" TargetType="Button" BasedOn="{StaticResource TafsBox}">
     <Setter Property="HorizontalAlignment" Value="Stretch" />
@@ -286,7 +283,6 @@
     <Setter Property="Background" Value="{ThemeResource TafsSegmentFill}" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
-
   <!-- The strip's days: 66 high, corners of 12, on the panel; the selected one amber; today ringed in amber. -->
   <Style x:Key="TafsDay" TargetType="Button" BasedOn="{StaticResource TafsBox}">
     <Setter Property="Background" Value="{ThemeResource TafsPanel}" />
@@ -300,7 +296,6 @@
     <Setter Property="BorderBrush" Value="{StaticResource TafsAmber}" />
     <Setter Property="BorderThickness" Value="1.5" />
   </Style>
-
   <!-- The month's days: 38 high, corners of 8; the selected one on amber at 18%; today ringed. -->
   <Style x:Key="TafsMonthDay" TargetType="Button" BasedOn="{StaticResource TafsBox}">
     <Setter Property="HorizontalAlignment" Value="Stretch" />
@@ -318,7 +313,6 @@
     <Setter Property="BorderBrush" Value="{StaticResource TafsAmber}" />
     <Setter Property="BorderThickness" Value="1.5" />
   </Style>
-
   <Style x:Key="TafsHourLine" TargetType="Border"><Setter Property="BorderBrush" Value="{ThemeResource TafsLine}" /></Style>
 
   <!-- The sidebar's rows: 15 semibold, as the iPad's items, on a rounded fill when chosen. -->
