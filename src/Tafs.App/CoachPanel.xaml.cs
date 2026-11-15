@@ -83,7 +83,9 @@ public sealed partial class CoachPanel : UserControl
     async Task LoadThreadAsync()
     {
         if (read is not { } reader) return;
-        var (thread, _) = await CoachChat.LoadAsync(reader);
+        var (thread, error) = await CoachChat.LoadAsync(App.Words, reader);
+        IntroError.Text = error ?? "";
+        IntroError.Visibility = error is null ? Visibility.Collapsed : Visibility.Visible;
         if (thread is null || thread.Items.Count == 0) return;
         ShowThread(thread);
         Intro.Visibility = Visibility.Collapsed;
@@ -105,29 +107,34 @@ public sealed partial class CoachPanel : UserControl
             var m = items[i];
             if (CoachChat.GapTime(w, items, i, DateTimeOffset.Now, TimeZoneInfo.Local) is { } gap)
                 ThreadItems.Children.Add(Words(gap, 12, "TafsDimText", HorizontalAlignment.Center));
-            if (m.Kickoff)
-                ThreadItems.Children.Add(Words(w.Get("chat.run_started_with", ("time", TimeZoneInfo.ConvertTime(m.At, TimeZoneInfo.Local).ToString("HH:mm",
-                    System.Globalization.CultureInfo.InvariantCulture)), ("text", m.Text)), 12, "TafsDimText", HorizontalAlignment.Center));
-            else if (m.From == ChatFrom.Owner)
+            // As the iPad's ChatBubble: a run's start is a line, inside either branch, so its work and answered line still show.
+            if (m.From == ChatFrom.Owner)
             {
                 var said = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0) };
-                said.Children.Add(new Border
-                {
-                    Background = Brush("TafsBrand"), CornerRadius = new CornerRadius(18),
-                    Padding = new Thickness(14, 10, 14, 10), HorizontalAlignment = HorizontalAlignment.Right,
-                    Child = new TextBlock { Text = CoachChat.OwnerWords(w, m.Text), FontSize = 15, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
-                        Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White) },
-                });
+                var words = CoachChat.OwnerWords(w, m.Text);
+                if (m.Kickoff) said.Children.Add(Kickoff(m));
+                else if (words.Length > 0)
+                    said.Children.Add(new Border
+                    {
+                        Background = Brush("TafsBrand"), CornerRadius = new CornerRadius(18),
+                        Padding = new Thickness(14, 10, 14, 10), HorizontalAlignment = HorizontalAlignment.Right,
+                        Child = new TextBlock { Text = words, FontSize = 15, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
+                            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White) },
+                    });
                 if (m.Answers is not null) said.Children.Add(Words(w.Get("chat.answered_card_above"), 12, "TafsDimText", HorizontalAlignment.Right));
-                ThreadItems.Children.Add(said);
+                if (said.Children.Count > 0) ThreadItems.Children.Add(said);
             }
             else
             {
                 var said = new StackPanel { Spacing = 6 };
                 if (m.Work is { } work) said.Children.Add(WorkSummary(work));
-                var text = Words(m.Text, 16, "TafsInkText");
-                text.IsTextSelectionEnabled = true;
-                said.Children.Add(text);
+                if (m.Kickoff) said.Children.Add(Kickoff(m));
+                else
+                {
+                    var text = Words(m.Text, 16, "TafsInkText");
+                    text.IsTextSelectionEnabled = true;
+                    said.Children.Add(text);
+                }
                 ThreadItems.Children.Add(said);
             }
         }
@@ -144,6 +151,16 @@ public sealed partial class CoachPanel : UserControl
         }
         foreach (var line in thread.Lines.Where(l => !l.Away))
             ThreadItems.Children.Add(Words($"↳ {line.Taf}: {line.Said}", 13, "TafsSoftText"));
+    }
+
+    /// <summary>A run's start, as the iPad's kickoff line: "Run started 09:00 · …", centred, two lines at most.</summary>
+    static TextBlock Kickoff(ChatMessage m)
+    {
+        var line = Words(App.Words.Get("chat.run_started_with", ("time", TimeZoneInfo.ConvertTime(m.At, TimeZoneInfo.Local).ToString("HH:mm",
+            System.Globalization.CultureInfo.InvariantCulture)), ("text", m.Text)), 12, "TafsDimText", HorizontalAlignment.Center);
+        line.MaxLines = 2;
+        line.TextTrimming = TextTrimming.CharacterEllipsis;
+        return line;
     }
 
     /// <summary>

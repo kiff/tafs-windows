@@ -65,24 +65,53 @@ public class CoachThreadTests
             return Task.FromResult(CloudRead.Of(Json(path switch
             {
                 "/v1/setup" => """{"setup": {"id": "taf-coach/1"}}""",
-                "/v1/tafs/taf-coach%2F1/chats" => """{"chats": [{"session": "old", "updated": "2026-11-14T09:00:00Z"}, {"session": "new", "updated": "2026-11-15T09:00:00Z"}]}""",
+                "/v1/tafs/taf-coach%2F1/chats" => """{"chats": [{"session": "old", "title": "a", "started": "2026-11-14T08:00:00Z", "updated": "2026-11-14T09:00:00Z"}, {"session": "new", "title": "b", "started": "2026-11-15T08:00:00Z", "updated": "2026-11-15T09:00:00Z"}]}""",
                 _ => Thread,
             })));
         }
 
-        var (thread, error) = await CoachChat.LoadAsync(Read);
+        var (thread, error) = await CoachChat.LoadAsync(En, Read);
 
         Assert.Equal(new[] { "/v1/setup", "/v1/tafs/taf-coach%2F1/chats", "/v1/tafs/taf-coach%2F1/conversation/new" }, asked);
         Assert.Equal(4, thread!.Messages.Count);
         Assert.Null(error);
     }
 
+    /// <summary>As the iPad: no Coach, or /v1/setup unread, is no thread and no error (try?); a conversation unread says why.</summary>
     [Fact]
-    public async Task With_no_Coach_there_s_no_thread_and_a_failed_read_says_why()
+    public async Task With_no_Coach_there_s_no_thread_and_a_conversation_unread_says_why()
     {
-        Assert.Equal((null, null), await CoachChat.LoadAsync(_ => Task.FromResult(CloudRead.Of(Json("""{"setup": null}""")))));
-        var (_, error) = await CoachChat.LoadAsync(_ => Task.FromResult(CloudRead.Unreached(En)));
-        Assert.Equal("It didn't reach the server. Try again once you're online.", error);
+        Assert.Equal((null, null), await CoachChat.LoadAsync(En, _ => Task.FromResult(CloudRead.Of(Json("""{"setup": null}""")))));
+        Assert.Equal((null, null), await CoachChat.LoadAsync(En, _ => Task.FromResult(CloudRead.Unreached(En))));
+
+        Task<CloudRead> Unread(string path) => Task.FromResult(path == "/v1/setup" ? CloudRead.Of(Json("""{"setup": {"id": "c"}}"""))
+            : path.EndsWith("/chats") ? CloudRead.Unreached(En) : CloudRead.Refused(En, 503, """{"words": "Try again in a minute."}"""));
+        var (_, error) = await CoachChat.LoadAsync(En, Unread);
+        Assert.Equal("The conversation couldn't be loaded: Try again in a minute.", error);
+
+        Task<CloudRead> Undecodable(string path) => Task.FromResult(CloudRead.Of(Json(path == "/v1/setup" ? """{"setup": {"id": "c"}}""" : """{"messages": [{"text": "no time"}]}""")));
+        Assert.Equal(En.Get("coach.conversation_not_loaded", ("why", En.Get("error.ours"))), (await CoachChat.LoadAsync(En, Undecodable)).Error);
+    }
+
+    /// <summary>As the iPad's strict [Chat]: one entry it can't read fails the list, and the whole thread is read instead.</summary>
+    [Fact]
+    public async Task A_list_with_an_entry_it_can_t_read_reads_the_whole_thread()
+    {
+        var asked = new List<string>();
+        Task<CloudRead> Read(string path)
+        {
+            asked.Add(path);
+            return Task.FromResult(CloudRead.Of(Json(path switch
+            {
+                "/v1/setup" => """{"setup": {"id": "c"}}""",
+                "/v1/tafs/c/chats" => """{"chats": [{"session": "new", "title": "b", "started": "2026-11-15T08:00:00Z", "updated": "2026-11-15T09:00:00Z"}, {"session": "x", "updated": "2026-11-15T10:00:00Z"}]}""",
+                _ => Thread,
+            })));
+        }
+
+        await CoachChat.LoadAsync(En, Read);
+
+        Assert.Equal("/v1/tafs/c/conversation", asked[^1]);
     }
 
     /// <summary>As the iPad's ownerWords: a card's answer as what was chosen (a key), anything else as written.</summary>

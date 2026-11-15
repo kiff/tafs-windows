@@ -30,7 +30,12 @@ Signed in, opening Coach reads its newest conversation (`CoachChat.LoadAsync`, p
 - `GET /v1/tafs/{id}/chats` gives its conversations, and the newest by when it was updated is read:
   `GET /v1/tafs/{id}/conversation/{session}` (the whole thread without a list).
 - **Read as the iPad's decoder:** a message without its time, sender, text or session fails the thread; work or a line it
-  can't read is left off. A thread with messages shows in place of the intro; none, or a failed read, leaves the intro.
+  can't read is left off. The list of conversations is read as strictly: an entry without its session, title, start or
+  update fails the list, and the whole thread is read instead.
+- **A thread with messages** shows in place of the intro. With no Coach, or `/v1/setup` unread, the intro stays as it is.
+  A conversation that can't be read, or doesn't decode, says so under the intro in red at 13: "The conversation couldn't be
+  loaded:" and why (tafs cloud's words, else its error, else its status; for one that doesn't decode, the app's own
+  "didn't understand each other", where the iPad shows the system's words).
 
 **Drawn as `SetupChatView.thread`** (`CoachPanel.ShowThread`), each message once, in the order they happened:
 - **A time** between parts an hour or more apart (`gapTime`): today's alone ("14:05"), an earlier one with its date.
@@ -39,13 +44,17 @@ Signed in, opening Coach reads its newest conversation (`CoachChat.LoadAsync`, p
 - **Coach's words** full width at 16, with "Worked for 12 s ›" above them when it worked (`WorkSummary(coach: true)`): it
   opens the steps in Coach's own words (`activityWords`: "Connecting an app", never a tool's name), what it showed left
   out, a step tried again after a failure as one row with "2 tries", failures kept only when nothing worked (`WorkLog.rows`).
-- **A run's start** as a centred line; then **While you were away** (what ended meanwhile, on the raised colour) and how
+- **A run's start** as a centred line, two lines at most, with its work above it; then **While you were away** (what ended meanwhile, on the raised colour) and how
   the tasks Coach handed tafs went ("↳ Rae: …").
 - `--home` with `--page coach` reads `coach-setup.json`, `coach-chats.json` and `coach-conversation.json` beside the Home
   file. tafs cloud has no contract for these reads yet; the tests use answers shaped as the iPad's decoders.
 
 **Not yet:**
 - **Coach's words as Markdown:** they show as written until `MarkdownText` is ported.
+- **A Coach with an empty thread:** the iPad then shows `starts` ("Ask anything"); here the intro stays, until writing to
+  Coach is ported.
+- **The conversation read's proof and `?can=`,** which only mark approval cards with what their fingerprint signs (`signs`):
+  with the approval cards.
 - **Coach's cards** (questions, notices, results, approvals and sign-ins), and an owner's answer folded into its card.
 - **Writing to Coach:** the composer, sending, the stream (what it's doing live, the dots), Stop, unsent and queued
   messages, steering, and reading the thread again while it works.

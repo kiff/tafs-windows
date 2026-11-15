@@ -93,22 +93,38 @@ public static class CoachChat
     /// <summary>
     /// The thread of Coach's newest conversation, as the iPad's <c>loadSetupThread</c> at launch: Coach's id from
     /// <c>GET /v1/setup</c>, its conversations from <c>…/chats</c>, the newest by when it was updated, then that one's
-    /// <c>…/conversation/{session}</c>, or the whole thread without a list. None with no Coach yet; why, when a read fails.
+    /// <c>…/conversation/{session}</c>, or the whole thread without a list. With no Coach, or <c>/v1/setup</c> unread, none
+    /// and no error, as the iPad's <c>try?</c>; a list it can't read is no list. A conversation that can't be read, or that
+    /// doesn't decode, says "The conversation couldn't be loaded:" and why, as the iPad's <c>setupError</c>.
     /// </summary>
-    public static async Task<(CoachThread? Thread, string? Error)> LoadAsync(Func<string, Task<CloudRead>> read)
+    public static async Task<(CoachThread? Thread, string? Error)> LoadAsync(WordBook w, Func<string, Task<CloudRead>> read)
     {
         var setup = await read("/v1/setup");
-        if (setup.Answer is not { } s) return (null, setup.Why);
-        if (Lenient.Text(Lenient.Field(s, "setup") ?? default, "id") is not { } coach) return (null, null);
+        if (setup.Answer is not { } s || Lenient.Text(Lenient.Field(s, "setup") ?? default, "id") is not { } coach) return (null, null);
         var id = CloudRead.PathPart(coach);
         var chats = await read($"/v1/tafs/{id}/chats");
-        var newest = chats.Answer is { } c
-            ? Lenient.Array(c, "chats").Select(x => (Session: Lenient.Text(x, "session"), Updated: Lenient.At(x, "updated")))
-                .Where(x => x.Session is not null && x.Updated is not null).MaxBy(x => x.Updated).Session
-            : null;
+        var newest = chats.Answer is { } c && Chats(c) is { } list ? list.MaxBy(x => x.Updated).Session : null;
         var thread = await read($"/v1/tafs/{id}/conversation" + (newest is null ? "" : "/" + CloudRead.PathPart(newest)));
-        if (thread.Answer is not { } t) return (null, thread.Why);
-        return CoachThread.Read(t) is { } read2 ? (read2, null) : (null, null);
+        // A thread that doesn't decode: the iPad says the system's words for it; this app has its own.
+        var why = thread.Answer is { } t ? (CoachThread.Read(t) is { } read2 ? null : w.Get("error.ours")) : thread.Why;
+        return why is null ? (CoachThread.Read(thread.Answer!.Value), null) : (null, w.Get("coach.conversation_not_loaded", ("why", why)));
+    }
+
+    /// <summary>
+    /// Coach's conversations, as the iPad's strict <c>[Chat]</c>: each needs its session and title, and its start and update
+    /// times; one that lacks any fails the list, as the iPad's decoder, and the whole thread is read instead.
+    /// </summary>
+    static List<(string Session, DateTimeOffset Updated)>? Chats(JsonElement answer)
+    {
+        if (Lenient.Field(answer, "chats") is not { ValueKind: JsonValueKind.Array } chats) return null;
+        var list = new List<(string, DateTimeOffset)>();
+        foreach (var x in chats.EnumerateArray())
+        {
+            if (Lenient.Text(x, "session") is not { } session || Lenient.Text(x, "title") is null || Lenient.At(x, "started") is null
+                || Lenient.At(x, "updated") is not { } updated) return null;
+            list.Add((session, updated));
+        }
+        return list;
     }
 
     /// <summary>
