@@ -58,7 +58,7 @@ public sealed partial class OverviewPage : Page
     /// One line per taf under the headings, a line between them, as the iPad's grid: its avatar and name, what it's doing
     /// now, its Card, and its last result in the soft colour. The whole line opens the taf, and Narrator reads it as one.
     /// </summary>
-    void ShowRows(IReadOnlyList<OverviewRow> rows)
+    internal void ShowRows(IReadOnlyList<OverviewRow> rows)
     {
         Empty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         var w = App.Words;

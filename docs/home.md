@@ -63,8 +63,30 @@ page, and Narrator reads it as one:
   tafs cloud doesn't run, as the sample's, shows "–".
 
 `--sample` shows the iPad's five tafs, as overview.png: Deploys and Bill pay first, since a call of each waits, then
-Refunds, Chargebacks and Access. Without it, and until tafs cloud lists the tafs, it shows "No tafs yet." under the
+Refunds, Chargebacks and Access. Without it, and with no tafs from tafs cloud, it shows "No tafs yet." under the
 headings.
+
+## Home's list from tafs cloud
+
+Signed in, once the window is up, the app reads `GET /v1/home` on tafs cloud (`https://cloud.tafs.kiff.dev`) as the
+session, with the app's language as `Accept-Language` (`HomeList`, `contracts/home.json` and `home-paused.json`). It's
+read as the iPad's `KIFFMapping.taf`:
+- **What it's doing** (NOW): tafs cloud's "Next run Fri 12:30" while it works on a schedule, else the app's words for its
+  state: Waiting for you, Paused, Halted · resume it from Halt, Works from its chat (no schedule), Running, Acting under
+  KIFF (idle), or Card not active.
+- **What went wrong:** tafs cloud's work line, when it flags it (`work.attention`) or an idle taf isn't healthy. Your tafs
+  shows it where the next run would be; the Overview keeps what it's doing.
+- **CARD:** the first Card's figure and words, from its Cards as tafs cloud read them from KIFF (`TafCards`). A use KIFF
+  couldn't read (`calls.used: null`) is none, never zero.
+- **Your tafs:** those relevant now. With tafs but none relevant now, there's no Your tafs, as on the iPad: they're all on
+  the Overview. The line for no tafs shows only with none at all.
+- **A taf's page** opens on its head (its state: Working, Waiting, Paused, Halted, Ready when idle, else Stopped) and
+  its Card bar.
+- **The headline** ("0 tafs working.") is read as tafs cloud counts it, never counted here: a taf whose work needs looking
+  at is neither working nor paused. The iPad's Overview draws none, so neither does this one yet.
+
+An answer that can't be read, or isn't a 200, leaves the Overview as it was. A screenshot never reads tafs cloud;
+`--home shared/contracts/home.json` reads the contract instead (CI's `overview-home`).
 
 **tafs cloud's runs** (`TafRuns`): `GET /v1/tafs/{id}/runs` (`contracts/taf-runs.json`) and one run's report,
 `GET /v1/tafs/{id}/runs/{session}` (`taf-run-report.json`, `-running`, `-terminated`). The Overview reads the report of
@@ -75,8 +97,11 @@ the newest run that started. What can't be read reads as none.
 - **+ New**, above Coach on the iPad, comes with Coach: on Windows it would have nothing to open yet.
 - **Where a held call opens.** On the iPad, a held call opens its taf's page, from the sidebar and from
   the Overview, with the call at its top. Here both open Needs you, since a taf's page doesn't draw its held calls yet.
-- **The held calls and the tafs** come from KIFF and tafs cloud in their own changes, with the runs and their reports
-  for Last result. Until then `--sample` shows the iPad's two sample calls and five tafs.
+- **The held calls** come from KIFF in their own change, and **Last result** from each taf's runs and their reports.
+  Until then `--sample` shows the iPad's two sample calls, and a taf from tafs cloud shows "–".
+- **A taf from tafs cloud's Activity, Setup and Card tabs** come with their reads; its Card tab also needs who issued it.
+- **Reading Home again:** it's read once, at launch. An expired session (401) isn't told apart yet.
+- **The line's colour** for what went wrong: the iPad's is amber, red when it's failing; here it's the soft colour.
 - **Who uses a taf,** under its name on the Overview ("Support · 3 people"), for whoever manages it.
 - **Coach's sparkle**: the iPad's Coach button has a sparkle (sparkles while Coach drives). Segoe
   Fluent Icons has no sparkle, so it's the closest it has, a star (U+E734).

@@ -14,6 +14,14 @@ static class Lenient
     public static int? Int(JsonElement o, string name) =>
         Field(o, name) is { ValueKind: JsonValueKind.Number } v && v.TryGetInt32(out var n) ? n : null;
 
+    public static long? Long(JsonElement o, string name) =>
+        Field(o, name) is { ValueKind: JsonValueKind.Number } v && v.TryGetInt64(out var n) ? n : null;
+
+    /// <summary>A time as tafs cloud writes it (ISO 8601, UTC when it says no offset).</summary>
+    public static DateTimeOffset? At(JsonElement o, string name) =>
+        DateTimeOffset.TryParse(Text(o, name), System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.AssumeUniversal, out var at) ? at : null;
+
     public static bool Bool(JsonElement o, string name) => Field(o, name) is { ValueKind: JsonValueKind.True };
 
     public static JsonElement? Field(JsonElement o, string name) =>

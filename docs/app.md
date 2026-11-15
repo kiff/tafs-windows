@@ -53,6 +53,7 @@ The app speaks the first of the person's Windows languages that tafs ships (`App
 | `--page pair`, `sign-in`, `needs-you`, `record`, `calendar`, `calendar-week`, `calendar-month`, `usage`, `connect-apps`, `account`, `coach`, `taf`, `taf-setup` or `taf-card` | open Add this Windows PC, Sign in with KIFF, Needs you, the Record, Calendar in Day, Week or Month, Plan & usage, Connect apps, Account, Coach mode over the Overview, or the sample's Refunds on its Activity, Setup or Card (`taf`, `taf-setup`, `taf-card`, with `--sample`) |
 | `--view-only` | show the session as view-only |
 | `--sample` | show the iPad's sample held calls, Record, Plan & usage and Connect apps |
+| `--home contract.json` | read Home's list from a contract file (`shared/contracts/home.json`) in place of tafs cloud |
 | `--screenshot out.png` | save the window (1280×800) as a PNG and quit |
 
 CI's `app` job builds the app on Windows when `src/Tafs.App/**` changes, and nightly. It saves sign-in, the Overview, Needs you, the Record, Plan & usage, Connect apps, Account and a taf's Activity, Setup and Card (with the samples), Coach mode, Calendar in Day and Week, the view-only notice and the pairing screen in en, fr and pt, light and dark, as the `screenshots` artifact of the run. The job fails if any of the 90 is missing: a crash at launch, or a word missing at the pin, stops the app before it saves.
