@@ -55,7 +55,7 @@
                      Foreground="{ThemeResource TafsInk}" />
         </Grid>
         <!-- The intro, on Coach's wash, padded 20 as the iPad's. -->
-        <Grid Grid.Row="1" Grid.Column="1" Background="{ThemeResource TafsCoachWash}" Padding="20" RowSpacing="14">
+        <Grid x:Name="Intro" Grid.Row="1" Grid.Column="1" Background="{ThemeResource TafsCoachWash}" Padding="20" RowSpacing="14">
           <Grid.RowDefinitions>
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
@@ -71,6 +71,10 @@
           <TextBlock x:Name="Footnote" Grid.Row="2" FontSize="12" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center"
                      Foreground="{ThemeResource TafsDim}" />
         </Grid>
+        <!-- Coach's thread, once it has one: drawn in code, as the iPad's SetupChatView.thread. -->
+        <ScrollViewer x:Name="ThreadView" Grid.Row="1" Grid.Column="1" Visibility="Collapsed" Padding="0,0,16,16">
+          <StackPanel x:Name="ThreadItems" Spacing="12" />
+        </ScrollViewer>
       </Grid>
     </Grid>
   </Grid>
