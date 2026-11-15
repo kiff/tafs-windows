@@ -2,6 +2,7 @@
   "always": ["strings", "contracts"],
   "all_on": [
     "Directory.Build.props",
+    "shared-pin.json",
     "global.json",
     "*.sln",
     ".github/**",
