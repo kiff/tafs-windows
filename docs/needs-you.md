@@ -61,3 +61,25 @@ tab bar's red pill). The row is named with it: "Needs you, 2".
 
 The page is capped at 760 wide, from the leading edge. The iPad's has no cap; on a wide window, cards
 that wide would put the amount far from the answers.
+
+## Notifications (`HoldToast`, `Toasts`)
+
+While tafs runs, a call KIFF holds gets a Windows notification, as the iPad's hold alert (`HoldNotification.words`,
+`PushDelegate.open`):
+- **Its words:**
+  - "Rae needs you" (or "A taf needs you");
+  - then "Refund order 42, €150.00 · Over €50 each. Answer by 14:05. Nothing is sent until you approve.", answering by
+    this PC's time, as every screen here shows it.
+- **Which holds:** one KIFF has held since the last read of Needs you. A session's first read notifies nothing, so opening
+  tafs doesn't announce what was already waiting: it's all in Needs you. A sample is never notified. A sign-out starts
+  again.
+- **One per hold:** each is tagged with the hold's id, so it's never shown twice.
+- **Clicking one** brings the window forward and opens Needs you with that hold's card in view, whether tafs was open or
+  the click started it.
+- **How:** the Windows App SDK's `AppNotificationManager`, which works for an unpackaged app. It's registered at start
+  (never for a screenshot). On a PC that refuses it, there are no notifications, and Needs you still shows every hold.
+- **Not yet:**
+  - a notification while tafs is closed, which needs a push from tafs cloud, as the iPad's;
+  - Approve and Refuse on the notification itself;
+  - taking a hold's notification away once it's answered elsewhere;
+  - reading again on its own while open. Holds are read with each refresh of Home's list.

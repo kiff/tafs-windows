@@ -36,6 +36,9 @@ public sealed partial class MainWindow : Window
     string needsYouTitle = "";
     readonly List<object> heldRows = [];
 
+    /// <summary>The holds this session has read, so only one held since the last read is notified; none before the first read.</summary>
+    HashSet<string>? notified;
+
     /// <summary>The Record's lines: KIFF's activity once Home is read as the session, else none, or the iPad's sample.</summary>
     IReadOnlyList<RecordEntry> record;
     /// <summary>How this window reads KIFF for the Record: as the session, or a stand-in file for a screenshot; none signed out.</summary>
@@ -120,6 +123,7 @@ public sealed partial class MainWindow : Window
 
         SignInPage.PairInsteadChosen += OpenPairing;
         NeedsYouPage.AddThisDeviceChosen += OpenPairing;
+        Toasts.HoldChosen += hold => DispatcherQueue.TryEnqueue(() => OpenHold(hold));
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
         // Focus goes back to the sidebar's Coach when Coach mode has gone.
         CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
@@ -277,7 +281,23 @@ public sealed partial class MainWindow : Window
         var answer = (await read(KiffHeld.Path)).Answer;
         if (reading != sessions || answer is not { } json || KiffHeld.Read(json) is not { } holds) return;
         var tafs = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => (g.First().Name, g.First().Colour));
-        ShowHeld(KiffHeld.Calls(App.Words, holds, agent => tafs.TryGetValue(agent, out var taf) ? taf : null));
+        var calls = KiffHeld.Calls(App.Words, holds, agent => tafs.TryGetValue(agent, out var taf) ? taf : null);
+        ShowHeld(calls);
+        // A hold KIFF has held since the last read gets its notification, as the iPad's hold alert.
+        foreach (var fresh in HoldToast.New(notified, calls))
+            if (HoldToast.Lines(App.Words, fresh, TimeZoneInfo.Local) is { } lines) Toasts.Show(lines);
+        notified = calls.Where(c => c.KiffId is not null).Select(c => c.KiffId!).ToHashSet();
+    }
+
+    /// <summary>
+    /// A hold's notification was clicked, as the iPad's <c>PushDelegate.open</c>: the window comes forward, and Needs you
+    /// opens with that hold's card in view. A hold no longer held just opens Needs you.
+    /// </summary>
+    internal void OpenHold(string hold)
+    {
+        Activate();
+        if (needsYouRow is { } row) Nav.SelectedItem = row;
+        if (Pages.Content is NeedsYouPage page) page.ShowHold(hold);
     }
 
     /// <summary>The held calls drawn again: NEEDS YOU in the sidebar, Needs you's count, and Needs you or the Overview when open.</summary>
@@ -353,6 +373,7 @@ public sealed partial class MainWindow : Window
         record = [];
         if (Pages.Content is RecordPage page) page.ShowEntries(record);
         if (!sampleHeld) ShowHeld([]);
+        notified = null;
         ShowHome(new HomeAnswer([], null));
         CoachMode.Read = null;
         CoachMode.Answer = null;

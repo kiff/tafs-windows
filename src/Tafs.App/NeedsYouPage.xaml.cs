@@ -91,4 +91,13 @@ public sealed partial class NeedsYouPage : Page
     }
 
     void OnAddThisDevice(object sender, RoutedEventArgs e) => AddThisDeviceChosen?.Invoke();
+
+    /// <summary>Brings a hold's card into view, once it's laid out: the one a notification named.</summary>
+    internal void ShowHold(string hold)
+    {
+        var index = views.ToList().FindIndex(v => v.Call.KiffId == hold);
+        if (index < 0) return;
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            (Calls.ContainerFromIndex(index) as FrameworkElement)?.StartBringIntoView());
+    }
 }
