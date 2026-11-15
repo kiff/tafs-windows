@@ -69,8 +69,11 @@ public sealed partial class MainWindow : Window
         }
         AddHeldCalls(w);
         YourTafs.Content = Sidebar.Eyebrow(w, "home.your_tafs");
-        // No tafs list yet: it comes from tafs cloud in its own change.
+        // The tafs list comes from tafs cloud in its own change; until then none, or the sample's.
+        var yourTafs = sample ? Sidebar.SampleYourTafs(w, DateTimeOffset.UtcNow) : [];
+        AddYourTafs(yourTafs);
         NoTafs.Content = Sidebar.NoTafs(w);
+        NoTafs.Visibility = yourTafs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         var foot = Sidebar.Foot(w);
         CoachText.Text = foot.Coach;
@@ -159,6 +162,44 @@ public sealed partial class MainWindow : Window
         row.Content = line;
     }
 
+    /// <summary>A taf's row in the sidebar: it opens the taf's page.</summary>
+    sealed record TafRow(string Key);
+
+    /// <summary>
+    /// Under YOUR TAFS, the tafs relevant now, as the iPad's sidebar: the avatar (34), the name in 15 semibold, and what
+    /// it's doing in 13 soft, on one line each. A row opens its taf's page.
+    /// </summary>
+    void AddYourTafs(IReadOnlyList<OverviewRow> rows)
+    {
+        var at = Nav.MenuItems.IndexOf(YourTafs) + 1;
+        foreach (var taf in rows)
+        {
+            var content = new Grid { ColumnSpacing = 12 };
+            content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            content.ColumnDefinitions.Add(new ColumnDefinition());
+            content.Children.Add(new Border
+            {
+                Width = 34, Height = 34, CornerRadius = new CornerRadius(10), Background = RecordLineView.Colour(taf.Colour),
+                Child = new TextBlock { Text = TafScreen.Initial(taf.Taf), FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White),
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+            });
+            var lines = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+            lines.Children.Add(new TextBlock { Text = taf.Taf, FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
+            lines.Children.Add(new TextBlock { Text = taf.Now, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Normal, TextTrimming = TextTrimming.CharacterEllipsis,
+                Style = (Style)Application.Current.Resources["TafsSoftText"] });
+            Grid.SetColumn(lines, 1);
+            content.Children.Add(lines);
+            var row = new NavigationViewItem
+            {
+                Content = content, Tag = new TafRow(taf.Key), Style = (Style)Application.Current.Resources["TafsSidebarItem"],
+                HorizontalContentAlignment = HorizontalAlignment.Stretch, MinHeight = 56,
+            };
+            AutomationProperties.SetName(row, $"{taf.Taf}. {taf.Now}");
+            Nav.MenuItems.Insert(at++, row);
+        }
+    }
+
     /// <summary>
     /// NEEDS YOU above YOUR TAFS, as on the iPad: each held call on one row, an amber dot, "Taf: what it asks", and
     /// "reason · answer by 00:27" under it. A row opens Needs you. With none, the section isn't there.
@@ -214,6 +255,7 @@ public sealed partial class MainWindow : Window
         else if (item.Tag is Screen.Usage) Pages.Navigate(typeof(UsagePage), usage);
         else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), connectApps);
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
+        else if (item.Tag is TafRow taf) Pages.Navigate(typeof(TafPage), SampleTaf(App.Words, taf.Key, TafTab.Activity));
         else Pages.Navigate(typeof(ComingPage), item.Content);
     }
 
