@@ -17,7 +17,7 @@ public static class Features
     /// <summary>
     /// The pairing claim proves this PC's passkey was made for this pairing: the create's challenge is
     /// <see cref="Pairing.PairingClaim.PasskeyChallenge"/>, and the claim sends client_data_json and attestation_object.
-    /// Off until KIFF takes them (the PM, 15 Nov): the QR's credential ships as it is.
+    /// Off until KIFF takes them: the QR's credential ships as it is.
     /// </summary>
     public static readonly bool PairingPasskeyProof = false;
 }

@@ -11,7 +11,7 @@ From the top:
 - **The mascot and "tafs"**: the way to the Overview, and what opens first. There's no Overview row
   beside them.
 - **The app's screens**, in the iPad's order: Needs you, Record, Calendar, Plan & usage, Connect apps.
-  Calendar is one of them, so the Overview draws no calendar button (the owner's 14 Nov iPad fix).
+  Calendar is one of them, so the Overview draws no calendar button (the iPad's fix of 14 Nov).
 - **NEEDS YOU**, when calls are held: its label in the amber, then each call on one row, an 8-point
   amber dot, "Deploys: Run migration…" (14 semibold) and "Schema migrations: always asks you · answer by
   00:27" (12, soft), each cut short with an ellipsis. A row opens Needs you. With nothing held, the

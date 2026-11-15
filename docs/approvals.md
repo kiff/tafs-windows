@@ -62,7 +62,7 @@ leaves the TPM.
   - Closing Windows Hello (`ERROR_CANCELLED`, `NTE_USER_CANCELLED`) is a cancel.
   - Anything else is refused with Windows' own name for the error.
 
-**The creation proof, built and switched off** (`Features.PairingPasskeyProof`, the PM's call of 15 Nov):
+**The creation proof, built and switched off** (`Features.PairingPasskeyProof`, 15 Nov):
 - The QR's credential ships as it is.
 - When KIFF takes the proof, the pairing's passkey is made with the challenge
   `PairingClaim.PasskeyChallenge`: base64url(sha256 of `kiff.passkey.pair.v1`, the nonce and pub, joined
