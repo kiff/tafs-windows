@@ -17,8 +17,8 @@ public sealed record EnrolResult(EnrolOutcome Outcome, string? Why = null)
 /// <summary>
 /// Setting this device up with planque, once per account, as the iPad's <c>setUpPlanque</c> and <c>enrolPlanque</c> (with
 /// iOS #1106 and planque#248): planque is asked first with no key, and keeps the connector key it holds while KIFF still
-/// takes it (<c>kept</c>). Only otherwise is a KIFF key minted, which connects tools and does nothing else, and handed to
-/// planque; it's never kept here. Every call to planque carries this device's signature, never KIFF's token.
+/// takes it (<c>kept</c>). Only when planque says it needs one is a KIFF key minted, which connects tools and does nothing
+/// else, and handed to planque; it's never kept here. Every call to planque carries this device's signature, never KIFF's token.
 /// </summary>
 public static class PlanqueEnrolment
 {
@@ -53,7 +53,8 @@ public static class PlanqueEnrolment
 
     /// <summary>
     /// Sets planque up, as the iPad's <c>enrolPlanque</c>: asked first with no key, a 2xx with <c>kept: true</c> is done and
-    /// mints nothing. Anything else (<c>needs_key</c>, a planque from before, not reached) mints one key and enrols with it.
+    /// mints nothing. Only <c>needs_key</c> (409), or the 400 of a planque from before, mints one key and enrols with it;
+    /// anything else (not reached, a 5xx, a replayed signature, a changed enrolment) stops with why, and nothing is minted.
     /// KIFF refusing the key (403) is for an admin only; planque refusing the enrolment (409) is another device's; anything
     /// else says why. <paramref name="postToPlanque"/> signs and sends a body; <paramref name="mintKey"/> sends KIFF's signed
     /// mint. Each answers status and body, and throws <see cref="HttpRequestException"/> when not reached.
@@ -65,8 +66,11 @@ public static class PlanqueEnrolment
         {
             var (status, body) = await postToPlanque(Body(deviceKeyDer, null));
             if (status is >= 200 and <= 299 && Kept(body)) return new(EnrolOutcome.Kept);
+            // A key is minted only when planque says it needs one: anything else stops here, and the next try asks again,
+            // so no key is ever left live in KIFF that no one can revoke.
+            if (!NeedsKey(status, body)) return NotSetUp(w, CloudRead.Refused(w, status, status is >= 200 and <= 299 ? "" : body).Why);
         }
-        catch (HttpRequestException) { }
+        catch (HttpRequestException) { return NotSetUp(w, CloudRead.Unreached(w).Why); }
         string key;
         try
         {
@@ -88,6 +92,22 @@ public static class PlanqueEnrolment
     }
 
     static EnrolResult NotSetUp(WordBook w, string? why) => new(EnrolOutcome.NotSetUp, w.Get("coach.connecting_not_set_up", ("why", why ?? "")));
+
+    /// <summary>
+    /// planque needs a key: <c>409</c> with <c>needs_key</c>, or the <c>400</c> of a planque from before, which takes no
+    /// keyless enrolment. Nothing else: not a 5xx, a replayed signature or a changed enrolment.
+    /// </summary>
+    static bool NeedsKey(int status, string body)
+    {
+        if (status == 400) return true;
+        if (status != 409) return false;
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            return Lenient.Text(doc.RootElement, "code") == "needs_key";
+        }
+        catch (JsonException) { return false; }
+    }
 
     /// <summary>planque's answer says it kept the connector key it holds.</summary>
     static bool Kept(string body)

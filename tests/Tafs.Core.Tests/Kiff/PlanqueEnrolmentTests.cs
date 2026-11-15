@@ -56,22 +56,43 @@ public class PlanqueEnrolmentTests
     }
 
     /// <summary>
-    /// The iPad's testWithNoStandingKeyOneIsMintedAndHandedOver: needs_key, a planque from before, a 2xx that didn't keep
-    /// it, or planque not reached: one key minted and handed over, the first enrolment without it.
+    /// The iPad's testWithNoStandingKeyOneIsMintedAndHandedOver: planque says it needs a key (needs_key), or a planque from
+    /// before takes no keyless enrolment (400): one key minted and handed over, the first enrolment without it.
     /// </summary>
     [Theory]
-    [InlineData(409, """{"error": "no connector key stands for this account", "code": "needs_key"}""", false)]
-    [InlineData(400, """{"error": "KIFF did not accept the connector key"}""", false)]
-    [InlineData(201, """{"tenant": "t_01", "device": "ab12"}""", false)]
-    [InlineData(0, "", true)]
-    public async Task With_no_standing_key_one_is_minted_and_handed_over(int status, string answer, bool unreached)
+    [InlineData(409, """{"error": "no connector key stands for this account", "code": "needs_key"}""")]
+    [InlineData(400, """{"error": "KIFF did not accept the connector key"}""")]
+    public async Task Only_when_planque_needs_a_key_is_one_minted_and_handed_over(int status, string answer)
     {
-        var stubs = unreached ? new Stubs((201, """{"tenant": "t_01"}""")) { PlanqueUnreached = true } : new Stubs((status, answer), (201, """{"tenant": "t_01"}"""));
+        var stubs = new Stubs((status, answer), (201, """{"tenant": "t_01"}"""));
 
         Assert.Equal(new EnrolResult(EnrolOutcome.Enrolled), (await stubs.Run()));
         Assert.Equal(1, stubs.Mints);
         Assert.Equal([null, "kiff_live_connector"], stubs.Enrolments.Select(e => e.GetValueOrDefault("connector_key")));
         Assert.All(stubs.Enrolments, e => Assert.Equal("MFkB", e["device_key"]));
+    }
+
+    /// <summary>
+    /// Anything else stops with why, and no key is minted, so none is left live in KIFF that no one can revoke: planque not
+    /// reached, a 5xx, a replayed signature, a changed enrolment, a 2xx that didn't keep its key.
+    /// </summary>
+    [Theory]
+    [InlineData(0, "", "It didn't reach")]
+    [InlineData(503, """{"error": "planque is down"}""", "planque is down")]
+    [InlineData(401, """{"error": "signature replayed", "code": "signature_replayed"}""", "signature replayed")]
+    [InlineData(409, """{"error": "the enrolment changed", "code": "enrolment_changed"}""", "the enrolment changed")]
+    [InlineData(201, """{"tenant": "t_01", "device": "ab12"}""", "201")]
+    public async Task Anything_else_stops_and_mints_nothing(int status, string answer, string why)
+    {
+        var stubs = status == 0 ? new Stubs() { PlanqueUnreached = true } : new Stubs((status, answer));
+
+        var result = await stubs.Run();
+
+        Assert.Equal(EnrolOutcome.NotSetUp, result.Outcome);
+        Assert.StartsWith("Connecting apps isn't set up.", result.Why);
+        Assert.Contains(why, result.Why);
+        Assert.Equal(0, stubs.Mints);
+        Assert.Single(stubs.Enrolments);
     }
 
     /// <summary>As the iPad's enrolPlanque: KIFF's 403 is an admin's; planque's 409 is another device's; else why.</summary>
