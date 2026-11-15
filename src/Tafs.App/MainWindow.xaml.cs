@@ -368,18 +368,31 @@ public sealed partial class MainWindow : Window
             {
                 if (taf is null) return (null, w.Get("needs_you.answer_not_taken"), false);
                 var (read, why) = await HoldAllow.ReadAsync(w, taf, call, round,
-                    (path, body) => CloudSendAsync(bearer, path, body), path => KiffReadAsync(bearer, path));
+                    async (path, body) =>
+                    {
+                        try { return await CloudSendAsync(bearer, path, body); }
+                        catch (TaskCanceledException) { return CloudRead.Unreached(w); }
+                    },
+                    async path =>
+                    {
+                        // KIFF's draft, its refusal read as KIFF's (a 401 is signed out), as the iPad's kiff.draft(id:).
+                        try
+                        {
+                            var (status, answer) = await KiffHttp.GetAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), bearer, w.Language);
+                            return status is >= 200 and <= 299 ? Answered(w, status, answer)
+                                : new CloudRead(null, Tafs.Core.Coach.CoachStart.KiffRefused(w, status, answer), status);
+                        }
+                        catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException) { return CloudRead.Unreached(w); }
+                    },
+                    () => reading == sessions);
                 return (read, why, reading != sessions);
             },
             async (sheet, body) =>
             {
                 var confirmed = await HoldAllow.ConfirmAsync(w, sheet.Draft!.Id, body,
-                    async (path, signed) =>
-                    {
-                        if (session.PasskeyId is not { } id) throw new PasskeyRefusedException("this PC has no passkey");
-                        var passkey = new PasskeyApprover(new WindowsHello(() => App.WindowHandle), KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);
-                        return (PasskeyApprover.HeaderName, await passkey.ApproveAsync(session.Tenant, "POST", path, signed, SigningTime.Next(DateTimeOffset.UtcNow)));
-                    },
+                    (path, signed) => HoldAllow.SignConfirmAsync(session,
+                        session.PasskeyId is { } id ? new PasskeyApprover(new WindowsHello(() => App.WindowHandle), KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals) : null,
+                        path, signed, SigningTime.Next(DateTimeOffset.UtcNow)),
                     (path, signed, signature) => KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), signed, bearer, w.Language, signature: signature),
                     () => reading == sessions, SessionStore.Why);
                 // The Card changed, and with the switch on the call went: Needs you and Home read again.
@@ -619,6 +632,7 @@ public sealed partial class MainWindow : Window
         listedSteps = [];
         managesCards = true;
         capabilitiesRead = null;
+        AllowDialog.Close();
         lastingRefusals.Clear();
         sendingHolds.Clear();
         answeredSteps.Clear();

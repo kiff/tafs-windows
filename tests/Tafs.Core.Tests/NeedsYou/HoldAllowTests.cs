@@ -489,6 +489,75 @@ public class HoldAllowTests
         Assert.Equal((false, "version_changed", false), refused);
     }
 
+    /// <summary>Signed out after tafs cloud's offer, KIFF's draft isn't read, as the old account.</summary>
+    [Fact]
+    public async Task Signed_out_after_the_offer_no_draft_is_read()
+    {
+        var services = new Services();
+        services.Responses["POST /v1/tafs/taf_1/holds/ce_9/allow"] = OfferJson();
+        services.Responses["GET /v1/me/agent-drafts/dr_9"] = Draft();
+        var read = await HoldAllow.ReadAsync(En, "taf_1", Held(["per_action_exceeded"]), false, services.Post, services.Get, () => false);
+        Assert.Equal((null, null), read);
+        Assert.DoesNotContain(services.Sent, s => s.Request.StartsWith("GET "));
+    }
+
+    /// <summary>Signed out before the confirm, Windows Hello isn't asked and nothing is sent.</summary>
+    [Fact]
+    public async Task Signed_out_before_the_confirm_nothing_is_asked()
+    {
+        var asked = 0;
+        var confirmed = await HoldAllow.ConfirmAsync(En, "dr_9", HoldAllow.ConfirmBody("v7", null),
+            (_, _) => { asked++; return Task.FromResult(("h", "v")); }, (_, _, _) => Task.FromResult((200, "{}")), () => false, _ => "");
+        Assert.Equal((false, null, true), confirmed);
+        Assert.Equal(0, asked);
+    }
+
+    /// <summary>Stands in for webauthn.dll: signs authData ‖ sha256(clientDataJSON), with user verification.</summary>
+    sealed class Authenticator(Tafs.Core.Tests.Kiff.TestSigner key) : IPasskeyAuthenticator
+    {
+        public byte[]? ClientData;
+        public int Asked;
+
+        public async Task<PasskeyAssertion> GetAssertionAsync(string rp, byte[] credentialId, byte[] clientDataJson, CancellationToken cancel)
+        {
+            Asked++;
+            ClientData = clientDataJson;
+            var authData = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(rp)).Concat(new byte[] { 0x05, 0, 0, 0, 1 }).ToArray();
+            return new PasskeyAssertion(authData, await key.SignDerAsync(authData.Concat(System.Security.Cryptography.SHA256.HashData(clientDataJson)).ToArray(), cancel));
+        }
+    }
+
+    /// <summary>
+    /// The confirm's one Windows Hello asserts exactly this request: its challenge is base64url(sha256) of kiff.request.v1 over
+    /// the tenant, POST, the confirm's path, its body (switch on or off) and signed_at, which the header's t= carries. A session
+    /// that doesn't approve with its passkey throws before anything is asked.
+    /// </summary>
+    [Fact]
+    public async Task The_confirm_s_assertion_is_over_this_exact_request()
+    {
+        using var key = new Tafs.Core.Tests.Kiff.TestSigner();
+        var auth = new Authenticator(key);
+        var passkey = new PasskeyApprover(auth, Encoding.UTF8.GetBytes("this-pc"), true);
+        var session = new Tafs.Core.Kiff.KeptSession("api.kiff.dev", "token", "t_01", "s1", "dev_pc01", Tafs.Core.Kiff.ApprovalMode.Passkey, DateTimeOffset.MaxValue, "k") { PasskeyId = "AQI" };
+        const string at = "2026-11-15T23:00:00.250Z";
+        var path = HoldAllow.ConfirmPath("dr_9");
+        foreach (var body in new[] { HoldAllow.ConfirmBody("v7", ("ce_9", 3)), HoldAllow.ConfirmBody("v7", null) })
+        {
+            var (header, value) = await HoldAllow.SignConfirmAsync(session, passkey, path, body, at);
+            Assert.Equal("KIFF-Passkey-Assertion", header);
+            Assert.StartsWith($"t={at},a=", value);
+            using var client = JsonDocument.Parse(auth.ClientData!);
+            var message = Tafs.Core.Kiff.KiffSigning.RequestV1("t_01", "POST", "/v1/me/agent-drafts/dr_9/confirm", body, at);
+            Assert.Equal(PasskeyApprover.Challenge(message), client.RootElement.GetProperty("challenge").GetString());
+        }
+        Assert.Equal(2, auth.Asked);
+
+        foreach (var other in new[] { session with { Mode = Tafs.Core.Kiff.ApprovalMode.Key }, session with { Mode = Tafs.Core.Kiff.ApprovalMode.View }, session with { PasskeyId = null } })
+            await Assert.ThrowsAsync<PasskeyRefusedException>(() => HoldAllow.SignConfirmAsync(other, passkey, path, HoldAllow.ConfirmBody("v7", null), at));
+        await Assert.ThrowsAsync<PasskeyRefusedException>(() => HoldAllow.SignConfirmAsync(session, null, path, HoldAllow.ConfirmBody("v7", null), at));
+        Assert.Equal(2, auth.Asked);
+    }
+
     /// <summary>Rounding up keeps the person's switch and is offered once; the first read takes the offer's.</summary>
     [Fact]
     public async Task Rounding_up_keeps_the_switch_and_is_offered_once()

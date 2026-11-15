@@ -35,8 +35,15 @@ sealed class AllowDialog
         this.theme = theme;
     }
 
+    /// <summary>The sheet open now, as the iPad's one <c>allow</c>: a second tap opens none, and a sign-out closes it.</summary>
+    static ContentDialog? open;
+
+    /// <summary>Closes the sheet, as a sign-out empties the iPad's held calls and its sheet with them.</summary>
+    public static void Close() => open?.Hide();
+
     public static async Task ShowAsync(XamlRoot root, ElementTheme theme, HeldCall call, AllowCalls calls)
     {
+        if (open is not null) return;
         var allow = new AllowDialog(call, calls, theme);
         allow.dialog = new ContentDialog
         {
@@ -44,8 +51,13 @@ sealed class AllowDialog
             Content = new ScrollViewer { Content = allow.body, MaxHeight = 640 },
         };
         allow.Draw();
-        _ = allow.LoadAsync(round: false);
-        await allow.dialog.ShowAsync();
+        open = allow.dialog;
+        try
+        {
+            _ = allow.LoadAsync(round: false);
+            await allow.dialog.ShowAsync();
+        }
+        finally { open = null; }
     }
 
     /// <summary>tafs cloud's offer now, then KIFF's draft, as the iPad's <c>loadAllow</c>; rounding up keeps the switch.</summary>

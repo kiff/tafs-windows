@@ -22,7 +22,8 @@ public static class HoldAllow
 
     /// <summary>
     /// A hold from KIFF whose every breach a Card change can lift, as the iPad's <c>allowable</c>. A currency mismatch is
-    /// never listed as one. The iPad also leaves out Coach's install hold, which no held call marks here yet.
+    /// never listed as one. The iPad also leaves out Coach's install hold: no held call marks it here, and
+    /// <see cref="Offers"/> already keeps it out, since its taf is found by agent and Coach's agent is no listed taf's.
     /// </summary>
     public static bool Allowable(HeldCall call) =>
         call.KiffId is not null && call.BreachOutcomes is { Count: > 0 } outcomes && outcomes.All(Liftable.Contains);
@@ -125,7 +126,6 @@ public static class HoldAllow
 
     static TermList<T> Replaced<T>(TermList<T> list, int at, T item) => new(list.Select((x, i) => i == at ? item : x));
 
-    /// <summary>
     /// <summary>KIFF's confirm of a draft, as the iPad's <c>KIFFClient.confirmDraft</c>.</summary>
     public static string ConfirmPath(string draft) => KiffDrafts.Path(draft) + "/confirm";
 
@@ -145,13 +145,15 @@ public static class HoldAllow
     /// itself (<paramref name="sign"/>), then it goes to KIFF (<paramref name="post"/>). Windows Hello closed sends nothing
     /// and says nothing, as the iPad's quiet stop. Any other failure to sign (a refusal, Windows Hello or the TPM failing, an
     /// answer that can't be read) sends nothing and says why (<paramref name="why"/>), never leaving the sheet waiting.
-    /// <c>Stopped</c> when another session began meanwhile.
+    /// <c>Stopped</c> when another session began meanwhile: checked before Windows Hello is asked, as the iPad's
+    /// <c>confirmAllow</c> returns with no account, and after each await.
     /// </summary>
     public static async Task<(bool Done, string? Why, bool Stopped)> ConfirmAsync(WordBook w, string draft, byte[] body,
         Func<string, byte[], Task<(string Header, string Value)>> sign,
         Func<string, byte[], (string Header, string Value), Task<(int Status, string Body)>> post,
         Func<bool> current, Func<Exception, string> why)
     {
+        if (!current()) return (false, null, true);
         var path = ConfirmPath(draft);
         (string Header, string Value) signature;
         try { signature = await sign(path, body); }
@@ -165,7 +167,7 @@ public static class HoldAllow
         int status;
         string answer;
         try { (status, answer) = await post(path, body, signature); }
-        catch (System.Net.Http.HttpRequestException) { return (false, w.Get("error.offline"), !current()); }
+        catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException) { return (false, w.Get("error.offline"), !current()); }
         if (!current()) return (false, null, true);
         if (status is < 200 or > 299) return (false, CoachStart.KiffRefused(w, status, answer), false);
         return (true, null, false);
@@ -178,16 +180,33 @@ public static class HoldAllow
     public static bool Offers(HeldCall call, IReadOnlyList<string>? capabilities, bool managesCards, string? taf) =>
         AllowIsLive(capabilities) && managesCards && !string.IsNullOrEmpty(taf) && Allowable(call);
 
+    /// <summary>
+    /// The confirm's one signature, as Start's Setup draft (<see cref="CoachStart.SignDraftAsync"/>): this PC's passkey
+    /// asserts <c>kiff.request.v1</c> over exactly this request, its challenge base64url(sha256) of it. Only a session that
+    /// approves with its passkey signs; any other throws <see cref="PasskeyRefusedException"/> before anything is asked.
+    /// </summary>
+    public static async Task<(string Header, string Value)> SignConfirmAsync(Kiff.KeptSession session, PasskeyApprover? passkey,
+        string path, byte[] body, string signedAt, CancellationToken cancel = default)
+    {
+        if (!HeldAnswers.Approves(session.Mode, session.PasskeyId) || passkey is null)
+            throw new PasskeyRefusedException("only this PC's passkey confirms a Card change");
+        return (PasskeyApprover.HeaderName, await passkey.ApproveAsync(session.Tenant, "POST", path, body, signedAt, cancel));
+    }
+
+    /// <summary>
     /// tafs cloud's offer for a held call, then KIFF's draft, read by this PC, and whether the draft is what was offered, as
     /// the iPad's <c>HoldAllow.read</c>. A <c>none</c> reads no draft. Where the iPad throws, why instead: the service's
     /// refusal as each read says it, or "KIFF didn't answer as expected" for an answer that can't be read.
     /// </summary>
     /// <param name="post">tafs cloud's <c>POST</c> of a path and body.</param>
     /// <param name="get">KIFF's <c>GET</c> of a path, as the session.</param>
+    /// <param name="current">Whether the session the sheet opened in is still signed in: signed out after the offer, KIFF's
+    /// draft isn't read, as the iPad's <c>accountGeneration</c>, and nothing is said.</param>
     public static async Task<(AllowRead? Read, string? Why)> ReadAsync(WordBook w, string taf, HeldCall call, bool round,
-        Func<string, byte[], Task<CloudRead>> post, Func<string, Task<CloudRead>> get)
+        Func<string, byte[], Task<CloudRead>> post, Func<string, Task<CloudRead>> get, Func<bool>? current = null)
     {
         var offered = await post(AllowOffers.Path(taf, call.KiffId ?? ""), AllowOffers.Body(round));
+        if (current is { } now && !now()) return (null, null);
         if (offered.Answer is not { } json) return (null, offered.Why);
         if (AllowOffers.Read(json) is not { } answer) return (null, w.Get("kiff.kiff_did_not_answer_expected"));
         if (answer.Offer is not { } offer || offer.Draft.Length == 0) return (new(answer, null, false), null);
