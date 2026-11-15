@@ -150,7 +150,13 @@ public sealed partial class MainWindow : Window
         NeedsYouPage.HeldAnswerChosen += (call, answer) => _ = AnswerHeldAsync(call, answer);
         NeedsYouPage.AllowChosen += call => _ = OpenAllowAsync(call);
         // F5 on Needs you: Home and KIFF's held calls read again, as the iPad's pull-to-refresh.
-        NeedsYouPage.RefreshChosen += () => { if (cloudRead is { } read) _ = ReadHomeAsync(read); };
+        NeedsYouPage.RefreshChosen += () =>
+        {
+            if (cloudRead is not { } read) return;
+            _ = ReadHomeAsync(read);
+            // Did this happen? read again too, as the iPad's refresh then loadUnproven.
+            _ = ReadUnprovenAsync(sessions);
+        };
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
         // Focus goes back to the sidebar's Coach when Coach mode has gone.
         CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
@@ -422,24 +428,21 @@ public sealed partial class MainWindow : Window
         }
         var reading = sessions;
         var bearer = session.AccessToken;
-        var prompt = w.Get("needs_you.prompt.answer", ("summary", call.Summary));
         sendingHolds.Add(id);
         needsYouError = null;
         ShowHeld(held);
         ShowSteps();
         var hello = new WindowsHello(() => App.WindowHandle);
         var credential = session.PasskeyId is { } passkeyId ? KiffSigning.FromBase64Url(passkeyId) : null;
-        var answered = await HeldAnswers.AnswerAsync(w, call, answer, session.Tenant,
+        var answered = await HeldAnswers.AnswerAsync(w, call, answer, session.Tenant, session.Mode, session.PasskeyId,
+            // The device key's answer asks for the person first, as the iPad's signer.sign(message, reason:).
+            ConfirmStepAsync,
             message => credential is null
                 ? Task.FromException<System.Text.Json.Nodes.JsonObject>(new PasskeyRefusedException("this PC has no passkey"))
                 : HeldAnswers.PasskeyAsync(message, credential,
                     clientData => hello.GetAssertionAsync(PasskeyApprover.RpId, credential, clientData, CancellationToken.None)),
             async message =>
             {
-                // The device key's answer asks for the person first, as the iPad's deviceOwnerAuthentication.
-                var confirmed = await ConfirmStepAsync(prompt);
-                if (confirmed == StepConfirmed.Cancelled) throw new OperationCanceledException();
-                if (confirmed != StepConfirmed.Yes) throw new InvalidOperationException("not confirmed");
                 using var key = TpmKey.Open(session.KeyName);
                 return Convert.ToBase64String(await key.SignDerAsync(message));
             },

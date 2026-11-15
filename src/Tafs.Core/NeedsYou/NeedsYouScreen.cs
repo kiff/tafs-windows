@@ -36,6 +36,12 @@ public sealed record HeldCall(
     /// <summary>Each breach's outcome, in KIFF's order (the iPad's <c>breachOutcomes</c>); none for a call not from KIFF.</summary>
     public IReadOnlyList<string>? BreachOutcomes { get; init; }
 
+    /// <summary>
+    /// Coach's own hold of a version to install (the iPad's <c>install</c>): approving it once isn't how it goes live, so it's
+    /// installed from its card. None for any other held call.
+    /// </summary>
+    public VersionInstall? Install { get; init; }
+
     /// <summary>Whether it's a listed taf's: only those are in the sidebar's NEEDS YOU. Coach's and an unknown agent's aren't.</summary>
     public bool Listed { get; init; } = true;
 
@@ -48,6 +54,9 @@ public sealed record HeldCall(
 /// yet: a line, and whether the gate (why, and Add this Windows PC) stands where the iPad's <c>ApprovalGate</c> would.
 /// </summary>
 public sealed record HeldAnswerLines(string? Line, bool Gate);
+
+/// <summary>The version a hold of Coach's would install, as the iPad's <c>VersionInstall</c>: the taf and its version's number.</summary>
+public sealed record VersionInstall(string Taf, int N);
 
 /// <summary>What a held call's card says, top to bottom, as the iPad's HeldCallCard.</summary>
 public sealed record HeldCallLines(
