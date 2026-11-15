@@ -61,9 +61,13 @@ public class PartSelectorTests
     public void Build_wide_or_unowned_code_runs_everything(string file) =>
         Assert.Equal(Config.Parts.Count, Select(file).Length);
 
+    /// <summary>
+    /// Moving the pin can change any screen's words, so it runs every part. A pin that ran only strings and contracts
+    /// once left a pairing test red on main.
+    /// </summary>
     [Fact]
-    public void Bumping_the_pin_runs_only_the_always_parts() =>
-        Assert.Equal(new[] { "strings", "contracts" }.Order(), Select("shared-pin.json").Order());
+    public void Bumping_the_pin_runs_every_part() =>
+        Assert.Equal(Config.Parts.Count, Select("shared-pin.json").Length);
 
     [Fact]
     public void Every_part_named_on_a_test_is_declared()

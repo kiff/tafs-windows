@@ -28,7 +28,10 @@ public class PairingScreenTests
 
         Assert.True(lines.ShowsQr);
         Assert.Equal("Add this Windows PC with your phone", lines.Title);
-        Assert.Equal("On your phone, open tafs, then Account, Devices, Add a computer. Scan this code.", lines.Steps);
+        // The phone's own menu, by the shared words, so a renamed menu item never leaves this test behind.
+        Assert.Equal(En.Get("pair.steps", ("account", En.Get("settings.title")), ("devices", En.Get("settings.devices.title")),
+            ("pair", En.Get("settings.devices.pair"))), lines.Steps);
+        Assert.StartsWith("On your phone, open tafs, then ", lines.Steps);
         Assert.Equal("Your phone asks if your Windows PC shows this code:", lines.CheckLead);
         Assert.Equal(offer.CheckCode(), lines.CheckCode);
         Assert.Equal("Waiting for your phone…", lines.Status);
