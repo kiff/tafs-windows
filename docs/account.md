@@ -33,6 +33,24 @@ The sections, in the iPad's order:
     says "Sign out didn't go through" with Windows' error code only, and stays here to try again.
   - signed out: Sign in with KIFF.
 
+## People & groups (`People`, `PeoplePage`)
+
+Ported from the iPad's `PeopleGroupsView` and `refreshPeople`, first in **People & apps**. tafs-macos #67 is a second
+reference, read-only as here.
+- **The read:** `GET /v1/groups`, `GET /v1/tenant/members` and `GET /v1/me` as the session, when it opens and every 20
+  seconds while open. A group needs its id, name, members and agents; a person their subject, role and status. A field
+  of the wrong kind fails the read, which says "People and groups couldn't be read." with why, over what was shown.
+- **The account line:** "Acme · 2 people", counting only the people on the account now, or the count alone when the
+  account is named after the person's email.
+- **Each group:** KIFF's default group first, as "Everyone" in the app's language, then by name. Its name, 15 semibold,
+  over what it uses, 12 dim: "Uses Invoices and Refunds", only the agents that are the account's tafs, or "Uses no taf
+  yet".
+- **Each person:** managers first, then by email. Their initial on a raised circle, their email (else KIFF's id for
+  them), and "Manager" in amber or "Member".
+- "No groups yet." once read, with no groups and no error.
+- **Not yet:** the iPad's changes (a new group, renaming or deleting one, adding someone, making them the manager or
+  removing them). Each is an approval signed on the device (`changePeople`), as Devices' Sign out.
+
 ## Devices (`Devices`, `DevicesPage`)
 
 Ported from the iPad's `DevicesView` and `KIFFClient.Device`, opened from **People & apps**, which shows for a KIFF account
@@ -60,4 +78,4 @@ Ported from the iPad's `DevicesView` and `KIFFClient.Device`, opened from **Peop
   - Signed in as (the email), as its own row, shown only when the account isn't named after it;
   - the plan, from `plan_line` in `plan_tone`'s colour.
 - **View only from `GET /v1/me`** itself: today it comes from the token's `approval_mode`, kept with the session.
-- **The KIFF-only sections:** the rest of People & apps (People & groups, Connect apps), Coach's suggestions, the AI-data consent, the time zone and Your chats.
+- **The KIFF-only sections:** the rest of People & apps (Connect apps), Coach's suggestions, the AI-data consent, the time zone and Your chats.
