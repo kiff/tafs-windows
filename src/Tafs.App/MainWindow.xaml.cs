@@ -599,12 +599,15 @@ public sealed partial class MainWindow : Window
         home?.Tafs.FirstOrDefault(t => t.Id == key) is { } taf
             ? new(TafScreen.Head(w, taf.Name, taf.Colour, taf.StateKey), taf.Cards.FirstOrDefault()?.Bar(w, taf.Cards.Count),
                 filter => new ActivityPage([], [], filter, null, null), new SetupOpening(taf.Job, []), opensOn,
+                // Its Cards, as Home read them from KIFF: the Card tab opens on every taf, as the iPad's. Who manages each taf
+                // isn't read on this PC yet, so its issuer is the iPad's for anyone else: "The account".
+                Cards: taf.Cards, IssuedBy: w.Get("card.issued_by_account"),
                 CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof)
             : SampleTaf(w, key, TafTab.Activity);
 
     /// <summary>
-    /// A sample taf's page, opened from its Overview line: its head (Waiting when a call of its waits), its Card bar and its
-    /// Activity. Refunds, the one the reference set shows, has its Setup and its Cards too.
+    /// A sample taf's page, opened from its Overview line: its head (Waiting when a call of its waits), its Card bar, its
+    /// Activity, its Setup's job and its Card. Refunds, the one the reference set shows, has its notes and its three Cards.
     /// </summary>
     TafOpening SampleTaf(Tafs.Core.Words.WordBook w, string key, TafTab opensOn)
     {
@@ -615,7 +618,8 @@ public sealed partial class MainWindow : Window
         return key == "refunds"
             ? new(head, TafScreen.SampleCard(w), activity, new SetupOpening(TafSetup.SampleJob(w), TafSetup.SampleNotes(w, now)), opensOn,
                 TafScreen.SampleCards(w), w.Get("common.you"))
-            : new(head, taf.Card.Bar(w, 1), activity);
+            // The others with their own Card and job, so every tab but Chat opens on each, as the iPad's.
+            : new(head, taf.Card.Bar(w, 1), activity, new SetupOpening(w.Get($"sample.{key}.job"), []), opensOn, [taf.Card], w.Get("common.you"));
     }
 
     /// <summary>Where Account's theme is kept, beside the session: one word, as the iPad keeps tafs.theme.</summary>

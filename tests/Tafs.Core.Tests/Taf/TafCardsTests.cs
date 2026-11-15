@@ -11,6 +11,25 @@ public class TafCardsTests
 {
     static readonly WordBook En = WordBook.Load(SharedFiles.Strings, "en");
 
+    /// <summary>
+    /// A taf with no KIFF Card listed shows one merged from its rules, as the iPad's shownCards: its name, its rules, its
+    /// first limit over a window with what was used (none when nothing's said, unknown only when KIFF couldn't read it).
+    /// </summary>
+    [Fact]
+    public void A_taf_with_no_Card_listed_shows_one_merged_from_its_rules()
+    {
+        JsonElement Of(string json) => JsonDocument.Parse(json).RootElement;
+        const string rules = """ "rules": [{"action": "stripe_refund", "label": "Create refund", "per_window": {"minor": 100000, "unit": "EUR", "scale": 2}, "window": "calendar_day"}]""";
+        var merged = Assert.Single(TafCards.Shown(En, Of($$"""{"cards": [], {{rules}}, "used": {"stripe_refund": {"minor": 20000, "unit": "EUR", "scale": 2} }, "active": true}"""), "Refunds"));
+        Assert.Equal(("merged", "Refunds", "stripe_refund"), (merged.Id, merged.Title, merged.Rules[0].Action));
+        Assert.Equal(20000, merged.Total!.Used!.Minor);
+        Assert.Equal(0, Assert.Single(TafCards.Shown(En, Of($$"""{ {{rules}} }"""), "Refunds")).Total!.Used!.Minor);
+        Assert.Null(Assert.Single(TafCards.Shown(En, Of($$"""{ {{rules}}, "usage_unknown": ["stripe_refund"]}"""), "Refunds")).Total!.Used);
+        Assert.False(Assert.Single(TafCards.Shown(En, Of("""{"active": false}"""), "Refunds")).Active);
+        // KIFF's Cards listed: those, as they are.
+        Assert.Equal(TafCards.Read(En, Card("home.json")).Select(c => c.Id), TafCards.Shown(En, Card("home.json"), "Refunds").Select(c => c.Id));
+    }
+
     static JsonElement Card(string file) =>
         ContractFile.Answer(SharedFiles.Contract(file)).GetProperty("tafs")[0].GetProperty("card");
 

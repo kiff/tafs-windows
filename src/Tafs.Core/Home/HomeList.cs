@@ -46,7 +46,7 @@ public static class HomeList
         var health = Lenient.Field(t, "health") ?? default;
         return new(Lenient.Text(t, "id")!, Lenient.Text(t, "name")!, Lenient.Int(t, "color") ?? 0, state, Now(w, t, state, zone),
             Attention(t, Lenient.Text(health, "level") is not null and not "healthy" && Lenient.Array(health, "lines").Any()),
-            Lenient.Field(t, "card") is { } card ? TafCards.Read(w, card) : [],
+            Lenient.Field(t, "card") is { } card ? TafCards.Shown(w, card, Lenient.Text(t, "name")!) : [],
             Lenient.Int(t, "waiting") ?? 0, Lenient.At(t, "last_run"), Lenient.At(t, "last_change"),
             // Its job as Coach said it, else as the iPad's: an agent tafs doesn't run is described by its Cards.
             Lenient.Text(t, "job_summary") ?? w.Count("taf.works_under_cards", (Lenient.Field(t, "card") is { } c ? Lenient.Array(c, "ids").Count() : 0)), Lenient.Text(t, "kiff_agent"));
