@@ -296,6 +296,9 @@ public sealed partial class MainWindow : Window
         CoachMode.StartCoach = Tafs.Core.Coach.CoachStart.MayStart(session) ? () => StartCoachAsync(session) : null;
         // Signed in but can't approve: the iPad's gate line where Start would be.
         CoachMode.StartGate = !Tafs.Core.Coach.CoachStart.MayStart(session);
+        // Reporting one of Coach's answers, as the iPad's reportAnswer: one answered after another session began is none.
+        var reporting = sessions;
+        CoachMode.Report = async (path, body) => await CloudSendAsync(bearer, path, body) is var r && reporting == sessions ? r : null;
         _ = ReadHomeAsync(path => CloudReadAsync(bearer, path));
         _ = AllowCoachAsync(bearer);
     }
@@ -324,6 +327,7 @@ public sealed partial class MainWindow : Window
         CoachMode.StartCoach = null;
         CoachMode.StartGate = false;
         planqueReady = false;
+        CoachMode.Report = null;
         CoachMode.Grants = null;
         CoachMode.Drafts = null;
         CoachMode.Forget();

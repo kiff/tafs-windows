@@ -123,6 +123,23 @@ public sealed partial class CoachPanel : UserControl
     }
 
     /// <summary>
+    /// How the panel sends a report of one of Coach's answers to tafs cloud (path and body), as the session, for a KIFF
+    /// account: none for the sample or a screenshot, and no answer offers it. An answer that comes after the person signed
+    /// out is none. Given while it's open, the thread is drawn again.
+    /// </summary>
+    public Func<string, byte[], Task<CloudRead?>>? Report
+    {
+        get => report;
+        set
+        {
+            report = value;
+            Redraw();
+        }
+    }
+
+    Func<string, byte[], Task<CloudRead?>>? report;
+
+    /// <summary>
     /// How the panel reads planque's grants, signed as this device, and a KIFF draft by its id, for the approval cards: the
     /// session's; none signed out or for a screenshot, and the cards then say they're reading the request.
     /// </summary>
@@ -298,6 +315,8 @@ public sealed partial class CoachPanel : UserControl
                     var text = Words(m.Text, 16, "TafsInkText");
                     text.IsTextSelectionEnabled = true;
                     said.Children.Add(text);
+                    // The answer's menu, Report this answer, on an answer the person can report (the iPad's reportable).
+                    if (AnswerReport.Can(m, kiff: report is not null)) text.ContextFlyout = said.ContextFlyout = ReportMenu(m);
                 }
                 ThreadItems.Children.Add(said);
             }
@@ -315,6 +334,23 @@ public sealed partial class CoachPanel : UserControl
         }
         foreach (var line in thread.Lines.Where(l => !l.Away))
             ThreadItems.Children.Add(Words($"↳ {line.Taf}: {line.Said}", 13, "TafsSoftText"));
+    }
+
+    /// <summary>
+    /// The answer's menu, as the iPad's <c>reportable</c>: Report this answer, with its flag, opening the report. Copy stays
+    /// for a selection (Ctrl+C), as the iPad's text selection does beside its menu.
+    /// </summary>
+    MenuFlyout ReportMenu(ChatMessage m)
+    {
+        var w = App.Words;
+        var item = new MenuFlyoutItem { Text = w.Get("report.menu"), Icon = new FontIcon { Glyph = "" } };
+        item.Click += async (_, _) =>
+        {
+            if (report is not { } send) return;
+            var shownFor = coach;
+            await new ReportAnswerDialog(XamlRoot, (reason, note) => AnswerReport.SendAsync(w, send, shownFor, m, reason, note)).ShowAsync();
+        };
+        return new MenuFlyout { Items = { item } };
     }
 
     /// <summary>
