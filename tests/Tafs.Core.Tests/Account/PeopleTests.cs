@@ -69,8 +69,8 @@ public class PeopleTests
     [Fact]
     public void The_account_line()
     {
-        Assert.Equal(("Acme", "rae@acme.test"), People.Account(Json("""{"tenant_slug":"acme","tenant_display_name":"Acme","email":"rae@acme.test"}""")));
-        Assert.Equal(("acme", null), People.Account(Json("""{"tenant_slug":"acme","tenant_display_name":""}""")));
+        Assert.Equal(("Acme", "rae@acme.test"), People.Account(Json("""{"tenant_id":"t_1","tenant_slug":"acme","tenant_display_name":"Acme","email":"rae@acme.test"}""")));
+        Assert.Equal(("acme", null), People.Account(Json("""{"tenant_id":"t_1","tenant_slug":"acme","tenant_display_name":""}""")));
         Assert.Null(People.Account(Json("""{"email":"rae@acme.test"}""")));
         Assert.Null(People.Account(null));
         Assert.Equal("Acme · 2 people", People.AccountLine(En, "Acme", "rae@acme.test", 2));
@@ -102,4 +102,14 @@ public class PeopleTests
         Assert.Equal("R", People.Initial("rae@acme.test"));
         Assert.Equal("", People.Initial(""));
     }
+
+    /// <summary>GET /v1/me read as strictly as the iPad's KIFFClient.Account (KIFFClient.swift:659-677): what it can't decode draws no account line.</summary>
+    [Theory]
+    [InlineData("""{"tenant_slug":"acme","email":"rae@acme.test"}""")]
+    [InlineData("""{"tenant_id":"t_1","tenant_slug":"acme","email":3}""")]
+    [InlineData("""{"tenant_id":"t_1","tenant_slug":"acme","tenant_display_name":7}""")]
+    [InlineData("""{"tenant_id":"t_1","tenant_slug":"acme","time_zone":false}""")]
+    [InlineData("""{"tenant_id":"t_1","tenant_slug":"acme","capabilities":"cards.manage"}""")]
+    [InlineData("""{"tenant_id":1,"tenant_slug":"acme"}""")]
+    public void A_me_the_iPad_wouldn_t_decode_has_no_account_line(string json) => Assert.Null(People.Account(Json(json)));
 }
