@@ -20,6 +20,7 @@
       <!-- Done and refused, as on the iPad (Theme.ok, Theme.no). -->
       <SolidColorBrush x:Key="TafsOk" Color="#198056" />
       <SolidColorBrush x:Key="TafsInkLine" Color="#661B1726" />
+      <SolidColorBrush x:Key="TafsInkFaint" Color="#331B1726" />
       <SolidColorBrush x:Key="TafsSegmentFill" Color="#FFFFFF" />
       <SolidColorBrush x:Key="TafsNo" Color="#DB1F25" />
       <!-- The taf's own words on a held call: the soft colour at 8%. -->
@@ -60,6 +61,7 @@
       <SolidColorBrush x:Key="TafsOnFill" Color="#141311" />
       <SolidColorBrush x:Key="TafsOk" Color="#4CC38A" />
       <SolidColorBrush x:Key="TafsInkLine" Color="#66F2EFE9" />
+      <SolidColorBrush x:Key="TafsInkFaint" Color="#33F2EFE9" />
       <SolidColorBrush x:Key="TafsSegmentFill" Color="#4A4740" />
       <SolidColorBrush x:Key="TafsNo" Color="#FF8A73" />
       <SolidColorBrush x:Key="TafsSoftWash" Color="#14A8A49C" />
@@ -263,12 +265,12 @@
     <Setter Property="Foreground" Value="{ThemeResource TafsInk}" />
   </Style>
   <Style x:Key="TafsTodayPillAt" TargetType="Button" BasedOn="{StaticResource TafsTodayPill}">
-    <Setter Property="BorderBrush" Value="{ThemeResource TafsLine}" />
+    <Setter Property="BorderBrush" Value="{ThemeResource TafsInkFaint}" />
     <Setter Property="Foreground" Value="{ThemeResource TafsSoft}" />
   </Style>
   <Style x:Key="TafsArrow" TargetType="Button" BasedOn="{StaticResource TafsBox}">
     <Setter Property="Foreground" Value="{ThemeResource TafsAmberText}" />
-    <Setter Property="Width" Value="32" />
+    <Setter Property="Width" Value="28" />
     <Setter Property="Height" Value="40" />
   </Style>
 

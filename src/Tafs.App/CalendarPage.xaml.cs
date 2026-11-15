@@ -26,9 +26,12 @@ public sealed partial class CalendarPage : Page
         state = CalendarScreen.Opening(today) with { Mode = e.Parameter as CalendarMode? ?? CalendarMode.Week };
         NavTitle.Text = CalendarScreen.Heading(w);
         // The date in the person's language, "November 15, 2026" or "15 novembre 2026": the full month, so juin and juillet never read alike.
-        Picker.Language = w.Language;
-        Picker.DateFormat = w.Language == "en" ? "{month.full} {day.integer}, {year.full}" : "{day.integer} {month.full} {year.full}";
-        AutomationProperties.SetName(Picker, w.Get("calendar.choose_date"));
+        // A template, not a pattern: Windows' formatter for the language decides the order, the particles and the case.
+        Picker.Language = w.Language == "pt" ? "pt-PT" : w.Language;
+        Picker.DateFormat = "day month.full year";
+        AutomationProperties.SetName(Modes, w.Get("calendar.view_picker"));
+        AutomationProperties.SetName(Picker, w.Get("calendar.date_picker"));
+        AutomationProperties.SetHelpText(Picker, w.Get("calendar.choose_date"));
         for (var hour = 0; hour < 24; hour++) Hours.Children.Add(HourRow(hour));
         HoursScroll.Loaded += (_, _) => HoursScroll.ChangeView(null, CalendarScreen.FirstHour * HourHeight, null, true);
         Show();
@@ -67,7 +70,7 @@ public sealed partial class CalendarPage : Page
         var week = state.Mode == CalendarMode.Week;
         DayStripScroll.Visibility = Seen(state.Mode == CalendarMode.Day);
         WeekStrip.Visibility = Seen(week);
-        HoursScroll.Visibility = NothingDay.Visibility = Seen(state.Mode == CalendarMode.Day);
+        HoursScroll.Visibility = Seen(state.Mode == CalendarMode.Day);
         Month.Visibility = Seen(state.Mode == CalendarMode.Month);
         DayList.Visibility = Seen(state.Mode != CalendarMode.Day);
 
@@ -75,7 +78,6 @@ public sealed partial class CalendarPage : Page
         {
             DayStrip.Children.Clear();
             foreach (var day in CalendarScreen.StripDays(state)) DayStrip.Children.Add(Tile(day, fills: false));
-            NothingDay.Text = CalendarScreen.Nothing(w);
             // The selected day's week first, as the iPad scrolls it.
             var at = CalendarScreen.StripDays(state).ToList().IndexOf(CalendarScreen.WeekStart(state.Selected));
             // Once the strip is laid out: before that there's nothing to scroll.
@@ -97,7 +99,6 @@ public sealed partial class CalendarPage : Page
         else ShowMonth(w);
 
         DayListHeading.Text = CalendarScreen.DayHeading(w, state.Selected).ToUpper(System.Globalization.CultureInfo.GetCultureInfo(w.Language));
-        DayListNothing.Text = CalendarScreen.Nothing(w);
     }
 
     /// <summary>A day in the strip: its weekday (11 bold) and number (17 semibold) on a panel, corners of 12; the selected one amber, today ringed.</summary>
@@ -144,6 +145,7 @@ public sealed partial class CalendarPage : Page
             {
                 Content = Text(day.Day.ToString(), 13, chosen ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.Normal,
                     day.Month == state.Selected.Month ? "TafsInkText" : "TafsDimText"),
+                Opacity = day.Month == state.Selected.Month ? 1 : 0.6,
                 // Selected and today are separate marks, as on the iPad: the fill, and the ring.
                 Style = (Style)Application.Current.Resources["TafsMonth" + (chosen ? "Chosen" : "") + (day == today ? "Today" : chosen ? "" : "Day")],
             };

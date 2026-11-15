@@ -7,10 +7,10 @@
   <ScrollViewer>
     <StackPanel Padding="24,16,24,24" Spacing="14" MaxWidth="1180" HorizontalAlignment="Stretch">
       <TextBlock x:Name="NavTitle" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource TafsInk}" />
-      <TextBlock x:Name="Title" FontSize="18" FontWeight="Bold" Margin="0,8,0,0" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
+      <TextBlock x:Name="Title" FontSize="16" FontWeight="Bold" Margin="0,8,0,0" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
 
       <Grid>
-        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
           <Button x:Name="TodayPill" Click="OnToday" />
           <Button x:Name="Previous" Click="OnPrevious" Style="{StaticResource TafsArrow}"><FontIcon Glyph="&#xE76B;" FontSize="16" /></Button>
           <Button x:Name="Next" Click="OnNext" Style="{StaticResource TafsArrow}"><FontIcon Glyph="&#xE76C;" FontSize="16" /></Button>
@@ -35,18 +35,16 @@
       </ScrollViewer>
       <Grid x:Name="WeekStrip" ColumnSpacing="6" />
 
-      <!-- Day: the hours, opened at 08:00, and what's on them. -->
+      <!-- Day: the hours, opened at 08:00. No "nothing scheduled" before tafs cloud's calendar is read. -->
       <ScrollViewer x:Name="HoursScroll" Height="520">
         <StackPanel x:Name="Hours" />
       </ScrollViewer>
-      <TextBlock x:Name="NothingDay" FontSize="13" HorizontalAlignment="Center" Margin="0,6" Style="{StaticResource TafsDimText}" />
 
       <Grid x:Name="Month" RowSpacing="4" ColumnSpacing="4" />
 
       <!-- Week and Month: the selected day's list. -->
       <StackPanel x:Name="DayList" Spacing="8">
         <TextBlock x:Name="DayListHeading" Style="{StaticResource TafsEyebrow}" />
-        <TextBlock x:Name="DayListNothing" FontSize="13" Margin="0,6" Style="{StaticResource TafsDimText}" />
       </StackPanel>
     </StackPanel>
   </ScrollViewer>

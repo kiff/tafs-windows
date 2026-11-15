@@ -34,6 +34,16 @@ public class CalendarScreenTests
     }
 
     [Theory]
+    [InlineData(728, 749, CalendarLayout.Compact)]
+    [InlineData(1600, 1000, CalendarLayout.Wide)]
+    [InlineData(699, 600, CalendarLayout.Compact)]
+    [InlineData(700, 600, CalendarLayout.Wide)]
+    [InlineData(800, 800, CalendarLayout.Compact)]
+    [InlineData(900, 599, CalendarLayout.Compact)]
+    public void Wide_from_700_wide_wider_than_high_and_600_high(double width, double height, CalendarLayout layout) =>
+        Assert.Equal(layout, CalendarScreen.LayoutOf(width, height));
+
+    [Theory]
     [InlineData(CalendarMode.Day, 1, 2026, 11, 16)]
     [InlineData(CalendarMode.Week, -1, 2026, 11, 8)]
     [InlineData(CalendarMode.Month, 1, 2026, 12, 15)]
@@ -51,7 +61,6 @@ public class CalendarScreenTests
         Assert.Equal("9 – 15 November 2026", CalendarScreen.Title(En, new(CalendarMode.Week, Sunday)));
         Assert.Equal("November 2026", CalendarScreen.Title(En, new(CalendarMode.Month, Sunday)));
         Assert.Equal("Sun 15 November", CalendarScreen.DayHeading(En, Sunday));
-        Assert.Equal("Nothing scheduled on this day.", CalendarScreen.Nothing(En));
     }
 
     [Fact]
@@ -78,7 +87,7 @@ public class CalendarScreenTests
             .Concat(CalendarScreen.Modes(w).Select(m => m.Title))
             .Concat(CalendarScreen.Week(Sunday).Select(d => CalendarScreen.WeekdayName(w, d)))
             .Concat(Enumerable.Range(1, 12).Select(m => CalendarScreen.Title(w, new(CalendarMode.Month, new DateOnly(2026, m, 1)))))
-            .Concat([CalendarScreen.Heading(w), CalendarScreen.Today(w), CalendarScreen.DayHeading(w, Sunday), CalendarScreen.Nothing(w), CalendarScreen.Nothing(w, week: true),
+            .Concat([CalendarScreen.Heading(w), CalendarScreen.Today(w), CalendarScreen.DayHeading(w, Sunday),
                 CalendarScreen.Title(w, new(CalendarMode.Week, new DateOnly(2026, 12, 31)))]);
         Assert.All(all, line => { Assert.False(string.IsNullOrWhiteSpace(line)); Assert.DoesNotContain("{", line); });
     }

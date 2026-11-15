@@ -6,6 +6,12 @@ namespace Tafs.Core.Calendar;
 /// <summary>The calendar's three views (kiff/tafs#534). Week is the one it opens on.</summary>
 public enum CalendarMode { Day, Week, Month }
 
+/// <summary>
+/// Wide (a month beside the calendar, the agenda under it) or compact (the strip, the day's list under it), by the
+/// calendar's own pane, as the iPad's CalendarLayout.of: wide from 700 wide, wider than high, and 600 high.
+/// </summary>
+public enum CalendarLayout { Compact, Wide }
+
 /// <summary>What the calendar shows: its view and the selected date.</summary>
 public sealed record CalendarState(CalendarMode Mode, DateOnly Selected);
 
@@ -17,6 +23,9 @@ public sealed record CalendarState(CalendarMode Mode, DateOnly Selected);
 public static class CalendarScreen
 {
     public static CalendarState Opening(DateOnly today) => new(CalendarMode.Week, today);
+
+    public static CalendarLayout LayoutOf(double width, double height) =>
+        width >= 700 && width > height && height >= 600 ? CalendarLayout.Wide : CalendarLayout.Compact;
 
     /// <summary>0 for Monday to 6 for Sunday.</summary>
     public static int WeekdayIndex(DateOnly day) => ((int)day.DayOfWeek + 6) % 7;
@@ -100,8 +109,6 @@ public static class CalendarScreen
     public static string DayHeading(WordBook w, DateOnly day) =>
         w.Get("calendar.day_heading", ("weekday", WeekdayName(w, day)), ("day", day.Day.ToString(CultureInfo.InvariantCulture)), ("month", MonthName(w, day.Month)));
 
-    /// <summary>With nothing scheduled: on the day, or in the week's hours.</summary>
-    public static string Nothing(WordBook w, bool week = false) => w.Get(week ? "calendar.nothing_this_week" : "calendar.nothing_on_day");
 
     /// <summary>The hour the hours open at: 08:00, as the iPad's with nothing scheduled earlier.</summary>
     public const int FirstHour = 8;
