@@ -16,6 +16,21 @@ Crypto Provider (`TpmKey`, in `Tafs.Core/Kiff`).
 - **No TPM:** `IsAvailable()` says so. The TPM refuses a key with no name (.NET asks for it to be
   exportable), so the check makes a named key and deletes it at once.
 
+## planque's proof for a taf's Setup
+
+The session's TPM key (`KeptSession.KeyName`: the device key for a sign-in, the paired key for a pairing) also signs
+planque's read of the account's grants, which tafs cloud forwards with a taf's Setup so it can read its connected apps
+(`PlanqueProof`, ported from the iPad's `PlanqueClient.grantsReadProof`). On the iPad it's the current key, the one
+without access control, that signs it: this key's counterpart. It asks no one, and it grants nothing.
+- **What's signed** (planque's `device.Message`): `planque.request.v1`, `https://planque.kiff.dev`, the tenant, `GET`,
+  `/v1/accounts/{tenant}/grants`, the empty body's SHA-256 and the time, on seven lines with no trailing newline.
+- **The time** (`SigningTime`, as the iPad's): RFC 3339 in UTC with milliseconds, never the same twice in this app.
+- **The header:** `Planque-Device-Signature: t={time},v1={base64 DER signature},d={device}`. `d=` is this device's id in
+  KIFF: the kept session's, else the one KIFF's `GET /v1/me/devices` lists as `this_device` (`dev_…`), read once.
+- **It goes only to tafs cloud** (`cloud.tafs.kiff.dev`), with the Setup read, through the exact host list.
+- **Without it,** with no key, no account, no device, or a signature that fails, Setup reads without it, as the iPad's
+  `try?`.
+
 The approval key isn't here. On Windows it's a Windows Hello passkey (see [approvals](approvals.md)).
 
 ## Tests

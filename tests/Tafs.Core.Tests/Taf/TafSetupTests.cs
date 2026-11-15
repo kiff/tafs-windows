@@ -157,12 +157,12 @@ public class TafSetupTests
         var setup = new SetupRead();
         Assert.Null(setup.Page);
 
-        await setup.LoadAsync("taf/1", path => { asked.Add(path); return Task.FromResult(answer); });
+        await setup.LoadAsync("taf/1", (path, _) => { asked.Add(path); return Task.FromResult(answer); });
         Assert.Equal(new[] { "/v1/tafs/taf%2F1/setup" }, asked);
         Assert.Equal("Gmail", setup.Page?.Connections[0].Name);
         Assert.Null(setup.Error);
 
-        await setup.LoadAsync("taf/1", _ => Task.FromResult(CloudRead.Refused(En, 503, """{"words": "Try again in a minute."}""")));
+        await setup.LoadAsync("taf/1", (_, _) => Task.FromResult(CloudRead.Refused(En, 503, """{"words": "Try again in a minute."}""")));
         Assert.Equal("Gmail", setup.Page?.Connections[0].Name);
         Assert.Equal("Try again in a minute.", setup.Error);
     }

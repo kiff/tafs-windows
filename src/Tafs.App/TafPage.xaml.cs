@@ -15,7 +15,8 @@ namespace Tafs.App;
 /// A taf tafs cloud runs has its id there and the read its Activity comes through.
 public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, ActivityPage> Activity, SetupOpening? Setup = null,
     TafTab OpensOn = TafTab.Activity, IReadOnlyList<TafCard>? Cards = null, string IssuedBy = "", string? CloudId = null,
-    Func<string, Task<CloudRead>>? Read = null);
+    Func<string, Task<CloudRead>>? Read = null, Func<string, string?, Task<CloudRead>>? ReadWithProof = null,
+    Func<Task<string?>>? SetupProof = null);
 
 /// <summary>The sample's Setup, as taf-setup.png: its job and the notes it keeps.</summary>
 public sealed record SetupOpening(string Job, IReadOnlyList<MemoryNote> Notes);
@@ -88,7 +89,7 @@ public sealed partial class TafPage : Page
     async Task LoadSetupAsync()
     {
         if (opening is not { CloudId: { } id, Read: { } read }) return;
-        await setupRead.LoadAsync(id, read);
+        await setupRead.LoadAsync(id, opening.ReadWithProof ?? ((path, _) => read(path)), opening.SetupProof);
         if (tab == TafTab.Setup) ShowSetup();
     }
 
