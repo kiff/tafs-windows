@@ -15,7 +15,8 @@ namespace Tafs.App;
 /// A taf tafs cloud runs has its id there and the read its Activity comes through.
 public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, ActivityPage> Activity, SetupOpening? Setup = null,
     TafTab OpensOn = TafTab.Activity, IReadOnlyList<TafCard>? Cards = null, string IssuedBy = "", string? CloudId = null,
-    Func<string, Task<CloudRead>>? Read = null);
+    Func<string, Task<CloudRead>>? Read = null, Func<string, string?, Task<CloudRead>>? ReadWithProof = null,
+    Func<Task<string?>>? SetupProof = null);
 
 /// <summary>The sample's Setup, as taf-setup.png: its job and the notes it keeps.</summary>
 public sealed record SetupOpening(string Job, IReadOnlyList<MemoryNote> Notes);
@@ -43,6 +44,8 @@ public sealed partial class TafPage : Page
     string filter = "all";
     /// <summary>tafs cloud's Activity, one set of pages a filter, as the iPad keeps them by taf and filter.</summary>
     readonly Dictionary<string, ActivityPages> cloudPages = [];
+    /// <summary>tafs cloud's Setup for this taf, as last read.</summary>
+    readonly SetupRead setupRead = new();
     TafTab tab;
     List<MemoryNote> notes = [];
     bool paused;
@@ -79,6 +82,15 @@ public sealed partial class TafPage : Page
         ActivityTryAgain.Content = App.Words.Get("common.try_again");
         Show();
         _ = LoadActivityAsync();
+        _ = LoadSetupAsync();
+    }
+
+    /// <summary>Its Setup, read as the page opens and on Try again, as the iPad's <c>.task(id: tafID)</c> on its page.</summary>
+    async Task LoadSetupAsync()
+    {
+        if (opening is not { CloudId: { } id, Read: { } read }) return;
+        await setupRead.LoadAsync(id, opening.ReadWithProof ?? ((path, _) => read(path)), opening.SetupProof);
+        if (tab == TafTab.Setup) ShowSetup();
     }
 
     /// <summary>
@@ -162,6 +174,11 @@ public sealed partial class TafPage : Page
         if (opening?.Setup is not { } setup) return;
         var w = App.Words;
         SetupPane.Children.Clear();
+        if (opening.CloudId is not null)
+        {
+            ShowCloudSetup(setup);
+            return;
+        }
         SetupPane.Children.Add(Panel(Eyebrow("setup.job"), Words(setup.Job, 15, "TafsInkText")));
         foreach (var (key, glyph) in new[] { ("setup.starts_when", ""), ("setup.results_go_to", "") })
         {
@@ -204,6 +221,176 @@ public sealed partial class TafPage : Page
         };
         // Once its Card is revoked, nothing of it runs: nothing to pause.
         if (!revoked) SetupPane.Children.Add(pause);
+    }
+
+    /// <summary>
+    /// A taf from tafs cloud's Setup, as the iPad's <c>TafDetailView.setup</c> in its order: the Card-unit exceptions, its job,
+    /// its connected apps around it with its workflow, and what it remembers. What acts (Coach, signing, signing in again,
+    /// See all, Remove) comes with its own change.
+    /// </summary>
+    void ShowCloudSetup(SetupOpening setup)
+    {
+        var page = setupRead.Page;
+        foreach (var ask in page?.CardUnitExceptions ?? [])
+        {
+            var title = Words(ask.Title, 16, "TafsInkText");
+            title.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+            SetupPane.Children.Add(Panel(title, Words(ask.Words, 14, "TafsSoftText"), Words(ask.History, 12, "TafsDimText")));
+        }
+        SetupPane.Children.Add(Panel(Eyebrow("setup.job"), Words(setup.Job, 15, "TafsInkText")));
+
+        // ConnectedToolsRing: why its connections couldn't be read, with Try again; a read going; else the ring and workflow.
+        var tools = new StackPanel { Spacing = 10 };
+        tools.Children.Add(Eyebrow("connect.connected_tools"));
+        if ((setupRead.Error ?? page?.ConnectionsError) is { } error)
+        {
+            tools.Children.Add(Words(error, 13, "TafsNoText"));
+            var again = new Button { Content = App.Words.Get("common.try_again") };
+            again.Click += (_, _) => _ = LoadSetupAsync();
+            tools.Children.Add(again);
+        }
+        if (page is null && setupRead.Error is null) tools.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24 });
+        if (page is not null)
+        {
+            tools.Children.Add(Ring(TafSetup.Nodes(page.Connections), setup.Job));
+            tools.Children.Add(Workflow(page.Workflow));
+        }
+        SetupPane.Children.Add(Panel(tools));
+
+        // MemorySummaryPanel: how many notes and the latest, once read.
+        var memory = new StackPanel { Spacing = 6 };
+        memory.Children.Add(Eyebrow("taf.memory.title"));
+        if (page?.Memory is { } m)
+        {
+            var count = Words(m.Title, 15, "TafsInkText");
+            count.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+            memory.Children.Add(count);
+            if (m.Latest is { } latest)
+            {
+                var line = Words(latest, 14, "TafsSoftText");
+                line.MaxLines = 2;
+                line.TextTrimming = TextTrimming.CharacterEllipsis;
+                memory.Children.Add(line);
+            }
+        }
+        else memory.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Left });
+        SetupPane.Children.Add(Panel(memory));
+    }
+
+    /// <summary>
+    /// The iPad's ring, 280 high: each app on a circle around the taf, joined to it by a dashed line, its name and its
+    /// actions' words; a running one with a green arc and its words green. The taf in the middle shows its job.
+    /// </summary>
+    Canvas Ring(IReadOnlyList<SetupNode> nodes, string job)
+    {
+        var canvas = new Canvas { Height = 280 };
+        canvas.SizeChanged += (_, e) => DrawRing(canvas, nodes, job, e.NewSize.Width);
+        return canvas;
+    }
+
+    void DrawRing(Canvas canvas, IReadOnlyList<SetupNode> nodes, string job, double width)
+    {
+        canvas.Children.Clear();
+        if (opening is null || width <= 0) return;
+        var head = opening.Head;
+        var (cx, cy) = (width / 2, 140.0);
+        var radius = Math.Min(width, 280) / 2 - 36;
+        var line = new Microsoft.UI.Xaml.Media.SolidColorBrush(ThemeColour("TafsLine"));
+        var ok = new Microsoft.UI.Xaml.Media.SolidColorBrush(ThemeColour("TafsOk"));
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            var app = nodes[i].App;
+            var angle = -Math.PI / 2 + i * 2 * Math.PI / Math.Max(nodes.Count, 1);
+            var (x, y) = (cx + Math.Cos(angle) * radius, cy + Math.Sin(angle) * radius);
+            canvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Line
+            {
+                X1 = cx, Y1 = cy, X2 = x, Y2 = y, Stroke = line, StrokeThickness = 1,
+                StrokeDashArray = new Microsoft.UI.Xaml.Media.DoubleCollection { 4, 4 },
+            });
+            if (app.Running)
+            {
+                // A tenth of the circle, from the app round, as the iPad's trimmed circle turned to its angle.
+                var end = angle + 0.2 * Math.PI;
+                var arc = new Microsoft.UI.Xaml.Media.PathFigure { StartPoint = new(x, y) };
+                arc.Segments.Add(new Microsoft.UI.Xaml.Media.ArcSegment
+                {
+                    Point = new(cx + Math.Cos(end) * radius, cy + Math.Sin(end) * radius), Size = new(radius, radius),
+                    SweepDirection = Microsoft.UI.Xaml.Media.SweepDirection.Clockwise,
+                });
+                var geometry = new Microsoft.UI.Xaml.Media.PathGeometry();
+                geometry.Figures.Add(arc);
+                canvas.Children.Add(new Microsoft.UI.Xaml.Shapes.Path
+                {
+                    Data = geometry, Stroke = ok, StrokeThickness = 3,
+                    StrokeStartLineCap = Microsoft.UI.Xaml.Media.PenLineCap.Round, StrokeEndLineCap = Microsoft.UI.Xaml.Media.PenLineCap.Round,
+                });
+            }
+            var name = new TextBlock { Text = app.Name, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, MaxLines = 2,
+                TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, Style = Look("TafsInkText") };
+            var words = new TextBlock { Text = app.ActionWords, FontSize = 11, MaxLines = 2, TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center, Style = Look("TafsSoftText") };
+            if (app.Running) words.Foreground = ok;
+            var box = new StackPanel { Spacing = 4, Width = 78 };
+            box.Children.Add(name);
+            box.Children.Add(words);
+            var node = new Border { Child = box, Padding = new Thickness(5), CornerRadius = new CornerRadius(14),
+                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(ThemeColour("TafsPanel")) };
+            AutomationProperties.SetName(node, $"{app.Name}, {app.ActionWords}");
+            node.Loaded += (_, _) =>
+            {
+                Canvas.SetLeft(node, x - node.ActualWidth / 2);
+                Canvas.SetTop(node, y - node.ActualHeight / 2);
+            };
+            canvas.Children.Add(node);
+        }
+        var w = App.Words;
+        var taf = new Button
+        {
+            Width = 54, Height = 54, Padding = new Thickness(0), CornerRadius = new CornerRadius(16), BorderThickness = new Thickness(0),
+            Background = RecordLineView.Colour(head.Colour),
+            Content = new TextBlock { Text = head.Initial, FontSize = 27, FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White) },
+        };
+        AutomationProperties.SetName(taf, w.Get("taf.job_label", ("taf", head.Name)));
+        taf.Click += async (_, _) => await new ContentDialog
+        {
+            XamlRoot = XamlRoot, Title = head.Name, Content = job, CloseButtonText = w.Get("common.done"), RequestedTheme = ActualTheme,
+        }.ShowAsync();
+        Canvas.SetLeft(taf, cx - 27);
+        Canvas.SetTop(taf, cy - 27);
+        canvas.Children.Add(taf);
+    }
+
+    /// <summary>
+    /// The workflow, folded as the iPad's DisclosureGroup: its title and summary, then each step's number (green while it
+    /// runs), label, words and app.
+    /// </summary>
+    Expander Workflow(SetupWorkflow workflow)
+    {
+        var header = new StackPanel { Spacing = 2 };
+        header.Children.Add(Words(workflow.Title, 17, "TafsInkText")); // the DisclosureGroup label's default body size
+        header.Children.Add(Words(workflow.Summary, 13, "TafsSoftText"));
+        var steps = new StackPanel { Spacing = 8 };
+        foreach (var step in workflow.Steps)
+        {
+            var row = new Grid { ColumnSpacing = 10 };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition());
+            var number = new TextBlock { Text = step.Number.ToString(System.Globalization.CultureInfo.CurrentCulture), FontSize = 15, Style = Look("TafsSoftText") };
+            if (step.Running) number.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(ThemeColour("TafsOk"));
+            row.Children.Add(number);
+            var said = new StackPanel { Spacing = 4 };
+            var label = Words(step.Label, 15, "TafsInkText");
+            label.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+            said.Children.Add(label);
+            if (step.Words.Length > 0) said.Children.Add(Words(step.Words, 13, "TafsSoftText"));
+            if (step.App is { } app) said.Children.Add(Words(app, 12, "TafsAmberText"));
+            Grid.SetColumn(said, 1);
+            row.Children.Add(said);
+            steps.Children.Add(row);
+        }
+        return new Expander { Header = header, Content = steps, HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch };
     }
 
     /// <summary>Forget asks first, as the iPad's: it can't be undone. The sample's note goes from this page.</summary>
