@@ -28,19 +28,21 @@ public sealed partial class MainWindow : Window
 
     /// <summary>The Record's lines: from tafs cloud and KIFF in their own change; until then none, or the iPad's sample.</summary>
     readonly IReadOnlyList<RecordEntry> record;
+    readonly bool sample;
     readonly UsageReads usage;
     readonly ConnectAppsList? connectApps;
 
     /// <summary>The view the Calendar opens on: Week; Day or Month for `--page calendar` or `calendar-month`.</summary>
     CalendarMode calendarOpensOn = CalendarMode.Week;
 
-    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you", "record", "calendar" (Day), "calendar-week", "calendar-month", "usage" or "connect-apps". Otherwise the Overview.</param>
+    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you", "record", "calendar" (Day), "calendar-week", "calendar-month", "usage", "connect-apps" or "account". Otherwise the Overview.</param>
     /// <param name="viewOnly">The session can't approve yet: show the View only notice above every screen.</param>
     /// <param name="sample">Show the iPad's sample held calls and Record: for screenshots.</param>
     public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false)
     {
         InitializeComponent();
         if (theme is "light" or "dark") Root.RequestedTheme = theme == "light" ? ElementTheme.Light : ElementTheme.Dark;
+        this.sample = sample;
         var w = App.Words;
         Title = w.Get("app.name");
         AppWindow.Resize(LaptopSize);
@@ -95,7 +97,17 @@ public sealed partial class MainWindow : Window
         PairingPage.Paired += session => ViewOnly.IsOpen = session.Mode == ApprovalMode.View;
         this.screenshot = screenshot;
 
+        AccountPage.ThemeChosen += chosen => Root.RequestedTheme = chosen;
+        AccountPage.SignInChosen += OpenSignIn;
+        AccountPage.AlertsChosen += () => OpenBeside(typeof(ComingPage), w.Get("settings.alerts"));
+        AccountPage.AddThisDeviceChosen += OpenPairing;
+        AccountPage.SignedOut += () => { ViewOnly.IsOpen = false; OpenSignIn(); };
+        // Leaving the sample: the app starts again without it, as the iPad's Clear the sample leaves it.
+        AccountPage.ClearSampleChosen += () => Microsoft.Windows.AppLifecycle.AppInstance.Restart(
+            string.Join(' ', Environment.GetCommandLineArgs().Skip(1).Where(a => a != "--sample")));
+
         if (page == "pair") OpenPairing();
+        else if (page == "account") OnAccount(this, new RoutedEventArgs());
         else if (page == "sign-in") OpenSignIn();
         else if (page is "calendar" or "calendar-week" or "calendar-month")
         {
@@ -198,7 +210,7 @@ public sealed partial class MainWindow : Window
     /// <summary>Account, at the very foot: it opens beside the sidebar, and its icon shows it's open.</summary>
     void OnAccount(object sender, RoutedEventArgs e)
     {
-        OpenBeside(typeof(ComingPage), AccountTitle.Text);
+        OpenBeside(typeof(AccountPage), new AccountOpening(sample, Root.RequestedTheme));
         ShowAccountChosen(true);
     }
 
