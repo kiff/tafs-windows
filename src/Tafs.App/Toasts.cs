@@ -47,8 +47,9 @@ static class Toasts
     public static bool Allowed => on && AppNotificationManager.Default.Setting == AppNotificationSetting.Enabled;
 
     /// <summary>
-    /// One hold's notification, tagged with its id, so a hold is never shown twice. With Sound off it comes silent, as the
-    /// iPad's passive alert.
+    /// One hold's notification, tagged with its id, so a hold is never shown twice. With Sound off it goes to Notification
+    /// Center only, with no banner and no sound, as the iPad's passive alert (tafs cloud's <c>quietFor</c>, and
+    /// <c>PushDelegate</c>'s <c>.passive ? [.list]</c>).
     /// </summary>
     public static void Show(ToastLines lines, bool sound)
     {
@@ -60,6 +61,7 @@ static class Toasts
         if (!sound) builder.MuteAudio();
         var notification = builder.BuildNotification();
         notification.Tag = HoldToast.Tag(lines.Hold);
+        notification.SuppressDisplay = !sound;
         AppNotificationManager.Default.Show(notification);
     }
 

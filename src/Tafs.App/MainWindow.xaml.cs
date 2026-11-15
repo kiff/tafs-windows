@@ -198,7 +198,8 @@ public sealed partial class MainWindow : Window
             if (screenshot is null) Keep(chosen);
         };
         AccountPage.SignInChosen += OpenSignIn;
-        AccountPage.AlertsChosen += () => OpenBeside(typeof(AlertsPage), new AlertsOpening(App.Sessions.Kept()?.Tenant));
+        // The choices only for a KIFF account, as the iPad's mode == .kiff: never over the sample.
+        AccountPage.AlertsChosen += () => OpenBeside(typeof(AlertsPage), new AlertsOpening(sample ? null : App.Sessions.Kept()?.Tenant));
         AccountPage.AddThisDeviceChosen += OpenPairing;
         // As the iPad's sign-out (its forgetSession): everything read as the last session goes, and nothing reads as anyone.
         AccountPage.SignedOut += () =>

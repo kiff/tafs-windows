@@ -6,7 +6,7 @@ using Tafs.Core.Words;
 namespace Tafs.Core.Tests.NeedsYou;
 
 /// <summary>Account › Alerts, as the iPad's NotificationSettingsView for this PC's own alerts, and the choices kept for it.</summary>
-[Part("account")]
+[Part("approvals")]
 public class AlertPrefsTests
 {
     static readonly WordBook En = WordBook.Load(SharedFiles.Strings, "en");

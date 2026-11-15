@@ -49,7 +49,8 @@ held call raises while tafs runs, `needs-you.md`). tafs-macos #68 is a second re
     inherits another's.
   - Both choices are kept beside the session, in `alerts.json`.
   - **Sound** ("For a hold or a halt only") is the PC's, on until turned off. It's off and greyed while alerts are off,
-    and keeps its choice for when they're back. With it off, a notification comes silent.
+    and keeps its choice for when they're back. With Sound off, it goes to Notification Center without a banner or sound,
+    as the iPad's passive alert (`PushDelegate.swift:81-82`).
 - **Not here, as on macOS:**
   - the footer, which says this device tells you "even with tafs closed": on Windows an alert comes only while tafs
     runs;

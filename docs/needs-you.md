@@ -85,8 +85,9 @@ that wide would put the amount far from the answers.
 
 While tafs runs, a call KIFF holds gets a Windows notification, as the iPad's hold alert (`HoldNotification.words`,
 `PushDelegate.open`), for someone who answers held calls (KIFF's `holds.answer` on `GET /v1/me`, none listed allows, as
-the iPad's `canAnswerHolds`), once they turned alerts on for this account in Account › Alerts. With Sound off there, it
-comes silent:
+the iPad's `canAnswerHolds`), once they turned alerts on for this account in Account › Alerts. With Sound off, it goes to
+Notification Center without a banner or sound, as the iPad's passive alert (tafs cloud's `push.ts` `quietFor`, and
+`PushDelegate.swift:81-82`):
 - **Its words:**
   - "Rae needs you": a listed taf's name, "Coach" for Coach's own agent (`setup`), and "A taf needs you" for an agent no
     taf has, as the iPad's `HoldNotification.fill`;

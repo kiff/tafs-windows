@@ -35,7 +35,9 @@ public sealed partial class AlertsPage : Page
         SoundTitle.Text = w.Get("alert.sound");
         SoundWords.Text = w.Get("alert.sound_words");
         BlockedText.Text = w.Get("alert.allow_notifications");
-        OpenSettings.Content = w.Get("settings.title");
+        OpenSettings.Content = w.Get("approval.open_settings");
+        // Allowed in Windows' settings meanwhile, the line from last time would stand over a switch that now turns on.
+        Blocked.Visibility = Visibility.Collapsed;
         Choices.Visibility = tenant is null ? Visibility.Collapsed : Visibility.Visible;
         Show();
     }
@@ -124,8 +126,11 @@ static class Alerts
         prefs = chosen;
         try
         {
+            // Written beside, then moved over: a torn file never turns every account's alerts off.
             Directory.CreateDirectory(Path.GetDirectoryName(File)!);
-            System.IO.File.WriteAllBytes(File, chosen.Write());
+            var beside = File + ".new";
+            System.IO.File.WriteAllBytes(beside, chosen.Write());
+            System.IO.File.Move(beside, File, overwrite: true);
         }
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
