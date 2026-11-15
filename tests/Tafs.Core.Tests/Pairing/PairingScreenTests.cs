@@ -81,6 +81,38 @@ public class PairingScreenTests
         Assert.Equal("This Windows PC is added.", PairingScreen.Lines(En, PairingStep.Added, Offer(hello: true)).Status);
         Assert.StartsWith("This Windows PC can't sign approvals itself.",
             PairingScreen.Lines(En, PairingStep.Added, Offer(hello: false)).Status);
+        // With its own Windows Hello passkey, it approves itself.
+        using var device = new TestSigner();
+        using var passkey = new TestSigner();
+        var own = PairingOffer.Create(device.PublicKeyDer, null, "tafs", Now, credential: new Tafs.Core.Approvals.NewPasskey([1], passkey.PublicKeyDer));
+        Assert.Equal("This Windows PC is added.", PairingScreen.Lines(En, PairingStep.Added, own).Status);
+    }
+
+    [Fact]
+    public void Pair_relaunch_and_pair_again_opens_on_Added_never_a_new_QR_with_the_same_key()
+    {
+        var api = new Uri("https://api.kiff.dev");
+        byte[]? disk = null;
+        Assert.Equal(PairingStep.Waiting, PairingScreen.Opening(Tafs.Core.Kiff.KeptSessions.Read(disk, api, Now)));
+        var paired = Tafs.Core.Kiff.KeptSession.Of(api, "paired-token", "t1", "s1", "dev_1", Tafs.Core.Kiff.ApprovalMode.Passkey,
+            TimeSpan.FromDays(90), Now, "tafs paired device key");
+        disk = Tafs.Core.Kiff.KeptSessions.Write(paired); // kept before Added, then the app closes
+        var relaunch = Tafs.Core.Kiff.KeptSessions.Read(disk, api, Now.AddDays(1));
+        Assert.Equal(PairingStep.Added, PairingScreen.Opening(relaunch));
+        Assert.Equal("This Windows PC is added.", PairingScreen.Lines(En, PairingScreen.Opening(relaunch), offer: null).Status);
+        // A view-only session (from sign-in) still pairs.
+        Assert.Equal(PairingStep.Waiting, PairingScreen.Opening(paired with { Mode = Tafs.Core.Kiff.ApprovalMode.View }));
+    }
+
+    [Fact]
+    public void Offline_says_so_and_offers_a_new_code_with_or_without_an_offer()
+    {
+        var lines = PairingScreen.Lines(En, PairingStep.Offline, offer: null);
+        Assert.Equal("It didn't reach the server. Try again once you're online.", lines.Status);
+        Assert.Equal("Show a new code", lines.NewCode);
+        Assert.False(lines.ShowsQr);
+        Assert.Contains("TPM", PairingScreen.Lines(En, PairingStep.Failed, offer: null, "TPM refused").Status);
+        Assert.Throws<ArgumentNullException>(() => PairingScreen.Lines(En, PairingStep.Waiting, offer: null));
     }
 
     [Fact]
@@ -98,7 +130,7 @@ public class PairingScreenTests
     {
         var w = WordBook.Load(SharedFiles.Strings, language);
         var offer = Offer();
-        var all = new[] { PairingStep.Waiting, PairingStep.Expired, PairingStep.Failed, PairingStep.Added }
+        var all = Enum.GetValues<PairingStep>()
             .Select(step => PairingScreen.Lines(w, step, offer, "x"))
             .SelectMany(l => new[] { l.Title, l.Steps, l.CheckLead, l.Status, l.NewCode })
             .Concat(new[] { PairingScreen.ViewOnly(w).Lead, PairingScreen.ViewOnly(w).Add })

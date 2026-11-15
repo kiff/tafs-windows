@@ -17,6 +17,12 @@ public sealed class TpmKey : IKiffSigner, IDisposable
     /// <summary>The device key's name in this Windows user's key store.</summary>
     public const string DeviceKeyName = "tafs device key";
 
+    /// <summary>
+    /// The device key a pairing makes: its own, since a view-only session from the browser already holds
+    /// <see cref="DeviceKeyName"/>, and KIFF refuses a key that's already a device's (the contract's §5.9).
+    /// </summary>
+    public const string PairingKeyName = "tafs paired device key";
+
     readonly CngKey key;
     readonly ECDsaCng signer;
 
@@ -57,7 +63,7 @@ public sealed class TpmKey : IKiffSigner, IDisposable
         if (key.Provider?.Provider != Provider.Provider || !KiffSigning.IsP256Spki(tpm.PublicKeyDer))
         {
             tpm.Dispose();
-            throw new CryptographicException($"'{name}' isn't a P-256 key in the TPM");
+            throw new CryptographicException("the key isn't a P-256 key in the TPM"); // shown on screen: no name, no path
         }
         return tpm;
     }
