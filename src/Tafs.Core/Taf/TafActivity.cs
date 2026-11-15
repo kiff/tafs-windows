@@ -52,11 +52,11 @@ public static class TafActivity
     static string? Text(JsonElement o, string name) =>
         o.ValueKind == JsonValueKind.Object && o.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
-    /// <summary>The iPad's filters of a taf's Activity (its ActivityFilter): All, Done, Held, Refused.</summary>
+    /// <summary>The iPad's filters of a taf's Activity (its ActivityFilter): All, Done (its own word, not the Record's), Held, Refused.</summary>
     public static IReadOnlyList<ActivityFilter> Filters(WordBook w) =>
     [
         new("all", w.Get("record.filter.all")),
-        new("done", w.Get("record.filter.done")),
+        new("done", w.Get("taf.halt.part_held")),
         new("held", w.Get("record.filter.held")),
         new("refused", w.Get("record.filter.refused")),
     ];

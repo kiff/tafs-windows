@@ -31,11 +31,8 @@ public class TafScreenTests
         Assert.Equal(initial, TafScreen.Initial(name));
 
     [Fact]
-    public void The_Card_bar_says_what_s_left_of_its_limit()
-    {
+    public void The_sample_s_Card_bar_says_what_s_left_of_its_limit() =>
         Assert.Equal(new CardBarLine("€1,960 left today of €2,000", "Refunds"), TafScreen.SampleCard(En));
-        Assert.Equal("€0 left today of €100", TafScreen.CardBar(En, "Refunds", 140, 100, "today").Hero);
-    }
 
     [Theory]
     [MemberData(nameof(Shipped))]

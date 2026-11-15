@@ -8,15 +8,13 @@ A taf's page is the iPad's `TafDetailView`, as in the reference set's `taf.png`.
 - **The tabs:** Chat, Activity, Card and Setup, in the iPad's order, on the system grey track (`taf.section.*`, named
   "View"). Only Activity is built. The other three are shown, so the page has the iPad's shape, and are off.
 - **The Card bar:** a small Card in the taf's colour with the Card's mark, what's left of its main limit ("€1,960 left
-  today of €2,000", `card.hero.left_of`), and the Card's name under it.
-- **The Activity:**
-  - the filters as chips, the chosen one inverted;
-  - the days, "TODAY · NOV 15";
-  - each line as the Record draws it: its dot (green done, approved or started; amber held, sending or unknown; red
-    refused, not done or revoked), what it was, the words under it, and its time, with the money it moved when tafs
-    cloud says (`amount_text`);
-  - "Nothing yet." under All with nothing to show, "Nothing here." once narrowed, and tafs cloud's `end_words` under
-    the last line.
+  today of €2,000", `card.hero.left_of`), and the Card's name under it. For now it's only the sample's
+  (`TafScreen.SampleCard`).
+- **The Activity:** the filters as chips, the chosen one inverted (Done is the iPad's own word on a taf's page,
+  `taf.halt.part_held`, not the Record's), then the days, "TODAY · NOV 15". Each line is drawn as the Record draws it:
+  its dot (green done, approved or started; amber held, sending or unknown; red refused, not done or revoked), what it
+  was, the words under it, its time, and `amount_text` when tafs cloud sends it. Under All with nothing to show it says
+  "Nothing yet.", once narrowed "Nothing here.", and tafs cloud's `end_words` go under the last line.
 
 **tafs cloud's Activity:** `TafActivity.Read` reads `GET /v1/tafs/{id}/activity` (`contracts/taf-activity.json`).
 - It reads the days, the lines, the filters with the one applied, the end words and the revision, in tafs cloud's words
@@ -32,10 +30,14 @@ A taf's page is the iPad's `TafDetailView`, as in the reference set's `taf.png`.
 - Its Card is €2,000 a day, €40 of it used today.
 
 **Not yet:**
-- **Reading it from tafs cloud:** with its revision as If-None-Match, the next pages, and Try again.
+- **Reading it from tafs cloud:** the next pages, Try again, and the revision as If-None-Match. The server's ETag is
+  the quoted form of `revision`. Its days are titled as sent, in 12 semibold, not in the sample's capitals.
 - **Opening a taf from the sidebar's Your tafs and the Overview,** once they list the tafs.
 - **The other tabs,** each in its own change: Setup (from `taf-setup.json`, `taf-setup-connected.json` and
   `taf-setup-reconnect.json`), the Card, and Chat.
-- **The Card bar's chevron:** it opens the Card tab, so it comes with it.
+- **A Card's own bar,** with the Card, from KIFF's total, as the iPad's `TafCard.hero`: what's left only when its use
+  is known in the limit's unit and scale, else "€2,000 a day · use unavailable"; "· no currency" for an amount with none.
+- **The Card bar's chevron** (it opens the Card tab, so it comes with it), the Card's environment and "· 3 Cards"
+  on its second line, its calls total, and its extra room.
 - **The rest:** the head's second line (the version and Share); held calls, Card-unit exceptions, its work and its runs
   at the top of the Activity; a line's receipt and its next step.

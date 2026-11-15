@@ -68,9 +68,9 @@
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="local:TafDayView">
               <StackPanel Spacing="10">
-                <!-- "TODAY · NOV 15": 11 medium, monospaced, dim, as the Record's. -->
-                <TextBlock Text="{x:Bind Title}" FontSize="11" FontWeight="Medium" FontFamily="Cascadia Mono, Consolas"
-                           Foreground="{ThemeResource TafsDim}" Margin="0,6,0,0" />
+                <!-- "TODAY · NOV 15": 11 medium, monospaced, dim, as the Record's. A next page's day goes on with no title, and none is drawn. -->
+                <TextBlock Text="{x:Bind Title}" Visibility="{x:Bind HasTitle}" FontSize="11" FontWeight="Medium"
+                           FontFamily="Cascadia Mono, Consolas" Foreground="{ThemeResource TafsDim}" Margin="0,6,0,0" />
                 <ItemsControl ItemsSource="{x:Bind Lines}">
                   <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate><StackPanel Spacing="10" /></ItemsPanelTemplate>

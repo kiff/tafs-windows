@@ -13,8 +13,8 @@ namespace Tafs.App;
 /// </summary>
 public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, ActivityPage> Activity);
 
-/// <summary>One day of a taf's Activity, as drawn.</summary>
-public sealed record TafDayView(string Title, IReadOnlyList<TafLineView> Lines);
+/// <summary>One day of a taf's Activity, as drawn: tafs cloud sends a day going on from the page before with no title.</summary>
+public sealed record TafDayView(string Title, IReadOnlyList<TafLineView> Lines) { public Visibility HasTitle => Title.Length > 0 ? Visibility.Visible : Visibility.Collapsed; }
 
 /// <summary>One line of a taf's Activity, as drawn: its dot, what it was, its time, the words under it, and any money it moved.</summary>
 public sealed record TafLineView(string Title, string Time, string Detail, string Amount, Visibility HasAmount,

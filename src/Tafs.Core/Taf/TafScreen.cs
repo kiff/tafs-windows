@@ -34,16 +34,17 @@ public static class TafScreen
     public static TafHead Head(WordBook w, string name, int colour, string stateKey) =>
         new(name, Initial(name), colour, w.Get("taf.state." + stateKey));
 
-    /// <summary>"€1,960 left today of €2,000", and under it the Card's name: euros in the person's language.</summary>
-    public static CardBarLine CardBar(WordBook w, string card, decimal used, decimal limit, string window) =>
-        new($"{NeedsYouScreen.Euros(w, Math.Max(0, limit - used))} " +
-            w.Get("card.hero.left_of", ("window", window), ("limit", NeedsYouScreen.Euros(w, limit))), card);
-
     /// <summary>The sample's taf the reference set opens (taf.png): Refunds, the fifth colour, working.</summary>
     public static TafHead SampleHead(WordBook w) => Head(w, SampleTaf(w), 4, "working");
 
     public static string SampleTaf(WordBook w) => w.Get("sample.refunds.name");
 
-    /// <summary>Its Card, as the iPad's sample shows it: €2,000 a day, €40 of it used today.</summary>
-    public static CardBarLine SampleCard(WordBook w) => CardBar(w, SampleTaf(w), 40, 2_000, w.Get("card.window.today"));
+    /// <summary>
+    /// The sample's Card bar, as the iPad's sample shows it: €40 used today of €2,000 a day, so "€1,960 left today of
+    /// €2,000". Only the sample's: a Card's own bar takes KIFF's total (its amounts' units and scales, and a use KIFF
+    /// couldn't read), as the iPad's TafCard.hero, and comes with the Card.
+    /// </summary>
+    public static CardBarLine SampleCard(WordBook w) =>
+        new($"{NeedsYouScreen.Euros(w, 1_960)} " + w.Get("card.hero.left_of",
+            ("window", w.Get("card.window.today")), ("limit", NeedsYouScreen.Euros(w, 2_000))), SampleTaf(w));
 }

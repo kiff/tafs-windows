@@ -230,7 +230,6 @@ public sealed partial class MainWindow : Window
         AccountIconChosen.Visibility = chosen ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>A screen that isn't a sidebar row: no row stays chosen while it's open.</summary>
     /// <summary>The taf the reference set opens: the sample's Refunds, on its Activity.</summary>
     static TafOpening SampleTaf(Tafs.Core.Words.WordBook w)
     {
@@ -239,6 +238,7 @@ public sealed partial class MainWindow : Window
             filter => TafActivity.Sample(w, TafScreen.SampleTaf(w), filter, now, TimeZoneInfo.Local));
     }
 
+    /// <summary>A screen that isn't a sidebar row: no row stays chosen while it's open.</summary>
     void OpenBeside(Type page, object? parameter = null)
     {
         Nav.SelectedItem = null;

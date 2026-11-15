@@ -82,6 +82,11 @@ public class TafActivityTests
     }
 
     [Fact]
+    public void Done_is_the_iPad_s_taf_page_word_not_the_Record_s() =>
+        Assert.Equal(new[] { "Tout", "Terminé", "Retenus", "Refusés" },
+            TafActivity.Filters(WordBook.Load(SharedFiles.Strings, "fr")).Select(f => f.Title));
+
+    [Fact]
     public void A_filter_narrows_the_sample_and_says_so_when_nothing_is_left()
     {
         var done = TafActivity.Sample(En, "Refunds", "done", Now, TimeZoneInfo.Utc);
