@@ -1,5 +1,7 @@
+using System.Text;
 using System.Text.Json;
 using Tafs.Core.Coach;
+using Tafs.Core.Taf;
 using Tafs.Core.Tests.Strings;
 using Tafs.Core.Words;
 
@@ -13,6 +15,8 @@ namespace Tafs.Core.Tests.Coach;
 public class CoachCardsTests
 {
     static readonly WordBook En = WordBook.Load(SharedFiles.Strings, "en");
+
+    static JsonElement Json(string text) => JsonDocument.Parse(text).RootElement;
 
     const string Questions = """
         {"type": "questions", "id": "q1", "title": "A few things first", "text": "Before Rae starts:", "waits": "owner",
@@ -148,6 +152,34 @@ public class CoachCardsTests
         Assert.Null(QuestionAnswers.Words(En, "not json", []));
     }
 
+    /// <summary>As the iPad's answerCard: the card's answers as data, with the conversation it's in, to its own path.</summary>
+    [Fact]
+    public void A_questions_card_s_answer_goes_as_data_to_its_card()
+    {
+        var shown = Assert.Single(Thread(Shown(Questions)).Shown);
+
+        var (path, body) = CoachChat.AnswerRequest("taf-coach", shown, """{"mode":{"value":"test"}}""")!.Value;
+
+        Assert.Equal("/v1/tafs/taf-coach/components/q1/answer", path);
+        Assert.Equal("""{"answer":{"mode":{"value":"test"}},"session":"s1"}""", Encoding.UTF8.GetString(body));
+        Assert.Null(CoachChat.AnswerRequest("taf-coach", shown, "not answers"));
+    }
+
+    /// <summary>As the iPad's answer(_:_:): sent, read again on a 409, the consent's code kept apart, anything else not reached.</summary>
+    [Fact]
+    public void What_sending_an_answer_comes_to()
+    {
+        Assert.Equal(CardSent.Sent, CoachChat.Sent(CloudRead.Of(Json("""{"run": "r", "session": "s", "status": "running"}"""))));
+        Assert.Equal(CardSent.NotReached, CoachChat.Sent(CloudRead.Of(Json("""{"run": "r", "session": "s"}"""))));
+        Assert.Equal(CardSent.NotReached, CoachChat.Sent(CloudRead.Of(Json("""{"run": "r", "session": "s", "status": 1}"""))));
+        Assert.Equal(CardSent.ReadAgain, CoachChat.Sent(CloudRead.Refused(En, 409, """{"code": "ai_consent_required"}""")));
+        var consent = CloudRead.Refused(En, 403, """{"code": "ai_consent_required", "words": "Allow it first."}""");
+        Assert.Equal(("ai_consent_required", "Allow it first."), (consent.Code, consent.Why));
+        Assert.Equal(CardSent.Consent, CoachChat.Sent(consent));
+        Assert.Equal(CardSent.NotReached, CoachChat.Sent(CloudRead.Refused(En, 500, "")));
+        Assert.Equal(CardSent.NotReached, CoachChat.Sent(CloudRead.Unreached(En)));
+    }
+
     /// <summary>
     /// As the iPad's synthesized decoder: an optional field absent or null is none, one of another shape fails the card, even a
     /// field this app doesn't keep yet; an answer whose state, words or by isn't words leaves the card unanswered.
@@ -167,5 +199,39 @@ public class CoachCardsTests
         Assert.Null(Assert.Single(unanswered.Shown).Answer);
         var timeless = Thread(Shown(Questions, answer: """, "answer": {"words": "Test mode", "at": 5}"""));
         Assert.Equal(new CardAnswer("answered", "Test mode", null), Assert.Single(timeless.Shown).Answer);
+    }
+
+    /// <summary>As the iPad's cardRef: an answer for an id goes to the card waiting under it, else the latest, with its conversation.</summary>
+    [Fact]
+    public void An_answer_goes_to_the_card_waiting_under_its_id()
+    {
+        var answered = Shown(Questions, answer: """, "answer": {"state": "answered", "words": "Test mode", "at": "2026-11-15T09:01:00Z"}""");
+        var again = Shown(Questions, "2026-11-15T09:02:00Z").Replace("\"session\": \"s1\"", "\"session\": \"s2\"");
+        var thread = Thread(answered + "," + again);
+
+        Assert.Equal("s2#q1", thread.CardRef("q1"));
+        Assert.Equal("s2", thread.CardFor("q1")!.Session);
+        Assert.Equal("s1#q1", Thread(answered).CardRef("q1"));
+        Assert.Equal("#q9", thread.CardRef("q9"));
+    }
+
+    /// <summary>As the iPad's mayUseCoach: KIFF's access to Setup decides; without it, members.manage; nothing read is no.</summary>
+    [Fact]
+    public void Who_may_use_Coach()
+    {
+        const string access = """{"agents": {"setup": {"use": false, "oversee": false, "manage": false}, "a1": {"use": true, "oversee": false, "manage": true, "groups": ["g"]}}}""";
+        const string me = """{"tenant_id": "t", "tenant_slug": "acme", "capabilities": ["members.manage"]}""";
+
+        Assert.False(CoachAccess.SetupUse(Json(access)));
+        Assert.Null(CoachAccess.SetupUse(Json("""{"agents": {"a1": {"use": true, "oversee": false, "manage": true}}}""")));
+        Assert.Null(CoachAccess.SetupUse(Json("""{"agents": {"setup": {"use": true}}}""")));
+        Assert.Equal(new[] { "members.manage" }, CoachAccess.Capabilities(Json(me)));
+        Assert.Null(CoachAccess.Capabilities(Json("""{"tenant_slug": "acme", "capabilities": ["members.manage"]}""")));
+
+        Assert.False(CoachAccess.MayUseCoach(false, ["members.manage"]));
+        Assert.True(CoachAccess.MayUseCoach(true, null));
+        Assert.True(CoachAccess.MayUseCoach(null, ["members.manage"]));
+        Assert.False(CoachAccess.MayUseCoach(null, ["cards.manage"]));
+        Assert.False(CoachAccess.MayUseCoach(null, null));
     }
 }

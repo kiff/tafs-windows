@@ -24,6 +24,12 @@ public sealed record CoachCard(string Kind, string Id, string? Title = null, str
 }
 
 /// <summary>
+/// What sending a card's answer came to, as the iPad's <c>answer(_:_:)</c>: sent (the thread is read again); a card that
+/// doesn't wait any more (409, read again); refused for want of the AI-data consent (the card stays as chosen); or not reached.
+/// </summary>
+public enum CardSent { Sent, ReadAgain, Consent, NotReached }
+
+/// <summary>
 /// A field's shape as Swift's decoder checks it: a required field is there and of its shape; an optional one is absent,
 /// null, or of its shape. Words are strings; a yes-or-no is true or false; a number is whole.
 /// </summary>

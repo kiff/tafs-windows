@@ -122,7 +122,15 @@ public sealed partial class MainWindow : Window
         AccountPage.SignInChosen += OpenSignIn;
         AccountPage.AlertsChosen += () => OpenBeside(typeof(ComingPage), w.Get("settings.alerts"));
         AccountPage.AddThisDeviceChosen += OpenPairing;
-        AccountPage.SignedOut += () => { ViewOnly.IsOpen = false; OpenSignIn(); };
+        AccountPage.SignedOut += () =>
+        {
+            ViewOnly.IsOpen = false;
+            // As the iPad's sign-out: Coach reads and answers as no one, and forgets the thread and what was answered.
+            CoachMode.Read = null;
+            CoachMode.Answer = null;
+            CoachMode.Forget();
+            OpenSignIn();
+        };
         // Leaving the sample: the app starts again without it, as the iPad's Clear the sample leaves it.
         AccountPage.ClearSampleChosen += () => Microsoft.Windows.AppLifecycle.AppInstance.Restart(
             string.Join(' ', Environment.GetCommandLineArgs().Skip(1).Where(a => a != "--sample")));
@@ -163,6 +171,7 @@ public sealed partial class MainWindow : Window
             // Coach's thread comes through the same read, as the session; a screenshot never reads it.
             CoachMode.Read = path => CloudReadAsync(session.AccessToken, path);
             Root.Loaded += async (_, _) => await ReadHomeAsync(path => CloudReadAsync(session.AccessToken, path));
+            _ = AllowCoachAsync(session.AccessToken);
         }
     }
 
@@ -194,6 +203,46 @@ public sealed partial class MainWindow : Window
         string body;
         try { (status, body) = await KiffHttp.GetAsync(new Uri(HomeList.Api, path), bearer, w.Language); }
         catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
+        return Answered(w, status, body);
+    }
+
+    /// <summary>
+    /// Coach's cards are answered here only by someone who may use Coach (<c>CoachAccess</c>, as the iPad's
+    /// <c>mayUseCoach</c>): KIFF's access to Setup, else the account's capabilities. Without it, Send stays off.
+    /// </summary>
+    async Task AllowCoachAsync(string bearer)
+    {
+        var setup = Tafs.Core.Coach.CoachAccess.SetupUse((await KiffReadAsync(bearer, Tafs.Core.Coach.CoachAccess.AccessPath)).Answer);
+        var capabilities = setup is null ? Tafs.Core.Coach.CoachAccess.Capabilities((await KiffReadAsync(bearer, Tafs.Core.Coach.CoachAccess.MePath)).Answer) : null;
+        // Signed out meanwhile: it's no one's to answer.
+        if (App.Sessions.Kept()?.AccessToken != bearer || !Tafs.Core.Coach.CoachAccess.MayUseCoach(setup, capabilities)) return;
+        CoachMode.Answer = (path, body) => CloudSendAsync(bearer, path, body);
+    }
+
+    /// <summary>A read from KIFF as the session, answered as tafs cloud's are.</summary>
+    static async Task<CloudRead> KiffReadAsync(string bearer, string path)
+    {
+        var w = App.Words;
+        int status;
+        string body;
+        try { (status, body) = await KiffHttp.GetAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), bearer, w.Language); }
+        catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
+        return Answered(w, status, body);
+    }
+
+    /// <summary>A card's answer sent to tafs cloud as the session, answered as a read is.</summary>
+    static async Task<CloudRead> CloudSendAsync(string bearer, string path, byte[] sent)
+    {
+        var w = App.Words;
+        int status;
+        string body;
+        try { (status, body) = await KiffHttp.PostAsync(new Uri(HomeList.Api, path), sent, bearer, w.Language); }
+        catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
+        return Answered(w, status, body);
+    }
+
+    static CloudRead Answered(Tafs.Core.Words.WordBook w, int status, string body)
+    {
         if (status is < 200 or > 299) return CloudRead.Refused(w, status, body);
         try
         {

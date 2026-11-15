@@ -70,23 +70,24 @@ public class CoachThreadTests
             })));
         }
 
-        var (thread, error) = await CoachChat.LoadAsync(En, Read);
+        var (thread, error, coach) = await CoachChat.LoadAsync(En, Read);
 
         Assert.Equal(new[] { "/v1/setup", "/v1/tafs/taf-coach%2F1/chats", "/v1/tafs/taf-coach%2F1/conversation/new" }, asked);
         Assert.Equal(4, thread!.Messages.Count);
         Assert.Null(error);
+        Assert.Equal("taf-coach/1", coach);
     }
 
     /// <summary>As the iPad: no Coach, or /v1/setup unread, is no thread and no error (try?); a conversation unread says why.</summary>
     [Fact]
     public async Task With_no_Coach_there_s_no_thread_and_a_conversation_unread_says_why()
     {
-        Assert.Equal((null, null), await CoachChat.LoadAsync(En, _ => Task.FromResult(CloudRead.Of(Json("""{"setup": null}""")))));
-        Assert.Equal((null, null), await CoachChat.LoadAsync(En, _ => Task.FromResult(CloudRead.Unreached(En))));
+        Assert.Equal((null, null, null), await CoachChat.LoadAsync(En, _ => Task.FromResult(CloudRead.Of(Json("""{"setup": null}""")))));
+        Assert.Equal((null, null, null), await CoachChat.LoadAsync(En, _ => Task.FromResult(CloudRead.Unreached(En))));
 
         Task<CloudRead> Unread(string path) => Task.FromResult(path == "/v1/setup" ? CloudRead.Of(Json("""{"setup": {"id": "c"}}"""))
             : path.EndsWith("/chats") ? CloudRead.Unreached(En) : CloudRead.Refused(En, 503, """{"words": "Try again in a minute."}"""));
-        var (_, error) = await CoachChat.LoadAsync(En, Unread);
+        var (_, error, _) = await CoachChat.LoadAsync(En, Unread);
         Assert.Equal("The conversation couldn't be loaded: Try again in a minute.", error);
 
         Task<CloudRead> Undecodable(string path) => Task.FromResult(CloudRead.Of(Json(path == "/v1/setup" ? """{"setup": {"id": "c"}}""" : """{"messages": [{"text": "no time"}]}""")));
