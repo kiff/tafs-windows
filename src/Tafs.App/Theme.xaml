@@ -29,6 +29,7 @@
       <SolidColorBrush x:Key="TafsSegmentFill" Color="#FFFFFF" />
       <SolidColorBrush x:Key="TafsNo" Color="#DB1F25" />
       <SolidColorBrush x:Key="TafsNoEdge" Color="#80DB1F25" />
+      <SolidColorBrush x:Key="TafsNoLine" Color="#66DB1F25" />
       <!-- The taf's own words on a held call: the soft colour at 8%. -->
       <SolidColorBrush x:Key="TafsSoftWash" Color="#144F4A5E" />
       <!-- The sidebar's chosen row: a rounded fill of the ink, as the iPad's list draws it, not a side bar. -->
@@ -71,9 +72,11 @@
       <SolidColorBrush x:Key="TafsOk" Color="#4CC38A" />
       <SolidColorBrush x:Key="TafsInkLine" Color="#66F2EFE9" />
       <SolidColorBrush x:Key="TafsInkFaint" Color="#33F2EFE9" />
-      <SolidColorBrush x:Key="TafsSegmentFill" Color="#4A4740" />
+      <!-- The system's dark selected segment, #636366: it stands out from the track, as the iPad's. -->
+      <SolidColorBrush x:Key="TafsSegmentFill" Color="#636366" />
       <SolidColorBrush x:Key="TafsNo" Color="#FF8A73" />
       <SolidColorBrush x:Key="TafsNoEdge" Color="#80FF8A73" />
+      <SolidColorBrush x:Key="TafsNoLine" Color="#66FF8A73" />
       <SolidColorBrush x:Key="TafsSoftWash" Color="#14A8A49C" />
       <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#24F2EFE9" />
       <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#2EF2EFE9" />
@@ -160,18 +163,18 @@
   <!-- The iPad's outlined button: the ink at 40% around, 15 medium, corners of 14. -->
   <Style x:Key="TafsOutlineButton" TargetType="Button">
     <Setter Property="Background" Value="Transparent" />
-    <Setter Property="BorderBrush" Value="{ThemeResource TafsLine}" />
+    <Setter Property="BorderBrush" Value="{ThemeResource TafsInkLine}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="Foreground" Value="{ThemeResource TafsInk}" />
     <Setter Property="CornerRadius" Value="14" />
     <Setter Property="FontSize" Value="15" />
     <Setter Property="FontWeight" Value="Medium" />
-    <Setter Property="MinHeight" Value="44" />
+    <Setter Property="MinHeight" Value="48" />
     <Setter Property="Padding" Value="18,8" />
   </Style>
-  <!-- Revoke: the outline in the refusal's red. -->
+  <!-- Revoke: the outline in the refusal's red, at 40% as the iPad's OutlineLook. -->
   <Style x:Key="TafsOutlineNo" TargetType="Button" BasedOn="{StaticResource TafsOutlineButton}">
-    <Setter Property="BorderBrush" Value="{ThemeResource TafsNoEdge}" />
+    <Setter Property="BorderBrush" Value="{ThemeResource TafsNoLine}" />
     <Setter Property="Foreground" Value="{ThemeResource TafsNo}" />
   </Style>
 
@@ -257,10 +260,11 @@
 
   <!-- Words that follow the theme from code. -->
   <Style x:Key="TafsAccentText" TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource TafsAmber}" /></Style>
-  <!-- A segmented control's track (Day / Week / Month, Last / This period, Theme): the system grey, corners of 9. -->
+  <!-- A segmented control's track (Day / Week / Month, Last / This period, Theme, a taf's tabs): the system grey, a
+       capsule as the iPad's (half its 34 height). -->
   <Style x:Key="TafsSegmentTrack" TargetType="Border">
     <Setter Property="Background" Value="{ThemeResource TafsSegmentGrey}" />
-    <Setter Property="CornerRadius" Value="9" />
+    <Setter Property="CornerRadius" Value="17" />
     <Setter Property="Padding" Value="2" />
   </Style>
   <Style x:Key="TafsNoText" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsNo}" /></Style>
@@ -359,7 +363,7 @@
   <!-- Day / Week / Month: the chosen segment lighter than its track, the others on the raised ground. -->
   <Style x:Key="TafsSegment" TargetType="Button" BasedOn="{StaticResource TafsBox}">
     <Setter Property="HorizontalAlignment" Value="Stretch" />
-    <Setter Property="CornerRadius" Value="7" />
+    <Setter Property="CornerRadius" Value="15" />
     <Setter Property="MinHeight" Value="30" />
     <Setter Property="FontSize" Value="13" />
     <Setter Property="Foreground" Value="{ThemeResource TafsInk}" />

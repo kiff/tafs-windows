@@ -54,8 +54,10 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
   a shade darker the further back, with the furthest on top. A tap brings one to the front, and Narrator reads the
   front one figure first.
 - **A Card's face:** 300 wide, a payment card's shape, corners of 18, in white on the taf's colour (a test Card in
-  grey), with the iPad's ring at its corner. It shows its name and environment pill, its figure, its facts, who issued
-  it, and "No end date" when it has none.
+  grey), with the iPad's ring at its corner. It shows its name and environment pill, its figure with its words in 12
+  medium at 0.9, its facts, who issued it, and "No end date" when it has none. A long fact shrinks to 80% at most, as
+  the iPad's `minimumScaleFactor(0.8)`, then ends in "…". Each Card casts the iPad's shadow up onto the one behind it
+  (black at 16%, radius 4, 2 up), drawn as a soft band over its top edge.
 - **Under the stack:** every rule of the front Card, its name and what happens outside it on the left, and its limits
   on the right in mono ("never" in red).
 - **Revoke,** in red, asks first ("Revoke Refunds' Card?", Revoke and stop). In the sample, the chip turns to a red

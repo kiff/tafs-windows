@@ -6,8 +6,9 @@
       xmlns:local="using:Tafs.App"
       Background="{ThemeResource TafsBackground}">
   <Page.Resources>
+    <!-- A row, and the columns' names, 14 above and below, as the iPad's inset list adds around a 52-high row. -->
     <DataTemplate x:Key="Row" x:DataType="local:ConnectRowView">
-      <Grid MinHeight="{x:Bind MinHeight}" Padding="0,8" ColumnSpacing="12" BorderBrush="{ThemeResource TafsLine}" BorderThickness="{x:Bind Divider}">
+      <Grid MinHeight="{x:Bind MinHeight}" Padding="0,14" ColumnSpacing="12" BorderBrush="{ThemeResource TafsLine}" BorderThickness="{x:Bind Divider}">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="{x:Bind Columns.App, Mode=OneWay}" />
           <ColumnDefinition Width="{x:Bind Columns.How, Mode=OneWay}" />
@@ -39,7 +40,7 @@
             <TextBlock Text="{x:Bind UsedBy}" Visibility="{x:Bind HasUsedBy}" FontSize="12" TextWrapping="Wrap" MaxLines="2" Foreground="{ThemeResource TafsDim}" />
             <TextBlock Text="{x:Bind Setup}" Visibility="{x:Bind HasSetup}" FontSize="13" TextWrapping="Wrap" MaxLines="2" Foreground="{ThemeResource TafsSoft}" />
           </StackPanel>
-          <FontIcon Grid.Column="1" Glyph="&#xE73E;" FontSize="16" Visibility="{x:Bind IsConnected}" Foreground="{ThemeResource TafsOk}"
+          <FontIcon Grid.Column="1" Glyph="&#xE73E;" FontSize="20" Visibility="{x:Bind IsConnected}" Foreground="{ThemeResource TafsOk}"
                     AutomationProperties.Name="{x:Bind Status}" />
           <Button Grid.Column="1" Content="{x:Bind Button}" Visibility="{x:Bind HasButton}" IsEnabled="False"
                   Style="{StaticResource TafsOutlineButton}" Padding="16,0" />
