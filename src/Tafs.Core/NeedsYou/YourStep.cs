@@ -11,7 +11,7 @@ public sealed record StepWords(string Title = "", string Done = "", string Skip 
 
 /// <summary>
 /// "Your step" (docs/api.md › Your step), as the iPad's <c>TafsCloud.YourStep</c>: a step a taf may never take itself, such as
-/// approving a bank transfer, which it prepared and handed to its owner. The owner answers Done or Skip to KIFF, signed with
+/// approving a bank transfer, which it prepared and handed to the person. They answer Done or Skip to KIFF, signed with
 /// this PC's device key; tafs cloud only shows it.
 /// </summary>
 /// <param name="Handoff">KIFF's hand-off id: what the answer names and signs.</param>
