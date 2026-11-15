@@ -271,6 +271,8 @@ public static class CoachChat
         JsonNode? value = card.Card.Kind switch
         {
             "questions" => QuestionAnswers.Decode(text) is not null ? JsonNode.Parse(text) : null,
+            // A confirm's answer is its option's value, as answerValue's .text; an empty one isn't an answer.
+            "confirm" => text.Length > 0 ? JsonValue.Create(text) : null,
             _ => null,
         };
         if (value is null) return null;

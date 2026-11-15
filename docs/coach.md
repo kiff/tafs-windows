@@ -50,6 +50,9 @@ work, where the iPad's decoder fails the thread.
   Show them again). Answered, it's one line, "Your answers · Test mode · Weekdays", and the answer's bubble is folded in.
 - **A notice** (as `SetupComponentView.notice`): its title at 14 in its tone's colour (error the red, warning the amber,
   success the green, else soft), its words in the ink, on that colour at 10%.
+- **A confirm** (as `SetupComponentView.confirm`): Coach's question and its options as capsules; a tap answers the card with
+  the option's value, as a questions card's answers go, and the options fade while it's sent. Answered, one line: "Live or
+  test? · Test mode".
 - **A result** (as `SetupComponentView.result`), on the panel with a green edge, its eyebrow in the green:
   - **a new taf's hand-over:** "SET UP · RAE", Coach's words, its tools in words (`toolWords`), then by tafs cloud's
     outcome: set up, Open (or Coach's own words, else "See it on Rae"), which closes Coach and opens the taf's page; with
@@ -77,7 +80,7 @@ work, where the iPad's decoder fails the thread.
 - **A Coach with an empty thread:** the iPad shows `starts` ("Ask anything"); here the intro stays until writing is ported.
 - **See version 3,** which opens the taf's Versions on the iPad: Versions aren't ported, so the made line shows instead,
   as the iPad does when it can't find the taf.
-- **Coach's other cards** (confirms, approvals, sign-ins), and the conversation read's proof and `?can=`
+- **Coach's other cards** (approvals, sign-ins), and the conversation read's proof and `?can=`
   (they mark approval cards).
 - **After an answer:** the iPad follows the run's stream as it writes; here the thread is read again, until the stream is
   ported. The AI-data consent's screen isn't ported, so a refusal for it leaves the card as it was, with no line.
