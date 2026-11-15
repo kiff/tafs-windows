@@ -25,13 +25,17 @@ public static class NeedsYouScreen
     /// <summary>With nothing waiting: the panel's two lines.</summary>
     public static (string Lead, string Hint) Empty(WordBook w) => (w.Get("needs_you.nothing_waiting"), w.Get("needs_you.empty_hint"));
 
-    public static bool IsExpired(HeldCall call, DateTimeOffset now) => now >= call.ExpiresAt;
+    /// <summary>
+    /// Under a second left counts as lapsed, so the countdown's "expired" and the answers giving way turn
+    /// together. KIFF decides either way: this is only what the card shows.
+    /// </summary>
+    public static bool IsExpired(HeldCall call, DateTimeOffset now) => call.ExpiresAt - now < TimeSpan.FromSeconds(1);
 
     /// <summary>"9:37 left", counted down every second; "expired" once it lapses. An hour or more reads 1:02:03.</summary>
     public static string Left(WordBook w, HeldCall call, DateTimeOffset now)
     {
+        if (IsExpired(call, now)) return w.Get("needs_you.expired");
         var left = call.ExpiresAt - now;
-        if (left < TimeSpan.FromSeconds(1)) return w.Get("needs_you.expired");
         var seconds = (long)left.TotalSeconds;
         var time = seconds >= 3600
             ? $"{seconds / 3600}:{seconds / 60 % 60:00}:{seconds % 60:00}"

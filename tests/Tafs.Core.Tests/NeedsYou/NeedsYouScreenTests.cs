@@ -24,6 +24,21 @@ public class NeedsYouScreenTests
     public void The_countdown_reads_minutes_and_seconds_then_expired(int seconds, string expected) =>
         Assert.Equal(expected, NeedsYouScreen.Left(En, Call(TimeSpan.FromSeconds(seconds)), Now));
 
+    /// <summary>The countdown's "expired" and the answers giving way turn at the same moment.</summary>
+    [Theory]
+    [InlineData(1000, false)]
+    [InlineData(999, true)]
+    [InlineData(500, true)]
+    [InlineData(0, true)]
+    public void The_countdown_and_the_answers_turn_together(int milliseconds, bool expired)
+    {
+        var call = Call(TimeSpan.FromMilliseconds(milliseconds));
+        var lines = NeedsYouScreen.Card(En, call, Now);
+        Assert.Equal(expired, NeedsYouScreen.IsExpired(call, Now));
+        Assert.Equal(expired, lines.Left == "expired");
+        Assert.Equal(!expired, lines.Answerable);
+    }
+
     [Fact]
     public void While_it_can_be_answered_nothing_is_sent_until_you_approve()
     {
