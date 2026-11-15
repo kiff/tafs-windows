@@ -140,4 +140,40 @@ public class ConnectAppsScreenTests
         Assert.False(ConnectAppsScreen.SaysMakeATaf(4, connectableTafs: 1));
         Assert.DoesNotContain("{", En.Get("connect.apps_connect_taf_make_one"));
     }
+
+    /// <summary>As the iPad's connectApps: what was typed, then a next page's catalog and cursor, each escaped whole.</summary>
+    [Fact]
+    public void A_page_is_read_with_its_search_catalog_and_cursor()
+    {
+        Assert.Equal("/v1/connect/apps", ConnectAppsScreen.Path());
+        Assert.Equal("/v1/connect/apps", ConnectAppsScreen.Path(" \t "));
+        Assert.Equal("/v1/connect/apps?q=google%20sheets", ConnectAppsScreen.Path("  google sheets "));
+        Assert.Equal("/v1/connect/apps?q=a%26b&provider=composio&cursor=x%2By%2Fz%3D", ConnectAppsScreen.Path("a&b", "composio", "x+y/z="));
+    }
+
+    /// <summary>As the iPad's loadMoreConnectApps: the next page under those shown, no app twice, Coach's offer kept.</summary>
+    [Fact]
+    public void More_apps_adds_the_next_page_without_repeats()
+    {
+        var shown = ConnectAppsScreen.Read("""{"apps": [{"entry": "stripe@3", "title": "Stripe"}], "by_key": true, "next_cursor": "c1", "provider": "composio"}""");
+        var page = ConnectAppsScreen.Read("""{"apps": [{"entry": "stripe@3", "title": "Stripe"}, {"entry": "slack@1", "title": "Slack", "logo": "/v1/logos/0123456789abcdef0123456789abcdef"}]}""");
+
+        var merged = ConnectAppsScreen.More(shown, page);
+
+        Assert.Equal(["stripe@3", "slack@1"], merged.Apps.Select(a => a.Entry));
+        Assert.True(merged.ByKey);
+        Assert.Null(merged.NextCursor);
+        Assert.Equal(("c1", "composio"), (shown.NextCursor, shown.Provider));
+        Assert.Equal("/v1/logos/0123456789abcdef0123456789abcdef", merged.Apps[1].Logo);
+    }
+
+    /// <summary>As the iPad's logoURL: only tafs cloud's own logos, by a 32-character lowercase hex key.</summary>
+    [Theory]
+    [InlineData("/v1/logos/0123456789abcdef0123456789abcdef", "https://cloud.tafs.kiff.dev/v1/logos/0123456789abcdef0123456789abcdef")]
+    [InlineData("/v1/logos/0123456789ABCDEF0123456789abcdef", null)]
+    [InlineData("/v1/logos/0123", null)]
+    [InlineData("https://evil.example/v1/logos/0123456789abcdef0123456789abcdef", null)]
+    [InlineData("/v1/logos/0123456789abcdef0123456789abcdef/..", null)]
+    [InlineData(null, null)]
+    public void A_logo_comes_only_from_tafs_cloud(string? path, string? url) => Assert.Equal(url, ConnectAppsScreen.LogoUrl(path)?.AbsoluteUri);
 }

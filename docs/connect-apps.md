@@ -23,9 +23,22 @@ order and words. The core is `ConnectAppsScreen`; the app's `ConnectAppsPage` on
 - **Not listed? Ask Coach** shows with `by_key`, in the accent. The sample sends no `used_by`, as the iPad's
   (the reference set's `connect-apps.png`). **Reading:** an app with no `entry` is left out, never the list.
 
+- **tafs cloud's list** (as the iPad's `loadConnectApps`): `GET /v1/connect/apps`, as the session, with this PC's signed
+  grants read (`Planque-Device-Signature`, as Setup sends it). A spinner until it's read; if it can't be, "The apps couldn't
+  be read." and why, in red under the search.
+  - **Search apps:** read again as the person types, 0.3 s after the last key, at once when emptied (`?q=`). Only the
+    newest search replaces the list.
+  - **More apps** (`next_cursor`): the same search's next page from its catalog (`provider`, `cursor`), added under the
+    list, no app twice; "Loading…" meanwhile; "More apps couldn't be listed:" and why if it fails.
+  - **The logos,** 24 across beside the name, only from tafs cloud's own `/v1/logos/` with a 32-character hex key, fetched
+    as images with no token.
+  - `--home` with `--page connect-apps` reads `connect-apps.json` beside the Home file. tafs cloud has no contract for this
+    read yet; the tests use answers shaped as the iPad's decoder.
+
 **Not yet:**
-- **tafs cloud's list.** Until it's read, the page shows only its title, never an empty catalog; `--sample` shows the
-  iPad's. The read brings the search, More apps (`next_cursor`) and the logos.
+- **A failed read's words** show on the page; the iPad shows them in its app-wide error line.
+- **The account's connections** read from planque with the list (`refreshConnections`), and the removed tafs' connections
+  to clear (`removed_tafs`): with the planque reads.
 - **Connecting.** Connect is dimmed, as the iPad's is with nothing to connect for. To come: the taf to connect for, the
   approval sheet, the vendor's sign-in.
 - **A connected app's detail** (what it can do, which tafs use it, Disconnect), with its chevron.
