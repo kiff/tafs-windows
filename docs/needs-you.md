@@ -28,6 +28,25 @@ This PC doesn't approve yet: the Windows Hello calls are their own change. So wh
 Approve and Refuse, the card says why this PC can't and offers **Add this Windows PC**, as the
 iPad's own gate does when a device can't approve: words, never buttons that can't work.
 
+## Did this happen? (`DidThisHappen`, `Unproven`)
+
+Ported from the iPad's `DidThisHappenCard` (NeedsYouView.swift), `KIFFClient.Unproven`/`didThisHappen` and
+`AppModel.loadUnproven`/`mayAnswerHolds`. tafs-macos #76 is a second reference.
+- **What it is:** a money call whose outcome KIFF can't prove: its answer was lost, the app refused it with nothing
+  showing it had no effect, or it's one of the first calls of a new money operation. The person says whether it
+  happened.
+- **The read:** `GET /v1/me/did-this-happen`, a plain read as the session, when Needs you opens, as the iPad reads it on
+  open. Only for someone who answers held calls (KIFF's `holds.answer` in `GET /v1/me`'s capabilities; an account that
+  lists none may). A call needs its proposal; its title is "" and its status unknown when not said; any other field of
+  the wrong kind fails the read, which keeps the list. No `calls` is none. A sign-out clears it.
+- **Its card,** before the held calls: the amber edge; "Did this happen?" in amber, 13 semibold; KIFF's words for the
+  call, else its title, 15 semibold; the amount only without KIFF's words (two places unless KIFF says, and "725 (no
+  currency)" with no unit); why KIFF asks, in its words, 13 soft.
+- **"Nothing waiting"** only with no held call and no call to say about.
+- **The answers:** the iPad's Yes and No are signed like an approval (`tafs.happened.v1|…`). Until this PC approves,
+  the card says why it can't and offers **Add this Windows PC**, as a held call's does, for someone who answers held
+  calls. The line about No goes with the buttons, so it isn't shown.
+
 ## Where the calls come from
 
 **From KIFF** (`KiffHeld`), as the iPad's `KIFFClient.heldCalls` and `KIFFMapping.held`, with each refresh of Home's

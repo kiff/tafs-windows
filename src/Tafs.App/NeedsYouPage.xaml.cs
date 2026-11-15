@@ -62,6 +62,7 @@ public sealed partial class NeedsYouPage : Page
 
     readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromSeconds(1) };
     IReadOnlyList<HeldCallView> views = [];
+    IReadOnlyList<Unproven> unproven = [];
 
     public NeedsYouPage()
     {
@@ -85,10 +86,67 @@ public sealed partial class NeedsYouPage : Page
         var now = DateTimeOffset.UtcNow;
         views = calls.Select(c => new HeldCallView(w, c, now)).ToList();
         Calls.ItemsSource = views;
-        Empty.Visibility = views.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ShowEmpty();
         if (views.Count > 0) clock.Start();
         else clock.Stop();
     }
 
     void OnAddThisDevice(object sender, RoutedEventArgs e) => AddThisDeviceChosen?.Invoke();
+
+    /// <summary>Nothing waiting only with no held call and no call to say about, as the iPad's.</summary>
+    void ShowEmpty() => Empty.Visibility = views.Count == 0 && unproven.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>
+    /// "Did this happen?", each call on its card, as the iPad's <c>DidThisHappenCard</c>: on the panel with the amber edge, its
+    /// title in amber, 13 semibold; KIFF's words for the call, else its title, 15 semibold; the amount only without KIFF's
+    /// words; why KIFF asks, 13 soft. For someone who answers held calls, the answers: until this PC approves, why it can't
+    /// and Add this Windows PC, as on a held call.
+    /// </summary>
+    internal void ShowUnproven(IReadOnlyList<Unproven> calls, bool mayAnswerHolds)
+    {
+        var w = App.Words;
+        unproven = calls;
+        UnprovenCalls.Children.Clear();
+        var gate = NeedsYouScreen.Gate(w);
+        foreach (var call in calls)
+        {
+            var (title, said, amount, why) = DidThisHappen.Card(w, call);
+            var lines = new StackPanel { Spacing = 10 };
+            lines.Children.Add(Line(title, 13, "TafsAmberWords", semibold: true));
+            lines.Children.Add(Line(said, 15, "TafsInkText", semibold: true));
+            if (amount is not null) lines.Children.Add(Line(amount, 15, "TafsInkText"));
+            if (why is not null) lines.Children.Add(Line(why, 13, "TafsSoftText"));
+            if (mayAnswerHolds)
+            {
+                var add = new Button { Content = gate.Add, Style = (Style)Application.Current.Resources["TafsOutlineButton"] };
+                add.Click += OnAddThisDevice;
+                lines.Children.Add(new StackPanel { Spacing = 8, Children = { Line(gate.Lead, 13, "TafsSoftText"), add } });
+            }
+            var card = new Border
+            {
+                Background = ThemeBrush("TafsPanel"), BorderBrush = (Brush)Application.Current.Resources["TafsAmberEdge"],
+                BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18), Padding = new Thickness(16), Child = lines,
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(card, "happened." + call.Proposal);
+            UnprovenCalls.Children.Add(card);
+        }
+        ShowEmpty();
+    }
+
+    /// <summary>A theme brush in this page's theme, as <see cref="CoachPanel"/> finds one: Theme.xaml's dictionaries first.</summary>
+    Brush ThemeBrush(string key)
+    {
+        var theme = ActualTheme == ElementTheme.Dark ? "Dark" : "Light";
+        foreach (var merged in Application.Current.Resources.MergedDictionaries.Prepend(Application.Current.Resources))
+            if (merged.ThemeDictionaries.TryGetValue(theme, out var found) && found is ResourceDictionary d && d.TryGetValue(key, out var brush)
+                && brush is Brush b)
+                return b;
+        return (Brush)Application.Current.Resources[key];
+    }
+
+    static TextBlock Line(string text, double size, string style, bool semibold = false) => new()
+    {
+        Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources[style],
+        FontWeight = semibold ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal,
+    };
 }
