@@ -25,7 +25,8 @@ against. What it says is in `Tafs.Core.Record` (`RecordScreen`), tested in the `
 - **Each line,** on a panel with corners of 14:
   - the status dot: green done, approved or started; amber held, sending or unknown; red refused, not
     done or revoked. Those are tafs cloud's kinds (`done`, `approved`, `held`, `refused`, `not_done`,
-    `sending`, `unknown`) and KIFF's `revoked`;
+    `sending`, `unknown`) and KIFF's `revoked`. Any other value reads as unknown, so it waits under
+    Waiting rather than passing as done (`EntryKinds.Parse`);
   - the taf's dot and "Chargebacks · Accept dispute on #3342" in 14 semibold;
   - the time, "00:17", 12 monospaced, 24-hour, this PC's;
   - the detail in 13 soft: "€35, within the Card", the rule that held it, or "Card issued by You".

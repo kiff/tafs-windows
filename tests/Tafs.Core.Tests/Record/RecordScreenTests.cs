@@ -41,6 +41,25 @@ public class RecordScreenTests
     }
 
     [Theory]
+    [InlineData("done", EntryKind.Done)]
+    [InlineData("approved", EntryKind.Approved)]
+    [InlineData("held", EntryKind.Held)]
+    [InlineData("refused", EntryKind.Refused)]
+    [InlineData("not_done", EntryKind.NotDone)]
+    [InlineData("sending", EntryKind.Sending)]
+    [InlineData("unknown", EntryKind.Unknown)]
+    [InlineData("revoked", EntryKind.Revoked)]
+    [InlineData("rolled_back", EntryKind.Unknown)]
+    [InlineData("DONE", EntryKind.Unknown)]
+    [InlineData("", EntryKind.Unknown)]
+    [InlineData(null, EntryKind.Unknown)]
+    public void Each_wire_kind_reads_as_itself_and_anything_else_as_unknown(string? wire, EntryKind kind)
+    {
+        Assert.Equal(kind, EntryKinds.Parse(wire));
+        if (kind == EntryKind.Unknown) Assert.True(RecordScreen.Keeps(RecordFilter.Waiting, new("T", 0, EntryKinds.Parse(wire), "x", "", default)));
+    }
+
+    [Theory]
     [InlineData(EntryKind.Done, Dot.Went)]
     [InlineData(EntryKind.Approved, Dot.Went)]
     [InlineData(EntryKind.Started, Dot.Went)]

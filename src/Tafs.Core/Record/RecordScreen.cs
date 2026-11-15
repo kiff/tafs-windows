@@ -17,6 +17,26 @@ public enum EntryKind { Done, Approved, Held, Refused, NotDone, Sending, Unknown
 /// </summary>
 public sealed record RecordEntry(string Taf, int TafColor, EntryKind Kind, string Title, string Detail, DateTimeOffset At, string? Amount = null);
 
+/// <summary>tafs cloud's and KIFF's words for a kind.</summary>
+public static class EntryKinds
+{
+    /// <summary>
+    /// <c>done</c>, <c>approved</c>, <c>held</c>, <c>refused</c>, <c>not_done</c>, <c>sending</c>, <c>unknown</c>, <c>revoked</c>:
+    /// anything else is Unknown, so a kind added later waits under Waiting rather than passing as done.
+    /// </summary>
+    public static EntryKind Parse(string? kind) => kind switch
+    {
+        "done" => EntryKind.Done,
+        "approved" => EntryKind.Approved,
+        "held" => EntryKind.Held,
+        "refused" => EntryKind.Refused,
+        "not_done" => EntryKind.NotDone,
+        "sending" => EntryKind.Sending,
+        "revoked" => EntryKind.Revoked,
+        _ => EntryKind.Unknown,
+    };
+}
+
 /// <summary>A line's dot's colour: green, amber or red.</summary>
 public enum Dot { Went, Waiting, Stopped }
 
