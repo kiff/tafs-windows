@@ -330,14 +330,14 @@ public sealed partial class MainWindow : Window
     /// <summary>
     /// For screenshots, tafs cloud's answers from the contracts beside <paramref name="homeFile"/>: Home's from it, a taf's
     /// runs from taf-runs.json, a run's report from taf-run-report.json, its Activity from taf-activity.json and its Setup from
-    /// taf-setup.json; Coach's from coach-setup.json, coach-chats.json and coach-conversation.json. With no such file, it reads
+    /// taf-setup.json; Coach's from setup-coach.json, coach-chats.json and coach-conversation.json. With no such file, it reads
     /// as not reached.
     /// </summary>
     static CloudRead ContractRead(Tafs.Core.Words.WordBook w, string homeFile, string path)
     {
         var file = path == HomeList.Path ? homeFile
             : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!,
-                path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "coach-setup.json"
+                path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "setup-coach.json"
                 : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json"
                 : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
         return File.Exists(file) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(file)) : CloudRead.Unreached(w);

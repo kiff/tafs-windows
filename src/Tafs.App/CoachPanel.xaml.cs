@@ -160,6 +160,7 @@ public sealed partial class CoachPanel : UserControl
                 if (shown.Card.Kind == "questions") ThreadItems.Children.Add(QuestionsCard(thread, shown));
                 else if (shown.Card.Kind == "notice") ThreadItems.Children.Add(Notice(shown.Card));
                 else if (shown.Card.Kind == "result") ThreadItems.Children.Add(Result(thread, shown));
+                else if (shown.Card.Kind == "confirm") ThreadItems.Children.Add(Confirm(thread, shown.Card));
                 continue;
             }
             var m = items[i].Message!;
@@ -327,6 +328,37 @@ public sealed partial class CoachPanel : UserControl
         return new Border { Style = (Style)Application.Current.Resources["TafsCard"], BorderBrush = Brush("TafsOk"), Child = panel };
     }
 
+    /// <summary>
+    /// A confirm, as the iPad's <c>SetupComponentView.confirm</c>: Coach's question at 15 and its options as capsules at 14,
+    /// each answering the card with its value; while it's sent, faded and off. Answered, one line: "Live or test? · Test
+    /// mode". Off for someone who may not answer Coach, as Send answers is.
+    /// </summary>
+    StackPanel Confirm(CoachThread thread, CoachCard c)
+    {
+        var w = App.Words;
+        var box = new StackPanel { Spacing = 8 };
+        if (thread.AnswerTo(c.Id) is { } reply)
+        {
+            var chosen = c.Options?.FirstOrDefault(o => o.Value == reply.Text)?.Label ?? reply.Text;
+            box.Children.Add(QuestionsCardView.Outcome((c.Text ?? w.Get("coach.questions.the_question")) + " · " + chosen, Brush));
+            return box;
+        }
+        box.Children.Add(Words(c.Text ?? "", 15, "TafsInkText"));
+        var busy = answered.Contains(thread.CardRef(c.Id));
+        var row = new WrapRow { Spacing = 8 };
+        foreach (var option in c.Options ?? [])
+        {
+            var choice = new Button { Content = option.Label, Style = (Style)Application.Current.Resources["TafsBox"], FontSize = 14, Foreground = Brush("TafsInk"),
+                Background = Brush("TafsPanel"), BorderBrush = Faint("TafsInk", 0.18), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18), MinHeight = 36,
+                Padding = new Thickness(14, 9, 14, 9), IsEnabled = !busy && answer is not null, Opacity = busy ? 0.45 : 1 };
+            choice.Click += (_, _) => _ = AnswerAsync(thread, c.Id, option.Value);
+            row.Children.Add(choice);
+        }
+        box.Children.Add(row);
+        if (notes.GetValueOrDefault(c.Id) is { } note) box.Children.Add(QuestionsCardView.Note(note, Brush));
+        return box;
+    }
+
     /// <summary>The plan pinned above the thread is folded to its step in progress until opened, so the chat comes first.</summary>
     bool planOpen;
 
@@ -430,7 +462,7 @@ public sealed partial class CoachPanel : UserControl
     }
 
     /// <summary>The kinds of card drawn so far: the others come in their own changes, their answers in bubbles until then.</summary>
-    static readonly string[] Kinds = ["questions", "notice", "result"];
+    static readonly string[] Kinds = ["questions", "notice", "result", "confirm"];
 
     QuestionsCardView QuestionsCard(CoachThread thread, ShownCard shown)
     {
