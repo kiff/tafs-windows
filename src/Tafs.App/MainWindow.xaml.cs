@@ -39,6 +39,12 @@ public sealed partial class MainWindow : Window
     /// <summary>The holds this session has read, so only one held since the last read is notified; none before the first read.</summary>
     HashSet<string>? notified;
 
+    /// <summary>
+    /// KIFF's held calls read again every minute while a session is in use: the iPad hears of a new hold by push, which
+    /// Windows doesn't have yet, so this is how a notification comes while tafs is open.
+    /// </summary>
+    readonly DispatcherTimer heldClock = new() { Interval = TimeSpan.FromMinutes(1) };
+
     /// <summary>The Record's lines: KIFF's activity once Home is read as the session, else none, or the iPad's sample.</summary>
     IReadOnlyList<RecordEntry> record;
     /// <summary>How this window reads KIFF for the Record: as the session, or a stand-in file for a screenshot; none signed out.</summary>
@@ -124,6 +130,10 @@ public sealed partial class MainWindow : Window
         SignInPage.PairInsteadChosen += OpenPairing;
         NeedsYouPage.AddThisDeviceChosen += OpenPairing;
         Toasts.HoldChosen += hold => DispatcherQueue.TryEnqueue(() => OpenHold(hold));
+        heldClock.Tick += (_, _) =>
+        {
+            if (home is { } listed && kiffRead is not null) _ = ReadHeldAsync(listed, sessions);
+        };
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
         // Focus goes back to the sidebar's Coach when Coach mode has gone.
         CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
@@ -351,6 +361,7 @@ public sealed partial class MainWindow : Window
         CoachMode.Drafts = async id => (await KiffReadAsync(bearer, Tafs.Core.Approvals.KiffDrafts.Path(id))).Answer is { } d ? Tafs.Core.Approvals.KiffDrafts.Read(d) : null;
         CoachMode.Read = path => CloudReadAsync(bearer, path);
         _ = ReadHomeAsync(path => CloudReadAsync(bearer, path));
+        heldClock.Start();
         _ = AllowCoachAsync(bearer);
     }
 
@@ -374,6 +385,7 @@ public sealed partial class MainWindow : Window
         if (Pages.Content is RecordPage page) page.ShowEntries(record);
         if (!sampleHeld) ShowHeld([]);
         notified = null;
+        heldClock.Stop();
         ShowHome(new HomeAnswer([], null));
         CoachMode.Read = null;
         CoachMode.Answer = null;

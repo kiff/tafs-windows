@@ -70,6 +70,8 @@ While tafs runs, a call KIFF holds gets a Windows notification, as the iPad's ho
   - "Rae needs you" (or "A taf needs you");
   - then "Refund order 42, €150.00 · Over €50 each. Answer by 14:05. Nothing is sent until you approve.", answering by
     this PC's time, as every screen here shows it.
+- **When it's read:** with each refresh of Home's list, and every minute while a session is in use. The iPad hears of a
+  new hold by push instead, which Windows doesn't have yet.
 - **Which holds:** one KIFF has held since the last read of Needs you. A session's first read notifies nothing, so opening
   tafs doesn't announce what was already waiting: it's all in Needs you. A sample is never notified. A sign-out starts
   again.
@@ -82,4 +84,3 @@ While tafs runs, a call KIFF holds gets a Windows notification, as the iPad's ho
   - a notification while tafs is closed, which needs a push from tafs cloud, as the iPad's;
   - Approve and Refuse on the notification itself;
   - taking a hold's notification away once it's answered elsewhere;
-  - reading again on its own while open. Holds are read with each refresh of Home's list.
