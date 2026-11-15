@@ -49,6 +49,11 @@ public class DevicesTests
     [InlineData("en", 8 * 86400, "1 week ago")]
     [InlineData("en", 61 * 86400, "2 months ago")]
     [InlineData("en", 800 * 86400, "2 years ago")]
+    // The edges, where this counts 30-day months and 365-day years and Apple counts calendar units.
+    [InlineData("en", 29 * 86400, "4 weeks ago")]
+    [InlineData("en", 30 * 86400, "1 month ago")]
+    [InlineData("en", 364 * 86400, "12 months ago")]
+    [InlineData("en", 365 * 86400, "1 year ago")]
     [InlineData("fr", 3600, "il y a 1 heure")]
     [InlineData("fr", 3 * 3600, "il y a 3 heures")]
     [InlineData("de", 2 * 86400, "vor 2 Tagen")]
