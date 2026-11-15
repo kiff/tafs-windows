@@ -22,7 +22,7 @@ One sidebar for the whole app, as on the iPad ([the sidebar and the Overview](ho
 The chosen screen opens beside it. The colours are the iPad's `Theme.swift`, light and dark (`Theme.xaml`), and they follow Windows' setting. The chosen row is a rounded fill, as on the iPad.
 
 Built so far:
-- [Sign in with KIFF](sign-in.md);
+- [Sign in with KIFF](sign-in.md), its session kept across launches ([the session](session.md));
 - the sidebar and the Overview's empty state, as on the iPad ([home](home.md));
 - Add this Windows PC, with its view-only notice ([pairing](pairing.md));
 - Needs you's cards, as on the iPad ([needs you](needs-you.md));

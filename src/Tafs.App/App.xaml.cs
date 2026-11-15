@@ -18,6 +18,9 @@ public partial class App : Application
     /// <summary>The words in the person's language, read from the pinned files beside the app.</summary>
     public static WordBook Words { get; private set; } = null!;
 
+    /// <summary>This PC's kept session.</summary>
+    internal static SessionStore Sessions { get; } = new();
+
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         var options = Environment.GetCommandLineArgs();

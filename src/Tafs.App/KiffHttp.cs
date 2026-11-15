@@ -15,13 +15,15 @@ static class KiffHttp
     static KiffHttp() => Client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("tafs-windows", "0.1"));
 
     /// <exception cref="HttpRequestException">KIFF wasn't reached.</exception>
-    public static async Task<(int Status, string Body)> PostAsync(string path, byte[] body, CancellationToken cancel = default)
+    /// <param name="bearer">The session's token, for a call as that session.</param>
+    public static async Task<(int Status, string Body)> PostAsync(string path, byte[] body, CancellationToken cancel = default, string? bearer = null)
     {
-        using var content = new ByteArrayContent(body);
-        content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        using var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = new ByteArrayContent(body) };
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        if (bearer is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
         try
         {
-            using var answer = await Client.PostAsync(path, content, cancel);
+            using var answer = await Client.SendAsync(request, cancel);
             return ((int)answer.StatusCode, await answer.Content.ReadAsStringAsync(cancel));
         }
         catch (TaskCanceledException) when (!cancel.IsCancellationRequested)
