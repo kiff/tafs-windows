@@ -14,7 +14,7 @@
     "approvals": ["src/*/Approvals/**", "tests/*/Approvals/**", "src/*/NeedsYou/**", "tests/*/NeedsYou/**", "src/*/Kiff/**", "tests/*/Kiff/**"],
     "home": ["src/*/Home/**", "tests/*/Home/**"],
     "coach": ["src/*/Coach/**", "tests/*/Coach/**"],
-    "record": ["src/*/Record/**", "tests/*/Record/**"],
+    "record": ["src/*/Record/**", "tests/*/Record/**", "src/*/Taf/**", "tests/*/Taf/**"],
     "connections": ["src/*/Connections/**", "tests/*/Connections/**"],
     "calendar": ["src/*/Calendar/**", "tests/*/Calendar/**", "src/*/Usage/**", "tests/*/Usage/**"],
     "account": ["src/*/Account/**", "tests/*/Account/**"],
