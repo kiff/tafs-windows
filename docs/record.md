@@ -64,11 +64,39 @@ of KIFF. With neither, the Record is empty; `--sample` shows the reference set's
 shipped language: what the five sample tafs did today, the two held calls, and each taf started with its
 Card. The sample's words are the shared sample words.
 
+## A line's sheet
+
+A tap on a line opens its sheet (`ReceiptSheet`), as the iPad's `ReceiptView`; Narrator reads the line
+as one, with "Shows the receipt". In `Tafs.Core.Record` (`Receipt`):
+
+- **The head:** the dot and who answered it ("Approved once by an admin"), else what became of it
+  ("Done within the Card"), then the title with its amount at 30 bold.
+- **The facts:** Taf; When, with seconds; Outcome ("Done. €150 moved.", "Not sent. Its Card refused
+  it."); Why, in KIFF's words when it said; Decided by ("You, approving once", "An admin, signed on iPad",
+  "KIFF, against the Card", or "The Card" for the sample's lines).
+- **KIFF's receipt,** for a line that has one: `GET /v1/receipts/{trace_id}` on KIFF, as the session,
+  kept as KIFF wrote it. Its chain (`causal_chain`) is taken as written, never decoded and written again
+  (`RawJson`, as the iPad's `RawJSON`), since that's what KIFF signed.
+  - **What happened:** each step KIFF signed, its message (else its kind in words) and its time, on a
+    line of dots.
+  - **The receipt's panel:** the decision in the receipt's words and when it was issued ("held →
+    approved once by you · issued …"), and Copy receipt. Until the check, it has no heading: it's never
+    called KIFF's receipt, or checked, before it is.
+  - **A line the steps contradict** says KIFF's receipt doesn't check out, and why: the decision step
+    signed another amount, or the hold was settled with another answer (KIFF writes a refusal "reject").
+    Amounts are compared as numbers with their unit, so "150.00" and "150" agree. The iPad compares
+    the strings, which would call that a contradiction. One that isn't a number is compared as written.
+  - **Not read:** why, and Try again.
+- For a screenshot, `--home` reads `kiff-receipt.json` beside the Home file as the receipt.
+
 ## Not yet
 
 - **The tafs' chips are the tafs in the lines.** On the iPad they're the account's tafs, so a taf with no
   line yet still has its chip. They switch when the tafs list arrives.
-- **A line's receipt.** On the iPad, a tap opens KIFF's receipt; here, lines don't open yet.
+- **KIFF's signature on the receipt, checked on this PC** (`ReceiptCheck`), with what comes of it: checked,
+  doesn't check out, or not signed yet; and Show the full receipt, with its signer. Until then, the sheet
+  shows the receipt and never says it's checked.
+- **Open in the taf's chat,** at the sheet's foot on the iPad.
 - **From the iPad's Record, still to come:**
   - what happened in tafs itself beside KIFF's calls (its events);
   - answers given on this PC folded in (`withDecisions`);
