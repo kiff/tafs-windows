@@ -13,9 +13,11 @@ public enum EntryKind { Done, Approved, Held, Refused, NotDone, Sending, Unknown
 
 /// <summary>
 /// One line of the Record: a taf's call, what KIFF decided and what the tool did. <paramref name="Amount"/> is
-/// the money it moved, already written in the person's money; its words are in <paramref name="Detail"/>.
+/// the money it moved, already written in the person's money; its words are in <paramref name="Detail"/>. <paramref name="Call"/> is
+/// KIFF's call it's from, for its receipt; none for the sample's.
 /// </summary>
-public sealed record RecordEntry(string Taf, int TafColor, EntryKind Kind, string Title, string Detail, DateTimeOffset At, string? Amount = null);
+public sealed record RecordEntry(string Taf, int TafColor, EntryKind Kind, string Title, string Detail, DateTimeOffset At, string? Amount = null,
+    ActivityCall? Call = null);
 
 /// <summary>tafs cloud's and KIFF's words for a kind.</summary>
 public static class EntryKinds
