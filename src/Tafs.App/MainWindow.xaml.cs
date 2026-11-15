@@ -160,6 +160,8 @@ public sealed partial class MainWindow : Window
             record = [];
             CoachMode.Read = null;
             CoachMode.Answer = null;
+            CoachMode.Grants = null;
+            CoachMode.Drafts = null;
             CoachMode.Forget();
             OpenSignIn();
         };
@@ -197,6 +199,13 @@ public sealed partial class MainWindow : Window
             var activity = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!, "kiff-activity.json");
             kiffRead = _ => Task.FromResult(File.Exists(activity) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(activity)) : CloudRead.Unreached(w));
             _ = ReadHomeAsync(path => Task.FromResult(ContractRead(w, homeFile, path)));
+            // An approval card's grants and draft from stand-ins beside it, if there are any: planque-grants.json, as planque
+            // writes it, and kiff-draft.json. Given before Coach's read, which reads them as it draws.
+            var beside = Path.GetDirectoryName(Path.GetFullPath(homeFile))!;
+            CoachMode.Grants = () => Task.FromResult(File.Exists(Path.Combine(beside, "planque-grants.json"))
+                ? Tafs.Core.Kiff.PlanqueGrants.Read(File.ReadAllBytes(Path.Combine(beside, "planque-grants.json"))) : null);
+            CoachMode.Drafts = _ => Task.FromResult(File.Exists(Path.Combine(beside, "kiff-draft.json"))
+                ? Tafs.Core.Approvals.KiffDrafts.Read(Tafs.Core.Contracts.ContractFile.Answer(Path.Combine(beside, "kiff-draft.json"))) : null);
             CoachMode.Read = path => Task.FromResult(ContractRead(w, homeFile, path));
             // The first taf's page, its Activity from taf-activity.json beside the Home contract.
             if (page is "taf" or "taf-setup" && home?.Tafs.FirstOrDefault() is { } first)
@@ -286,6 +295,9 @@ public sealed partial class MainWindow : Window
         ShowHome(new HomeAnswer([], null));
         CoachMode.Answer = null;
         CoachMode.Forget();
+        // Given before Coach's read, which reads them as it draws its approvals.
+        CoachMode.Grants = () => GrantsAsync(session);
+        CoachMode.Drafts = async id => (await KiffReadAsync(bearer, Tafs.Core.Approvals.KiffDrafts.Path(id))).Answer is { } d ? Tafs.Core.Approvals.KiffDrafts.Read(d) : null;
         CoachMode.Read = path => CloudReadAsync(bearer, path);
         _ = ReadHomeAsync(path => CloudReadAsync(bearer, path));
         _ = AllowCoachAsync(bearer);
@@ -351,6 +363,22 @@ public sealed partial class MainWindow : Window
             var devices = await ReadAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, PlanqueProof.DevicesPath), session.AccessToken);
             return deviceId = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
         }, key, () => SigningTime.Next(DateTimeOffset.UtcNow));
+    }
+
+    /// <summary>
+    /// planque's grants for the approval cards, as the iPad's <c>refreshConnections</c>: read on planque as this device, with
+    /// the same signature as Setup's proof (it signs this very read), never with KIFF's token. None without the proof, or when
+    /// planque isn't reached, answers otherwise, or sends what can't be read.
+    /// </summary>
+    async Task<IReadOnlyList<Tafs.Core.Kiff.PlanqueGrant>?> GrantsAsync(KeptSession session)
+    {
+        if (await SetupProofAsync(session) is not { } proof) return null;
+        try
+        {
+            var (status, body) = await KiffHttp.PlanqueGetAsync(new Uri(PlanqueProof.Api, PlanqueProof.GrantsPath(session.Tenant)), proof, App.Words.Language);
+            return status is >= 200 and <= 299 ? Tafs.Core.Kiff.PlanqueGrants.Read(System.Text.Encoding.UTF8.GetBytes(body)) : null;
+        }
+        catch (System.Net.Http.HttpRequestException) { return null; }
     }
 
     /// <summary>
