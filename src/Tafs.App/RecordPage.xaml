@@ -1,0 +1,75 @@
+<!-- The Record (the iPad's RecordView): everything the tafs did, were refused, or asked, newest first, by day.
+     Narrowed by taf and by what became of it. -->
+<Page x:Class="Tafs.App.RecordPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:local="using:Tafs.App"
+      Background="{ThemeResource TafsBackground}">
+  <ScrollViewer>
+    <StackPanel Padding="24" Spacing="10">
+      <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
+      <TextBlock x:Name="Lead" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+
+      <ScrollViewer HorizontalScrollBarVisibility="Hidden" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+        <StackPanel x:Name="TafChips" Orientation="Horizontal" Spacing="6" />
+      </ScrollViewer>
+      <StackPanel x:Name="FilterChips" Orientation="Horizontal" Spacing="6" />
+
+      <TextBlock x:Name="Empty" FontSize="14" Foreground="{ThemeResource TafsDim}" Margin="0,8,0,0" Visibility="Collapsed" />
+
+      <ItemsControl x:Name="Days">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate><StackPanel Spacing="10" /></ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="local:RecordDayView">
+            <StackPanel Spacing="10">
+              <!-- "TODAY · NOV 15": 11 medium, monospaced, in capitals, dim. -->
+              <TextBlock Text="{x:Bind Title}" FontSize="11" FontWeight="Medium" FontFamily="Cascadia Mono, Consolas"
+                         Foreground="{ThemeResource TafsDim}" Margin="0,6,0,0" />
+              <ItemsControl ItemsSource="{x:Bind Entries}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><StackPanel Spacing="10" /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="local:RecordLineView">
+                    <Border Background="{ThemeResource TafsPanel}" BorderBrush="{ThemeResource TafsLine}" BorderThickness="1"
+                            CornerRadius="14" Padding="14">
+                      <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="Auto" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <!-- What became of it: green done, amber waiting, red refused. -->
+                        <Grid VerticalAlignment="Top" Margin="0,6,0,0">
+                          <Ellipse Width="9" Height="9" Fill="{ThemeResource TafsOk}" Visibility="{x:Bind IsDone}" />
+                          <Ellipse Width="9" Height="9" Fill="{StaticResource TafsAmber}" Visibility="{x:Bind IsWaiting}" />
+                          <Ellipse Width="9" Height="9" Fill="{ThemeResource TafsNo}" Visibility="{x:Bind IsRefused}" />
+                        </Grid>
+                        <StackPanel Grid.Column="1" Spacing="4">
+                          <Grid ColumnSpacing="6">
+                            <Grid.ColumnDefinitions>
+                              <ColumnDefinition Width="Auto" />
+                              <ColumnDefinition Width="*" />
+                              <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Ellipse Width="8" Height="8" Fill="{x:Bind TafColour}" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"
+                                       Foreground="{ThemeResource TafsInk}" />
+                            <TextBlock Grid.Column="2" Text="{x:Bind Time}" FontSize="12" FontFamily="Cascadia Mono, Consolas"
+                                       Foreground="{ThemeResource TafsDim}" Margin="12,0,0,0" />
+                          </Grid>
+                          <TextBlock Text="{x:Bind Detail}" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</Page>

@@ -6,8 +6,8 @@ namespace Tafs.App;
 
 /// <summary>
 /// tafs for Windows. It draws what tafs cloud sends; this first shell has no network yet.
-/// Options: --lang &lt;code&gt; to speak a shipped language, --theme light|dark, --page pair|sign-in|needs-you to open a screen,
-/// --view-only to show the session as view-only, --sample for the iPad's sample held calls in Needs you, and --screenshot &lt;file.png&gt; to save the window and quit.
+/// Options: --lang &lt;code&gt; to speak a shipped language, --theme light|dark, --page pair|sign-in|needs-you|record to open a screen,
+/// --view-only to show the session as view-only, --sample for the iPad's sample held calls and Record, and --screenshot &lt;file.png&gt; to save the window and quit.
 /// </summary>
 public partial class App : Application
 {
