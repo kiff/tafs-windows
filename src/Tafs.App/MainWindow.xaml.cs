@@ -148,15 +148,11 @@ public sealed partial class MainWindow : Window
         AccountPage.SignInChosen += OpenSignIn;
         AccountPage.AlertsChosen += () => OpenBeside(typeof(ComingPage), w.Get("settings.alerts"));
         AccountPage.AddThisDeviceChosen += OpenPairing;
-        // As the iPad's sign-out: Coach reads and answers as no one, and forgets the thread and what was answered; the device's
-        // id goes, so the next session reads its own.
+        // As the iPad's sign-out (its forgetSession): everything read as the last session goes, and nothing reads as anyone.
         AccountPage.SignedOut += () =>
         {
             ViewOnly.IsOpen = false;
-            deviceId = null;
-            CoachMode.Read = null;
-            CoachMode.Answer = null;
-            CoachMode.Forget();
+            ForgetSession();
             OpenSignIn();
         };
         // Leaving the sample: the app starts again without it, as the iPad's Clear the sample leaves it.
@@ -252,17 +248,31 @@ public sealed partial class MainWindow : Window
     void UseSession(KeptSession session)
     {
         var bearer = session.AccessToken;
-        sessions++;
-        cloudRead = null;
-        deviceId = null;
+        ForgetSession();
         cloudReadWithProof = (path, proof) => CloudReadAsync(bearer, path, proof);
         setupProof = () => SetupProofAsync(session);
-        ShowHome(new HomeAnswer([], null));
-        CoachMode.Answer = null;
-        CoachMode.Forget();
         CoachMode.Read = path => CloudReadAsync(bearer, path);
         _ = ReadHomeAsync(path => CloudReadAsync(bearer, path));
         _ = AllowCoachAsync(bearer);
+    }
+
+    /// <summary>
+    /// As the iPad's <c>forgetSession</c>, at sign-out and before each new session: what the last session read goes
+    /// (Home's list, on the Overview and under Your tafs; the pages' reads and Setup's proof; this device's id; Coach's
+    /// thread, what was answered and whether it may answer), and a read it started that lands later is dropped. Until a
+    /// session is used, nothing reads as anyone.
+    /// </summary>
+    void ForgetSession()
+    {
+        sessions++;
+        cloudRead = null;
+        cloudReadWithProof = null;
+        setupProof = null;
+        deviceId = null;
+        ShowHome(new HomeAnswer([], null));
+        CoachMode.Read = null;
+        CoachMode.Answer = null;
+        CoachMode.Forget();
     }
 
     /// <summary>
