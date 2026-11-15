@@ -19,7 +19,7 @@ public sealed record CardQuestion(string Id, string Text, IReadOnlyList<CardChoi
 /// </summary>
 public sealed record CoachCard(string Kind, string Id, string? Title = null, string? Text = null, string? Tone = null,
     IReadOnlyList<CardChoice>? Options = null, IReadOnlyList<CardQuestion>? Questions = null, string? Waits = null,
-    IReadOnlyList<PlanStep>? Steps = null)
+    IReadOnlyList<PlanStep>? Steps = null, CardTaf? Taf = null, IReadOnlyList<string>? Tools = null, string? Yes = null)
 {
     public static readonly string[] Kinds = ["steps", "notice", "confirm", "questions", "approval", "sign_in", "result", "knob", "drive"];
 }
@@ -29,6 +29,18 @@ public sealed record CoachCard(string Kind, string Id, string? Title = null, str
 /// doesn't wait any more (409, read again); refused for want of the AI-data consent (the card stays as chosen); or not reached.
 /// </summary>
 public enum CardSent { Sent, ReadAgain, Consent, NotReached }
+
+/// <summary>
+/// The taf a result card hands over, as the iPad's <c>SetupComponent.Taf</c>: its KIFF agent and name; for an improvement,
+/// the tafs cloud id of the taf it's the next version of (<paramref name="Improves"/>), and what changed.
+/// </summary>
+public sealed record CardTaf(string Agent, string Name, string? Improves = null, string? Note = null);
+
+/// <summary>
+/// What tafs cloud made of a result it answered itself, as the iPad's <c>CardAnswer.Outcome</c>, each part read on its own:
+/// the taf it set up, the version it made, why it made neither, or its words when no plan lets the taf run.
+/// </summary>
+public sealed record CardOutcome(string? TafId, int? Version, string? Failed, string? PlanNeeded);
 
 /// <summary>One step of Coach's plan, as the iPad's <c>SetupComponent.Step</c>: its words, and pending, active, done, failed or skipped.</summary>
 public sealed record PlanStep(string Label, string Status)
@@ -60,7 +72,7 @@ static class Shape
 }
 
 /// <summary>A card's answer as kiff/agents recorded it (the iPad's <c>CardAnswer</c>): its state, its words, and when.</summary>
-public sealed record CardAnswer(string State, string Words, DateTimeOffset? At);
+public sealed record CardAnswer(string State, string Words, DateTimeOffset? At, CardOutcome? Outcome = null);
 
 /// <summary>
 /// A card as the thread holds it (the iPad's <c>ShownComponent</c>): where it first appeared, its latest version, and its
@@ -89,7 +101,17 @@ public sealed record ShownCard(DateTimeOffset FirstAt, string Session, string Ru
     {
         if (field is not { ValueKind: JsonValueKind.Object } a || !Shape.Optional(a, "state", Shape.Text) || !Shape.Optional(a, "words", Shape.Text)
             || !Shape.Optional(a, "by", Shape.Text)) return null;
-        return new CardAnswer(Lenient.Text(a, "state") ?? "answered", Lenient.Text(a, "words") ?? "", Lenient.At(a, "at"));
+        return new CardAnswer(Lenient.Text(a, "state") ?? "answered", Lenient.Text(a, "words") ?? "", Lenient.At(a, "at"), Outcome(Lenient.Field(a, "outcome")));
+    }
+
+    /// <summary>The outcome as the iPad reads it with <c>try?</c>, part by part: one part of another shape is none, never the rest.</summary>
+    static CardOutcome? Outcome(JsonElement? field)
+    {
+        if (field is not { ValueKind: JsonValueKind.Object } o) return null;
+        var planNeeded = Lenient.Field(o, "plan_needed") is { ValueKind: JsonValueKind.Object } p && Lenient.Text(p, "words")?.Trim() is { Length: > 0 } words
+            ? words : null;
+        return new CardOutcome(Lenient.Text(o, "taf_id"), Lenient.Field(o, "version") is { } v && Shape.Int(v) ? (int)v.GetDouble() : null,
+            Lenient.Text(o, "failed"), planNeeded);
     }
 
     /// <summary>
@@ -116,7 +138,11 @@ public sealed record ShownCard(DateTimeOffset FirstAt, string Session, string Ru
             ? ss.EnumerateArray().Select(x => new PlanStep(Lenient.Text(x, "label")!, Lenient.Text(x, "status")!)).ToList()
             : null;
         return new CoachCard(c.GetProperty("type").GetString()!, c.GetProperty("id").GetString()!, Lenient.Text(c, "title"), Lenient.Text(c, "text"),
-            Lenient.Text(c, "tone"), options, questions, Lenient.Text(c, "waits"), steps);
+            Lenient.Text(c, "tone"), options, questions, Lenient.Text(c, "waits"), steps,
+            Lenient.Field(c, "taf") is { ValueKind: JsonValueKind.Object } t
+                ? new CardTaf(Lenient.Text(t, "agent")!, Lenient.Text(t, "name")!, Lenient.Text(t, "improves"), Lenient.Text(t, "note")) : null,
+            Lenient.Field(c, "tools") is { ValueKind: JsonValueKind.Array } tools ? tools.EnumerateArray().Select(x => x.GetString()!).ToList() : null,
+            Lenient.Text(c, "yes"));
     }
 
     // The shapes inside a card, as the iPad declares them: Step, Option, Question with its Choice, Taf, Connection.

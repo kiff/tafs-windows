@@ -24,6 +24,8 @@ public class HomeListTests
 
         var taf = Assert.Single(home.Tafs);
         Assert.Equal(("taf-aaaa0000000000000000", "Rae", 0, "working"), (taf.Id, taf.Name, taf.Colour, taf.StateKey));
+        // Its KIFF agent: what Coach's result card names the taf by.
+        Assert.Equal("rae", taf.Agent);
         Assert.Equal("Next run Fri 12:30", taf.Now);
         Assert.Equal("Its last 2 checks found work too big for one run, so nothing ran", taf.Attention);
         Assert.Equal("card_rae", Assert.Single(taf.Cards).Id);

@@ -48,6 +48,13 @@ the newest by update's `GET /v1/tafs/{id}/conversation/{session}` (the whole thr
   Show them again). Answered, it's one line, "Your answers · Test mode · Weekdays", and the answer's bubble is folded in.
 - **A notice** (as `SetupComponentView.notice`): its title at 14 in its tone's colour (error the red, warning the amber,
   success the green, else soft), its words in the ink, on that colour at 10%.
+- **A result** (as `SetupComponentView.result`), on the panel with a green edge, its eyebrow in the green:
+  - **a new taf's hand-over:** "SET UP · RAE", Coach's words, its tools in words (`toolWords`), then by tafs cloud's
+    outcome: set up, Open (or Coach's own words, else "See it on Rae"), which closes Coach and opens the taf's page; with
+    `plan_needed`, its words in the amber and Choose a plan, which opens Plan & usage; not set up, why in the red and "Coach
+    knows, and hands it over again."; else "Setting up Rae…". The taf is found by its KIFF agent in Home's list.
+  - **an improvement** (it names the taf it improves): "NEW VERSION · RAE", Coach's words and what changed, then "Version 3
+    is made.", why it wasn't, or Preparing the new version… on a button that's off.
 - **The plan** (as `SetupPlan`), pinned above the thread, never in it: "PLAN · 1 OF 4" and the step it's at with its mark
   (`StepMark`: a tick on the green, a cross on the red, a ring in the amber at work, a faint ring to do). A tap opens every
   step, the active one in bold, a skipped one struck through, those to come dimmed; another folds it. Narrator reads a
@@ -66,7 +73,9 @@ the newest by update's `GET /v1/tafs/{id}/conversation/{session}` (the whole thr
 **Not yet:**
 - **Coach's words as Markdown:** they show as written until `MarkdownText` is ported.
 - **A Coach with an empty thread:** the iPad shows `starts` ("Ask anything"); here the intro stays until writing is ported.
-- **Coach's other cards** (results, confirms, approvals, sign-ins), and the conversation read's proof and `?can=`
+- **See version 3,** which opens the taf's Versions on the iPad: Versions aren't ported, so the made line shows instead,
+  as the iPad does when it can't find the taf.
+- **Coach's other cards** (confirms, approvals, sign-ins), and the conversation read's proof and `?can=`
   (they mark approval cards).
 - **After an answer:** the iPad follows the run's stream as it writes; here the thread is read again, until the stream is
   ported. The AI-data consent's screen isn't ported, so a refusal for it leaves the card as it was, with no line.

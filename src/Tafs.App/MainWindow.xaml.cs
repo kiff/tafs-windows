@@ -104,6 +104,18 @@ public sealed partial class MainWindow : Window
         // Focus goes back to the sidebar's Coach when Coach mode has gone.
         CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
         OverviewPage.TafChosen += key => OpenBeside(typeof(TafPage), OpenTaf(w, key));
+        // A result card in Coach: its taf, or Plan & usage, with Coach closed, as the iPad's beside its sidebar.
+        CoachMode.Tafs = () => home?.Tafs ?? [];
+        CoachMode.TafChosen += key =>
+        {
+            CoachMode.Close();
+            OpenBeside(typeof(TafPage), OpenTaf(w, key));
+        };
+        CoachMode.PlanChosen += () =>
+        {
+            CoachMode.Close();
+            Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
+        };
         OverviewPage.NeedsYouChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         SignInPage.SignedIn += session =>
         {

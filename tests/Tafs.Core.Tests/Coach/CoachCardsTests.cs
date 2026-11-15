@@ -261,4 +261,62 @@ public class CoachCardsTests
         Assert.False(CoachAccess.MayUseCoach(null, ["cards.manage"]));
         Assert.False(CoachAccess.MayUseCoach(null, null));
     }
+
+    const string Result = """{"type": "result", "id": "done", "text": "Refunds is ready.", "tools": ["list_requests_k3f9"], "taf": {"agent": "refunds-x", "name": "Refunds"}}""";
+
+    static ShownCard OneResult(string component, string outcome = "") =>
+        Assert.Single(Thread(Shown(component, answer: outcome.Length == 0 ? "" : $$""", "answer": {"state": "answered", "words": "", "by": "tafs cloud", "outcome": {{outcome}}}""")).Shown);
+
+    /// <summary>As the iPad's handOver(_:listed:) and planNeeded: tafs cloud's outcome, else the list, else still setting up.</summary>
+    [Fact]
+    public void A_hand_over_stands_as_tafs_cloud_answered_it()
+    {
+        ShownCard Card(string outcome) => OneResult(Result, outcome);
+        CoachThread On(ShownCard c) => new([], [], null, [c]);
+
+        var setUp = Card("""{"taf_id": "taf-1"}""");
+        Assert.Equal((HandOverState.SetUp, (string?)null), On(setUp).HandOver(setUp.Ref, listed: false));
+        Assert.Equal(new CardTaf("refunds-x", "Refunds"), setUp.Card.Taf);
+        Assert.Equal(new[] { "list_requests_k3f9" }, setUp.Card.Tools);
+
+        var failed = Card("""{"failed": "no draft."}""");
+        Assert.Equal((HandOverState.Failed, "no draft."), On(failed).HandOver(failed.Ref, listed: true));
+        Assert.Equal("Refunds wasn't set up: no draft.", CoachChat.NotSetUp(En, "Refunds", "no draft."));
+
+        var waiting = OneResult(Result);
+        Assert.Equal(HandOverState.SettingUp, On(waiting).HandOver(waiting.Ref, listed: false).State);
+        Assert.Equal(HandOverState.SetUp, On(waiting).HandOver(waiting.Ref, listed: true).State);
+
+        var noPlan = Card("""{"taf_id": "taf-1", "plan_needed": {"words": " Choose a plan to start it. "}, "version": "x"}""");
+        Assert.Equal("Choose a plan to start it.", On(noPlan).PlanNeeded(noPlan.Ref));
+        Assert.Null(noPlan.Answer!.Outcome!.Version);
+        Assert.Null(On(Card("""{"plan_needed": {"words": "  "}}""")).PlanNeeded(noPlan.Ref));
+    }
+
+    /// <summary>As the iPad's improvement: the version made, why none was, or still preparing.</summary>
+    [Fact]
+    public void An_improvement_is_made_failed_or_preparing()
+    {
+        const string improves = """{"type": "result", "id": "v", "text": "Weekends too.", "taf": {"agent": "rae", "name": "Rae", "improves": "taf-1", "note": "Adds weekends"}}""";
+        CoachThread On(ShownCard c) => new([], [], null, [c]);
+
+        var made = OneResult(improves, """{"version": 3}""");
+        Assert.Equal((ImprovementState.Made, 3, (string?)null), On(made).Improvement(made.Ref));
+        Assert.Equal(new CardTaf("rae", "Rae", "taf-1", "Adds weekends"), made.Card.Taf);
+        var failed = OneResult(improves, """{"failed": "the Card didn't change"}""");
+        Assert.Equal((ImprovementState.Failed, 0, "the Card didn't change"), On(failed).Improvement(failed.Ref));
+        Assert.Equal("Rae's new version wasn't made: the Card didn't change.", CoachChat.NotImproved(En, "Rae", "the Card didn't change"));
+        var preparing = OneResult(improves);
+        Assert.Equal(ImprovementState.Preparing, On(preparing).Improvement(preparing.Ref).State);
+    }
+
+    /// <summary>As the iPad's KIFFMapping.toolWords: after its server and dots, a generated prefix dropped, words for the rest.</summary>
+    [Theory]
+    [InlineData("list_requests_k3f9", "list requests k3f9")]
+    [InlineData("stripe__refunds.create_refund", "create refund")]
+    [InlineData("k3f9a2_issue-refund", "issue refund")]
+    [InlineData("abcdef_x", "abcdef x")]
+    [InlineData("k3f9a2_", "k3f9a2")]
+    [InlineData("___", "___")]
+    public void A_tool_reads_in_words(string tool, string words) => Assert.Equal(words, CoachChat.ToolWords(tool));
 }
