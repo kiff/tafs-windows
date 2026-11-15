@@ -67,6 +67,9 @@ and `Grant`), read before anything is approved:
   - with `digest_v: 2`, `{"lang", "request", "text"}`: the words the person reads, and their language, are signed too;
   - any other version, or v2 without its words or language, covers nothing, so it never matches.
   `DigestMatches` is set here, never read from planque. Only a grant that matches will be approvable.
+- **Each grant against its own bytes:** paired with its entry by its place in the list, never looked up by its id. A
+  repeated id, or bytes listing another number of grants, fails the read: one request's digest never vouches for
+  another's. (The iPad looks its entry up by id.)
 
 The approval key isn't here. On Windows it's a Windows Hello passkey (see [approvals](approvals.md)).
 

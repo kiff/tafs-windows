@@ -68,7 +68,9 @@ public static class PlanqueGrants
     /// <summary>
     /// The account's grants, read as strictly as the iPad's decoder: one it can't read fails the whole read (none). Each
     /// one's digest is checked against what it covers (<see cref="DigestCovers"/>), from the answer's own bytes, numbers as
-    /// written.
+    /// written. Each grant is paired with its own entry in those bytes, by its place in the list, never looked up by its id:
+    /// with a repeated id, one request's digest could vouch for another's. So a repeated id, or bytes that list another
+    /// number of grants, fails the read.
     /// </summary>
     public static IReadOnlyList<PlanqueGrant>? Read(byte[] answer)
     {
@@ -86,12 +88,16 @@ public static class PlanqueGrants
             if (Grant(g) is not { } grant) return null;
             grants.Add(grant);
         }
-        IReadOnlyList<JcsValue> raws;
-        try { raws = Jcs.Parse(answer)["grants"]?.AsArray ?? []; }
-        catch (Jcs.Failure) { raws = []; }
-        return grants.Select(grant =>
+        if (grants.Select(g => g.Id).Distinct(StringComparer.Ordinal).Count() != grants.Count) return null;
+        IReadOnlyList<JcsValue>? raws;
+        try { raws = Jcs.Parse(answer)["grants"]?.AsArray; }
+        // Bytes JCS can't read: every grant is read, and none matches.
+        catch (Jcs.Failure) { return grants; }
+        if (raws is null || raws.Count != grants.Count) return null;
+        return grants.Select((grant, i) =>
         {
-            if (raws.FirstOrDefault(r => r["id"]?.AsString == grant.Id) is not { } raw || raw["request"] is not { } request) return grant;
+            var raw = raws[i];
+            if (raw["id"]?.AsString != grant.Id || raw["request"] is not { } request) return grant;
             grant = grant with { Profile = request["profile"] };
             if (DigestCovers(raw) is not { } covered) return grant;
             try { return grant with { DigestMatches = Convert.ToHexString(SHA256.HashData(Jcs.Canonical(covered))).ToLowerInvariant() == grant.Digest }; }

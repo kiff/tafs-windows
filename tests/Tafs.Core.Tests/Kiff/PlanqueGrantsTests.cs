@@ -54,6 +54,26 @@ public class PlanqueGrantsTests
         Assert.Equal([true, false], Listed(Grant(), V2Grant(digest: "adcf390e1971e767d02d3ca528a4156047bf6de4648b720f91b75b07bd6050b6")).Select(g => g.DigestMatches));
     }
 
+    /// <summary>
+    /// Each grant is checked against its own bytes, by its place in the list: a second entry with the same id, asking for
+    /// another request under the first's digest, never reads as matching. A repeated id fails the read.
+    /// </summary>
+    [Fact]
+    public void A_repeated_id_never_lends_its_digest()
+    {
+        var other = JcsTests.Request.Replace("\"agent\":\"refunds\"", "\"agent\":\"payouts\"");
+        var second = Grant().Replace(JcsTests.Request, other);
+        Assert.NotEqual(Grant(), second);
+
+        Assert.Null(PlanqueGrants.Read(Bytes($"{{\"grants\":[{Grant()},{second}]}}")));
+        Assert.Equal([true, false], Listed(Grant(), Grant("g_02").Replace(JcsTests.Request, other)).Select(g => g.DigestMatches));
+    }
+
+    /// <summary>A request JCS refuses (an integer beyond 2^53 - 1) is read, and never matches.</summary>
+    [Fact]
+    public void A_request_JCS_refuses_never_matches() =>
+        Assert.Equal([false], Listed(Grant().Replace("\"v\":", "\"n\":9007199254740993,\"v\":")).Select(g => g.DigestMatches));
+
     /// <summary>As the iPad's decoder: a grant it can't read fails the read; health and actions are read leniently.</summary>
     [Fact]
     public void A_grant_is_read_as_the_iPad_reads_it()
