@@ -308,6 +308,8 @@ public sealed partial class MainWindow : Window
     void ForgetSession()
     {
         sessions++;
+        // The last export's files too, as the iPad's removeOpenedFiles: a person's chats never stay on this PC after them.
+        ChatsExport.Remove(ChatsExport.Folder);
         cloudRead = null;
         cloudReadWithProof = null;
         setupProof = null;
@@ -577,7 +579,8 @@ public sealed partial class MainWindow : Window
     /// <summary>Account, at the very foot: it opens beside the sidebar, and its icon shows it's open.</summary>
     void OnAccount(object sender, RoutedEventArgs e)
     {
-        OpenBeside(typeof(AccountPage), new AccountOpening(sample, Root.RequestedTheme));
+        OpenBeside(typeof(AccountPage), new AccountOpening(sample, Root.RequestedTheme,
+            path => cloudRead is { } read ? read(path) : Task.FromResult(CloudRead.Unreached(App.Words))));
         ShowAccountChosen(true);
     }
 

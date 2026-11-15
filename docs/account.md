@@ -51,6 +51,25 @@ reference, read-only as here.
 - **Not yet:** the iPad's changes (a new group, renaming or deleting one, adding someone, making them the manager or
   removing them). Each is an approval signed on the device (`changePeople`), as Devices' Sign out.
 
+## Export my chats (`ChatsExport`, `ShareFiles`)
+
+Ported from the iPad's `ExportChatsSection` (ExportChatsView.swift), `AppModel.exportChats` and `TafsCloud.exportChats`
+/ `splitExport`, for a KIFF account, after Language. tafs-macos #79 is a second reference.
+- **The read:** `GET /v1/me/chats/export` from tafs cloud, as the session. `readable` is the text file; the rest is the
+  JSON file, indented, its keys sorted at every level, slashes and letters left as they are. An answer that isn't an
+  object, or a read that fails, says "Your chats weren't exported. Check your connection and try again."
+- **The files:** `tafs-chats.json` and `tafs-chats.txt`, in tafs's folder under Windows' temporary folder. It's removed
+  and made again at each export, and removed at every session change (sign-in, pairing, sign-out), so a person's chats
+  don't stay on this PC after them. Files Windows won't write say "this Windows PC couldn't save the files."
+- **The row:** "Export my chats", with a spinner and "Preparing your chats…" while it's made, and "Try again" after a
+  failure, with why in red. Once made, Windows' share sheet opens with both files, and "Ready: tafs-chats.json,
+  tafs-chats.txt. Share again" opens it again. The footer says what's in it and that only they can export it.
+- **Differences:**
+  - The iPad's share and save sheet is Windows' share sheet, which shares to apps and nearby devices.
+  - The JSON's layout is .NET's indented one (`"key": value`), where Apple writes `"key" : value`; the content and key
+    order are the same.
+  - The iPad writes with iOS's file protection, which Windows has no counterpart for in the temporary folder.
+
 ## Devices (`Devices`, `DevicesPage`)
 
 Ported from the iPad's `DevicesView` and `KIFFClient.Device`, opened from **People & apps**, which shows for a KIFF account
