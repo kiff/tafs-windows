@@ -90,6 +90,7 @@ public sealed partial class MainWindow : Window
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
         // Focus goes back to the sidebar's Coach when Coach mode has gone.
         CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
+        OverviewPage.TafChosen += key => OpenBeside(typeof(TafPage), SampleTaf(w, key, TafTab.Activity));
         OverviewPage.NeedsYouChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         SignInPage.SignedIn += session =>
         {
@@ -206,7 +207,8 @@ public sealed partial class MainWindow : Window
     {
         if (args.SelectedItem is not NavigationViewItem item) return;
         ShowAccountChosen(false);
-        if (item == BrandItem) Pages.Navigate(typeof(OverviewPage), held);
+        if (item == BrandItem)
+            Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, sample ? OverviewScreen.SampleRows(App.Words, DateTimeOffset.UtcNow) : []));
         else if (item.Tag is Screen.NeedsYou or HeldCall) Pages.Navigate(typeof(NeedsYouPage), held);
         else if (item.Tag is Screen.Record) Pages.Navigate(typeof(RecordPage), record);
         else if (item.Tag is Screen.Usage) Pages.Navigate(typeof(UsagePage), usage);
@@ -232,12 +234,22 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>The taf the reference set opens: the sample's Refunds, on its Activity (taf.png), its Setup (taf-setup.png) or its Card (taf-card.png).</summary>
-    static TafOpening SampleTaf(Tafs.Core.Words.WordBook w, TafTab opensOn)
+    TafOpening SampleTaf(Tafs.Core.Words.WordBook w, TafTab opensOn) => SampleTaf(w, "refunds", opensOn);
+
+    /// <summary>
+    /// A sample taf's page, opened from its Overview line: its head (Waiting when a call of its waits), its Card bar and its
+    /// Activity. Refunds, the one the reference set shows, has its Setup and its Cards too.
+    /// </summary>
+    TafOpening SampleTaf(Tafs.Core.Words.WordBook w, string key, TafTab opensOn)
     {
         var now = DateTimeOffset.UtcNow;
-        return new(TafScreen.SampleHead(w), TafScreen.SampleCard(w),
-            filter => TafActivity.Sample(w, TafScreen.SampleTaf(w), filter, now, TimeZoneInfo.Local),
-            new SetupOpening(TafSetup.SampleJob(w), TafSetup.SampleNotes(w, now)), opensOn, TafScreen.SampleCards(w), w.Get("common.you"));
+        var taf = SampleTafs.All(w).First(t => t.Key == key);
+        var head = TafScreen.Head(w, taf.Name, taf.Colour, held.Any(h => h.Taf == taf.Name) ? "waiting" : "working");
+        var activity = (Func<string, ActivityPage>)(filter => TafActivity.Sample(w, taf.Name, filter, now, TimeZoneInfo.Local));
+        return key == "refunds"
+            ? new(head, TafScreen.SampleCard(w), activity, new SetupOpening(TafSetup.SampleJob(w), TafSetup.SampleNotes(w, now)), opensOn,
+                TafScreen.SampleCards(w), w.Get("common.you"))
+            : new(head, taf.Card.Bar(w, 1), activity);
     }
 
     /// <summary>A screen that isn't a sidebar row: no row stays chosen while it's open.</summary>

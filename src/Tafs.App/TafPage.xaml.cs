@@ -57,6 +57,7 @@ public sealed partial class TafPage : Page
         Initial.Text = head.Initial;
         NameText.Text = head.Name;
         StateText.Text = head.State;
+        WaitingText.Text = head.State;
         PausedText.Text = App.Words.Get("taf.state.paused");
         StoppedText.Text = App.Words.Get("taf.state.stopped");
         notes = [.. opening.Setup?.Notes ?? []];
@@ -69,6 +70,7 @@ public sealed partial class TafPage : Page
             AutomationProperties.SetName(CardBar, $"{card.Hero}, {card.Under}");
             AutomationProperties.SetHelpText(CardBar, App.Words.Get("taf.shows_cards"));
         }
+        ShowState();
         ShowTab();
         Show();
     }
@@ -197,10 +199,12 @@ public sealed partial class TafPage : Page
         ShowTab();
     }
 
-    /// <summary>The head's chip: Working in green, Paused soft, Stopped red once its Card is revoked.</summary>
+    /// <summary>The head's chip: Working in green, Waiting amber, Paused soft, Stopped red once its Card is revoked.</summary>
     void ShowState()
     {
-        WorkingChip.Visibility = !paused && !revoked ? Visibility.Visible : Visibility.Collapsed;
+        var waiting = opening?.Head.Waiting == true;
+        WorkingChip.Visibility = !paused && !revoked && !waiting ? Visibility.Visible : Visibility.Collapsed;
+        WaitingChip.Visibility = !paused && !revoked && waiting ? Visibility.Visible : Visibility.Collapsed;
         PausedChip.Visibility = paused && !revoked ? Visibility.Visible : Visibility.Collapsed;
         StoppedChip.Visibility = revoked ? Visibility.Visible : Visibility.Collapsed;
     }

@@ -46,16 +46,34 @@ Today across the tafs, one line each, each line opening its taf:
   end. A row opens Needs you. Times are this PC's, 24-hour, as the iPad shows them;
 - up to 980 wide with its padding of 24, from the leading edge.
 
-The tafs list comes from tafs cloud in its own change. Until then it shows "No tafs yet." under the
+**A taf's line** (`OverviewScreen.SampleRows` for the sample), as the iPad's grid. The whole line opens its taf's
+page, and Narrator reads it as one:
+- **TAF:** the avatar (30, corners of 9) and the name in 15 semibold;
+- **NOW:** "Waiting for you · Run migration 0042_orders_index" while a call of its waits, else what it did last;
+- **CARD:** its Card's figure and words, "9 calls left today of 10", "€23,760 left this week of €25,000";
+- **LAST RESULT:** in the soft colour, two lines at most (`TafRuns.LastResult`, as the iPad's `lastResult`). It shows
+  the first line of its last run's report, its Markdown dropped. A report carries no error, so for a run that stopped
+  with no answer it shows why, from the runs list. Otherwise it shows when it last ran, else "Nothing yet". A taf
+  tafs cloud doesn't run, as the sample's, shows "–".
+
+`--sample` shows the iPad's five tafs, as overview.png: Deploys and Bill pay first, since a call of each waits, then
+Refunds, Chargebacks and Access. Without it, and until tafs cloud lists the tafs, it shows "No tafs yet." under the
 headings.
+
+**tafs cloud's runs** (`TafRuns`): `GET /v1/tafs/{id}/runs` (`contracts/taf-runs.json`) and one run's report,
+`GET /v1/tafs/{id}/runs/{session}` (`taf-run-report.json`, `-running`, `-terminated`). The Overview reads the report of
+the newest run that started. What can't be read reads as none.
 
 ## Not yet
 
 - **+ New**, above Coach on the iPad, comes with Coach: on Windows it would have nothing to open yet.
 - **Where a held call opens.** On the iPad, a held call opens its taf's page, from the sidebar and from
-  the Overview. Here both open Needs you, until a taf's page exists.
-- **The held calls and the tafs** come from KIFF and tafs cloud in their own changes. Until then
-  `--sample` shows the iPad's two sample calls in the sidebar, on the Overview and in Needs you.
+  the Overview, with the call at its top. Here both open Needs you, since a taf's page doesn't draw its held calls yet.
+- **The held calls and the tafs** come from KIFF and tafs cloud in their own changes, with the runs and their reports
+  for Last result. Until then `--sample` shows the iPad's two sample calls and five tafs.
+- **Your tafs in the sidebar:** the iPad lists the sample's tafs there too (Deploys, Bill pay). Here it still says
+  "Connect an app to set up your first taf."
+- **Who uses a taf,** under its name on the Overview ("Support · 3 people"), for whoever manages it.
 - **Coach's sparkle**: the iPad's Coach button has a sparkle (sparkles while Coach drives). Segoe
   Fluent Icons has no sparkle, so it's the closest it has, a star (U+E734).
 - **The rounded type**: the iPad's titles use its rounded system face. Windows has none, so they are

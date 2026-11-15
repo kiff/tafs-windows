@@ -40,7 +40,8 @@ public sealed record KiffAmount
         {
             var format = (NumberFormatInfo)culture.NumberFormat.Clone();
             format.CurrencySymbol = symbol;
-            return value.ToString("C" + places, format);
+            // The symbol never wraps away from its number: the space between them doesn't break.
+            return value.ToString("C" + places, format).Replace(' ', '\u00A0');
         }
         return $"{value.ToString("N" + places, culture)} {Unit}";
     }
@@ -88,6 +89,8 @@ public sealed record CardWindow(string Raw, string Label, string Current)
     static readonly Dictionary<string, (string Each, string Now)> Known = new()
     {
         ["calendar_day"] = ("card.window.a_day", "card.window.today"),
+        // The sample's week ("€25,000 a week"), as the iPad's and Android's: KIFF's own week is rolling_7d.
+        ["week"] = ("card.window.a_week", "card.window.this_week"),
         ["rolling_24h"] = ("card.window.any_day", "card.window.last_day"),
         ["rolling_7d"] = ("card.window.any_week", "card.window.last_week"),
         ["rolling_1h"] = ("card.window.any_hour", "card.window.last_hour"),

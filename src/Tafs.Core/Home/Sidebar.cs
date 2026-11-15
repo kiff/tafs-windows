@@ -57,8 +57,29 @@ public static class Sidebar
 /// <summary>The Overview's words: today across the tafs, one line each, each line opening its taf.</summary>
 public sealed record OverviewLines(string Title, string Subtitle, IReadOnlyList<string> Columns, string Empty, string Footnote);
 
+/// <summary>One line of the Overview's table: its taf (key, name, colour), what it's doing now, its Card, and its last result.</summary>
+public sealed record OverviewRow(string Key, string Taf, int Colour, string Now, string Card, string LastResult);
+
 public static class OverviewScreen
 {
+    /// <summary>
+    /// The sample's table, as overview.png: each sample taf, what it's doing now (waiting for you on its held call, else its
+    /// newest line of the Record), its Card's figure and words, and "–" for its last result, since tafs cloud doesn't run it.
+    /// </summary>
+    public static IReadOnlyList<OverviewRow> SampleRows(WordBook w, DateTimeOffset now)
+    {
+        var held = NeedsYou.NeedsYouScreen.Sample(w, now);
+        var record = Record.RecordScreen.Sample(w, now);
+        return Taf.SampleTafs.All(w).Select(t =>
+        {
+            var doing = held.FirstOrDefault(h => h.Taf == t.Name) is { } h
+                ? w.Get("taf.now.waiting_on", ("summary", h.Summary))
+                : record.Where(e => e.Taf == t.Name).OrderByDescending(e => e.At).FirstOrDefault()?.Title ?? "";
+            var card = t.Card.Hero(w) is { } hero ? $"{hero.Figure} {hero.Words}" : "–";
+            return new OverviewRow(t.Key, t.Name, t.Colour, doing, card, Taf.TafRuns.LastResult(w, null, null, TimeZoneInfo.Utc));
+        }).ToList();
+    }
+
     /// <summary>
     /// The iPad's Overview beside the whole app's sidebar. It has no calendar button: the sidebar already has
     /// Calendar (the iPad's fix of 14 Nov: two ways to it side by side was one too many).

@@ -276,6 +276,8 @@
   </Style>
   <Style x:Key="TafsCardWarning" TargetType="Border" BasedOn="{StaticResource TafsCard}"><Setter Property="BorderBrush" Value="{StaticResource TafsAmberEdge}" /></Style>
   <Style x:Key="TafsCardWaiting" TargetType="Border" BasedOn="{StaticResource TafsCard}"><Setter Property="BorderBrush" Value="{ThemeResource TafsNoEdge}" /></Style>
+  <!-- A line between rows, as the iPad's Divider: the line colour, 1 high. -->
+  <Style x:Key="TafsLineRule" TargetType="Rectangle"><Setter Property="Fill" Value="{ThemeResource TafsLine}" /></Style>
   <Style x:Key="TafsInkText" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsInk}" /></Style>
   <Style x:Key="TafsDimText" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsDim}" /></Style>
   <Style x:Key="TafsOnAmberText" TargetType="TextBlock"><Setter Property="Foreground" Value="White" /></Style>

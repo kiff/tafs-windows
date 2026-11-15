@@ -142,6 +142,10 @@ public class TafCardTests
         Assert.Equal(shown, new KiffAmount(200_000, code, 2).Figure(WordBook.Load(SharedFiles.Strings, language)).Replace(' ', ' ').Replace(' ', ' '));
 
     [Fact]
+    public void A_currency_s_symbol_never_wraps_away_from_its_number() =>
+        Assert.DoesNotContain(" ", new KiffAmount(200_000, "EUR", 2).Figure(WordBook.Load(SharedFiles.Strings, "fr")));
+
+    [Fact]
     public void A_currency_its_language_has_no_region_for_reads_as_its_code() =>
         Assert.DoesNotContain("$", new KiffAmount(200_000, "USD", 2).Figure(WordBook.Load(SharedFiles.Strings, "fr")));
 
