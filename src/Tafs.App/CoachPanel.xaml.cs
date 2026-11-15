@@ -47,6 +47,61 @@ public sealed partial class CoachPanel : UserControl
 
     Func<string, byte[], Task<CloudRead>>? answer;
 
+    /// <summary>
+    /// Start, as the iPad's <c>startSetup</c>, for a session that can approve; none otherwise, and Start stays off, as the
+    /// iPad's behind its approval gate.
+    /// </summary>
+    public Func<Task<StartResult>>? StartCoach
+    {
+        get => startCoach;
+        set
+        {
+            startCoach = value;
+            firstStart = false;
+            ShowStart();
+        }
+    }
+
+    Func<Task<StartResult>>? startCoach;
+
+    /// <summary>While Start runs, as the iPad's <c>startingSetup</c>: Start says "Starting…" and is off.</summary>
+    bool starting;
+
+    /// <summary>tafs cloud has its own first start for this account, which isn't on this PC yet: Start stays off.</summary>
+    bool firstStart;
+
+    void ShowStart()
+    {
+        var on = startCoach is not null && !starting && !firstStart;
+        Start.IsEnabled = on;
+        Start.Style = (Style)Application.Current.Resources[on ? "TafsPrimary" : "TafsPrimaryOff"];
+        Start.Content = App.Words.Get(starting ? "common.starting" : "coach.start");
+    }
+
+    /// <summary>
+    /// Start, as the iPad's button: <c>startSetup</c> once, then Coach's thread read again, as its <c>loadSetupThread</c>.
+    /// Why it didn't start shows under the intro, as the iPad's <c>setupError</c>; closing Windows Hello says nothing.
+    /// </summary>
+    async void OnStart(object sender, RoutedEventArgs e)
+    {
+        if (startCoach is not { } start || starting) return;
+        var gen = generation;
+        starting = true;
+        IntroError.Visibility = Visibility.Collapsed;
+        ShowStart();
+        var result = await start();
+        if (gen != generation) return;
+        starting = false;
+        firstStart = result.Outcome == StartOutcome.FirstStart;
+        ShowStart();
+        if (result.Started) await LoadThreadAsync();
+        else if (result.Why is { } why)
+        {
+            IntroError.Text = why;
+            IntroError.Visibility = Visibility.Visible;
+        }
+    }
+
     /// <summary>Which account the panel's state is for: each sign-out moves it on, so an answer or read in flight is dropped, as the iPad's <c>accountGeneration</c>.</summary>
     int generation;
 
@@ -63,6 +118,8 @@ public sealed partial class CoachPanel : UserControl
         IntroError.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Collapsed;
         Intro.Visibility = Visibility.Visible;
+        starting = false;
+        ShowStart();
     }
 
     /// <summary>Coach's id, its thread as last read, and each card's state here, as the iPad's model keeps them.</summary>
@@ -81,6 +138,7 @@ public sealed partial class CoachPanel : UserControl
         Heading.Text = intro.Heading;
         LineText.Text = intro.Line;
         Start.Content = intro.Start;
+        AutomationProperties.SetAutomationId(Start, "coach-start");
         Footnote.Text = intro.Footnote;
         AutomationProperties.SetName(Back, w.Get("common.back"));
         AutomationProperties.SetName(FullScreen, w.Get("coach.full_screen"));

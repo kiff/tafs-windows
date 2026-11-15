@@ -35,9 +35,10 @@ public static class PlanqueEnrolment
     /// can't approve…"), nor a passkey session that doesn't know its passkey; a key session with no prompt, like its other
     /// setup calls; a passkey session behind Windows Hello over <see cref="GateMessage"/>, as the iPad's one Face ID.
     /// <paramref name="hello"/> asks Windows Hello with the passkey's credential id; closing it stops quietly, and a refusal says
-    /// why. None means it may go on.
+    /// why. None means it may go on. <paramref name="message"/> is what's confirmed, when it's a step with planque in it
+    /// (Start's <c>tafs.setup.v1</c>); <see cref="GateMessage"/> otherwise.
     /// </summary>
-    public static async Task<EnrolResult?> GateAsync(WordBook w, KeptSession session, Func<byte[], byte[], Task> hello)
+    public static async Task<EnrolResult?> GateAsync(WordBook w, KeptSession session, Func<byte[], byte[], Task> hello, byte[]? message = null)
     {
         var cant = new EnrolResult(EnrolOutcome.CantApprove, w.Get("approval.device_can_not_approve_approve"));
         switch (session.Mode)
@@ -47,7 +48,7 @@ public static class PlanqueEnrolment
             case ApprovalMode.Passkey when session.PasskeyId is { } id:
                 try
                 {
-                    await hello(KiffSigning.FromBase64Url(id), GateMessage(session.Tenant));
+                    await hello(KiffSigning.FromBase64Url(id), message ?? GateMessage(session.Tenant));
                     return null;
                 }
                 catch (OperationCanceledException) { return new(EnrolOutcome.Cancelled); }
