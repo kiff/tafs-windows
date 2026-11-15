@@ -103,7 +103,8 @@ public static class CoachChat
         if (setup.Answer is not { } s || Lenient.Text(Lenient.Field(s, "setup") ?? default, "id") is not { } coach) return (null, null);
         var id = CloudRead.PathPart(coach);
         var chats = await read($"/v1/tafs/{id}/chats");
-        var newest = chats.Answer is { } c && Chats(c) is { } list ? list.MaxBy(x => x.Updated).Session : null;
+        // None yet reads the whole thread, as the iPad's chats.max(by:) giving nil (MaxBy throws on an empty list of tuples).
+        var newest = chats.Answer is { } c && Chats(c) is { Count: > 0 } list ? list.MaxBy(x => x.Updated).Session : null;
         var thread = await read($"/v1/tafs/{id}/conversation" + (newest is null ? "" : "/" + CloudRead.PathPart(newest)));
         // A thread that doesn't decode: the iPad says the system's words for it; this app has its own.
         var why = thread.Answer is { } t ? (CoachThread.Read(t) is { } read2 ? null : w.Get("error.ours")) : thread.Why;

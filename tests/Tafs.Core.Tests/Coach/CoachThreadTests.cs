@@ -162,4 +162,27 @@ public class CoachThreadTests
         Assert.Empty(WorkLog.Rows(failed, running: true));
         Assert.Equal("Reading", WorkLog.Past("Reading…"));
     }
+
+    /// <summary>As the iPad's chats.max(by:) with none yet: an empty list reads the whole thread, never an error.</summary>
+    [Fact]
+    public async Task An_empty_list_of_conversations_reads_the_whole_thread()
+    {
+        var asked = new List<string>();
+        Task<CloudRead> Read(string path)
+        {
+            asked.Add(path);
+            return Task.FromResult(CloudRead.Of(Json(path switch
+            {
+                "/v1/setup" => """{"setup": {"id": "c"}}""",
+                "/v1/tafs/c/chats" => """{"chats": []}""",
+                _ => Thread,
+            })));
+        }
+
+        var (thread, error) = await CoachChat.LoadAsync(En, Read);
+
+        Assert.Equal("/v1/tafs/c/conversation", asked[^1]);
+        Assert.NotNull(thread);
+        Assert.Null(error);
+    }
 }
