@@ -39,7 +39,7 @@ public sealed partial class MainWindow : Window
     /// <summary>The same read with planque's proof, and the proof for a taf's Setup: the session's, none for a screenshot.</summary>
     Func<string, string?, Task<CloudRead>>? cloudReadWithProof;
     Func<Task<string?>>? setupProof;
-    /// <summary>This device's id in KIFF, once known: the kept session's, else read from KIFF before the first proof.</summary>
+    /// <summary>This device's id in KIFF, as the iPad's <c>deviceID</c>: read from KIFF before the first proof, and kept once found.</summary>
     string? deviceId;
     readonly bool sample;
     readonly UsageReads usage;
@@ -127,7 +127,8 @@ public sealed partial class MainWindow : Window
         AccountPage.SignInChosen += OpenSignIn;
         AccountPage.AlertsChosen += () => OpenBeside(typeof(ComingPage), w.Get("settings.alerts"));
         AccountPage.AddThisDeviceChosen += OpenPairing;
-        AccountPage.SignedOut += () => { ViewOnly.IsOpen = false; OpenSignIn(); };
+        // As the iPad clears its deviceID on sign-out: the next session reads its own.
+        AccountPage.SignedOut += () => { ViewOnly.IsOpen = false; deviceId = null; OpenSignIn(); };
         // Leaving the sample: the app starts again without it, as the iPad's Clear the sample leaves it.
         AccountPage.ClearSampleChosen += () => Microsoft.Windows.AppLifecycle.AppInstance.Restart(
             string.Join(' ', Environment.GetCommandLineArgs().Skip(1).Where(a => a != "--sample")));
@@ -214,14 +215,14 @@ public sealed partial class MainWindow : Window
 
     /// <summary>
     /// planque's signed read of the grants for a taf's Setup, as the iPad's <c>grantsReadProof</c>: signed with the TPM key
-    /// the session is bound to, which asks no one, and this device's id in KIFF (the kept one, else KIFF's
-    /// <c>GET /v1/me/devices</c>, once). None when the key isn't there or anything fails: Setup then reads without it.
+    /// the session is bound to, which asks no one, and this device's id in KIFF, read from KIFF's <c>GET /v1/me/devices</c>
+    /// as the iPad's <c>deviceLoader</c>. None when the key isn't there or anything fails: Setup then reads without it.
     /// </summary>
     async Task<string?> SetupProofAsync(KeptSession session)
     {
-        if (!TpmKey.Exists(session.KeyName)) return null;
-        using var key = TpmKey.OpenOrCreate(session.KeyName);
-        return await PlanqueProof.GrantsReadAsync(session.Tenant, deviceId ?? session.DeviceId, async () =>
+        // Open only: a key gone with a sign-out throws, and Setup reads without the proof.
+        using var key = TpmKey.Open(session.KeyName);
+        return await PlanqueProof.GrantsReadAsync(session.Tenant, deviceId, async () =>
         {
             var devices = await ReadAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, PlanqueProof.DevicesPath), session.AccessToken);
             return deviceId = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;

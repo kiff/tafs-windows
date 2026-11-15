@@ -31,17 +31,18 @@ public class PlanqueProofTests
         using var key = new TestSigner();
         var loaded = 0;
 
-        var proof = await PlanqueProof.GrantsReadAsync("ten_1", "dev_kept", () => { loaded++; return Task.FromResult<string?>("dev_other"); }, key, () => At);
+        // A device already loaded in this window is used as it is, as the iPad's deviceID once set.
+        var proof = await PlanqueProof.GrantsReadAsync("ten_1", "dev_loaded", () => { loaded++; return Task.FromResult<string?>("dev_other"); }, key, () => At);
 
         var parts = proof!.Split(',');
-        Assert.Equal(("t=" + At, "d=dev_kept"), (parts[0], parts[2]));
+        Assert.Equal(("t=" + At, "d=dev_loaded"), (parts[0], parts[2]));
         var signature = Convert.FromBase64String(parts[1]["v1=".Length..]);
         Assert.True(TestSigner.Verify(key.PublicKeyDer,
             PlanqueProof.Message(PlanqueProof.Api, "ten_1", "GET", "/v1/accounts/ten_1/grants", [], At), signature));
         Assert.Equal(0, loaded);
     }
 
-    /// <summary>With no device kept, it's loaded from KIFF first; with none there, or no account, there's no proof.</summary>
+    /// <summary>With no device loaded yet, it's loaded from KIFF first; with none there, or no account, there's no proof.</summary>
     [Fact]
     public async Task Without_a_device_it_s_loaded_and_without_one_or_an_account_there_s_none()
     {

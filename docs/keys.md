@@ -26,7 +26,9 @@ without access control, that signs it: this key's counterpart. It asks no one, a
   `/v1/accounts/{tenant}/grants`, the empty body's SHA-256 and the time, on seven lines with no trailing newline.
 - **The time** (`SigningTime`, as the iPad's): RFC 3339 in UTC with milliseconds, never the same twice in this app.
 - **The header:** `Planque-Device-Signature: t={time},v1={base64 DER signature},d={device}`. `d=` is this device's id in
-  KIFF: the kept session's, else the one KIFF's `GET /v1/me/devices` lists as `this_device` (`dev_…`), read once.
+  KIFF, always read from KIFF, as the iPad's `deviceLoader`: the one `GET /v1/me/devices` lists as `this_device` (`dev_…`),
+  kept once found.
+- **The key is opened, never made** (`TpmKey.Open`): a key gone with a sign-out throws, and Setup reads without the proof.
 - **It goes only to tafs cloud** (`cloud.tafs.kiff.dev`), with the Setup read, through the exact host list.
 - **Without it,** with no key, no account, no device, or a signature that fails, Setup reads without it, as the iPad's
   `try?`.
