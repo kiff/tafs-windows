@@ -56,15 +56,13 @@ public class PlanqueEnrolmentTests
     }
 
     /// <summary>
-    /// The iPad's testWithNoStandingKeyOneIsMintedAndHandedOver: planque says it needs a key (needs_key), or a planque from
-    /// before takes no keyless enrolment (400): one key minted and handed over, the first enrolment without it.
+    /// The iPad's testWithNoStandingKeyOneIsMintedAndHandedOver: planque says it needs a key (needs_key), and only then: one
+    /// key minted and handed over, the first enrolment without it.
     /// </summary>
-    [Theory]
-    [InlineData(409, """{"error": "no connector key stands for this account", "code": "needs_key"}""")]
-    [InlineData(400, """{"error": "KIFF did not accept the connector key"}""")]
-    public async Task Only_when_planque_needs_a_key_is_one_minted_and_handed_over(int status, string answer)
+    [Fact]
+    public async Task Only_when_planque_needs_a_key_is_one_minted_and_handed_over()
     {
-        var stubs = new Stubs((status, answer), (201, """{"tenant": "t_01"}"""));
+        var stubs = new Stubs((409, """{"error": "no connector key stands for this account", "code": "needs_key"}"""), (201, """{"tenant": "t_01"}"""));
 
         Assert.Equal(new EnrolResult(EnrolOutcome.Enrolled), (await stubs.Run()));
         Assert.Equal(1, stubs.Mints);
@@ -81,6 +79,8 @@ public class PlanqueEnrolmentTests
     [InlineData(503, """{"error": "planque is down"}""", "planque is down")]
     [InlineData(401, """{"error": "signature replayed", "code": "signature_replayed"}""", "signature replayed")]
     [InlineData(409, """{"error": "the enrolment changed", "code": "enrolment_changed"}""", "the enrolment changed")]
+    [InlineData(400, """{"error": "KIFF did not accept the connector key"}""", "KIFF did not accept the connector key")]
+    [InlineData(409, """{"error": "conflict"}""", "conflict")]
     [InlineData(201, """{"tenant": "t_01", "device": "ab12"}""", "201")]
     public async Task Anything_else_stops_and_mints_nothing(int status, string answer, string why)
     {
@@ -104,6 +104,9 @@ public class PlanqueEnrolmentTests
             (await new Stubs(needsKey) { Mint = (403, """{"error": "forbidden"}""") }.Run()));
         Assert.Equal(new EnrolResult(EnrolOutcome.OtherDevice, "Another device connects this account's apps for now. Connect them from that one."),
             (await new Stubs(needsKey, (409, """{"error": "enrolled"}""")).Run()));
+        // A 409 with a code is that code's, never "another device".
+        Assert.Equal(new EnrolResult(EnrolOutcome.NotSetUp, "Connecting apps isn't set up. signature replayed"),
+            (await new Stubs(needsKey, (409, """{"error": "signature replayed", "code": "signature_replayed"}""")).Run()));
         Assert.Equal(new EnrolResult(EnrolOutcome.NotSetUp, "Connecting apps isn't set up. planque is down"),
             (await new Stubs(needsKey, (503, """{"error": "planque is down"}""")).Run()));
         Assert.Equal(new EnrolResult(EnrolOutcome.NotSetUp, "Connecting apps isn't set up. no keys today"),
