@@ -243,6 +243,13 @@
   </Style>
 
   <!-- Words that follow the theme from code. -->
+  <Style x:Key="TafsAccentText" TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource TafsAmber}" /></Style>
+  <!-- A segmented control's track: the raised ground, corners of 9. -->
+  <Style x:Key="TafsSegmentTrack" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource TafsRaised}" />
+    <Setter Property="CornerRadius" Value="9" />
+    <Setter Property="Padding" Value="2" />
+  </Style>
   <Style x:Key="TafsNoText" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsNo}" /></Style>
   <Style x:Key="TafsAmberWords" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsAmberText}" /></Style>
   <!-- The iPad's Panel: the panel colour, corners of 18, a line around (amber or red at 50% for a warning or a wait), 16 in. -->

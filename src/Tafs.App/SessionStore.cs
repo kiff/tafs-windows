@@ -57,6 +57,19 @@ sealed class SessionStore : ISessionStore
         try { TpmKey.Delete(old.KeyName); } catch (CryptographicException) { }
     }
 
+    /// <summary>
+    /// Signs this PC out: the session ends at KIFF (bearer only), and the kept session and its TPM key go. Offline, the
+    /// session ends with its 90 days or from Devices on the phone; this PC forgets it either way.
+    /// </summary>
+    public async Task SignOutAsync()
+    {
+        if (Kept() is not { } kept) return;
+        try { await KiffHttp.PostAsync(KeptSessions.LogoutPath, "{}"u8.ToArray(), bearer: kept.AccessToken); }
+        catch (HttpRequestException) { }
+        Delete();
+        try { TpmKey.Delete(kept.KeyName); } catch (CryptographicException) { }
+    }
+
     /// <summary>A store that refused, for the screen: Windows' error code only, never a message that could hold a path.</summary>
     public static string Why(Exception e) => $"0x{e.HResult:X8}";
 }
