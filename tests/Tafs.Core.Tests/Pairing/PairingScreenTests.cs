@@ -78,6 +78,22 @@ public class PairingScreenTests
         Assert.Equal("This Windows PC is added.", PairingScreen.Lines(En, PairingStep.Added, Offer(hello: true)).Status);
         Assert.StartsWith("This Windows PC can't sign approvals itself.",
             PairingScreen.Lines(En, PairingStep.Added, Offer(hello: false)).Status);
+        // With its own Windows Hello passkey, it approves itself.
+        using var device = new TestSigner();
+        using var passkey = new TestSigner();
+        var own = PairingOffer.Create(device.PublicKeyDer, null, "tafs", Now, credential: new Tafs.Core.Approvals.NewPasskey([1], passkey.PublicKeyDer));
+        Assert.Equal("This Windows PC is added.", PairingScreen.Lines(En, PairingStep.Added, own).Status);
+    }
+
+    [Fact]
+    public void Offline_says_so_and_offers_a_new_code_with_or_without_an_offer()
+    {
+        var lines = PairingScreen.Lines(En, PairingStep.Offline, offer: null);
+        Assert.Equal("It didn't reach the server. Try again once you're online.", lines.Status);
+        Assert.Equal("Show a new code", lines.NewCode);
+        Assert.False(lines.ShowsQr);
+        Assert.Contains("TPM", PairingScreen.Lines(En, PairingStep.Failed, offer: null, "TPM refused").Status);
+        Assert.Throws<ArgumentNullException>(() => PairingScreen.Lines(En, PairingStep.Waiting, offer: null));
     }
 
     [Fact]
@@ -95,7 +111,7 @@ public class PairingScreenTests
     {
         var w = WordBook.Load(SharedFiles.Strings, language);
         var offer = Offer();
-        var all = new[] { PairingStep.Waiting, PairingStep.Expired, PairingStep.Failed, PairingStep.Added }
+        var all = Enum.GetValues<PairingStep>()
             .Select(step => PairingScreen.Lines(w, step, offer, "x"))
             .SelectMany(l => new[] { l.Title, l.Steps, l.CheckLead, l.Status, l.NewCode })
             .Concat(new[] { PairingScreen.ViewOnly(w).Lead, PairingScreen.ViewOnly(w).Add })

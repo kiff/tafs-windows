@@ -35,6 +35,18 @@ public static class PairingClaim
     public static string PasskeyChallenge(string nonce, byte[] pubDer) =>
         KiffSigning.Base64Url(SHA256.HashData(KiffSigning.Message("kiff.passkey.pair.v1", nonce, KiffSigning.Base64Url(pubDer))));
 
+    /// <summary>The challenge the passkey's creation signed, from its clientDataJSON; null with no proof or no challenge.</summary>
+    public static string? ProofChallenge(NewPasskey passkey)
+    {
+        if (passkey.Proof is not { } proof) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(proof.ClientDataJson);
+            return doc.RootElement.TryGetProperty("challenge", out var c) && c.ValueKind == JsonValueKind.String ? c.GetString() : null;
+        }
+        catch (JsonException) { return null; }
+    }
+
     /// <param name="withPasskeyProof">Send the passkey's creation proof, when the offer has one (<see cref="Features.PairingPasskeyProof"/>).</param>
     public static async Task<byte[]> BodyAsync(PairingOffer offer, IKiffSigner deviceKey, CancellationToken cancel = default,
         bool withPasskeyProof = false)

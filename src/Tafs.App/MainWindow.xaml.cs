@@ -79,6 +79,9 @@ public sealed partial class MainWindow : Window
             ViewOnly.IsOpen = true;
             Nav.SelectedItem = BrandItem;
         };
+        // Paired with a key in the TPM: this PC approves, with its own passkey or the account's. Kept in memory for now.
+        PairingPage.Paired += _ => ViewOnly.IsOpen = false;
+        this.screenshot = screenshot;
 
         if (page == "pair") OpenPairing();
         else if (page == "sign-in") OpenSignIn();
@@ -193,7 +196,10 @@ public sealed partial class MainWindow : Window
     void OnAddThisDevice(object sender, RoutedEventArgs e) => OpenPairing();
 
     /// <summary>Add this computer with your phone. It isn't a sidebar item: it opens from the notice, and from sign-in.</summary>
-    void OpenPairing() => OpenBeside(typeof(PairingPage));
+    /// For a screenshot, it stays offline: no TPM key, no Windows Hello, no claim.
+    void OpenPairing() => OpenBeside(typeof(PairingPage), screenshot is not null);
+
+    readonly string? screenshot;
 
     /// <summary>Sign in with KIFF: the first screen of a PC with no session.</summary>
     void OpenSignIn() => OpenBeside(typeof(SignInPage));

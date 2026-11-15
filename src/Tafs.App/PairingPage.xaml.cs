@@ -1,8 +1,12 @@
+using System.Net.Http;
+using System.Security.Cryptography;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Navigation;
 using QRCoder;
+using Tafs.Core.Approvals;
+using Tafs.Core.Kiff;
 using Tafs.Core.Pairing;
 using Windows.Storage.Streams;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -10,14 +14,21 @@ using System.Runtime.InteropServices.WindowsRuntime;
 namespace Tafs.App;
 
 /// <summary>
-/// Shows this computer's QR and check code, and counts the code down. Nothing goes to the network yet:
-/// the claim (PairingClaim.PollAsync) is wired once KIFF serves /v1/pair/claim, and the device key moves to
-/// the TPM in its own change. Until then the QR carries a public key with no private half anywhere.
+/// Adds this PC with the phone: the device key from the TPM, this PC's own Windows Hello passkey in the QR when
+/// Windows makes one, then the claim to KIFF until the phone approves. Navigated to with true (screenshots), it
+/// shows a QR whose key has no private half anywhere, and asks nothing of the TPM, Windows Hello or KIFF.
 /// </summary>
 public sealed partial class PairingPage : Page
 {
     readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromSeconds(1) };
+    CancellationTokenSource cancel = new();
     PairingOffer? offer;
+    TpmKey? deviceKey;
+    NewPasskey? passkey;
+    bool offline;
+
+    /// <summary>KIFF handed over this PC's session. It's kept in memory for now.</summary>
+    public static event Action<PairedSession>? Paired;
 
     public PairingPage()
     {
@@ -26,26 +37,83 @@ public sealed partial class PairingPage : Page
         {
             if (offer is not null && offer.IsExpired(DateTimeOffset.UtcNow)) Show(PairingStep.Expired);
         };
-        Unloaded += (_, _) => clock.Stop();
+        Unloaded += (_, _) =>
+        {
+            clock.Stop();
+            cancel.Cancel();
+            deviceKey?.Dispose();
+            deviceKey = null;
+        };
     }
 
-    protected override async void OnNavigatedTo(NavigationEventArgs e) => await ShowNewCodeAsync();
+    protected override async void OnNavigatedTo(NavigationEventArgs e)
+    {
+        offline = e.Parameter is true;
+        await ShowNewCodeAsync();
+    }
 
     async void OnNewCode(object sender, RoutedEventArgs e) => await ShowNewCodeAsync();
 
     async Task ShowNewCodeAsync()
     {
-        offer = PairingOffer.Create(
-            PairingScreen.KeyWithNoPrivateHalf(), approvalPub: null,
-            PairingScreen.DeviceName(App.Words), DateTimeOffset.UtcNow);
-        Qr.Source = await QrImageAsync(offer.ToQrJson());
+        cancel.Cancel();
+        cancel = new CancellationTokenSource();
+        var token = cancel.Token;
+        NewCode.IsEnabled = false;
+        var name = PairingScreen.DeviceName(App.Words);
+        try
+        {
+            if (offline)
+            {
+                offer = PairingOffer.Create(PairingScreen.KeyWithNoPrivateHalf(), approvalPub: null, name, DateTimeOffset.UtcNow);
+                await ShowQrAsync();
+                return;
+            }
+
+            deviceKey ??= TpmKey.OpenOrCreate(TpmKey.PairingKeyName);
+            MakePasskey? make = WindowsHello.IsAvailable()
+                ? (challenge, c) => new WindowsHello(() => App.WindowHandle)
+                    .CreateAsync(PairingAttempt.PasskeyUserId(deviceKey.PublicKeyDer), name, name, challenge, c)
+                : null;
+            (offer, passkey) = await PairingAttempt.OfferAsync(deviceKey.PublicKeyDer, name, make, passkey,
+                DateTimeOffset.UtcNow, Features.PairingPasskeyProof, token);
+            if (token.IsCancellationRequested) return;
+            await ShowQrAsync();
+
+            var result = await PairingClaim.PollAsync(offer, deviceKey,
+                (body, c) => KiffHttp.PostAsync(PairingClaim.Path, body, c), () => DateTimeOffset.UtcNow, Task.Delay, token);
+            var step = PairingScreen.After(result.Status);
+            Show(step, step == PairingStep.Failed ? PairingScreen.Why(App.Words, result) : null);
+            if (result.Session is { } session) Paired?.Invoke(session);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // A new code, or the page closed.
+        }
+        catch (CryptographicException e)
+        {
+            Show(PairingStep.Failed, e.Message); // no TPM, or it refused: Windows' own words
+        }
+        catch (HttpRequestException)
+        {
+            Show(PairingStep.Offline);
+        }
+        finally
+        {
+            NewCode.IsEnabled = true;
+        }
+    }
+
+    async Task ShowQrAsync()
+    {
+        Qr.Source = await QrImageAsync(offer!.ToQrJson());
         Show(PairingStep.Waiting);
         clock.Start();
     }
 
     void Show(PairingStep step, string? why = null)
     {
-        var lines = PairingScreen.Lines(App.Words, step, offer!, why);
+        var lines = PairingScreen.Lines(App.Words, step, offer, why);
         Heading.Text = lines.Title;
         Steps.Text = lines.Steps ?? "";
         Steps.Visibility = Shown(lines.Steps);
@@ -58,7 +126,11 @@ public sealed partial class PairingPage : Page
         NewCode.Content = lines.NewCode;
         NewCode.Visibility = Shown(lines.NewCode);
         QrCard.Visibility = lines.ShowsQr ? Visibility.Visible : Visibility.Collapsed;
-        if (step != PairingStep.Waiting) clock.Stop();
+        if (step != PairingStep.Waiting)
+        {
+            clock.Stop();
+            cancel.Cancel(); // an expired code stops its claim too
+        }
     }
 
     static Visibility Shown(string? line) => line is null ? Visibility.Collapsed : Visibility.Visible;

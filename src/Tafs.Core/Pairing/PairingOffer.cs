@@ -62,10 +62,16 @@ public sealed class PairingOffer
     /// <param name="name">"tafs on this Windows PC", in the person's language: 1 to 64 characters, no control characters.</param>
     /// <param name="deviceKeyInSoftware">True when the device key isn't in the TPM: only with no approval key.</param>
     /// <param name="credential">This PC's own passkey (Windows Hello), for a passkey offer from a device key in the TPM.</param>
+    /// <param name="withPasskeyProof">The claim proves the passkey: its creation must be for this nonce and key, checked here
+    /// so a mismatch fails before the QR is shown, not at the claim after the person's tap.</param>
     public static PairingOffer Create(
         byte[] devicePub, byte[]? approvalPub, string name, DateTimeOffset now, byte[]? nonce = null, bool deviceKeyInSoftware = false,
-        NewPasskey? credential = null)
+        NewPasskey? credential = null, bool withPasskeyProof = false)
     {
+        nonce ??= RandomNumberGenerator.GetBytes(32);
+        if (withPasskeyProof && credential is not null
+            && PairingClaim.ProofChallenge(credential) != PairingClaim.PasskeyChallenge(KiffSigning.Base64Url(nonce), devicePub))
+            throw new ArgumentException("the passkey wasn't made for this pairing's nonce and key", nameof(credential));
         if (credential is not null)
         {
             // §5.1: only with kind passkey, never with approval_pub or a software device key (that's a view device).
@@ -86,7 +92,6 @@ public sealed class PairingOffer
         if (name.Length is < 1 or > 64 || name.Any(char.IsControl))
             throw new ArgumentException("the name must be 1 to 64 characters, with no control characters", nameof(name));
 
-        nonce ??= RandomNumberGenerator.GetBytes(32);
         if (nonce.Length != 32) throw new ArgumentException("the nonce is 32 random bytes", nameof(nonce));
 
         var kind = approvalPub is null ? ApprovalKind.Passkey : ApprovalKind.Hello;

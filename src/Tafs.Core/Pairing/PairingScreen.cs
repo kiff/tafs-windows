@@ -12,6 +12,8 @@ public enum PairingStep
     Waiting,
     Expired,
     Failed,
+    /// <summary>KIFF wasn't reached.</summary>
+    Offline,
     Added,
 }
 
@@ -70,8 +72,10 @@ public static class PairingScreen
         return w.Get("error.kiff_answered", ("status", status.Length > 0 ? status : "?"));
     }
 
-    public static PairingLines Lines(WordBook w, PairingStep step, PairingOffer offer, string? why = null)
+    /// <param name="offer">The offer shown; null only when none could be made (Failed, Offline).</param>
+    public static PairingLines Lines(WordBook w, PairingStep step, PairingOffer? offer, string? why = null)
     {
+        if (offer is null && step is PairingStep.Waiting or PairingStep.Added) throw new ArgumentNullException(nameof(offer));
         var device = ("device", Device(w));
         var title = w.Get("pair.title", device);
         var newCode = w.Get("pair.new_code");
@@ -84,16 +88,19 @@ public static class PairingScreen
                     ("devices", w.Get("settings.devices.title")),
                     ("pair", w.Get("settings.devices.pair"))),
                 w.Get("pair.check_code_lead", device),
-                offer.CheckCode(),
+                offer!.CheckCode(),
                 w.Get("pair.waiting"),
                 NewCode: null,
                 ShowsQr: true),
             PairingStep.Expired => new PairingLines(title, null, null, null, w.Get("pair.code_expired"), newCode, false),
             PairingStep.Failed => new PairingLines(title, null, null, null,
                 w.Get("pair.failed", device, ("why", why ?? throw new ArgumentNullException(nameof(why)))), newCode, false),
-            // A computer with no approval key of its own approves through the phone or a passkey.
+            PairingStep.Offline => new PairingLines(title, null, null, null, w.Get("error.offline"), newCode, false),
+            // With its own passkey, this PC approves itself through Windows Hello. With neither key nor passkey of its
+            // own, it approves through the phone or the account's passkeys.
             PairingStep.Added => new PairingLines(title, null, null, null,
-                w.Get(offer.Kind == ApprovalKind.Hello ? "pair.added" : "pair.added_passkey", device), null, false),
+                w.Get(offer!.Kind == ApprovalKind.Hello || offer.Credential is not null ? "pair.added" : "pair.added_passkey", device),
+                null, false),
             _ => throw new ArgumentOutOfRangeException(nameof(step)),
         };
     }
