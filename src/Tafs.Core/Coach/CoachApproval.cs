@@ -201,6 +201,7 @@ public static class CoachApproval
         {
             return calls.Current() ? new(w.Get("coach.answer_not_reached", ("why", calls.Why(e))), ReadAgain: true) : ApproveResult.Stopped;
         }
+        if (!calls.Current()) return ApproveResult.Stopped;
         var reported = await calls.Report(reportPath, report, reportSignature, reportProof);
         if (!calls.Current()) return ApproveResult.Stopped;
         return Decided(w, reported) is { } outcome ? new(outcome.Note, ReadAgain: true) : NotReached(w, reported);

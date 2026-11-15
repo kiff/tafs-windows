@@ -291,8 +291,8 @@ public sealed partial class MainWindow : Window
         // Given before Coach's read, which reads them as it draws its approvals.
         CoachMode.Grants = () => GrantsAsync(session);
         // Approve on Coach's approval cards: only a passkey session that knows its passkey signs; any other keeps the gate.
+        // Given with the answers, once this person may use Coach (AllowCoachAsync).
         CoachMode.Approves = Tafs.Core.Coach.CoachStart.MayStart(session);
-        CoachMode.Approve = CoachMode.Approves ? (card, conversation, digest, version) => ApproveCardAsync(session, card, conversation, digest, version) : null;
         CoachMode.Drafts = async id => (await KiffReadAsync(bearer, Tafs.Core.Approvals.KiffDrafts.Path(id))).Answer is { } d ? Tafs.Core.Approvals.KiffDrafts.Read(d) : null;
         CoachMode.Read = path => CloudReadAsync(bearer, path);
         // Start, as the iPad's: off for a session that can't approve.
@@ -418,8 +418,11 @@ public sealed partial class MainWindow : Window
         var setup = Tafs.Core.Coach.CoachAccess.SetupUse((await KiffReadAsync(bearer, Tafs.Core.Coach.CoachAccess.AccessPath)).Answer);
         var capabilities = setup is null ? Tafs.Core.Coach.CoachAccess.Capabilities((await KiffReadAsync(bearer, Tafs.Core.Coach.CoachAccess.MePath)).Answer) : null;
         // Signed out meanwhile: it's no one's to answer.
-        if (App.Sessions.Kept()?.AccessToken != bearer || !Tafs.Core.Coach.CoachAccess.MayUseCoach(setup, capabilities)) return;
+        if (App.Sessions.Kept() is not { } session || session.AccessToken != bearer || !Tafs.Core.Coach.CoachAccess.MayUseCoach(setup, capabilities)) return;
         CoachMode.Answer = (path, body) => CloudSendAsync(bearer, path, body);
+        // Approve, as the iPad's Coach cards, only for someone who may use Coach, and only a session that signs with its passkey.
+        if (Tafs.Core.Coach.CoachStart.MayStart(session))
+            CoachMode.Approve = (card, conversation, digest, version) => ApproveCardAsync(session, card, conversation, digest, version);
     }
 
     /// <summary>A read from KIFF as the session, answered as tafs cloud's are.</summary>
@@ -501,6 +504,9 @@ public sealed partial class MainWindow : Window
         var bearer = session.AccessToken;
         var gen = sessions;
         if (CoachMode.CoachId is not { } coach || session.PasskeyId is not { } passkeyId) return new(null);
+        // As the iPad's approveAsked: planque set up by this session first, before anything is sent. It isn't kept across
+        // launches here yet, so after one the person starts again from Coach's Start or Connected apps.
+        if (!planqueReady) return new(w.Get("connect.start_connected_tools_first", ("device", w.Get("device.windows"))));
         var calls = new Tafs.Core.Coach.ApproveCalls(
             async () => { try { return await SetupProofAsync(session); } catch (System.Security.Cryptography.CryptographicException) { return null; } },
             async (path, body, proof) =>

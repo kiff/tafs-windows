@@ -684,9 +684,17 @@ public sealed partial class CoachPanel : UserControl
         }
         else if (grant is not null && ApprovalCard.CardNextWords(c) is { } nextWords) box.Children.Add(Words(nextWords, 13, "TafsSoftText"));
         if (failed) box.Children.Add(Words(why is null ? w.Get("coach.did_not_go_through_nothing") : w.Get("coach.answer.failed_why", ("value", why)), 14, "TafsNoText"));
-        // Decline, the card's own answer, and Approve, as the iPad's: off while an answer to it is on its way.
+        // A request planque refused, sent again unchanged, would fail the same way: Coach mode has to change it first, in
+        // place of the buttons, as the iPad's requestRefused (the refused digests it keeps aren't on this PC yet).
+        if (failed && grant is { Status: "failed" })
+        {
+            box.Children.Add(Words(w.Get("coach.coach_mode_has_change_request"), 13, "TafsSoftText"));
+            return Framed(box, failed);
+        }
+        // Decline, the card's own answer, and Approve, as the iPad's: off on every card while an approval goes through, and
+        // on this one while its answer is on its way.
         var shown = thread.CardFor(c.Id);
-        var busy = approving == c.Id || (shown is not null && answered.Contains(shown.Ref) && !failed);
+        var busy = approving is not null || (shown is not null && answered.Contains(shown.Ref) && !failed);
         var buttons = new Grid { ColumnSpacing = 10 };
         buttons.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         buttons.ColumnDefinitions.Add(new ColumnDefinition());
@@ -698,8 +706,10 @@ public sealed partial class CoachPanel : UserControl
         {
             // What's signed is seen first: a card with the taf's Card waits until that Card is read and drawn above.
             var connected = grant?.Connected == true;
-            var ready = grant is not null && (connected || grant.DigestMatches) && (c.Draft is null || draft is not null) && !(connected && draft is null);
-            var on = Approve is not null && ready && !busy;
+            // KIFF's words for a profile aren't read on this PC, so a grant that has one isn't approved here until it's connected.
+            var ready = grant is not null && (connected || grant.DigestMatches) && (c.Draft is null || draft is not null) && !(connected && draft is null)
+                && !(!connected && grant.Profile is not null);
+            var on = Approve is not null && answer is not null && ready && !busy;
             var approve = new Button
             {
                 Content = w.Get(approving == c.Id ? "approval.approving" : failed ? "common.try_again" : "coach.answer.approve"),
@@ -718,12 +728,15 @@ public sealed partial class CoachPanel : UserControl
         }
         box.Children.Add(buttons);
         if (notes.GetValueOrDefault(c.Id) is { } note) box.Children.Add(QuestionsCardView.Note(note, Brush));
-        return new Border
-        {
-            Child = box, Padding = new Thickness(14), CornerRadius = new CornerRadius(14), Background = Brush("TafsPanel"),
-            BorderBrush = Brush(failed ? "TafsNo" : "TafsAmber"), BorderThickness = new Thickness(1),
-        };
+        return Framed(box, failed);
     }
+
+    /// <summary>An approval's frame: the panel's colour, amber while it needs the person, red once it didn't go through.</summary>
+    Border Framed(UIElement box, bool failed) => new()
+    {
+        Child = box, Padding = new Thickness(14), CornerRadius = new CornerRadius(14), Background = Brush("TafsPanel"),
+        BorderBrush = Brush(failed ? "TafsNo" : "TafsAmber"), BorderThickness = new Thickness(1),
+    };
 
     TextBlock Mono(string text, double size, string colour) => new()
     {
@@ -778,9 +791,12 @@ public sealed partial class CoachPanel : UserControl
         approving = c.Id;
         notes.Remove(c.Id);
         Redraw();
-        var result = await approve(c, shownThread.CardFor(c.Id)?.Session, shownDigest, shownDraft);
+        ApproveResult result;
+        // Whatever goes wrong, the card never stays "Approving…": it says why.
+        try { result = await approve(c, shownThread.CardFor(c.Id)?.Session, shownDigest, shownDraft); }
+        catch (Exception e) { result = new(App.Words.Get("coach.answer_not_reached", ("why", $"0x{e.HResult:X8}")), ReadAgain: true); }
+        finally { if (gen == generation) approving = null; }
         if (gen != generation || result.Stop) return;
-        approving = null;
         if (result.Note is { } note) notes[c.Id] = note;
         if (result.ReadAgain) await LoadThreadAsync();
         else Redraw();

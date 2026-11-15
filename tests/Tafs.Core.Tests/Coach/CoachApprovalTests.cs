@@ -234,7 +234,7 @@ public class CoachApprovalTests
         }
 
         public ApproveCalls Calls => new(
-            () => { Did("proof"); return Task.FromResult<string?>($"proof{++proofs}"); },
+            () => { Did($"proof{++proofs}"); return Task.FromResult<string?>($"proof{proofs}"); },
             (path, body, proof) => { Did($"ask {path} {proof}"); return Task.FromResult(AskRead ?? CloudRead.Of(JsonDocument.Parse(AskAnswer).RootElement)); },
             (path, body) =>
             {
@@ -277,9 +277,9 @@ public class CoachApprovalTests
         var fakes = new Fakes();
         Assert.Equal(new ApproveResult("Approved", ReadAgain: true), await fakes.Approve());
         Assert.Equal([
-            "proof", "ask /v1/tafs/taf_coach/components/a1/approval proof1",
+            "proof1", "ask /v1/tafs/taf_coach/components/a1/approval proof1",
             """hello /v1/me/agent-drafts/d_01/confirm {"version":"v3"}""", "confirm /v1/me/agent-drafts/d_01/confirm KIFF-Passkey-Assertion",
-            "proof", "sign report", "report /v1/tafs/taf_coach/components/a1/approval/ask_2"], fakes.Sent);
+            "proof2", "sign report", "report /v1/tafs/taf_coach/components/a1/approval/ask_2"], fakes.Sent);
         Assert.Equal("""{"result":"confirmed","session":"s1"}""", fakes.ReportSent);
         Assert.Equal("proof2", fakes.ReportProof);
         Assert.StartsWith("t=2026-11-15T22:30:00.123Z,v1=", fakes.ReportHeader);
@@ -367,9 +367,12 @@ public class CoachApprovalTests
 
     /// <summary>A sign-out after any step sends nothing more, as the iPad's accountGeneration checks.</summary>
     [Theory]
-    [InlineData("proof", 1)]
+    [InlineData("proof1", 1)]
     [InlineData("ask /v1/tafs/taf_coach/components/a1/approval proof1", 2)]
+    [InlineData("""hello /v1/me/agent-drafts/d_01/confirm {"version":"v3"}""", 3)]
     [InlineData("confirm /v1/me/agent-drafts/d_01/confirm KIFF-Passkey-Assertion", 4)]
+    [InlineData("proof2", 5)]
+    [InlineData("sign report", 6)]
     [InlineData("report /v1/tafs/taf_coach/components/a1/approval/ask_2", 7)]
     public async Task A_sign_out_meanwhile_sends_nothing_more(string after, int sent)
     {

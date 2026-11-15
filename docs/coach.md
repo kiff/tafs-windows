@@ -102,10 +102,20 @@ work, where the iPad's decoder fails the thread.
   - Answered, one line ("Approved · Refunds' Card", "Declined · Stripe"), with the Card KIFF signed under it. A newer
     request for the same connection folds the earlier one ("Approved · Setup asked for more below").
   - **Decline** is the card's own answer, `declined`, sent as any card's (`CoachChat.AnswerRequest`).
-  - **Approve** (`CoachApproval.ApproveAsync`, as the iPad's `approve`) shows only for a session that approves with
-    this PC's passkey; any other reads the iPad's gate line in its place. Approve stays off until what's signed is drawn:
-    the grant read, its digest matching (or the app connected), and the taf's Card read when the card names one.
-    - **One approval at a time:** another card's Approve meanwhile says "Another approval is going through…".
+  - **Approve** (`CoachApproval.ApproveAsync`, as the iPad's `approve`) is given only once the person may use Coach (as
+    the answers are), and only to a session that approves with this PC's passkey; any other reads the iPad's gate line in
+    its place. Approve stays off until what's signed is drawn: the grant read, its digest matching (or the app
+    connected), and the taf's Card read when the card names one. A grant with KIFF's profile words isn't approved here
+    until it's connected, since those words aren't read on this PC.
+    - **planque set up first:** as the iPad's `approveAsked`, nothing is sent until this session set planque up ("Start
+      from Connected apps on this Windows PC first."). That isn't kept across launches here yet, so after one the person
+      starts again.
+    - **A request planque refused** (its grant failed) shows "Coach mode has to change this request…" in place of the
+      buttons, as the iPad's `requestRefused`; the refused digests it keeps aren't on this PC yet.
+    - **One approval at a time:** while one goes through, every approval card's buttons are off, as the iPad's
+      `connecting`.
+    - **Windows Hello's dialog** doesn't show tafs cloud's `reason`, which the iPad's Face ID prompt shows; it names the
+      app and the passkey, as for Start.
     - **tafs cloud decides first.** This PC sends what the card showed (the grant, the digest and the Card's version
       shown, its conversation) with planque's read proof (`POST …/components/{card}/approval`). If tafs cloud answers
       Coach itself (`answered`) or the card is out of date (`read_again`), the card shows its note and the thread is read
