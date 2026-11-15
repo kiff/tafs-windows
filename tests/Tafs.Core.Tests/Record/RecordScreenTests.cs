@@ -16,16 +16,41 @@ public class RecordScreenTests
         new(taf, 0, kind, "Refund order #4471", "", Now.AddHours(-hoursAgo), amount);
 
     [Fact]
-    public void The_filters_are_the_iPad_s()
-    {
+    public void The_filters_are_the_iPad_s() =>
         Assert.Equal(new[] { "All", "Money moved", "Stopped", "Waiting" }, RecordScreen.Filters(En).Select(f => f.Title));
-        Assert.True(RecordScreen.Keeps(RecordFilter.MoneyMoved, Entry(EntryKind.Done, "€40")));
-        Assert.False(RecordScreen.Keeps(RecordFilter.MoneyMoved, Entry(EntryKind.Done)), "done, no money");
-        Assert.False(RecordScreen.Keeps(RecordFilter.MoneyMoved, Entry(EntryKind.Held, "€40")), "held money hasn't moved");
-        Assert.True(RecordScreen.Keeps(RecordFilter.Stopped, Entry(EntryKind.Refused)));
-        Assert.True(RecordScreen.Keeps(RecordFilter.Waiting, Entry(EntryKind.Held)));
-        Assert.All(Enum.GetValues<EntryKind>(), k => Assert.True(RecordScreen.Keeps(RecordFilter.All, Entry(k))));
+
+    /// <summary>One line of each kind, with an amount, against each filter: the iPad's RecordFilter.keeps.</summary>
+    [Theory]
+    [InlineData(EntryKind.Done, true, false, false)]
+    [InlineData(EntryKind.Approved, true, false, false)]
+    [InlineData(EntryKind.Held, false, false, true)]
+    [InlineData(EntryKind.Sending, false, false, true)]
+    [InlineData(EntryKind.Unknown, false, false, true)]
+    [InlineData(EntryKind.Refused, false, true, false)]
+    [InlineData(EntryKind.NotDone, false, true, false)]
+    [InlineData(EntryKind.Revoked, false, true, false)]
+    [InlineData(EntryKind.Started, false, false, false)]
+    public void Each_kind_goes_under_the_iPad_s_filters(EntryKind kind, bool moneyMoved, bool stopped, bool waiting)
+    {
+        var line = Entry(kind, "€40");
+        Assert.True(RecordScreen.Keeps(RecordFilter.All, line));
+        Assert.Equal(moneyMoved, RecordScreen.Keeps(RecordFilter.MoneyMoved, line));
+        Assert.Equal(stopped, RecordScreen.Keeps(RecordFilter.Stopped, line));
+        Assert.Equal(waiting, RecordScreen.Keeps(RecordFilter.Waiting, line));
+        Assert.False(RecordScreen.Keeps(RecordFilter.MoneyMoved, Entry(kind)), "no amount, no money moved");
     }
+
+    [Theory]
+    [InlineData(EntryKind.Done, Dot.Went)]
+    [InlineData(EntryKind.Approved, Dot.Went)]
+    [InlineData(EntryKind.Started, Dot.Went)]
+    [InlineData(EntryKind.Held, Dot.Waiting)]
+    [InlineData(EntryKind.Sending, Dot.Waiting)]
+    [InlineData(EntryKind.Unknown, Dot.Waiting)]
+    [InlineData(EntryKind.Refused, Dot.Stopped)]
+    [InlineData(EntryKind.NotDone, Dot.Stopped)]
+    [InlineData(EntryKind.Revoked, Dot.Stopped)]
+    public void Each_kind_has_its_dot(EntryKind kind, Dot dot) => Assert.Equal(dot, RecordScreen.DotOf(kind));
 
     [Fact]
     public void Days_are_newest_first_and_named_today_yesterday_or_by_weekday()

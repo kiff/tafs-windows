@@ -11,14 +11,21 @@ against. What it says is in `Tafs.Core.Record` (`RecordScreen`), tested in the `
   you. Newest first."
 - **The tafs' chips:** All tafs, then each taf with its colour's dot, the one started last first, as
   the iPad lists them. On a narrow window the row scrolls sideways.
-- **The filters' chips:** All, Money moved (done, with an amount), Stopped (refused), Waiting (held).
+- **The filters' chips,** by the iPad's rules (`RecordFilter.keeps`):
+  - All;
+  - Money moved: an amount that went, done or approved;
+  - Stopped: refused, not done or revoked;
+  - Waiting: held, sending or unknown.
+  A taf's start shows under All only.
 - **The chips:** 13 in a capsule, on the panel with a line around. The chosen one inverts: the ink's
   fill with the ground's colour on it. They have their own template, so pointing at the chosen one never
   washes its colours out.
 - **Each day:** its eyebrow, "TODAY · NOV 15", "YESTERDAY · NOV 14", else the weekday and date, 11 medium
   monospaced, in capitals by the language's own rules. Then its lines.
 - **Each line,** on a panel with corners of 14:
-  - the status dot: green done or started, amber waiting, red refused;
+  - the status dot: green done, approved or started; amber held, sending or unknown; red refused, not
+    done or revoked. Those are tafs cloud's kinds (`done`, `approved`, `held`, `refused`, `not_done`,
+    `sending`, `unknown`) and KIFF's `revoked`;
   - the taf's dot and "Chargebacks · Accept dispute on #3342" in 14 semibold;
   - the time, "00:17", 12 monospaced, 24-hour, this PC's;
   - the detail in 13 soft: "€35, within the Card", the rule that held it, or "Card issued by You".
@@ -33,6 +40,8 @@ words are the shared sample words.
 
 ## Not yet
 
+- **The tafs' chips are the tafs in the lines.** On the iPad they're the account's tafs, so a taf with no
+  line yet still has its chip. They switch when the tafs list arrives.
 - **A line's receipt.** On the iPad, a tap opens KIFF's receipt; here, lines don't open yet.
 - **Search and export**, which the iPad shows when signed in.
 - **Reads folded into one line a day,** and the day's "€640 spent" in its eyebrow: both need the real

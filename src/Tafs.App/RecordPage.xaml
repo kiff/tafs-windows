@@ -40,7 +40,7 @@
                           <ColumnDefinition Width="Auto" />
                           <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
-                        <!-- What became of it: green done, amber waiting, red refused. -->
+                        <!-- What became of it: green done, approved or started; amber held, sending or unknown; red refused, not done or revoked. -->
                         <Grid VerticalAlignment="Top" Margin="0,6,0,0">
                           <Ellipse Width="9" Height="9" Fill="{ThemeResource TafsOk}" Visibility="{x:Bind IsDone}" />
                           <Ellipse Width="9" Height="9" Fill="{StaticResource TafsAmber}" Visibility="{x:Bind IsWaiting}" />

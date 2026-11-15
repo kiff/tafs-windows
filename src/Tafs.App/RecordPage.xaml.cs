@@ -20,8 +20,8 @@ public sealed record RecordLineView(string Title, string Time, string Detail, Br
     {
         var (title, time) = RecordScreen.Line(e, zone);
         static Visibility Seen(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
-        return new(title, time, e.Detail, Colour(e.TafColor),
-            Seen(e.Kind is EntryKind.Done or EntryKind.Started), Seen(e.Kind == EntryKind.Held), Seen(e.Kind == EntryKind.Refused));
+        var dot = RecordScreen.DotOf(e.Kind);
+        return new(title, time, e.Detail, Colour(e.TafColor), Seen(dot == Dot.Went), Seen(dot == Dot.Waiting), Seen(dot == Dot.Stopped));
     }
 
     public static Brush Colour(int taf)

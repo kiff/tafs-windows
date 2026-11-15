@@ -4,14 +4,21 @@ using Tafs.Core.Words;
 
 namespace Tafs.Core.Record;
 
-/// <summary>What became of a call: its dot's colour on the Record.</summary>
-public enum EntryKind { Done, Held, Refused, Started }
+/// <summary>
+/// What became of a call, as tafs cloud's Record says it (`done`, `approved`, `held`, `refused`, `not_done`,
+/// `sending`, `unknown`) and KIFF's activity (`revoked`); and a taf's start, which only All shows.
+/// Its dot: green done, approved or started; amber held, sending or unknown; red refused, not done or revoked.
+/// </summary>
+public enum EntryKind { Done, Approved, Held, Refused, NotDone, Sending, Unknown, Revoked, Started }
 
 /// <summary>
 /// One line of the Record: a taf's call, what KIFF decided and what the tool did. <paramref name="Amount"/> is
 /// the money it moved, already written in the person's money; its words are in <paramref name="Detail"/>.
 /// </summary>
 public sealed record RecordEntry(string Taf, int TafColor, EntryKind Kind, string Title, string Detail, DateTimeOffset At, string? Amount = null);
+
+/// <summary>A line's dot's colour: green, amber or red.</summary>
+public enum Dot { Went, Waiting, Stopped }
 
 /// <summary>The Record's filters, as the iPad's (kiff/tafs#167).</summary>
 public enum RecordFilter { All, MoneyMoved, Stopped, Waiting }
@@ -38,13 +45,24 @@ public static class RecordScreen
         (RecordFilter.Waiting, w.Get("record.filter.waiting")),
     ];
 
-    /// <summary>Money moved: done, with an amount. Stopped: refused. Waiting: held.</summary>
+    /// <summary>
+    /// The iPad's rules (RecordFilter.keeps): Money moved, an amount that went (done or approved); Stopped, refused,
+    /// not done or revoked; Waiting, held, sending or unknown. All keeps every line, a taf's start included.
+    /// </summary>
     public static bool Keeps(RecordFilter filter, RecordEntry e) => filter switch
     {
-        RecordFilter.MoneyMoved => e.Amount is not null && e.Kind == EntryKind.Done,
-        RecordFilter.Stopped => e.Kind == EntryKind.Refused,
-        RecordFilter.Waiting => e.Kind == EntryKind.Held,
+        RecordFilter.MoneyMoved => e.Amount is not null && e.Kind is EntryKind.Done or EntryKind.Approved,
+        RecordFilter.Stopped => e.Kind is EntryKind.Refused or EntryKind.NotDone or EntryKind.Revoked,
+        RecordFilter.Waiting => e.Kind is EntryKind.Held or EntryKind.Sending or EntryKind.Unknown,
         _ => true,
+    };
+
+    /// <summary>A line's dot: what became of the call, at a glance.</summary>
+    public static Dot DotOf(EntryKind kind) => kind switch
+    {
+        EntryKind.Held or EntryKind.Sending or EntryKind.Unknown => Dot.Waiting,
+        EntryKind.Refused or EntryKind.NotDone or EntryKind.Revoked => Dot.Stopped,
+        _ => Dot.Went,
     };
 
     /// <summary>The Record by day in <paramref name="zone"/>, newest first, narrowed to the filter and to one taf (or every taf).</summary>
