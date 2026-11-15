@@ -40,6 +40,12 @@ public sealed partial class MainWindow : Window
     HashSet<string>? notified;
 
     /// <summary>
+    /// The hold a clicked notification named, kept until Needs you shows its card, as the iPad's <c>requestedHold</c>: a
+    /// click that started tafs, or a hold not read yet, lands on it once it's listed.
+    /// </summary>
+    string? requestedHold;
+
+    /// <summary>
     /// KIFF's held calls read again every minute while a session is in use: the iPad hears of a new hold by push, which
     /// Windows doesn't have yet, so this is how a notification comes while tafs is open.
     /// </summary>
@@ -149,6 +155,8 @@ public sealed partial class MainWindow : Window
                 if (!HoldToast.Reads(since, now) && home is { } listed && kiffRead is not null) _ = ReadHeldAsync(listed, sessions);
             }
         };
+        // F5 on Needs you: Home and KIFF's held calls read again, as the iPad's pull-to-refresh.
+        NeedsYouPage.RefreshChosen += () => { if (cloudRead is { } read) _ = ReadHomeAsync(read); };
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
         // Focus goes back to the sidebar's Coach when Coach mode has gone.
         CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
@@ -303,15 +311,21 @@ public sealed partial class MainWindow : Window
     async Task ReadHeldAsync(HomeAnswer listed, int reading)
     {
         if (kiffRead is not { } read || sampleHeld) return;
+        // Who answers, and who manages Cards, as the iPad's mayAnswerHolds and canManageCards: KIFF's capabilities on /v1/me.
+        var capabilities = Tafs.Core.Coach.CoachAccess.Capabilities((await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer);
+        if (reading != sessions) return;
+        NeedsYouPage.Capabilities = (HoldToast.Notifies(capabilities), capabilities?.Contains("cards.manage") ?? true);
         var answer = (await read(KiffHeld.Path)).Answer;
         if (reading != sessions || answer is not { } json || KiffHeld.Read(json) is not { } holds) return;
         var tafs = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => (g.First().Name, g.First().Colour));
         var calls = KiffHeld.Calls(App.Words, holds, agent => tafs.TryGetValue(agent, out var taf) ? taf : null);
         ShowHeld(calls);
-        // A hold KIFF has held since the last read gets its notification, as the iPad's hold alert, once the person turned
-        // alerts on for this account (Account › Alerts).
+        // A hold KIFF has held since the last read gets its notification, as the iPad's hold alert, only for someone who
+        // answers held calls (canAnswerHolds) and turned alerts on for this account (Account › Alerts); one no longer held
+        // loses its notification (removeAlerts(forHold:)).
+        Toasts.Remove(HoldToast.Gone(notified, calls));
         var alerts = Alerts.Prefs;
-        if (App.Sessions.Kept()?.Tenant is { } tenant && alerts.IsOn(tenant))
+        if (HoldToast.Notifies(capabilities) && App.Sessions.Kept()?.Tenant is { } tenant && alerts.IsOn(tenant))
             foreach (var fresh in HoldToast.New(notified, calls))
                 if (HoldToast.Lines(App.Words, fresh, TimeZoneInfo.Local) is { } lines) Toasts.Show(lines, alerts.Sound);
         notified = calls.Where(c => c.KiffId is not null).Select(c => c.KiffId!).ToHashSet();
@@ -323,9 +337,18 @@ public sealed partial class MainWindow : Window
     /// </summary>
     internal void OpenHold(string hold)
     {
+        requestedHold = hold;
         Activate();
         if (needsYouRow is { } row) Nav.SelectedItem = row;
-        if (Pages.Content is NeedsYouPage page) page.ShowHold(hold);
+        ShowRequestedHold();
+        // Not listed yet: KIFF is read again, as the iPad's onHoldAlert. Before sign-in, the first read brings it.
+        if (requestedHold is not null && home is { } listed && kiffRead is not null) _ = ReadHeldAsync(listed, sessions);
+    }
+
+    /// <summary>The requested hold's card brought into view, once Needs you lists it; then it's forgotten.</summary>
+    void ShowRequestedHold()
+    {
+        if (requestedHold is { } hold && Pages.Content is NeedsYouPage page && page.ShowHold(hold)) requestedHold = null;
     }
 
     /// <summary>The held calls drawn again: NEEDS YOU in the sidebar, Needs you's count, and Needs you or the Overview when open.</summary>
@@ -336,6 +359,7 @@ public sealed partial class MainWindow : Window
         AddHeldCalls(w);
         if (needsYouRow is { } row) ShowCount(row, w, needsYouTitle);
         if (Pages.Content is NeedsYouPage page) page.Show(held);
+        ShowRequestedHold();
         if (Pages.Content is OverviewPage overview) overview.ShowHeld(held);
     }
 
@@ -393,6 +417,7 @@ public sealed partial class MainWindow : Window
     void ForgetSession()
     {
         sessions++;
+        NeedsYouPage.Capabilities = (true, true);
         cloudRead = null;
         cloudReadWithProof = null;
         setupProof = null;
@@ -403,6 +428,8 @@ public sealed partial class MainWindow : Window
         if (Pages.Content is RecordPage page) page.ShowEntries(record);
         if (!sampleHeld) ShowHeld([]);
         notified = null;
+        requestedHold = null;
+        Toasts.RemoveAll();
         heldClock.Stop();
         ShowHome(new HomeAnswer([], null));
         CoachMode.Read = null;
@@ -612,7 +639,7 @@ public sealed partial class MainWindow : Window
     {
         foreach (var old in heldRows) Nav.MenuItems.Remove(old);
         heldRows.Clear();
-        if (held.Count == 0) return;
+        if (!held.Any(c => c.Listed)) return;
         var at = Nav.MenuItems.IndexOf(YourTafs);
         var header = new NavigationViewItemHeader
         {
@@ -621,7 +648,7 @@ public sealed partial class MainWindow : Window
         };
         heldRows.Add(header);
         Nav.MenuItems.Insert(at++, header);
-        foreach (var call in held)
+        foreach (var call in held.Where(c => c.Listed))
         {
             var (title, line) = NeedsYouScreen.SidebarRow(w, call, TimeZoneInfo.Local);
             var lines = new StackPanel { Spacing = 2 };
@@ -659,7 +686,11 @@ public sealed partial class MainWindow : Window
         ShowAccountChosen(false);
         if (item == BrandItem)
             Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, overviewRows));
-        else if (item.Tag is Screen.NeedsYou or HeldCall) Pages.Navigate(typeof(NeedsYouPage), held);
+        else if (item.Tag is Screen.NeedsYou or HeldCall)
+        {
+            Pages.Navigate(typeof(NeedsYouPage), held);
+            ShowRequestedHold();
+        }
         else if (item.Tag is Screen.Record) Pages.Navigate(typeof(RecordPage), record);
         else if (item.Tag is Screen.Usage) Pages.Navigate(typeof(UsagePage), usage);
         else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof));

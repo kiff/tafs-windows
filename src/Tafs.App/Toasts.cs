@@ -59,7 +59,20 @@ static class Toasts
             .AddText(lines.Body);
         if (!sound) builder.MuteAudio();
         var notification = builder.BuildNotification();
-        notification.Tag = lines.Hold.Length <= 64 ? lines.Hold : lines.Hold[..64];
+        notification.Tag = HoldToast.Tag(lines.Hold);
         AppNotificationManager.Default.Show(notification);
+    }
+
+    /// <summary>The notifications of holds no longer held, as the iPad's <c>removeAlerts(forHold:)</c>.</summary>
+    public static void Remove(IEnumerable<string> holds)
+    {
+        if (!on) return;
+        foreach (var hold in holds) _ = AppNotificationManager.Default.RemoveByTagAsync(HoldToast.Tag(hold));
+    }
+
+    /// <summary>Every notification of tafs's, on a sign-out: the last account's calls never stay on a shared PC.</summary>
+    public static void RemoveAll()
+    {
+        if (on) _ = AppNotificationManager.Default.RemoveAllAsync();
     }
 }

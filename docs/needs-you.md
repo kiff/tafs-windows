@@ -24,18 +24,31 @@ The card has the iPad's amber edge (40%) and corners of 18, on the panel colour.
 
 ## The answers, for now
 
-This PC doesn't approve yet: the Windows Hello calls are their own change. So where the iPad has
-Approve and Refuse, the card says why this PC can't and offers **Add this Windows PC**, as the
-iPad's own gate does when a device can't approve: words, never buttons that can't work.
+This PC doesn't approve yet: the Windows Hello calls are their own change. Where the answers go, the card follows the
+iPad's `answers(refuseOnly:)`, with KIFF's capabilities from `GET /v1/me` (read with the held calls; none listed allows):
+- **Someone without `holds.answer`** reads "Someone who approves on this account answers this. Their answer shows
+  here.", and no gate.
+- **A call approving once can pass** has the gate where Approve would be: why this PC can't approve, and **Add this
+  Windows PC**, as the iPad's `ApprovalGate` when a device can't approve.
+- **A call over a Card total** (`can_approve_once: false`) says so ("Extra room lets only this call through." for
+  someone with `cards.manage`), with the gate only where a manager's Extra room would be.
+
+Words, never buttons that can't work.
 
 ## Where the calls come from
 
-**From KIFF** (`KiffHeld`), as the iPad's `KIFFClient.heldCalls` and `KIFFMapping.held`, with each refresh of Home's
-list. It's `GET /v1/me/card-exceptions?status=held`, a plain read as the session, as the iPad's.
-- **Decoded as the iPad's `CardException`:** a hold missing its id, subject, action, entity, status, breaches or time
-  fails the read, and Needs you stays as it was. The taf's words that aren't text are left out, never the hold. A Card
-  unit's hold (`kind: card_unit`) is left to its own panel.
-- **Under its taf,** by its agent in KIFF, from Home's list (else under the agent's own name), in the taf's colour.
+**From KIFF** (`KiffHeld`), as the iPad's `KIFFClient.heldCalls` and `KIFFMapping.held`, with each read of Home's list:
+at sign-in, when Coach asks for Home, and with **F5** on Needs you, the Windows form of the iPad's pull-to-refresh. It's
+`GET /v1/me/card-exceptions?status=held`, a plain read as the session, as the iPad's.
+- **Decoded as the iPad's synthesized `CardException` decoder:** a hold missing its id, subject, action, entity, status,
+  breaches or time fails the read, and so does any field of the wrong kind where it's there and not null (a decimal
+  parameter, a unit without its scale, a next step that isn't text, a string limit, `"kind": 1`, a time that isn't ISO
+  8601 with an offset or Z). Needs you then stays as it was. Only the taf's words (left out when they aren't text, never
+  the hold) and the arguments (written as text whatever they are) are read leniently. A Card unit's hold
+  (`kind: card_unit`) is left to its own panel.
+- **Under its holder,** as the iPad's `holderName ?? aTaf`: the taf by its agent in KIFF, from Home's list, with its
+  avatar in its colour; Coach for Setup's agent; else "A taf", with no avatar. Only a taf's calls are listed in the
+  sidebar's NEEDS YOU (the iPad's `HomeSplitView`); all are on Needs you and in its count.
 - **What it asks:** its title, with its action in words unless the title names the action's last word (`Says`).
   planque's four letters ending a tool's name never show. With no arguments kept, the entity follows.
 - **The amount:** a parameter KIFF declares a unit for, written as money; else the parameter a breach sums, as a bare
@@ -53,6 +66,12 @@ list. It's `GET /v1/me/card-exceptions?status=held`, a plain read as the session
 - **When it lapses:** KIFF's `expires_at`, else ten minutes after it was held.
 - **Drawn again with each read:** NEEDS YOU in the sidebar, Needs you's count, and Needs you or the Overview when open.
   A sign-out clears them.
+- **Not like the iPad:**
+  - A read that fails, or can't be read, is silent and keeps what's shown, as the Record's. The iPad's refresh says
+    "Couldn't load from KIFF" and tries again.
+  - Needs you's count is the held calls'. The iPad uses Home's `needs_you` count when tafs cloud sends it; that comes
+    with Card units and steps.
+  - Not yet: reading again at the next expiry and on return to the app.
 
 `--sample` shows the iPad's two sample calls for screenshots, and never reads KIFF: Deploys' migration and Bill pay's
 €8,400. Their words are the shared sample words, so they're in every shipped language. Needs you's row in the sidebar carries their count at its end, as
@@ -65,10 +84,12 @@ that wide would put the amount far from the answers.
 ## Notifications (`HoldToast`, `Toasts`)
 
 While tafs runs, a call KIFF holds gets a Windows notification, as the iPad's hold alert (`HoldNotification.words`,
-`PushDelegate.open`), once the person turned alerts on for this account in Account › Alerts. With Sound off there, it
+`PushDelegate.open`), for someone who answers held calls (KIFF's `holds.answer` on `GET /v1/me`, none listed allows, as
+the iPad's `canAnswerHolds`), once they turned alerts on for this account in Account › Alerts. With Sound off there, it
 comes silent:
 - **Its words:**
-  - "Rae needs you" (or "A taf needs you");
+  - "Rae needs you": a listed taf's name, "Coach" for Coach's own agent (`setup`), and "A taf needs you" for an agent no
+    taf has, as the iPad's `HoldNotification.fill`;
   - then "Refund order 42, €150.00 · Over €50 each. Answer by 14:05. Nothing is sent until you approve.", answering by
     this PC's time, as every screen here shows it.
 - **When it's read:** with each refresh of Home's list, and every minute while a session is in use. The iPad hears of a
@@ -77,12 +98,17 @@ comes silent:
 - **Which holds:** one KIFF has held since the last read of Needs you. A session's first read notifies nothing, so opening
   tafs doesn't announce what was already waiting: it's all in Needs you. A sample is never notified. A sign-out starts
   again.
-- **One per hold:** each is tagged with the hold's id, so it's never shown twice.
+- **One per hold:** each is tagged with the SHA-256 of the hold's id (Windows keeps 64 characters), so it's never shown
+  twice.
+- **Gone when the hold is:** a hold no longer held at a read, answered elsewhere or lapsed, loses its notification, as the
+  iPad's `removeAlerts(forHold:)`. A sign-out takes every notification of tafs's away, so the last account's calls never
+  stay on a shared PC.
 - **Clicking one** brings the window forward and opens Needs you with that hold's card in view, whether tafs was open or
-  the click started it.
+  the click started it. The hold is kept until Needs you lists it, as the iPad's `requestedHold`: a click that started
+  tafs lands on it after sign-in's first read, and one naming a hold not read yet reads KIFF again (`onHoldAlert`). A
+  sign-out forgets it.
 - **How:** the Windows App SDK's `AppNotificationManager`, which works for an unpackaged app. It's registered at start
   (never for a screenshot). On a PC that refuses it, there are no notifications, and Needs you still shows every hold.
 - **Not yet:**
   - a notification while tafs is closed, which needs a push from tafs cloud, as the iPad's;
   - Approve and Refuse on the notification itself;
-  - taking a hold's notification away once it's answered elsewhere;
