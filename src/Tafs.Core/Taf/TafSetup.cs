@@ -9,10 +9,40 @@ public sealed record SetupAction(string Name, string Title, IReadOnlyList<string
 
 /// <summary>
 /// One connected app, as tafs cloud says it: its status in words ("Sign in again") and whether that means signing in
-/// again, its actions, and the last seven days in words with the query that opens them on the Activity.
+/// again, its actions (and how many), the last seven days in words with the query that opens them on the Activity, and
+/// whether a step of its workflow is running on it now.
 /// </summary>
 public sealed record SetupConnection(string Id, string Name, string Status, string StatusWords, bool Reconnect,
-    string ActionWords, IReadOnlyList<SetupAction> Actions, string? WorkflowWords, string StatsWords, string? ActivityQuery);
+    string ActionWords, IReadOnlyList<SetupAction> Actions, string? WorkflowWords, string StatsWords, string? ActivityQuery,
+    int ActionCount = 0, bool Running = false);
+
+/// <summary>One app around the taf in Setup's ring: the connection that does the work, with any other sign-in to the same app.</summary>
+public sealed record SetupNode(SetupConnection App, IReadOnlyList<SetupConnection> Others);
+
+/// <summary>
+/// A taf's Setup as last read, as the iPad keeps <c>tafSetups</c> and <c>tafSetupErrors</c>: the page, kept when a later
+/// read fails, and why that read failed. Neither yet: it's being read.
+/// </summary>
+public sealed class SetupRead
+{
+    public SetupPage? Page { get; private set; }
+    public string? Error { get; private set; }
+
+    /// <summary>
+    /// <c>GET /v1/tafs/{id}/setup</c>, as the iPad's <c>loadTafSetup</c>. The iPad adds planque's signed grants read when it
+    /// can sign it (<c>try?</c>), and reads without it otherwise; this reads without it, its proof coming in its own change.
+    /// </summary>
+    public async Task LoadAsync(string taf, Func<string, Task<CloudRead>> read)
+    {
+        var answer = await read(TafSetup.Path(taf));
+        if (answer.Answer is { } json)
+        {
+            Page = TafSetup.Read(json);
+            Error = null;
+        }
+        else Error = answer.Why;
+    }
+}
 
 /// <summary>A step of the taf's workflow: its number, label and words, the app it uses, and whether it's running.</summary>
 public sealed record WorkflowStep(int Number, string Label, string Words, string? App, bool Running);
@@ -74,8 +104,24 @@ public static class TafSetup
         return new SetupConnection(id, name, Lenient.Text(c, "status") ?? "", Lenient.Text(c, "status_words") ?? "",
             Lenient.Bool(c, "reconnect"), Lenient.Text(c, "action_words") ?? "",
             Lenient.Array(c, "actions").Select(Action).OfType<SetupAction>().ToList(),
-            Lenient.Text(c, "workflow_words"), Lenient.Text(stats, "words") ?? "", Lenient.Text(stats, "activity_query"));
+            Lenient.Text(c, "workflow_words"), Lenient.Text(stats, "words") ?? "", Lenient.Text(stats, "activity_query"),
+            Lenient.Int(c, "action_count") ?? 0, Lenient.Bool(c, "running"));
     }
+
+    public static string Path(string taf) => $"/v1/tafs/{CloudRead.PathPart(taf)}/setup";
+
+    /// <summary>
+    /// The ring's apps, as the iPad's <c>ConnectedToolsRing.nodes</c>: one an app, in tafs cloud's order of each app's first
+    /// connection. The one shown is the first with actions, else one to sign in again, else the first; the others go inside
+    /// it. Two "Stripe" connections, one choosing actions and one with two, read as one Stripe.
+    /// </summary>
+    public static IReadOnlyList<SetupNode> Nodes(IReadOnlyList<SetupConnection> apps) =>
+        apps.GroupBy(a => a.Name).Select(g =>
+        {
+            var all = g.ToList();
+            var main = all.FirstOrDefault(a => a.ActionCount > 0) ?? all.FirstOrDefault(a => a.Reconnect) ?? all[0];
+            return new SetupNode(main, all.Where(a => a.Id != main.Id).ToList());
+        }).ToList();
 
     static SetupAction? Action(JsonElement a) =>
         Lenient.Text(a, "name") is { } name

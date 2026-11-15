@@ -39,6 +39,22 @@ Activity):
   pages and says why, as `CloudRead` words it.
 - `--home shared/contracts/home.json --page taf` opens the first taf, its Activity from `taf-activity.json` beside it.
 
+**Its Setup from tafs cloud** (`SetupRead`, ported from `AppModel.loadTafSetup`; drawn as `TafDetailView.setup`,
+`ConnectedToolsRing` and `MemorySummaryPanel`): `GET /v1/tafs/{id}/setup`, read as the page opens and on Try again.
+- **Without planque's proof for now.** The iPad adds its signed grants read (`Planque-Device-Signature`) when it can sign
+  it (`try?`), and reads without it otherwise; its proof, signed with this PC's TPM device key, comes in its own change.
+  Without it, tafs cloud says so where the connections would be ("Connect this phone to read its connected apps").
+- **In the iPad's order:** the Card-unit exceptions (title, words, history); the job (Home's `job_summary`, else "Works
+  under 2 KIFF Cards."); the connected apps; what it remembers ("3 notes" and the latest, two lines at most).
+- **The connected apps:** why they couldn't be read, in red, with Try again; a ring while it's read; then the ring, 280
+  high: each app on a circle round the taf, joined by a dashed line, its name and its actions' words, a running one with a
+  green arc and green words. One node an app (`TafSetup.Nodes`): the connection with actions in front, else one to sign in
+  again, else the first. The taf in the middle shows its job. Under it, the workflow folded: its title and summary, then
+  each step's number (green while it runs), label, words and app.
+- A failed read keeps the page read before, as the iPad keeps `tafSetups` beside `tafSetupErrors`.
+- `--page taf-setup` with `--home` opens the first taf on Setup, from `taf-setup.json` beside the Home contract (CI's
+  `taf-home` and `taf-setup-home`).
+
 **Setup**, as `taf-setup.png`:
 - **The job,** under "THE JOB".
 - **Starts when and Results go to:** shown, off until their screens are built.
@@ -104,9 +120,10 @@ rules and totals.
 - **The revision as If-None-Match:** the server's ETag is the quoted form of `revision`; each read is whole for now. Its
   days are titled as sent, in 12 semibold, not in the sample's capitals. Pull to refresh has no Windows gesture yet.
 - **Chat,** in its own change.
-- **Setup from tafs cloud:** drawing what `TafSetup.Read` reads. That means the connected apps and their sheets, the
-  Card-unit exceptions (whose change Coach asks to sign), Connect again, the memory's See all, Improve in Coach, and
-  Remove. Forget and Pause also need to reach tafs cloud; for now they change the sample's page only.
+- **What acts in Setup:** a connected app's sheet, the + to connect one, a Card-unit exception's Coach and Dismiss
+  (signed), the taf's own Connect again, Improve in Coach, Change the workflow with Coach, the memory's See all, Starts
+  when, Results go to, and Remove. They need Coach, signing or sign-in, and whether the person manages the taf. The
+  sample's Forget and Pause change its page only.
 - **The real Revoke:** `POST /v1/me/mandates/{id}/revoke` for each of its Cards, shown only to whoever KIFF says manages
   the taf, and Stopped only once KIFF has revoked them all (`card.revoke_failed` otherwise). How it's signed, and
   whether a view-only session may send it, is settled in its own PR with the security review. Today's Revoke reaches
