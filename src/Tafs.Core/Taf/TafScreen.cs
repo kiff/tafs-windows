@@ -7,7 +7,7 @@ namespace Tafs.Core.Taf;
 public enum TafTab { Chat, Activity, Card, Setup }
 
 /// <summary>A taf's page's head: its avatar's letter and colour, its name, and its state ("Working").</summary>
-public sealed record TafHead(string Name, string Initial, int Colour, string State);
+public sealed record TafHead(string Name, string Initial, int Colour, string State, bool Waiting = false);
 
 /// <summary>The Card bar above the Activity: what's left of its main limit ("€1,960 left today of €2,000") and the Card's name.</summary>
 public sealed record CardBarLine(string Hero, string Under);
@@ -31,7 +31,7 @@ public static class TafScreen
         string.IsNullOrWhiteSpace(name) ? "" : StringInfo.GetNextTextElement(name.Trim()).ToUpper(CultureInfo.CurrentCulture);
 
     public static TafHead Head(WordBook w, string name, int colour, string stateKey) =>
-        new(name, Initial(name), colour, w.Get("taf.state." + stateKey));
+        new(name, Initial(name), colour, w.Get("taf.state." + stateKey), stateKey == "waiting");
 
     /// <summary>The sample's taf the reference set opens (taf.png): Refunds, the fifth colour, working.</summary>
     public static TafHead SampleHead(WordBook w) => Head(w, SampleTaf(w), 4, "working");

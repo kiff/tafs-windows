@@ -31,6 +31,10 @@
         <Border Background="{ThemeResource TafsOk}" Opacity="0.15" CornerRadius="11" />
         <TextBlock x:Name="StateText" FontSize="12" FontWeight="Medium" Margin="10,4" Foreground="{ThemeResource TafsOk}" />
       </Grid>
+      <Grid x:Name="WaitingChip" Grid.Column="2" VerticalAlignment="Center" Visibility="Collapsed">
+        <Border Background="{StaticResource TafsAmber}" Opacity="0.15" CornerRadius="11" />
+        <TextBlock x:Name="WaitingText" FontSize="12" FontWeight="Medium" Margin="10,4" Foreground="{StaticResource TafsAmber}" />
+      </Grid>
       <Grid x:Name="StoppedChip" Grid.Column="2" VerticalAlignment="Center" Visibility="Collapsed">
         <Border Background="{ThemeResource TafsNo}" Opacity="0.15" CornerRadius="11" />
         <TextBlock x:Name="StoppedText" FontSize="12" FontWeight="Medium" Margin="10,4" Foreground="{ThemeResource TafsNo}" />
