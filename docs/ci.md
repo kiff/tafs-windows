@@ -89,3 +89,9 @@ The organisation shares 20 parallel jobs. This repo uses no macOS job. Part jobs
 they only need the portable core; jobs that need Windows (the app build, the TPM key) will be a
 separate job that runs only when its paths change. NuGet packages are cached: every run restores,
 only main saves.
+
+## The team's MSIX
+
+The `msix` job builds the unsigned MSIX for x64 and ARM64 (`docs/install.md`), on Windows. It runs on every push to
+main, on demand, and on a PR that changes the app. Each run keeps `tafs-msix-x64` and `tafs-msix-ARM64` as artifacts.
+Its version is `0.1.<run number>.0`, stamped into the manifest before the build, so each build installs over the last.

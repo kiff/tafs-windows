@@ -7,12 +7,22 @@
     <Platforms>x64;ARM64</Platforms>
     <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
     <UseWinUI>true</UseWinUI>
-    <!-- Unpackaged until the signing certificate is decided: team builds only. -->
-    <WindowsPackageType>None</WindowsPackageType>
+    <!-- Unpackaged, except the team's MSIX (-p:TafsMsix=true, docs/install.md), unsigned until the signing certificate is decided. -->
+    <WindowsPackageType Condition="'$(TafsMsix)' != 'true'">None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <!-- Brings the resource (PRI) build tasks, so plain `dotnet build` works with no Visual Studio. -->
     <EnableMsixTooling>true</EnableMsixTooling>
     <AssemblyTitle>tafs</AssemblyTitle>
+  </PropertyGroup>
+  <!-- The team's MSIX: one package per platform, never signed here. -->
+  <PropertyGroup Condition="'$(TafsMsix)' == 'true'">
+    <WindowsPackageType>MSIX</WindowsPackageType>
+    <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
+    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+    <AppxBundle>Never</AppxBundle>
+    <GenerateTestArtifacts>false</GenerateTestArtifacts>
+    <AppxSymbolPackageEnabled>false</AppxSymbolPackageEnabled>
+    <AppxPackageDir>$(MSBuildThisFileDirectory)..\..\artifacts\msix\</AppxPackageDir>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.240923002" />
@@ -27,6 +37,8 @@
   <ItemGroup>
     <!-- The mascot, from the iPad's asset catalog (ios/Shared/Mascot.xcassets), at 160 px. -->
     <Content Include="Assets\mascot.png" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The package's logos, made from the mascot. -->
+    <Content Include="Assets\Square150x150Logo.png;Assets\Square44x44Logo.png;Assets\StoreLogo.png;Assets\Wide310x150Logo.png" />
     <Content Include="..\..\shared\app\strings\**\*.json" Link="Strings\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <Target Name="NeedsTheWords" BeforeTargets="Build" Condition="!Exists('..\..\shared\app\strings\languages.json')">
