@@ -105,7 +105,7 @@ jobs:
           exe=src/Tafs.App/bin/x64/Release/net8.0-windows10.0.19041.0/Tafs.App.exe
           mkdir -p screenshots
           missing=0
-          for screen in sign-in overview view-only pair needs-you record calendar calendar-week usage; do
+          for screen in sign-in overview view-only pair needs-you record calendar calendar-week usage coach; do
             case $screen in
               sign-in) opts=(--page sign-in) ;;
               overview) opts=(--sample) ;;
@@ -116,6 +116,7 @@ jobs:
               calendar) opts=(--page calendar) ;;
               calendar-week) opts=(--page calendar-week) ;;
               usage) opts=(--page usage --sample) ;;
+              coach) opts=(--page coach --sample) ;;
             esac
             for lang in en fr pt; do for theme in light dark; do
               file="screenshots/$screen-$lang-$theme.png"
