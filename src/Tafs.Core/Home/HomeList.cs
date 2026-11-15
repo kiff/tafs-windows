@@ -82,10 +82,12 @@ public static class HomeList
         t.Cards.FirstOrDefault()?.Hero(w) is { } hero ? $"{hero.Figure} {hero.Words}" : "–";
 
     /// <summary>
-    /// The Overview's lines, every taf. Last result reads its runs in its own change; until then "–".
+    /// The Overview's lines, every taf, with each one's Last result from <paramref name="reports"/> (its latest run, by its
+    /// id) once read; until then when it last ran, else "Nothing yet", as the iPad's.
     /// </summary>
-    public static IReadOnlyList<OverviewRow> Rows(WordBook w, HomeAnswer home) =>
-        home.Tafs.Select(t => new OverviewRow(t.Id, t.Name, t.Colour, t.Now, CardLine(w, t), "–")).ToList();
+    public static IReadOnlyList<OverviewRow> Rows(WordBook w, HomeAnswer home, TimeZoneInfo zone, IReadOnlyDictionary<string, LatestRun>? reports = null) =>
+        home.Tafs.Select(t => new OverviewRow(t.Id, t.Name, t.Colour, t.Now, CardLine(w, t),
+            TafRuns.LastResult(w, reports?.GetValueOrDefault(t.Id), t.LastRun, zone))).ToList();
 
     /// <summary>
     /// Your tafs: those relevant now (a call of its waits, or it ran or changed in the last 24 hours), each with what went

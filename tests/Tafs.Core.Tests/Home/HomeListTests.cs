@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Tafs.Core.Contracts;
 using Tafs.Core.Home;
+using Tafs.Core.Taf;
 using Tafs.Core.Tests.Strings;
 using Tafs.Core.Words;
 
@@ -51,9 +52,11 @@ public class HomeListTests
     [Fact]
     public void The_Overview_s_line_says_its_next_run_and_what_its_Card_has_left()
     {
-        var row = Assert.Single(HomeList.Rows(En, Home("home.json")));
+        var row = Assert.Single(HomeList.Rows(En, Home("home.json"), TimeZoneInfo.Utc));
 
-        Assert.Equal(("taf-aaaa0000000000000000", "Rae", "Next run Fri 12:30", "–"), (row.Key, row.Taf, row.Now, row.LastResult));
+        Assert.Equal(("taf-aaaa0000000000000000", "Rae", "Next run Fri 12:30", "Nothing yet"), (row.Key, row.Taf, row.Now, row.LastResult));
+        var read = new Dictionary<string, LatestRun> { ["taf-aaaa0000000000000000"] = new(Text: "3 refunds sent") };
+        Assert.Equal("3 refunds sent", HomeList.Rows(En, Home("home.json"), TimeZoneInfo.Utc, read)[0].LastResult);
         Assert.StartsWith("€800 ", row.Card);
     }
 

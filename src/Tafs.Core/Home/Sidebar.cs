@@ -91,7 +91,8 @@ public static class OverviewScreen
                 ? w.Get("taf.now.waiting_on", ("summary", h.Summary))
                 : record.Where(e => e.Taf == t.Name).OrderByDescending(e => e.At).FirstOrDefault()?.Title ?? "";
             var card = t.Card.Hero(w) is { } hero ? $"{hero.Figure} {hero.Words}" : "–";
-            return new OverviewRow(t.Key, t.Name, t.Colour, doing, card, Taf.TafRuns.LastResult(w, null, null, TimeZoneInfo.Utc));
+            // As the iPad's lastResult for a taf tafs cloud doesn't run.
+            return new OverviewRow(t.Key, t.Name, t.Colour, doing, card, "–");
         }).ToList();
     }
 
