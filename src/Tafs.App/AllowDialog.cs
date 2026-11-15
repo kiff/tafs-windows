@@ -80,7 +80,11 @@ sealed class AllowDialog
         }
         sheet = sheet with { Busy = true, Error = null };
         Draw();
-        var (done, refused, stopped) = await calls.Confirm(sheet, bodyBytes);
+        (bool Done, string? Why, bool Stopped) came;
+        // Whatever goes wrong, the sheet never stays waiting: it says why, and nothing more is sent.
+        try { came = await calls.Confirm(sheet, bodyBytes); }
+        catch (Exception e) { came = (false, SessionStore.Why(e), false); }
+        var (done, refused, stopped) = came;
         if (stopped || done) { dialog?.Hide(); return; }
         // Windows Hello closed or not verified: nothing was sent, and the sheet stays as it was, as the iPad's quiet stop.
         sheet = refused is null ? sheet with { Busy = false } : sheet.Failed(App.Words, refused);

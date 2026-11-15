@@ -449,6 +449,46 @@ public class HoldAllowTests
         Assert.Null((sheet with { Draft = sheet.Draft! with { Status = "confirmed" } }).Confirmation(En).Body);
     }
 
+    /// <summary>
+    /// Signing that fails sends nothing and never leaves the sheet waiting: Windows Hello closed says nothing; a TPM or
+    /// Windows Hello error, an answer that can't be read, or a refusal says why. Signed, the confirm goes with its header.
+    /// </summary>
+    [Fact]
+    public async Task A_failure_to_sign_sends_nothing_and_says_why()
+    {
+        var posted = new List<(string Path, string Body, string Header)>();
+        Task<(int, string)> Post(string path, byte[] body, (string Header, string Value) s)
+        {
+            posted.Add((path, Encoding.UTF8.GetString(body), $"{s.Header}: {s.Value}"));
+            return Task.FromResult((200, "{}"));
+        }
+        var body = HoldAllow.ConfirmBody("v7", null);
+        async Task<(bool Done, string? Why, bool Stopped)> Confirm(Exception? thrown) => await HoldAllow.ConfirmAsync(En, "dr_9", body,
+            (_, _) => thrown is null ? Task.FromResult(("KIFF-Passkey-Assertion", "t=x,a=y")) : Task.FromException<(string, string)>(thrown),
+            Post, () => true, e => $"0x{e.HResult:X8}");
+
+        Assert.Equal((false, null, false), await Confirm(new OperationCanceledException()));
+        var tpm = new System.Security.Cryptography.CryptographicException("tpm");
+        Assert.Equal((false, $"0x{tpm.HResult:X8}", false), await Confirm(tpm));
+        Assert.Equal((false, "0x80004005", false), await Confirm(new System.Runtime.InteropServices.COMException("hello", unchecked((int)0x80004005))));
+        Assert.False((await Confirm(new InvalidDataException("short"))).Done);
+        Assert.Equal((false, "no user verification", false), await Confirm(new Tafs.Core.Approvals.PasskeyRefusedException("no user verification")));
+        Assert.Empty(posted);
+
+        Assert.Equal((true, null, false), await Confirm(null));
+        Assert.Equal(("/v1/me/agent-drafts/dr_9/confirm", """{"version":"v7"}""", "KIFF-Passkey-Assertion: t=x,a=y"), Assert.Single(posted));
+
+        // Another session began after the signature: nothing is sent.
+        posted.Clear();
+        var stopped = await HoldAllow.ConfirmAsync(En, "dr_9", body, (_, _) => Task.FromResult(("h", "v")), Post, () => false, _ => "");
+        Assert.Equal((false, null, true), stopped);
+        Assert.Empty(posted);
+        // KIFF's refusal, read as KIFF's.
+        var refused = await HoldAllow.ConfirmAsync(En, "dr_9", body, (_, _) => Task.FromResult(("h", "v")),
+            (_, _, _) => Task.FromResult((409, """{"error":"version_changed"}""")), () => true, _ => "");
+        Assert.Equal((false, "version_changed", false), refused);
+    }
+
     /// <summary>Rounding up keeps the person's switch and is offered once; the first read takes the offer's.</summary>
     [Fact]
     public async Task Rounding_up_keeps_the_switch_and_is_offered_once()

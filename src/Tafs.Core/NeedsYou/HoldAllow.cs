@@ -141,6 +141,37 @@ public static class HoldAllow
     }
 
     /// <summary>
+    /// The one signature and the confirm, as the iPad's <c>confirmAllow</c>: this PC's passkey asserts the confirm request
+    /// itself (<paramref name="sign"/>), then it goes to KIFF (<paramref name="post"/>). Windows Hello closed sends nothing
+    /// and says nothing, as the iPad's quiet stop. Any other failure to sign (a refusal, Windows Hello or the TPM failing, an
+    /// answer that can't be read) sends nothing and says why (<paramref name="why"/>), never leaving the sheet waiting.
+    /// <c>Stopped</c> when another session began meanwhile.
+    /// </summary>
+    public static async Task<(bool Done, string? Why, bool Stopped)> ConfirmAsync(WordBook w, string draft, byte[] body,
+        Func<string, byte[], Task<(string Header, string Value)>> sign,
+        Func<string, byte[], (string Header, string Value), Task<(int Status, string Body)>> post,
+        Func<bool> current, Func<Exception, string> why)
+    {
+        var path = ConfirmPath(draft);
+        (string Header, string Value) signature;
+        try { signature = await sign(path, body); }
+        catch (OperationCanceledException) { return (false, null, !current()); }
+        catch (Exception e) when (e is Approvals.PasskeyRefusedException or InvalidDataException or System.Runtime.InteropServices.COMException
+            or System.Security.Cryptography.CryptographicException or InvalidOperationException or UnauthorizedAccessException)
+        {
+            return (false, e is Approvals.PasskeyRefusedException ? e.Message : why(e), !current());
+        }
+        if (!current()) return (false, null, true);
+        int status;
+        string answer;
+        try { (status, answer) = await post(path, body, signature); }
+        catch (System.Net.Http.HttpRequestException) { return (false, w.Get("error.offline"), !current()); }
+        if (!current()) return (false, null, true);
+        if (status is < 200 or > 299) return (false, CoachStart.KiffRefused(w, status, answer), false);
+        return (true, null, false);
+    }
+
+    /// <summary>
     /// "Allow this from now on" on the card, as the iPad's <c>offersAllow</c>: once <c>holds.allow</c> is live, for someone who
     /// manages Cards, on a listed taf's hold a Card change can lift. Decided with no request.
     /// </summary>
