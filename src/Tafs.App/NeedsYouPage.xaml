@@ -42,7 +42,7 @@
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Border Width="32" Height="32" CornerRadius="10" Background="{x:Bind Avatar}">
+                    <Border Width="32" Height="32" CornerRadius="10" Background="{x:Bind Avatar}" Visibility="{x:Bind AvatarShown}">
                       <TextBlock Text="{x:Bind Lines.Initial}" FontSize="16" FontWeight="Bold" Foreground="White"
                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
@@ -84,10 +84,14 @@
 
                   <TextBlock Text="{x:Bind Lines.Footer, Mode=OneWay}" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
 
-                  <!-- The answers: until this PC approves, why it can't and the way to add it, not buttons that can't work. -->
+                  <!-- The answers, as the iPad's: who answers, or the line over a Card total; and, until this PC approves, the gate
+                       (why it can't, and the way to add it) only where the iPad's ApprovalGate stands, never buttons that can't work. -->
                   <StackPanel Spacing="8" Visibility="{x:Bind local:HeldCallView.Shown(Lines.Answerable), Mode=OneWay}">
-                    <TextBlock Text="{x:Bind GateLead}" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
-                    <Button Content="{x:Bind GateAdd}" Click="OnAddThisDevice" Style="{StaticResource TafsOutlineButton}" />
+                    <TextBlock Text="{x:Bind AnswerLine}" Visibility="{x:Bind local:HeldCallView.Seen(AnswerLine)}" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+                    <StackPanel Spacing="8" Visibility="{x:Bind GateShown}">
+                      <TextBlock Text="{x:Bind GateLead}" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+                      <Button Content="{x:Bind GateAdd}" Click="OnAddThisDevice" Style="{StaticResource TafsOutlineButton}" />
+                    </StackPanel>
                   </StackPanel>
                 </StackPanel>
               </Border>

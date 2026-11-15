@@ -47,8 +47,10 @@ public static class KiffHeld
     static readonly HashSet<string> KiffOwnArguments = ["kiff_operation_id", "kiff_about", "kiff_reason"];
 
     /// <summary>
-    /// <c>{"exceptions": […]}</c>, as the iPad decodes it: a hold missing what it needs (its id, subject, action, entity,
-    /// status, breaches or time) fails the read. The taf's words that aren't text are left out, never the hold.
+    /// <c>{"exceptions": […]}</c>, as the iPad's synthesized decoder reads <c>CardException</c>: a hold missing what it needs
+    /// (its id, subject, action, entity, status, breaches or time), or any field of the wrong kind where it's there and not
+    /// null, fails the read. Only the taf's words (the iPad's <c>LenientItem</c>) and the arguments (<c>ArgumentText</c>, which
+    /// never fails) are read leniently.
     /// </summary>
     public static IReadOnlyList<KiffHold>? Read(JsonElement answer)
     {
@@ -66,33 +68,21 @@ public static class KiffHeld
     /// <summary>One hold, as <c>GET /v1/me/card-exceptions/{id}</c> answers it, or none when it doesn't decode.</summary>
     public static KiffHold? Hold(JsonElement e)
     {
-        if (e.ValueKind != JsonValueKind.Object) return null;
+        if (!Fits(e)) return null;
         string? S(string name) => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
-        if (S("id") is not { } id || S("subject") is not { } subject || S("action") is not { } action || S("entity_id") is not { } entity
-            || S("status") is not { } status || Lenient.At(e, "created_at") is not { } created
-            || !e.TryGetProperty("breaches", out var raw) || raw.ValueKind != JsonValueKind.Array)
-            return null;
-        var breaches = new List<HoldBreach>();
-        foreach (var b in raw.EnumerateArray())
-        {
-            if (b.ValueKind != JsonValueKind.Object || Lenient.Text(b, "outcome") is not { } outcome) return null;
-            breaches.Add(new(outcome, Lenient.Text(b, "reason"), Long(b, "limit"), Lenient.Text(b, "quantity"), Lenient.Text(b, "unit"),
-                (int?)Long(b, "scale"), Flag(b, "unit_ambiguous"), Long(b, "used"), Long(b, "draw"), Lenient.Text(b, "window"),
-                Lenient.Text(b, "per"), Lenient.Text(b, "value")));
-        }
-        Dictionary<string, long>? parameters = null;
-        if (e.TryGetProperty("parameters", out var p) && p.ValueKind == JsonValueKind.Object)
-            parameters = p.EnumerateObject().Where(x => x.Value.TryGetInt64(out _)).ToDictionary(x => x.Name, x => x.Value.GetInt64());
-        Dictionary<string, (string, int)>? units = null;
-        if (e.TryGetProperty("parameter_units", out var u) && u.ValueKind == JsonValueKind.Object)
-            units = u.EnumerateObject().Where(x => Lenient.Text(x.Value, "unit") is not null && Long(x.Value, "scale") is not null)
-                .ToDictionary(x => x.Name, x => (Lenient.Text(x.Value, "unit")!, (int)Long(x.Value, "scale")!.Value));
-        Dictionary<string, string>? arguments = null;
-        if (e.TryGetProperty("arguments", out var a) && a.ValueKind == JsonValueKind.Object)
-            arguments = a.EnumerateObject().ToDictionary(x => x.Name, x => ArgumentText(x.Value));
+        var breaches = e.GetProperty("breaches").EnumerateArray().Select(b => new HoldBreach(S2(b, "outcome")!, S2(b, "reason"), Long(b, "limit"),
+            S2(b, "quantity"), S2(b, "unit"), (int?)Long(b, "scale"), Flag(b, "unit_ambiguous"), Long(b, "used"), Long(b, "draw"),
+            S2(b, "window"), S2(b, "per"), S2(b, "value"))).ToList();
+        Dictionary<string, long>? parameters = e.TryGetProperty("parameters", out var p) && p.ValueKind == JsonValueKind.Object
+            ? p.EnumerateObject().ToDictionary(x => x.Name, x => Whole(x.Value)) : null;
+        Dictionary<string, (string, int)>? units = e.TryGetProperty("parameter_units", out var u) && u.ValueKind == JsonValueKind.Object
+            ? u.EnumerateObject().ToDictionary(x => x.Name, x => (x.Value.GetProperty("unit").GetString()!, (int)Whole(x.Value.GetProperty("scale")))) : null;
+        Dictionary<string, string>? arguments = e.TryGetProperty("arguments", out var a) && a.ValueKind == JsonValueKind.Object
+            ? a.EnumerateObject().ToDictionary(x => x.Name, x => ArgumentText(x.Value)) : null;
         List<string>? next = e.TryGetProperty("next_steps", out var n) && n.ValueKind == JsonValueKind.Array
-            ? n.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()!).ToList() : null;
-        return new(id, subject, action, entity, status, breaches, parameters, S("reason"), units, next, created, Lenient.At(e, "expires_at"),
+            ? n.EnumerateArray().Select(x => x.GetString()!).ToList() : null;
+        return new(S("id")!, S("subject")!, S("action")!, S("entity_id")!, S("status")!, breaches, parameters, S("reason"), units, next,
+            KiffActivity.Parse(S("created_at")!)!.Value, S("expires_at") is { } expires ? KiffActivity.Parse(expires) : null,
             (int?)Long(e, "accounting_version"))
         {
             Title = S("title"), Arguments = arguments, ProposalId = S("proposal_id"), ReasonText = S("reason_text"),
@@ -100,7 +90,38 @@ public static class KiffHeld
         };
     }
 
-    static long? Long(JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.TryGetInt64(out var l) ? l : null;
+    /// <summary>
+    /// A hold's shape as Swift's decoder checks <c>CardException</c> (KIFFClient.swift): the required fields there and of
+    /// their kind, every optional one absent, null or of its kind, times as ISO 8601 with an offset or Z.
+    /// </summary>
+    static bool Fits(JsonElement e)
+    {
+        static bool At(JsonElement v) => KiffActivity.IsAt(v);
+        static bool Object(JsonElement v) => v.ValueKind == JsonValueKind.Object;
+        static bool Breach(JsonElement b) =>
+            Shape.Required(b, "outcome", Shape.Text) && new[] { "reason", "quantity", "unit", "window", "per", "value" }.All(f => Shape.Optional(b, f, Shape.Text))
+            && new[] { "limit", "scale", "used", "draw" }.All(f => Shape.Optional(b, f, Shape.Int))
+            && new[] { "unit_unavailable", "unit_ambiguous" }.All(f => Shape.Optional(b, f, Shape.Bool));
+        return Object(e)
+            && new[] { "id", "subject", "action", "entity_id", "status" }.All(f => Shape.Required(e, f, Shape.Text))
+            && Shape.Required(e, "created_at", At) && Shape.Required(e, "breaches", v => Shape.List(v, Breach))
+            && Shape.Optional(e, "parameters", v => Object(v) && v.EnumerateObject().All(x => Shape.Int(x.Value)))
+            && Shape.Optional(e, "parameter_units", v => Object(v) && v.EnumerateObject().All(x =>
+                Shape.Required(x.Value, "unit", Shape.Text) && Shape.Required(x.Value, "scale", Shape.Int)))
+            && Shape.Optional(e, "next_steps", v => Shape.List(v, Shape.Text))
+            && Shape.Optional(e, "expires_at", At) && Shape.Optional(e, "last_at", At)
+            && new[] { "reason", "title", "proposal_id", "reason_text", "kind" }.All(f => Shape.Optional(e, f, Shape.Text))
+            && new[] { "accounting_version", "count" }.All(f => Shape.Optional(e, f, Shape.Int))
+            && new[] { "can_approve_once", "units_unavailable" }.All(f => Shape.Optional(e, f, Shape.Bool))
+            && Shape.Optional(e, "arguments", Object);
+    }
+
+    static string? S2(JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+
+    /// <summary>A whole number as Swift reads an <c>Int64</c>: 40 and 40.0 alike (<see cref="Shape.Int"/> checked it's whole).</summary>
+    static long Whole(JsonElement v) => v.TryGetInt64(out var l) ? l : (long)v.GetDouble();
+
+    static long? Long(JsonElement e, string name) => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Number ? Whole(v) : null;
 
     static bool? Flag(JsonElement e, string name) =>
         e.TryGetProperty(name, out var v) && v.ValueKind is JsonValueKind.True or JsonValueKind.False ? v.GetBoolean() : null;
@@ -249,7 +270,7 @@ public static class KiffHeld
         return new(taf, tafColor, summary, Amount(e)?.Formatted(w), "", Reason(w, e), e.ExpiresAt ?? e.CreatedAt.AddMinutes(10),
             e.NextSteps ?? [], TafWords(e.TafAbout, 120), TafWords(e.TafReason, 280))
         {
-            Details = Details(e), KiffId = e.Id,
+            Details = Details(e), KiffId = e.Id, ApprovableOnce = e.CanApproveOnce ?? true,
         };
     }
 
@@ -257,9 +278,18 @@ public static class KiffHeld
     /// Needs you's held calls, as the iPad's <c>show</c>: every hold but a Card unit's, each under its taf by its agent in
     /// KIFF (<paramref name="taf"/>), else under the agent's own name.
     /// </summary>
+    /// <summary>
+    /// The held calls Needs you shows, in KIFF's order, Card units' left to their own panel. Each under its holder, as the
+    /// iPad's <c>holderName(…) ?? aTaf</c>: the taf on Home's list by its agent in KIFF, with its avatar; Coach for Setup's
+    /// agent; else "A taf", with no avatar. Only a taf's calls are listed in the sidebar (the iPad's HomeSplitView).
+    /// </summary>
     public static IReadOnlyList<HeldCall> Calls(WordBook w, IReadOnlyList<KiffHold> holds, Func<string, (string Name, int Colour)?> taf) =>
-        holds.Where(h => h.Kind != "card_unit")
-            .Select(h => taf(h.Subject) is { } t ? ToHeldCall(w, h, t.Name, t.Colour) : ToHeldCall(w, h, h.Subject, 0)).ToList();
+        holds.Where(h => h.Kind != "card_unit").Select(h => taf(h.Subject) is { } t
+            ? ToHeldCall(w, h, t.Name, t.Colour)
+            : ToHeldCall(w, h, w.Get(h.Subject == SetupAgent ? "coach.title" : "needs_you.a_taf"), 0) with { Listed = false, Avatar = h.Subject == SetupAgent }).ToList();
+
+    /// <summary>Coach's agent in KIFF (the iPad's <c>setupAgent</c>).</summary>
+    public const string SetupAgent = "setup";
 
     /// <summary>
     /// "1st", "2nd": as Apple's ordinal formatter writes digits in each shipped language, which .NET has no formatter for.

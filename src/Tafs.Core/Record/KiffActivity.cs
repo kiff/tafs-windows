@@ -89,11 +89,11 @@ public static class KiffActivity
     static bool? Flag(JsonElement o, string n) => Lenient.Field(o, n) is { ValueKind: JsonValueKind.True or JsonValueKind.False } v ? v.GetBoolean() : null;
 
     /// <summary>A time as the iPad's KIFF decoder takes it: ISO 8601 with its offset or Z, with or without fractions of a second.</summary>
-    static bool IsAt(JsonElement v) => v.ValueKind == JsonValueKind.String && Parse(v.GetString()!) is not null;
+    internal static bool IsAt(JsonElement v) => v.ValueKind == JsonValueKind.String && Parse(v.GetString()!) is not null;
 
     static DateTimeOffset? At(JsonElement o, string n) => Lenient.Text(o, n) is { } s ? Parse(s) : null;
 
-    static DateTimeOffset? Parse(string s) =>
+    internal static DateTimeOffset? Parse(string s) =>
         Regex.IsMatch(s, @"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})$")
         && DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var at) ? at : null;
 

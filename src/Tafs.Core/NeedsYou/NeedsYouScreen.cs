@@ -17,7 +17,25 @@ public sealed record HeldCall(
 
     /// <summary>KIFF's id for the hold, when it came from KIFF.</summary>
     public string? KiffId { get; init; }
+
+    /// <summary>
+    /// Whether approving it once can pass it (the iPad's <c>approvableOnce</c>, KIFF's <c>can_approve_once ?? true</c>): not when
+    /// it's over a total the Card keeps across calls.
+    /// </summary>
+    public bool ApprovableOnce { get; init; } = true;
+
+    /// <summary>Whether it's a listed taf's: only those are in the sidebar's NEEDS YOU. Coach's and an unknown agent's aren't.</summary>
+    public bool Listed { get; init; } = true;
+
+    /// <summary>Whether the card draws an avatar: a taf's and Coach's; an unknown agent's has none.</summary>
+    public bool Avatar { get; init; } = true;
 }
+
+/// <summary>
+/// What a held call's card says where its answers go, as the iPad's <c>HeldCallCard.answers</c> for a PC that doesn't approve
+/// yet: a line, and whether the gate (why, and Add this Windows PC) stands where the iPad's <c>ApprovalGate</c> would.
+/// </summary>
+public sealed record HeldAnswerLines(string? Line, bool Gate);
 
 /// <summary>What a held call's card says, top to bottom, as the iPad's HeldCallCard.</summary>
 public sealed record HeldCallLines(
@@ -89,6 +107,17 @@ public static class NeedsYouScreen
     /// this Windows PC. Words, as the iPad's ApprovalNotReady, never buttons that can't work.
     /// </summary>
     public static ViewOnlyLines Gate(WordBook w) => PairingScreen.ViewOnly(w);
+
+    /// <summary>
+    /// Where the answers go, as the iPad's <c>answers(refuseOnly:)</c>: someone without <c>holds.answer</c> reads who answers,
+    /// and no gate; a call approving once can pass has the gate where Approve would be; one over a Card total says so
+    /// ("Extra room lets only this call through." for someone with <c>cards.manage</c>), the gate only where a manager's Extra
+    /// room would be.
+    /// </summary>
+    public static HeldAnswerLines Answers(WordBook w, HeldCall call, bool mayAnswerHolds, bool managesCards) =>
+        !mayAnswerHolds ? new(w.Get("needs_you.someone_answers"), false)
+        : call.ApprovableOnce ? new(null, true)
+        : new(w.Get(managesCards ? "needs_you.over_total_manager" : "needs_you.over_total"), managesCards);
 
     /// <summary>The letter on a taf's avatar: its name's first, in capitals.</summary>
     public static string Initial(string name) =>
