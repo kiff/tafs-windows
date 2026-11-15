@@ -6,7 +6,7 @@ namespace Tafs.App;
 
 /// <summary>
 /// tafs for Windows. It draws what tafs cloud sends; this first shell has no network yet.
-/// Options: --lang &lt;code&gt; to speak a shipped language, --theme light|dark, --page pair|sign-in|needs-you|record to open a screen,
+/// Options: --lang &lt;code&gt; to speak a shipped language, --theme light|dark, --page pair|sign-in|needs-you|record|calendar|calendar-week|calendar-month to open a screen,
 /// --view-only to show the session as view-only, --sample for the iPad's sample held calls and Record, and --screenshot &lt;file.png&gt; to save the window and quit.
 /// </summary>
 public partial class App : Application
@@ -20,6 +20,9 @@ public partial class App : Application
 
     /// <summary>The window Windows Hello opens over.</summary>
     public static IntPtr WindowHandle { get; private set; }
+
+    /// <summary>This PC's kept session.</summary>
+    internal static SessionStore Sessions { get; } = new();
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
