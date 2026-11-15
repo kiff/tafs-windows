@@ -39,6 +39,17 @@ public class TpmKeyTests : IDisposable
         Assert.True(KiffSigning.IsP256Spki(key.PublicKeyDer));
     }
 
+    /// <summary>Open never makes a key: a read's proof signs only with a key that's there.</summary>
+    [TpmFact]
+    public void Open_throws_for_a_key_that_isn_t_there_and_never_makes_one()
+    {
+        Assert.Throws<CryptographicException>(() => TpmKey.Open(name));
+        Assert.False(TpmKey.Exists(name));
+        using (TpmKey.OpenOrCreate(name)) { }
+        using var opened = TpmKey.Open(name);
+        Assert.True(KiffSigning.IsP256Spki(opened.PublicKeyDer));
+    }
+
     [TpmFact]
     public void The_same_key_opens_again_and_its_private_half_never_leaves()
     {
