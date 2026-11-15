@@ -1,0 +1,110 @@
+using System.Globalization;
+using Tafs.Core.Words;
+
+namespace Tafs.Core.Taf;
+
+/// <summary>
+/// One action a Card allows, and its limits (the iPad's CardRule): up to an amount each, a total for its window, a count
+/// of calls. Past them a call is held for the person (<paramref name="Holds"/>) or refused. Never: never allowed.
+/// </summary>
+public sealed record CardRule(string Action, string Label, CardWindow Window, KiffAmount? PerAction = null,
+    KiffAmount? PerWindow = null, int? CountPerWindow = null, bool Never = false, bool AlwaysAsk = false, bool Holds = true)
+{
+    /// <summary>
+    /// Its limits in the words KIFF's Cards use, the same on every app: "up to €150 each; more asks you first · €2,000 in
+    /// total a day, then it asks you" when past them it asks; "≤ €150 each · €2,000 a day" when it refuses.
+    /// </summary>
+    public string Summary(WordBook w)
+    {
+        if (Never) return w.Get("card.rule.never");
+        if (AlwaysAsk) return w.Get("card.rule.always_asks");
+        var parts = new List<string>();
+        if (Holds)
+        {
+            if (PerAction is { } each) parts.Add(w.Get("card.rule.up_to_each", ("amount", each.Formatted(w))));
+            if (PerWindow is { } total) parts.Add(w.Get("card.asks_you", ("formatted", total.Formatted(w)), ("sum_label", Window.SumLabel(w))));
+            if (CountPerWindow is { } count)
+                parts.Add(count == 0 ? w.Get("card.held.each_call_asks") : w.Count("card.rule.calls_then_asks", count, ("window", Window.Label)));
+            return string.Join(" · ", parts);
+        }
+        if (PerAction is { } most) parts.Add(w.Get("card.rule.at_most_each", ("amount", most.Formatted(w))));
+        if (PerWindow is { } own) parts.Add($"{own.Formatted(w)} {(own.Unit is null ? Window.SumLabel(w) : Window.Label)}");
+        if (CountPerWindow is { } calls) parts.Add(w.Count("card.calls_window", calls, ("window", Window.Label)));
+        return string.Join(" · ", parts);
+    }
+
+    /// <summary>Under its name: what happens past its limits, "Outside: held for you" or "Outside: refused".</summary>
+    public string Outside(WordBook w) => w.Get(Holds ? "card.outside_held" : "card.outside_refused");
+}
+
+/// <summary>
+/// One KIFF Card (the iPad's TafCard): a taf can hold several, each with its own limits and totals, and a Card scoped to a
+/// test environment is kept apart from the live one. Its money total and its count of calls are KIFF's, never worked out here.
+/// </summary>
+public sealed record TafCard(string Id, string Title, IReadOnlyList<CardRule> Rules, CardTotal? Total = null, CallsTotal? Calls = null,
+    string Environment = "", bool Live = true, bool Active = true, DateTimeOffset? Expires = null)
+{
+    /// <summary>The pill on its face when it's scoped to an environment that isn't production ("TEST"); none for a live Card.</summary>
+    public string? EnvironmentLabel => Live || Environment.Length == 0 ? null : Environment.ToUpperInvariant();
+
+    /// <summary>
+    /// Its face's big figure and the words under it, as the iPad's TafCard.hero: what's left of its money total, else of its
+    /// calls. What's left only when the use is known in the limit's own unit and scale; otherwise the limit alone, its use
+    /// unavailable, never zero left or used. A bare number says so once, after the words.
+    /// </summary>
+    public (string Figure, string Words)? Hero(WordBook w)
+    {
+        if (Total is { } t)
+        {
+            var note = t.Limit.Unit is null ? w.Get("card.hero.no_currency_suffix") : "";
+            if (t.Used is { } used && used.SameKind(t.Limit))
+            {
+                var left = new KiffAmount(Math.Max(0, t.Limit.Minor - used.Minor), t.Limit.Unit, t.Limit.Scale);
+                return (left.Figure(w), w.Get("card.hero.left_of_note", ("window", t.Window.Current), ("limit", t.Limit.Figure(w)), ("note", note)));
+            }
+            return (t.Limit.Figure(w), w.Get("card.hero.use_unavailable_note", ("label", t.Window.Label), ("note", note)));
+        }
+        if (Calls is { } c)
+        {
+            var limit = c.Limit.ToString("N0", Culture(w));
+            if (c.Used is not { } made) return (limit, w.Get("card.hero.calls_use_unavailable", ("window", c.Window.Label)));
+            var left = Math.Max(0, c.Limit - made);
+            return (left.ToString("N0", Culture(w)), w.Count("card.hero.calls_left_of", left, ("window", c.Window.Current), ("limit", limit)));
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The lines under the figure: with one, its main rule's "up to €150 each; more asks you first" and "2 tools"; with
+    /// none, its first two rules in short and how many more.
+    /// </summary>
+    public IReadOnlyList<string> Facts(WordBook w)
+    {
+        if (Hero(w) is null)
+        {
+            var lines = Rules.Take(2).Select(r => w.Get("card.rule_line", ("rule", r.Label.ToLower(Culture(w))), ("summary", r.Summary(w)))).ToList();
+            if (Rules.Count > 2) lines.Add(w.Count("card.more", Rules.Count - 2));
+            return lines;
+        }
+        var facts = new List<string>();
+        if (Rules.FirstOrDefault(r => r.PerAction is not null) is { PerAction: { } each } rule)
+            facts.Add(w.Get(rule.Holds ? "card.rule.up_to_each" : "card.rule.at_most_each_refused_above", ("amount", each.Formatted(w))));
+        if (Rules.Count > 1) facts.Add(w.Count("card.tools", Rules.Count));
+        return facts;
+    }
+
+    /// <summary>
+    /// The Card bar above the Activity: its figure and words, else its name, and under it its name, its environment when it
+    /// isn't production, and how many Cards the taf holds ("Refunds · 3 Cards").
+    /// </summary>
+    public CardBarLine Bar(WordBook w, int cards)
+    {
+        var hero = Hero(w);
+        var under = new List<string> { Title };
+        if (EnvironmentLabel is not null) under.Add(Culture(w).TextInfo.ToTitleCase(Environment.ToLowerInvariant()));
+        if (cards > 1) under.Add(w.Count("card.count", cards));
+        return new(hero is { } h ? $"{h.Figure} {h.Words}" : Title, string.Join(" · ", under));
+    }
+
+    static CultureInfo Culture(WordBook w) => CultureInfo.GetCultureInfo(w.Language == "pt" ? "pt-PT" : w.Language);
+}
