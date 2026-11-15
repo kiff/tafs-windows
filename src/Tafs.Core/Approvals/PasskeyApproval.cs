@@ -132,7 +132,7 @@ public sealed class PasskeyApprover(IPasskeyAuthenticator authenticator, byte[] 
     /// <c>t=…,a=…</c>: a request's <c>kiff.request.v1</c>, or two requests' <c>kiff.requests.v1</c>, whose headers each add
     /// <c>with=sha256:…</c>.
     /// </summary>
-    public async Task<string> AssertAsync(byte[] message, string signedAt, CancellationToken cancel = default)
+    internal async Task<string> AssertAsync(byte[] message, string signedAt, CancellationToken cancel = default)
     {
         if (!enabled) throw new PasskeyRefusedException("passkey approvals are off on Windows until KIFF accepts this computer's own passkey");
 
