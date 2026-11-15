@@ -15,8 +15,11 @@ public sealed record CardRule(string Action, string Label, CardWindow Window, Ki
     KiffAmount? PerWindow = null, int? CountPerWindow = null, bool Never = false, bool AlwaysAsk = false, Outside Outside = Outside.Hold,
     KiffAmount? ExtraRoom = null, KiffAmount? BaseLimit = null, DateTimeOffset? RoomEnds = null)
 {
-    /// <summary>The Card's own total for its window: KIFF's, without the extra room in it.</summary>
-    public KiffAmount? OwnTotal => ExtraRoom is not null ? BaseLimit ?? PerWindow : PerWindow;
+    /// <summary>
+    /// The Card's own total for its window: KIFF's, without the extra room in it. With room but no own limit from KIFF,
+    /// it's unknown: <c>per_window</c> has the room folded in, so it's never shown as the Card's own.
+    /// </summary>
+    public KiffAmount? OwnTotal => ExtraRoom is null ? PerWindow : BaseLimit;
 
     /// <summary>"+€30 extra room today", or "+€30 extra room until 00:00", when KIFF says there's some.</summary>
     public string? RoomWords(WordBook w, TimeZoneInfo? zone = null, DateTimeOffset? now = null) =>
@@ -71,7 +74,8 @@ public sealed record TafCard(string Id, string Title, IReadOnlyList<CardRule> Ru
     /// </summary>
     public (string Figure, string Words)? Hero(WordBook w, TimeZoneInfo? zone = null, DateTimeOffset? now = null)
     {
-        if (Total is { } t)
+        // With room but no own limit from KIFF, its limit has the room folded in: no money figure, never a summed one.
+        if (Total is { } t && (t.Extra is null || t.Base is not null))
         {
             var note = t.Limit.Unit is null ? w.Get("card.hero.no_currency_suffix") : "";
             if (t.Used is { } used && used.SameKind(t.Limit))

@@ -169,6 +169,11 @@
     <Setter Property="MinHeight" Value="44" />
     <Setter Property="Padding" Value="18,8" />
   </Style>
+  <!-- Revoke: the outline in the refusal's red. -->
+  <Style x:Key="TafsOutlineNo" TargetType="Button" BasedOn="{StaticResource TafsOutlineButton}">
+    <Setter Property="BorderBrush" Value="{ThemeResource TafsNoEdge}" />
+    <Setter Property="Foreground" Value="{ThemeResource TafsNo}" />
+  </Style>
 
   <!-- A list's section label, as the iPad's grouped list heads a section (the reference set's account.png): 17 semibold,
        as written, dim, lined up with the rows' words. -->

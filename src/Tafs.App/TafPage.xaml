@@ -31,6 +31,10 @@
         <Border Background="{ThemeResource TafsOk}" Opacity="0.15" CornerRadius="11" />
         <TextBlock x:Name="StateText" FontSize="12" FontWeight="Medium" Margin="10,4" Foreground="{ThemeResource TafsOk}" />
       </Grid>
+      <Grid x:Name="StoppedChip" Grid.Column="2" VerticalAlignment="Center" Visibility="Collapsed">
+        <Border Background="{ThemeResource TafsNo}" Opacity="0.15" CornerRadius="11" />
+        <TextBlock x:Name="StoppedText" FontSize="12" FontWeight="Medium" Margin="10,4" Foreground="{ThemeResource TafsNo}" />
+      </Grid>
       <Grid x:Name="PausedChip" Grid.Column="2" VerticalAlignment="Center" Visibility="Collapsed">
         <Border Background="{ThemeResource TafsSoft}" Opacity="0.15" CornerRadius="11" />
         <TextBlock x:Name="PausedText" FontSize="12" FontWeight="Medium" Margin="10,4" Foreground="{ThemeResource TafsSoft}" />
@@ -42,13 +46,17 @@
       <Grid x:Name="Tabs" ColumnSpacing="2" />
     </Border>
 
-    <!-- The Card bar: a small Card in the taf's colour with the Card's mark, what's left of its limit, and its name. -->
-    <Border x:Name="CardBar" Grid.Row="2" Margin="0,12,0,0" Background="{ThemeResource TafsPanel}" BorderBrush="{ThemeResource TafsLine}"
+    <!-- The Card bar: a small Card in the taf's colour with the Card's mark, what's left of its limit, and its name. It
+         opens the Card tab, as its chevron says. -->
+    <Button x:Name="CardBar" Grid.Row="2" Margin="0,12,0,0" Style="{StaticResource TafsBox}" HorizontalAlignment="Stretch"
+            HorizontalContentAlignment="Stretch" Click="OnCardBar">
+    <Border Background="{ThemeResource TafsPanel}" BorderBrush="{ThemeResource TafsLine}"
             BorderThickness="1" CornerRadius="14" Padding="14,9">
       <Grid ColumnSpacing="12">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <Border x:Name="SmallCard" Width="46" Height="29" CornerRadius="5" AutomationProperties.AccessibilityView="Raw">
           <FontIcon Glyph="&#xE8C7;" FontSize="13" Foreground="#E6FFFFFF" />
@@ -58,14 +66,17 @@
                      Foreground="{ThemeResource TafsInk}" />
           <TextBlock x:Name="CardUnder" FontSize="12" TextWrapping="Wrap" MaxLines="2" Foreground="{ThemeResource TafsDim}" />
         </StackPanel>
+        <FontIcon Grid.Column="2" Glyph="&#xE76C;" FontSize="13" Foreground="{ThemeResource TafsDim}" />
       </Grid>
     </Border>
+    </Button>
 
     <!-- 12 apart, as margins: a row that's collapsed (the Card bar on Setup) takes no room. -->
     <ScrollViewer Grid.Row="3" Margin="0,12,0,0">
       <Grid Padding="0,4,0,24">
-      <!-- Setup: built in code from the taf's job, notes and state. -->
+      <!-- Setup, and the Card: built in code from the taf's job, notes, Cards and state. -->
       <StackPanel x:Name="SetupPane" Spacing="16" Visibility="Collapsed" />
+      <StackPanel x:Name="CardPane" Spacing="16" Visibility="Collapsed" />
       <StackPanel x:Name="ActivityPane" Spacing="10">
         <StackPanel x:Name="FilterChips" Orientation="Horizontal" Spacing="6" />
         <TextBlock x:Name="Empty" FontSize="14" Foreground="{ThemeResource TafsDim}" Margin="0,8,0,0" Visibility="Collapsed" />

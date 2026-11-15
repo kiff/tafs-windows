@@ -120,6 +120,19 @@ public class TafCardTests
         Assert.Null((rule with { BaseLimit = null }).RoomWords(En));
     }
 
+    /// <summary>Room without KIFF's own limit: the total has it folded in, so neither the figure nor the rule shows a total.</summary>
+    [Fact]
+    public void Room_without_the_Card_s_own_limit_never_shows_a_summed_total()
+    {
+        var rule = Refunds with { PerWindow = KiffAmount.Euros(2_030), ExtraRoom = KiffAmount.Euros(30) };
+        Assert.Null(rule.OwnTotal);
+        Assert.Equal("up to €150 each; more asks you first", rule.Summary(En));
+        var total = new CardTotal(KiffAmount.Euros(2_030), KiffAmount.Euros(480), Day, Extra: KiffAmount.Euros(30));
+        Assert.Null(new TafCard("c", "Refunds", [rule], total).Hero(En));
+        Assert.Equal(("180", "calls left today of 200"),
+            new TafCard("c", "Refunds", [rule], total, new CallsTotal(200, 20, Day)).Hero(En));
+    }
+
     [Theory]
     [InlineData("en", "EUR", "€2,000")]
     [InlineData("en", "USD", "$2,000")]
@@ -144,6 +157,20 @@ public class TafCardTests
         Assert.Equal("this sprint", CardWindow.Of(En, "rolling_1h", now: "this sprint").Current);
     }
 
+    /// <summary>The reference set's taf-card.png: the live Card in front, then Read Stripe and the test copy.</summary>
+    [Fact]
+    public void The_sample_s_Cards_are_the_reference_s()
+    {
+        var cards = TafScreen.SampleCards(En);
+        Assert.Equal(new[] { "Refunds · Stripe", "Read Stripe", "Refunds · Stripe test" }, cards.Select(c => c.Title));
+        Assert.Equal(("€1,520", "left today of €2,000"), cards[0].Hero(En));
+        Assert.Equal(new[] { "up to €150 each; more asks you first", "2 tools" }, cards[0].Facts(En));
+        Assert.Equal(new[] { "Refunds", "Credits" }, cards[0].Rules.Select(r => r.Label));
+        Assert.Equal("up to €100 each; more asks you first · €1,000 in total a day, then it asks you", cards[0].Rules[1].Summary(En));
+        Assert.Equal(("180", "calls left today of 200"), cards[1].Hero(En));
+        Assert.Equal(("TEST", false), (cards[2].EnvironmentLabel, cards[2].Live));
+    }
+
     [Theory]
     [MemberData(nameof(Shipped))]
     public void The_sample_s_Card_reads_in_every_shipped_language(string language)
@@ -151,6 +178,7 @@ public class TafCardTests
         var w = WordBook.Load(SharedFiles.Strings, language);
         var card = TafScreen.SampleOwnCard(w);
         Assert.All(card.Rules, r => Assert.DoesNotContain("{", r.Summary(w)));
+        Assert.All(TafScreen.SampleCards(w), c => Assert.DoesNotContain("{", string.Join(" ", c.Facts(w)) + c.Hero(w)));
         Assert.DoesNotContain("{", card.Bar(w, 3).Hero + card.Bar(w, 3).Under);
         Assert.All(card.Facts(w), f => Assert.DoesNotContain("{", f));
     }

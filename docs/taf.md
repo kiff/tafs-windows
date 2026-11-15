@@ -1,13 +1,13 @@
 # A taf's page
 
-A taf's page is the iPad's `TafDetailView`, as in the reference set's `taf.png` and `taf-setup.png`. It opens on the
+A taf's page is the iPad's `TafDetailView`, as in the reference set's `taf.png`, `taf-card.png` and `taf-setup.png`. It opens on the
 Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`), and the window shows it as `TafPage`.
 
 - **The head:** the avatar (34, corners of 10, the name's first letter in white on the taf's colour), the name in 20
   bold, and its state's chip ("Working"), green on the same green at 15%.
 - **The tabs:** Chat, Activity, Card and Setup, in the iPad's order, on the system grey track (`taf.section.*`, named
-  "View"). Activity and Setup are built. Chat and the Card are shown, so the page has the iPad's shape, and are off.
-  The Card bar is above the Activity, not Setup.
+  "View"). Activity, the Card and Setup are built. Chat is shown, so the page has the iPad's shape, and is off.
+  The Card bar is above the Activity, and its chevron opens the Card tab.
 - **The Card bar:** a small Card in the taf's colour with the Card's mark, its Card's figure and words ("€1,960 left
   today of €2,000"), and under it the Card's name, its environment when it isn't production, and "· 3 Cards" when the
   taf holds more than one (`TafCard.Bar`).
@@ -48,6 +48,18 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
 - The iPad's filters narrow them: Done keeps done and approved; Held, held; Refused, refused, not done and revoked.
 - Its Card is €2,000 a day, €40 of it used today.
 
+**The Card tab**, as `taf-card.png`:
+- **The stack:** its Cards as in a wallet. The front one is whole, and each one behind shows a 28 band of its top edge,
+  a shade darker the further back, with the furthest on top. A tap brings one to the front, and Narrator reads the
+  front one figure first.
+- **A Card's face:** 300 wide, a payment card's shape, corners of 18, in white on the taf's colour (a test Card in
+  grey), with the iPad's ring at its corner. It shows its name and environment pill, its figure, its facts, who issued
+  it, and "No end date" when it has none.
+- **Under the stack:** every rule of the front Card, its name and what happens outside it on the left, and its limits
+  on the right in mono ("never" in red).
+- **Revoke,** in red, asks first ("Revoke Refunds' Card?", Revoke and stop). In the sample, the chip turns to a red
+  "Stopped", the Cards fade, and Revoke and Pause go.
+
 **Cards** (`TafCard`, the iPad's `TafCard` and `CardRule`): a taf holds one KIFF Card or several, each with its own
 rules and totals.
 - **Amounts are KIFF's:** an integer with its unit and scale (`KiffAmount`), shown in the app's language. A currency
@@ -55,10 +67,11 @@ rules and totals.
   it), another unit follows the number ("1,500 credits"), and a bare number says so ("30,000 (no currency)").
 - **Extra room stays apart:** tafs cloud's limit and a rule's `per_window` include it. With `extra_room` and
   `base_limit`, the Card's own limit and the room show apart: "left today of €2,000 + €30 extra room until 00:00",
-  "€2,000 in total a day, then it asks you · +€30 extra room today", never "of €2,030".
+  "€2,000 in total a day, then it asks you · +€30 extra room today", never "of €2,030". With room but no `base_limit`,
+  no total shows at all: neither the figure nor the rule's total, since KIFF's has the room folded in.
 - **Its figure** (`Hero`) is what's left of its money total, else of its calls. What's left shows only when the use is
-  known in the limit's own unit and scale. Otherwise the limit shows alone, "€2,000 a day · use unavailable", and no
-  figure is ever worked out here.
+  known in the limit's own unit and scale. Otherwise the limit shows alone, "€2,000 a day · use unavailable". No figure is
+  worked out here beyond KIFF's limit less KIFF's use.
 - **A rule's limits** read as KIFF's Cards say them: "up to €150 each; more asks you first · €2,000 in total a day,
   then it asks you" when past them it asks; "≤ €150 each · €2,000 a day" when it refuses; "never", "always asks you".
   Under its name: "Outside: held for you" or "Outside: refused", from KIFF's `outside` (`hold` or `refuse`).
@@ -73,11 +86,11 @@ rules and totals.
 - **Reading it from tafs cloud:** the next pages, Try again, and the revision as If-None-Match. The server's ETag is
   the quoted form of `revision`. Its days are titled as sent, in 12 semibold, not in the sample's capitals.
 - **Opening a taf from the sidebar's Your tafs and the Overview,** once they list the tafs.
-- **The other tabs,** each in its own change: the Card, and Chat.
+- **Chat,** in its own change.
 - **Setup from tafs cloud:** drawing what `TafSetup.Read` reads. That means the connected apps and their sheets, the
   Card-unit exceptions (whose change Coach asks to sign), Connect again, the memory's See all, Improve in Coach, and
   Remove. Forget and Pause also need to reach tafs cloud; for now they change the sample's page only.
-- **The Card tab:** the stack of Cards, every rule's lines, and Revoke. The Card bar's chevron opens it, so the chevron
-  comes with it. Also a Card's pending use and unit words drawn, its totals for each item, and how KIFF counts each tool.
+- **Revoking at KIFF,** signed; a Card's pending use and unit words drawn, its totals for each item, and how KIFF counts
+  each tool.
 - **The rest:** the head's second line (the version and Share); held calls, Card-unit exceptions, its work and its runs
   at the top of the Activity; a line's receipt and its next step.
