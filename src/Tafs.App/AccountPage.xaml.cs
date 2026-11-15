@@ -23,6 +23,7 @@ public sealed partial class AccountPage : Page
     public static event Action? ClearSampleChosen;
     public static event Action<ElementTheme>? ThemeChosen;
     public static event Action? AlertsChosen;
+    public static event Action? DevicesChosen;
 
     AccountOpening opening = new(false, ElementTheme.Default);
 
@@ -52,6 +53,10 @@ public sealed partial class AccountPage : Page
             account.Add(Action(w.Get("pair.view_only.add", ("device", w.Get("device.windows"))), "TafsAmberWords", () => AddThisDeviceChosen?.Invoke()));
         }
         Section(w.Get("settings.your_account"), account);
+        // People & apps, as the iPad's, for a KIFF account: Devices here; People & groups in its own change.
+        if (mode == AccountMode.Kiff)
+            Section(w.Get("settings.people_apps"),
+                [Opens(Row(w.Get("settings.devices.title"), "", chevron: true), w.Get("settings.devices.title"), () => DevicesChosen?.Invoke())]);
         Section(null, [Opens(Row(w.Get("settings.alerts"), "", chevron: true), w.Get("settings.alerts"), () => AlertsChosen?.Invoke())]);
         Section(w.Get("settings.theme_title"), [ThemePicker(w)]);
         Section(w.Get("settings.language_title"),
