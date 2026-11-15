@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Tafs.Core.Account;
+using Tafs.Core.Approvals;
 using Tafs.Core.Calendar;
 using Tafs.Core.Connections;
 using Tafs.Core.Home;
@@ -291,6 +292,10 @@ public sealed partial class MainWindow : Window
         CoachMode.Grants = () => GrantsAsync(session);
         CoachMode.Drafts = async id => (await KiffReadAsync(bearer, Tafs.Core.Approvals.KiffDrafts.Path(id))).Answer is { } d ? Tafs.Core.Approvals.KiffDrafts.Read(d) : null;
         CoachMode.Read = path => CloudReadAsync(bearer, path);
+        // Start, as the iPad's: off for a session that can't approve.
+        CoachMode.StartCoach = Tafs.Core.Coach.CoachStart.MayStart(session) ? () => StartCoachAsync(session) : null;
+        // Signed in but can't approve: the iPad's gate line where Start would be.
+        CoachMode.StartGate = !Tafs.Core.Coach.CoachStart.MayStart(session);
         // Reporting one of Coach's answers, as the iPad's reportAnswer: one answered after another session began is none.
         var reporting = sessions;
         CoachMode.Report = async (path, body) => await CloudSendAsync(bearer, path, body) is var r && reporting == sessions ? r : null;
@@ -319,10 +324,84 @@ public sealed partial class MainWindow : Window
         ShowHome(new HomeAnswer([], null));
         CoachMode.Read = null;
         CoachMode.Answer = null;
+        CoachMode.StartCoach = null;
+        CoachMode.StartGate = false;
+        planqueReady = false;
         CoachMode.Report = null;
         CoachMode.Grants = null;
         CoachMode.Drafts = null;
         CoachMode.Forget();
+    }
+
+    /// <summary>This session set planque up, as the iPad's <c>planqueReady</c>: kept until sign-out, not across launches.</summary>
+    bool planqueReady;
+
+    /// <summary>
+    /// Start, as the iPad's <c>startSetup</c> (<c>CoachStart</c>): planque set up first with the session's TPM key, as its
+    /// <c>setUpPlanque</c> and <c>enrolPlanque</c>; then Setup's draft, signed by the device key or, in a passkey session, by
+    /// this PC's passkey (its one Windows Hello), sent to KIFF; then tafs cloud claims its key.
+    /// </summary>
+    async Task<Tafs.Core.Coach.StartResult> StartCoachAsync(KeptSession session)
+    {
+        var w = App.Words;
+        var bearer = session.AccessToken;
+        var gen = sessions;
+        try { return await StartCoachWithKeyAsync(session, bearer, gen); }
+        catch (Exception e) when (e is System.Security.Cryptography.CryptographicException or FormatException)
+        {
+            // The TPM key gone or refusing, or a kept passkey id that can't be read, as the iPad's catch covers every error:
+            // "Couldn't start." and why.
+            return new(Tafs.Core.Coach.StartOutcome.Failed, w.Get("coach.couldnt_start", ("why", SessionStore.Why(e))));
+        }
+    }
+
+    async Task<Tafs.Core.Coach.StartResult> StartCoachWithKeyAsync(KeptSession session, string bearer, int gen)
+    {
+        var w = App.Words;
+        using var key = TpmKey.Open(session.KeyName);
+        var hello = new WindowsHello(() => App.WindowHandle);
+        var passkey = session.PasskeyId is { } id ? new PasskeyApprover(hello, KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals) : null;
+        var kiff = Tafs.Core.SignIn.DeviceSignIn.Api;
+        var calls = new Tafs.Core.Coach.StartCalls(
+            ReadSetup: () => CloudReadAsync(bearer, Tafs.Core.Coach.CoachStart.SetupPath),
+            Confirm: (credential, message) => new PasskeyApprover(hello, credential, Features.WindowsPasskeyApprovals).ConfirmAsync(message),
+            SignDraft: (body, at) => Tafs.Core.Coach.CoachStart.SignDraftAsync(session, passkey, body, at),
+            Enrol: () => PlanqueEnrolment.EnrolAsync(w, key.PublicKeyDer,
+                async body =>
+                {
+                    var path = PlanqueEnrolment.Path(session.Tenant);
+                    var signature = await PlanqueProof.SignAsync(session.Tenant, deviceId, LoadDeviceAsync, key,
+                        () => SigningTime.Next(DateTimeOffset.UtcNow), "POST", path, body)
+                        ?? throw new System.Net.Http.HttpRequestException("this device isn't listed in KIFF yet");
+                    return await KiffHttp.PlanquePostAsync(new Uri(PlanqueProof.Api, path), body, signature, w.Language);
+                },
+                async () =>
+                {
+                    var signature = await PlanqueEnrolment.MintSignatureAsync(key, session.Tenant, SigningTime.Next(DateTimeOffset.UtcNow));
+                    return await KiffHttp.PostAsync(new Uri(kiff, PlanqueEnrolment.KeysPath), PlanqueEnrolment.MintBody(), bearer, w.Language,
+                        signature: ("KIFF-Device-Signature", signature));
+                },
+                // Signed out between planque's ask, KIFF's mint and the enrolment: nothing more is sent.
+                () => gen == sessions),
+            SubmitDraft: (body, signature) => KiffHttp.PostAsync(new Uri(kiff, Tafs.Core.Coach.CoachStart.DraftPath), body, bearer, w.Language,
+                signature: signature),
+            Claim: body => CloudSendAsync(bearer, Tafs.Core.Coach.CoachStart.SetupPath, body),
+            SignedAt: () => SigningTime.Next(DateTimeOffset.UtcNow),
+            Current: () => gen == sessions);
+        var started = await Tafs.Core.Coach.CoachStart.StartAsync(w, session, planqueReady, calls);
+        // Signed out meanwhile: it's no one's.
+        if (gen != sessions) return new(Tafs.Core.Coach.StartOutcome.Cancelled);
+        if (started.Started) planqueReady = true;
+        return started;
+
+        async Task<string?> LoadDeviceAsync()
+        {
+            var devices = await ReadAsync(new Uri(kiff, PlanqueProof.DevicesPath), bearer);
+            var device = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
+            // A late answer never puts the last account's device on the next session's proofs.
+            if (gen == sessions) deviceId = device;
+            return device;
+        }
     }
 
     /// <summary>
@@ -394,10 +473,14 @@ public sealed partial class MainWindow : Window
     {
         // Open only: a key gone with a sign-out throws, and Setup reads without the proof.
         using var key = TpmKey.Open(session.KeyName);
+        var gen = sessions;
         return await PlanqueProof.GrantsReadAsync(session.Tenant, deviceId, async () =>
         {
             var devices = await ReadAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, PlanqueProof.DevicesPath), session.AccessToken);
-            return deviceId = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
+            var device = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
+            // A late answer never puts the last account's device on the next session's proofs.
+            if (gen == sessions) deviceId = device;
+            return device;
         }, key, () => SigningTime.Next(DateTimeOffset.UtcNow));
     }
 

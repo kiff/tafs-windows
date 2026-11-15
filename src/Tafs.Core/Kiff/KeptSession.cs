@@ -15,6 +15,12 @@ public sealed record KeptSession(
 {
     public override string ToString() => $"KeptSession {{ Host = {Host}, Tenant = {Tenant}, Mode = {Mode}, AccessToken = (hidden) }}";
 
+    /// <summary>
+    /// This PC's own Windows Hello passkey for kiff.dev, by its credential id (base64url), for a session paired with one:
+    /// what Windows Hello is asked to assert with. An id, not a secret: the key never leaves the TPM. None otherwise.
+    /// </summary>
+    public string? PasskeyId { get; init; }
+
     /// <summary>A session KIFF just handed over, to keep: its expiry from expires_in, to the second.</summary>
     public static KeptSession Of(Uri api, string token, string tenant, string subject, string? deviceId, ApprovalMode mode,
         TimeSpan expiresIn, DateTimeOffset now, string keyName) =>
@@ -61,7 +67,7 @@ public static class KeptSessions
     {
         ["host"] = s.Host, ["access_token"] = s.AccessToken, ["tenant"] = s.Tenant, ["subject"] = s.Subject,
         ["device_id"] = s.DeviceId, ["approval_mode"] = s.Mode.ToString().ToLowerInvariant(),
-        ["expires"] = KiffSigning.Time(s.Expires), ["key_name"] = s.KeyName,
+        ["expires"] = KiffSigning.Time(s.Expires), ["key_name"] = s.KeyName, ["passkey_id"] = s.PasskeyId,
     });
 
     /// <summary>
@@ -78,7 +84,10 @@ public static class KeptSessions
             var kept = new KeptSession(S("host"), S("access_token"), S("tenant"), S("subject"),
                 r.TryGetProperty("device_id", out var d) ? d.GetString() : null,
                 KeptSession.ModeOf(r.TryGetProperty("approval_mode", out var m) ? m.GetString() : null),
-                DateTimeOffset.Parse(S("expires"), System.Globalization.CultureInfo.InvariantCulture), S("key_name"));
+                DateTimeOffset.Parse(S("expires"), System.Globalization.CultureInfo.InvariantCulture), S("key_name"))
+            {
+                PasskeyId = r.TryGetProperty("passkey_id", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null,
+            };
             return kept.Host == api.Host && kept.Expires > now && kept.AccessToken.Length > 0 ? kept : null;
         }
         catch (Exception e) when (e is JsonException or KeyNotFoundException or InvalidOperationException or InvalidDataException or FormatException)
