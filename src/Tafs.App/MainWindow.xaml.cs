@@ -290,8 +290,9 @@ public sealed partial class MainWindow : Window
 
     /// <summary>
     /// As the iPad's <c>forgetSession</c>, at sign-out and before each new session: what the last session read goes
-    /// (Home's list, on the Overview and under Your tafs; the pages' reads and Setup's proof; this device's id; Coach's
-    /// thread, what was answered and whether it may answer), and a read it started that lands later is dropped. Until a
+    /// (Home's list, on the Overview and under Your tafs; the pages' reads and Setup's proof; this device's id; the Record's
+    /// KIFF read and lines; Coach's thread, what was answered and whether it may answer), and a read it started that lands
+    /// later is dropped. Until a
     /// session is used, nothing reads as anyone.
     /// </summary>
     void ForgetSession()
@@ -301,6 +302,9 @@ public sealed partial class MainWindow : Window
         cloudReadWithProof = null;
         setupProof = null;
         deviceId = null;
+        kiffRead = null;
+        record = [];
+        if (Pages.Content is RecordPage page) page.ShowEntries(record);
         ShowHome(new HomeAnswer([], null));
         CoachMode.Read = null;
         CoachMode.Answer = null;
