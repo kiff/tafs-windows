@@ -85,6 +85,17 @@ public sealed class PasskeyApprover(IPasskeyAuthenticator authenticator, byte[] 
         return null;
     }
 
+    /// <summary>
+    /// Asks Windows Hello to confirm a step that isn't a request, as the iPad's Face ID prompt over a message: one assertion
+    /// with this PC's passkey, its challenge sha256(<paramref name="message"/>), checked as an approval's is. Closing
+    /// Windows Hello throws <see cref="OperationCanceledException"/>; anything KIFF would refuse, <see cref="PasskeyRefusedException"/>.
+    /// </summary>
+    public async Task ConfirmAsync(byte[] message, CancellationToken cancel = default)
+    {
+        var assertion = await authenticator.GetAssertionAsync(RpId, credentialId, ClientDataJson(message), cancel);
+        if (Refusal(AuthenticatorData.Parse(assertion.AuthenticatorData)) is { } refusal) throw new PasskeyRefusedException(refusal);
+    }
+
     /// <summary>Signs the request with a fresh assertion and returns the header's value.</summary>
     public async Task<string> ApproveAsync(
         string tenant, string method, string pathAndQuery, byte[] body, DateTimeOffset signedAt, CancellationToken cancel = default)

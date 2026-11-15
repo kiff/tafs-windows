@@ -110,4 +110,23 @@ public class PasskeyApprovalTests
         await Assert.ThrowsAsync<PasskeyRefusedException>(() => Approve(auth, enabled: false));
         Assert.Null(auth.LastClientData); // Windows Hello is never even asked
     }
+
+    /// <summary>
+    /// A step confirmed with Windows Hello (planque's setup): one assertion over sha256 of its message, checked as an
+    /// approval's is, so Windows Hello not verifying the person, or a passkey that can leave this PC, stops it.
+    /// </summary>
+    [Fact]
+    public async Task A_step_is_confirmed_with_this_PC_s_passkey()
+    {
+        using var key = new TestSigner();
+        var message = Encoding.UTF8.GetBytes("tafs.planque.v1|t1");
+        var auth = new FakeAuthenticator(key, UP | UV);
+
+        await new PasskeyApprover(auth, CredentialId, enabled: true).ConfirmAsync(message);
+
+        using var clientData = JsonDocument.Parse(auth.LastClientData!);
+        Assert.Equal(KiffSigning.Base64Url(SHA256.HashData(message)), clientData.RootElement.GetProperty("challenge").GetString());
+        await Assert.ThrowsAsync<PasskeyRefusedException>(() => new PasskeyApprover(new FakeAuthenticator(key, UP), CredentialId, true).ConfirmAsync(message));
+        await Assert.ThrowsAsync<PasskeyRefusedException>(() => new PasskeyApprover(new FakeAuthenticator(key, UP | UV | BE), CredentialId, true).ConfirmAsync(message));
+    }
 }

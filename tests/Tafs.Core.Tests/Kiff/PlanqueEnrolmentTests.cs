@@ -135,4 +135,35 @@ public class PlanqueEnrolmentTests
         Assert.Equal("""{"label":"planque","roles":["connector"]}""", Encoding.UTF8.GetString(PlanqueEnrolment.MintBody()));
         Assert.Equal("tafs.planque.v1|t_01", Encoding.UTF8.GetString(PlanqueEnrolment.GateMessage("t_01")));
     }
+
+    static KeptSession Session(ApprovalMode mode, string? passkey = null) =>
+        new KeptSession("api.kiff.dev", "token", "t_01", "s1", "dev_pc01", mode, DateTimeOffset.MaxValue, "k") { PasskeyId = passkey };
+
+    /// <summary>
+    /// Who may set planque up, before anything is sent: a key session with no prompt; a passkey session behind Windows Hello
+    /// over tafs.planque.v1|{tenant}, with its own passkey; a view session, or a passkey session that doesn't know its
+    /// passkey, never. Closing Windows Hello stops quietly; its refusal says why.
+    /// </summary>
+    [Fact]
+    public async Task Who_may_set_planque_up()
+    {
+        var asked = new List<(byte[] Id, string Message)>();
+        Task Hello(byte[] id, byte[] message) { asked.Add((id, Encoding.UTF8.GetString(message))); return Task.CompletedTask; }
+
+        Assert.Null(await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Key), Hello));
+        Assert.Empty(asked);
+        Assert.Null(await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Passkey, KiffSigning.Base64Url([1, 2, 255])), Hello));
+        Assert.Equal([1, 2, 255], asked[0].Id);
+        Assert.Equal("tafs.planque.v1|t_01", asked[0].Message);
+
+        var cant = new EnrolResult(EnrolOutcome.CantApprove, "This device can't approve. Approve on another device signed in to your account.");
+        Assert.Equal(cant, await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.View), Hello));
+        Assert.Equal(cant, await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Passkey), Hello));
+        Assert.Single(asked);
+
+        Assert.Equal(new EnrolResult(EnrolOutcome.Cancelled),
+            await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Passkey, "AQ"), (_, _) => throw new OperationCanceledException()));
+        Assert.Equal(new EnrolResult(EnrolOutcome.NotSetUp, "Connecting apps isn't set up. Windows Hello didn't verify the person"),
+            await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Passkey, "AQ"), (_, _) => throw new Tafs.Core.Approvals.PasskeyRefusedException("Windows Hello didn't verify the person")));
+    }
 }
