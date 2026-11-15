@@ -27,6 +27,8 @@ Signed in, opening Coach reads its newest conversation (`CoachChat.LoadAsync`, f
 Home's read, so the token goes only to the exact hosts: `GET /v1/setup` for Coach's id, `GET /v1/tafs/{id}/chats`, then
 the newest by update's `GET /v1/tafs/{id}/conversation/{session}` (the whole thread without a list). The iPad's
 `X-Time-Zone`, which can set a new account's zone, is left out, so opening Coach changes nothing.
+Also: times are in this PC's zone, not the account's (not read yet); a `working` without its session reads as not at
+work, where the iPad's decoder fails the thread.
 - **Read as the iPad's decoders:** a message without its time, sender, text or session fails the thread, while work or a
   line it can't read is left off; a list entry without its session, title, start or update fails the list.
 - **No Coach, or `/v1/setup` unread:** the intro stays. A conversation that can't be read or decoded says so under the
