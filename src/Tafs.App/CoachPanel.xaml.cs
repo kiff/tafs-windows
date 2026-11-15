@@ -168,6 +168,17 @@ public sealed partial class CoachPanel : UserControl
         }
     }
 
+    /// <summary>
+    /// How the panel reads planque's grants, signed as this device, and a KIFF draft by its id, for the approval cards: the
+    /// session's; none signed out or for a screenshot, and the cards then say they're reading the request.
+    /// </summary>
+    public Func<Task<IReadOnlyList<Tafs.Core.Kiff.PlanqueGrant>?>>? Grants { get; set; }
+    public Func<string, Task<Tafs.Core.Approvals.AgentDraft?>>? Drafts { get; set; }
+
+    /// <summary>The grants and drafts the thread's approvals name, as last read (the iPad's <c>grants</c> and <c>setupDrafts</c>).</summary>
+    IReadOnlyList<Tafs.Core.Kiff.PlanqueGrant>? grants;
+    readonly Dictionary<string, Tafs.Core.Approvals.AgentDraft> drafts = [];
+
     /// <summary>Which account the panel's state is for: each sign-out moves it on, so an answer or read in flight is dropped, as the iPad's <c>accountGeneration</c>.</summary>
     int generation;
 
@@ -180,6 +191,8 @@ public sealed partial class CoachPanel : UserControl
         notes.Clear();
         cards.Clear();
         homeAsked.Clear();
+        grants = null;
+        drafts.Clear();
         ThreadItems.Children.Clear();
         IntroError.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Collapsed;
@@ -266,6 +279,21 @@ public sealed partial class CoachPanel : UserControl
         ShowThread(loaded);
         Intro.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Visible;
+        await ReadApprovalsAsync(loaded, gen);
+    }
+
+    /// <summary>
+    /// What the thread's approvals name, as the iPad's <c>loadSetupThread</c> reads them: planque's grants (each digest
+    /// checked), and each KIFF draft not read yet. A read that fails leaves the card saying it's reading the request.
+    /// </summary>
+    async Task ReadApprovalsAsync(CoachThread loaded, int gen)
+    {
+        var approvals = loaded.Shown.Where(s => s.Card.Kind == "approval").Select(s => s.Card).ToList();
+        if (approvals.Count == 0) return;
+        if (Grants is { } readGrants && await readGrants() is { } read && gen == generation) grants = read;
+        foreach (var id in approvals.Select(c => c.Draft).OfType<string>().Distinct())
+            if (Drafts is { } readDraft && await readDraft(id) is { } draft && gen == generation) drafts[id] = draft;
+        if (gen == generation) Redraw();
     }
 
     /// <summary>
@@ -292,6 +320,7 @@ public sealed partial class CoachPanel : UserControl
                 else if (shown.Card.Kind == "notice") ThreadItems.Children.Add(Notice(shown.Card));
                 else if (shown.Card.Kind == "result") ThreadItems.Children.Add(Result(thread, shown));
                 else if (shown.Card.Kind == "confirm") ThreadItems.Children.Add(Confirm(thread, shown.Card));
+                else if (shown.Card.Kind == "approval") ThreadItems.Children.Add(Approval(thread, shown.Card));
                 continue;
             }
             var m = items[i].Message!;
@@ -593,7 +622,90 @@ public sealed partial class CoachPanel : UserControl
     }
 
     /// <summary>The kinds of card drawn so far: the others come in their own changes, their answers in bubbles until then.</summary>
-    static readonly string[] Kinds = ["questions", "notice", "result", "confirm"];
+    static readonly string[] Kinds = ["questions", "notice", "result", "confirm", "approval"];
+
+    /// <summary>
+    /// An approval, as the iPad's <c>SetupApproval</c>: planque's own words for the connection (its exact terms under
+    /// Details), KIFF's draft of the taf's Card as its lines, and where it stands. Answered, one line; a newer request for
+    /// the same connection makes it history. Approving comes in its own change: until then Decline and Approve are off.
+    /// </summary>
+    UIElement Approval(CoachThread thread, CoachCard c)
+    {
+        var w = App.Words;
+        var grant = grants?.FirstOrDefault(g => g.Id == c.Grant);
+        var draft = c.Draft is { } id ? drafts.GetValueOrDefault(id) : null;
+        var (state, why) = ApprovalCard.State(thread, c, grant);
+        if (ApprovalCard.Replaced(thread, c.Id))
+            return QuestionsCardView.Outcome(ApprovalCard.ReplacedLine(w, thread, c.Id), Brush, "\uE74B", "TafsDim");
+        if (state is ApprovalState.Done or ApprovalState.Declined)
+        {
+            // What the person approved, under the line: the Card KIFF says it signed.
+            var signed = state == ApprovalState.Done && draft is { Signed: true, NoTools: not true } ? draft.CardLines(w).SelectMany(l => l).ToList() : [];
+            return QuestionsCardView.Outcome(ApprovalCard.Outcome(w, thread, c, state, grant, draft), Brush,
+                state == ApprovalState.Done ? "\uEC61" : "\uECC9", state == ApprovalState.Done ? "TafsOk" : "TafsDim", signed);
+        }
+        var failed = state == ApprovalState.Failed;
+        var box = new StackPanel { Spacing = 10 };
+        var upper = new System.Globalization.CultureInfo(w.Language);
+        var eyebrow = Words(w.Get(failed ? "coach.answer.failed_short" : "coach.needs_you_approve").ToUpper(upper), 11, "TafsEyebrow");
+        eyebrow.Foreground = Brush(failed ? "TafsNo" : "TafsAmber");
+        box.Children.Add(eyebrow);
+        if (grant is null) box.Children.Add(Words(w.Get("connect.reading_request"), 14, "TafsDimText"));
+        else if ((c.ConnectionDone ?? (grant.Connected ? w.Get("coach.connected_keys_kept_sealed", ("vendor", grant.Vendor))
+                     : grant.Listed ? w.Get("coach.signed_reading_what_offers", ("vendor", grant.Vendor)) : null)) is { } done)
+        {
+            var line = Words(done, 14, "TafsInkText");
+            (line.Foreground, line.FontWeight) = (Brush("TafsOk"), Microsoft.UI.Text.FontWeights.SemiBold);
+            box.Children.Add(line);
+        }
+        else
+        {
+            box.Children.Add(Words(grant.Text, 15, "TafsInkText"));
+            // The exact terms, for whoever wants them.
+            if (grant.Terms is { Count: > 0 } terms)
+            {
+                var lines = new StackPanel { Spacing = 6 };
+                foreach (var term in terms) lines.Children.Add(Mono(term, 11.5, "TafsDim"));
+                box.Children.Add(new Expander { Header = w.Get("common.details"), Content = lines, HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Left });
+            }
+            if (grant.Profile is not null) box.Children.Add(Words(w.Get("connect.profile_words_unread"), 13, "TafsSoftText"));
+            if (!grant.DigestMatches) box.Children.Add(Words(w.Get("connect.request_does_not_match_what"), 13, "TafsNoText"));
+        }
+        // The taf's Card as this approval signs it, or, by tafs cloud's mark, as the one approved next: under its words and
+        // dimmed, never as if signed now. Marked next with no words, it isn't drawn.
+        var next = c.Signs?.CardNext == true;
+        if (draft?.Cards is not null && !(next && c.Signs?.Words is null))
+        {
+            var card = new StackPanel { Spacing = 6 };
+            if (next) card.Children.Add(Words(c.Signs!.Words!, 13, "TafsSoftText"));
+            else card.Children.Add(Words(draft.CardTitle(w).ToUpper(upper), 11, "TafsEyebrow"));
+            foreach (var line in draft.CardLines(w).SelectMany(l => l)) card.Children.Add(Mono(line, 12, next ? "TafsDim" : "TafsInk"));
+            box.Children.Add(new Border { Child = card, Padding = new Thickness(12), CornerRadius = new CornerRadius(12), Background = Brush("TafsRaised") });
+        }
+        else if (grant is not null && ApprovalCard.CardNextWords(c) is { } nextWords) box.Children.Add(Words(nextWords, 13, "TafsSoftText"));
+        if (failed) box.Children.Add(Words(why is null ? w.Get("coach.did_not_go_through_nothing") : w.Get("coach.answer.failed_why", ("value", why)), 14, "TafsNoText"));
+        // Off until approving is ported: what would be signed is shown, nothing is.
+        var buttons = new Grid { ColumnSpacing = 10 };
+        buttons.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        buttons.ColumnDefinitions.Add(new ColumnDefinition());
+        buttons.Children.Add(new Button { Content = w.Get("coach.approval.decline"), Style = (Style)Application.Current.Resources["TafsOutlineButton"], IsEnabled = false });
+        var approve = new Button { Content = w.Get("coach.answer.approve"), Style = (Style)Application.Current.Resources["TafsPrimaryOff"], IsEnabled = false };
+        Grid.SetColumn(approve, 1);
+        buttons.Children.Add(approve);
+        box.Children.Add(buttons);
+        return new Border
+        {
+            Child = box, Padding = new Thickness(14), CornerRadius = new CornerRadius(14), Background = Brush("TafsPanel"),
+            BorderBrush = Brush(failed ? "TafsNo" : "TafsAmber"), BorderThickness = new Thickness(1),
+        };
+    }
+
+    TextBlock Mono(string text, double size, string colour) => new()
+    {
+        Text = text, FontSize = size, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas"), Foreground = Brush(colour),
+        TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
+    };
 
     QuestionsCardView QuestionsCard(CoachThread thread, ShownCard shown)
     {

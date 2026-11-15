@@ -28,7 +28,7 @@ The sections, in the iPad's order:
     whatever the store did (in a `finally`). Then everything read as that session goes, as the iPad's `forgetSession`
     (`MainWindow.ForgetSession`, the same reset a new sign-in runs first): Home's list on the Overview and under Your
     tafs, the pages' reads and Setup's proof, this device's id, the Record's lines and its KIFF read, and Coach's
-    thread, answers and sending. A read the
+    thread, answers, sending, and the grants and drafts its approvals read. A read the
     session started that lands afterwards is dropped. The window then opens sign-in. If Windows refuses to forget the session, it
     says "Sign out didn't go through" with Windows' error code only, and stays here to try again.
   - signed out: Sign in with KIFF.

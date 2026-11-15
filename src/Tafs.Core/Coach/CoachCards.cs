@@ -22,6 +22,26 @@ public sealed record CoachCard(string Kind, string Id, string? Title = null, str
     IReadOnlyList<PlanStep>? Steps = null, CardTaf? Taf = null, IReadOnlyList<string>? Tools = null, string? Yes = null)
 {
     public static readonly string[] Kinds = ["steps", "notice", "confirm", "questions", "approval", "sign_in", "result", "knob", "drive"];
+
+    /// <summary>An approval's planque grant id, KIFF's draft id (the taf's Cards), and the vendor's host.</summary>
+    public string? Grant { get; init; }
+    public string? Draft { get; init; }
+    public string? Service { get; init; }
+    /// <summary>tafs cloud's line for a connection already connected (<c>connection: {done, words}</c>), drawn in place of its words.</summary>
+    public string? ConnectionDone { get; init; }
+    /// <summary>tafs cloud's mark of what the approval signs (<c>signs</c>): none when it didn't say.</summary>
+    public CardSigns? Signs { get; init; }
+}
+
+/// <summary>
+/// What an approval's signature covers, as tafs cloud marks it (the iPad's <c>SetupComponent.Signs</c>): whether the taf's
+/// Card is in it, the Card section's heading when it isn't ("Its Card: you approve it next"), and whether Approve is a tap
+/// in an approval window or the person every time. Read leniently: a field of another shape is none.
+/// </summary>
+public sealed record CardSigns(bool? Card, string? Words, string? Takes)
+{
+    /// <summary>The Card isn't signed by this approval: it comes next.</summary>
+    public bool CardNext => Card == false;
 }
 
 /// <summary>
@@ -142,7 +162,16 @@ public sealed record ShownCard(DateTimeOffset FirstAt, string Session, string Ru
             Lenient.Field(c, "taf") is { ValueKind: JsonValueKind.Object } t
                 ? new CardTaf(Lenient.Text(t, "agent")!, Lenient.Text(t, "name")!, Lenient.Text(t, "improves"), Lenient.Text(t, "note")) : null,
             Lenient.Field(c, "tools") is { ValueKind: JsonValueKind.Array } tools ? tools.EnumerateArray().Select(x => x.GetString()!).ToList() : null,
-            Lenient.Text(c, "yes"));
+            Lenient.Text(c, "yes"))
+        {
+            Grant = Lenient.Text(c, "grant"), Draft = Lenient.Text(c, "draft"), Service = Lenient.Text(c, "service"),
+            ConnectionDone = Lenient.Field(c, "connection") is { } done && Lenient.Bool(done, "done") && Lenient.Text(done, "words") is { } line
+                && line.Trim().Length > 0 ? line : null,
+            Signs = Lenient.Field(c, "signs") is { ValueKind: JsonValueKind.Object } s
+                ? new CardSigns(Lenient.Field(s, "card") is { ValueKind: JsonValueKind.True or JsonValueKind.False } card ? card.GetBoolean() : null,
+                    Lenient.Text(s, "words") is { } words && words.Trim().Length > 0 ? words : null, Lenient.Text(s, "takes"))
+                : null,
+        };
     }
 
     // The shapes inside a card, as the iPad declares them: Step, Option, Question with its Choice, Taf, Connection.
