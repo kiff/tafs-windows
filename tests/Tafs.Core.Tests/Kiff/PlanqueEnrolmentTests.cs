@@ -131,9 +131,9 @@ public class PlanqueEnrolmentTests
         Assert.True(TestSigner.Verify(key.PublicKeyDer, PlanqueProof.Message(PlanqueProof.Api, "t_01", "POST", "/v1/accounts/t_01/enrolment", body, "2026-11-15T16:00:00.000Z"), signature));
         Assert.Null(await PlanqueProof.SignAsync("t_01", null, () => Task.FromResult<string?>(null), key, () => "t", "POST", "/x", body));
 
-        var at = new DateTimeOffset(2026, 11, 15, 16, 0, 0, TimeSpan.Zero);
+        var at = "2026-11-15T16:00:00.456Z";
         var mint = await PlanqueEnrolment.MintSignatureAsync(key, "t_01", at);
-        Assert.StartsWith("t=2026-11-15T16:00:00Z,v1=", mint);
+        Assert.StartsWith("t=2026-11-15T16:00:00.456Z,v1=", mint);
         Assert.True(TestSigner.Verify(key.PublicKeyDer, KiffSigning.RequestV1("t_01", "POST", "/v1/keys", PlanqueEnrolment.MintBody(), at), Convert.FromBase64String(mint.Split(",v1=")[1])));
         Assert.Equal("""{"label":"planque","roles":["connector"]}""", Encoding.UTF8.GetString(PlanqueEnrolment.MintBody()));
         Assert.Equal("tafs.planque.v1|t_01", Encoding.UTF8.GetString(PlanqueEnrolment.GateMessage("t_01")));
@@ -143,9 +143,9 @@ public class PlanqueEnrolmentTests
         new KeptSession("api.kiff.dev", "token", "t_01", "s1", "dev_pc01", mode, DateTimeOffset.MaxValue, "k") { PasskeyId = passkey };
 
     /// <summary>
-    /// Who may set planque up, before anything is sent: a key session with no prompt; a passkey session behind Windows Hello
-    /// over tafs.planque.v1|{tenant}, with its own passkey; a view session, or a passkey session that doesn't know its
-    /// passkey, never. Closing Windows Hello stops quietly; its refusal says why.
+    /// Who may set planque up, before anything is sent: only a passkey session behind Windows Hello over
+    /// tafs.planque.v1|{tenant}, with its own passkey; a view session, a key session (its device key asks no one), or a
+    /// passkey session that doesn't know its passkey, never. Closing Windows Hello, or one that doesn't verify, stops quietly.
     /// </summary>
     [Fact]
     public async Task Who_may_set_planque_up()
@@ -153,20 +153,19 @@ public class PlanqueEnrolmentTests
         var asked = new List<(byte[] Id, string Message)>();
         Task Hello(byte[] id, byte[] message) { asked.Add((id, Encoding.UTF8.GetString(message))); return Task.CompletedTask; }
 
-        Assert.Null(await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Key), Hello));
-        Assert.Empty(asked);
         Assert.Null(await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Passkey, KiffSigning.Base64Url([1, 2, 255])), Hello));
         Assert.Equal([1, 2, 255], asked[0].Id);
         Assert.Equal("tafs.planque.v1|t_01", asked[0].Message);
 
         var cant = new EnrolResult(EnrolOutcome.CantApprove, "This device can't approve. Approve on another device signed in to your account.");
         Assert.Equal(cant, await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.View), Hello));
+        Assert.Equal(cant, await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Key), Hello));
         Assert.Equal(cant, await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Passkey), Hello));
         Assert.Single(asked);
 
         Assert.Equal(new EnrolResult(EnrolOutcome.Cancelled),
             await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Passkey, "AQ"), (_, _) => throw new OperationCanceledException()));
-        Assert.Equal(new EnrolResult(EnrolOutcome.NotSetUp, "Connecting apps isn't set up. Windows Hello didn't verify the person"),
+        Assert.Equal(new EnrolResult(EnrolOutcome.Cancelled),
             await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Passkey, "AQ"), (_, _) => throw new Tafs.Core.Approvals.PasskeyRefusedException("Windows Hello didn't verify the person")));
     }
 }

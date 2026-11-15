@@ -290,6 +290,8 @@ public sealed partial class MainWindow : Window
         CoachMode.Read = path => CloudReadAsync(bearer, path);
         // Start, as the iPad's: off for a session that can't approve.
         CoachMode.StartCoach = Tafs.Core.Coach.CoachStart.MayStart(session) ? () => StartCoachAsync(session) : null;
+        // Signed in but can't approve: the iPad's gate line where Start would be.
+        CoachMode.StartGate = !Tafs.Core.Coach.CoachStart.MayStart(session);
         _ = ReadHomeAsync(path => CloudReadAsync(bearer, path));
         _ = AllowCoachAsync(bearer);
     }
@@ -315,6 +317,7 @@ public sealed partial class MainWindow : Window
         CoachMode.Read = null;
         CoachMode.Answer = null;
         CoachMode.StartCoach = null;
+        CoachMode.StartGate = false;
         planqueReady = false;
         CoachMode.Grants = null;
         CoachMode.Drafts = null;
@@ -334,18 +337,29 @@ public sealed partial class MainWindow : Window
         var w = App.Words;
         var bearer = session.AccessToken;
         var gen = sessions;
+        try { return await StartCoachWithKeyAsync(session, bearer, gen); }
+        catch (System.Security.Cryptography.CryptographicException e)
+        {
+            // The TPM key gone or refusing, as the iPad's catch covers every error: "Couldn't start." and why.
+            return new(Tafs.Core.Coach.StartOutcome.Failed, w.Get("coach.couldnt_start", ("why", SessionStore.Why(e))));
+        }
+    }
+
+    async Task<Tafs.Core.Coach.StartResult> StartCoachWithKeyAsync(KeptSession session, string bearer, int gen)
+    {
+        var w = App.Words;
         using var key = TpmKey.Open(session.KeyName);
         var hello = new WindowsHello(() => App.WindowHandle);
         var passkey = session.PasskeyId is { } id ? new PasskeyApprover(hello, KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals) : null;
-        DateTimeOffset Now() => DateTimeOffset.Parse(SigningTime.Next(DateTimeOffset.UtcNow), System.Globalization.CultureInfo.InvariantCulture);
         var kiff = Tafs.Core.SignIn.DeviceSignIn.Api;
         var calls = new Tafs.Core.Coach.StartCalls(
             ReadSetup: () => CloudReadAsync(bearer, Tafs.Core.Coach.CoachStart.SetupPath),
             Confirm: (credential, message) => new PasskeyApprover(hello, credential, Features.WindowsPasskeyApprovals).ConfirmAsync(message),
-            SignDraft: (body, at) => Tafs.Core.Coach.CoachStart.SignDraftAsync(session, key, passkey, body, at),
+            SignDraft: (body, at) => Tafs.Core.Coach.CoachStart.SignDraftAsync(session, passkey, body, at),
+            // The pair only by this PC's passkey: anything else fails closed and signs nothing.
             SignTogether: (connect, draft, at) => passkey is not null && session.Mode == ApprovalMode.Passkey
                 ? Tafs.Core.Coach.RequestsTogether.SignAsync(passkey, session.Tenant, connect, draft, at)
-                : Tafs.Core.Coach.RequestsTogether.SignAsync(key, session.Tenant, connect, draft, at),
+                : throw new PasskeyRefusedException("only this PC's passkey signs the pair"),
             Enrol: () => PlanqueEnrolment.EnrolAsync(w, key.PublicKeyDer,
                 async body =>
                 {
@@ -357,8 +371,7 @@ public sealed partial class MainWindow : Window
                 },
                 async () =>
                 {
-                    var at = Now();
-                    var signature = await PlanqueEnrolment.MintSignatureAsync(key, session.Tenant, at);
+                    var signature = await PlanqueEnrolment.MintSignatureAsync(key, session.Tenant, SigningTime.Next(DateTimeOffset.UtcNow));
                     return await KiffHttp.PostAsync(new Uri(kiff, PlanqueEnrolment.KeysPath), PlanqueEnrolment.MintBody(), bearer, w.Language,
                         signature: ("KIFF-Device-Signature", signature));
                 }),
@@ -367,7 +380,8 @@ public sealed partial class MainWindow : Window
             SubmitDraft: (body, signature) => KiffHttp.PostAsync(new Uri(kiff, Tafs.Core.Coach.CoachStart.DraftPath), body, bearer, w.Language,
                 signature: signature),
             Claim: body => CloudSendAsync(bearer, Tafs.Core.Coach.CoachStart.SetupPath, body),
-            Now: Now);
+            SignedAt: () => SigningTime.Next(DateTimeOffset.UtcNow),
+            Current: () => gen == sessions);
         var started = await Tafs.Core.Coach.CoachStart.StartAsync(w, session, planqueReady, calls);
         // Signed out meanwhile: it's no one's.
         if (gen != sessions) return new(Tafs.Core.Coach.StartOutcome.Cancelled);
@@ -377,7 +391,10 @@ public sealed partial class MainWindow : Window
         async Task<string?> LoadDeviceAsync()
         {
             var devices = await ReadAsync(new Uri(kiff, PlanqueProof.DevicesPath), bearer);
-            return deviceId = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
+            var device = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
+            // A late answer never puts the last account's device on the next session's proofs.
+            if (gen == sessions) deviceId = device;
+            return device;
         }
     }
 
@@ -436,10 +453,14 @@ public sealed partial class MainWindow : Window
     {
         // Open only: a key gone with a sign-out throws, and Setup reads without the proof.
         using var key = TpmKey.Open(session.KeyName);
+        var gen = sessions;
         return await PlanqueProof.GrantsReadAsync(session.Tenant, deviceId, async () =>
         {
             var devices = await ReadAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, PlanqueProof.DevicesPath), session.AccessToken);
-            return deviceId = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
+            var device = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
+            // A late answer never puts the last account's device on the next session's proofs.
+            if (gen == sessions) deviceId = device;
+            return device;
         }, key, () => SigningTime.Next(DateTimeOffset.UtcNow));
     }
 

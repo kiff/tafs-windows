@@ -92,11 +92,11 @@ tafs cloud, the agent or KIFF. Ported from the iPad's `setUpPlanque` and `enrolP
    enrolment, with no code, says another device connects them; with a code, or anything else, it says why.
 
 **Who may set planque up, before anything is sent** (`PlanqueEnrolment.GateAsync`), as the iPad's one Face ID:
-- **a key session:** with no prompt, like its other setup calls; its key already acts for it;
 - **a passkey session:** behind one Windows Hello assertion with this PC's passkey (`PasskeyApprover.ConfirmAsync`), its
   challenge sha256(`tafs.planque.v1|{tenant}`) (`GateMessage`), checked as an approval's is (verified, kiff.dev, a passkey
-  that can't leave this PC). Closing Windows Hello stops quietly; a refusal says why;
-- **a view session, or a passkey session that doesn't know its passkey:** never ("This device can't approve. Approve on
+  that can't leave this PC). Closing Windows Hello, or one that doesn't verify, stops quietly, as the iPad's Face ID;
+- **any other session,** a key session included (its TPM device key asks no one, where the iPad's Face ID never skips),
+  a view session, or a passkey session that doesn't know its passkey: never ("This device can't approve. Approve on
   another device signed in to your account.").
 
 The passkey's credential id is kept with a passkey session (`KeptSession.PasskeyId`, base64url) when it's paired: the one

@@ -31,11 +31,11 @@ public static class PlanqueEnrolment
     public static byte[] GateMessage(string tenant) => System.Text.Encoding.UTF8.GetBytes($"tafs.planque.v1|{tenant}");
 
     /// <summary>
-    /// Whether this session may set planque up, and behind what, before anything is sent: a view session never ("This device
-    /// can't approve…"), nor a passkey session that doesn't know its passkey; a key session with no prompt, like its other
-    /// setup calls; a passkey session behind Windows Hello over <see cref="GateMessage"/>, as the iPad's one Face ID.
-    /// <paramref name="hello"/> asks Windows Hello with the passkey's credential id; closing it stops quietly, and a refusal says
-    /// why. None means it may go on. <paramref name="message"/> is what's confirmed, when it's a step with planque in it
+    /// Whether this session may set planque up, and behind what, before anything is sent: only a passkey session that knows
+    /// its passkey, behind Windows Hello over <see cref="GateMessage"/>, as the iPad's one Face ID, which it never skips. Any
+    /// other session can't ("This device can't approve…"): a key session's device key asks no one, so it gives no authority.
+    /// <paramref name="hello"/> asks Windows Hello with the passkey's credential id; closing it, or a Windows Hello that
+    /// doesn't verify, stops quietly, as the iPad's failed Face ID. None means it may go on. <paramref name="message"/> is what's confirmed, when it's a step with planque in it
     /// (Start's <c>tafs.setup.v1</c>); <see cref="GateMessage"/> otherwise.
     /// </summary>
     public static async Task<EnrolResult?> GateAsync(WordBook w, KeptSession session, Func<byte[], byte[], Task> hello, byte[]? message = null)
@@ -43,16 +43,13 @@ public static class PlanqueEnrolment
         var cant = new EnrolResult(EnrolOutcome.CantApprove, w.Get("approval.device_can_not_approve_approve"));
         switch (session.Mode)
         {
-            case ApprovalMode.Key:
-                return null;
             case ApprovalMode.Passkey when session.PasskeyId is { } id:
                 try
                 {
                     await hello(KiffSigning.FromBase64Url(id), message ?? GateMessage(session.Tenant));
                     return null;
                 }
-                catch (OperationCanceledException) { return new(EnrolOutcome.Cancelled); }
-                catch (Approvals.PasskeyRefusedException e) { return NotSetUp(w, e.Message); }
+                catch (Exception e) when (e is OperationCanceledException or Approvals.PasskeyRefusedException) { return new(EnrolOutcome.Cancelled); }
             default:
                 return cant;
         }
@@ -65,7 +62,7 @@ public static class PlanqueEnrolment
     /// <c>KIFF-Device-Signature</c> for the mint, as a signed setup call: <c>kiff.request.v1</c> over exactly
     /// <see cref="MintBody"/>, signed by the session's device key, which asks no one.
     /// </summary>
-    public static async Task<string> MintSignatureAsync(IKiffSigner key, string tenant, DateTimeOffset signedAt, CancellationToken cancel = default) =>
+    public static async Task<string> MintSignatureAsync(IKiffSigner key, string tenant, string signedAt, CancellationToken cancel = default) =>
         KiffSigning.SignatureHeaderV1(signedAt, await key.SignDerAsync(KiffSigning.RequestV1(tenant, "POST", KeysPath, MintBody(), signedAt), cancel));
 
     /// <summary>
