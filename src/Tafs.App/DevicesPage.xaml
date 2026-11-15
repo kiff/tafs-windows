@@ -12,6 +12,7 @@
         <StackPanel x:Name="Rows" />
       </Border>
       <!-- The list's footer, as the iPad's: what signing a device out does, and how this PC signs out. -->
+      <TextBlock x:Name="NeedsApprover" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" Margin="16,0" Visibility="Collapsed" />
       <TextBlock x:Name="Note" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsDim}" Margin="16,0" />
     </StackPanel>
   </ScrollViewer>

@@ -40,7 +40,8 @@ Ported from the iPad's `DevicesView` and `KIFFClient.Device`, opened from **Peop
 - **The read:** `GET /v1/me/devices` as the session, as the iPad's `refreshDevices`. Each device needs its id. Its name is
   KIFF's `display_name` in the app's language, else the name it gave at sign-in, else "A device". Last used is
   `last_used_at`, else `last_seen_at` for a session from before devices. A field of the wrong kind fails the read, which
-  says "Couldn't load your devices." with why.
+  says "Couldn't load your devices." with why, in the iPad's plain words (`KiffErrors`, its `KIFFError` and `PlainError`):
+  signed out of KIFF for a 401, else the app's line for the status, never KIFF's own reason.
 - **Each row:** the name, 15 semibold, and "Last used 3 hours ago" or "Not used yet", 13 dim. On the right, "This device"
   for this PC.
 - **Last used** is written as Apple's `RelativeDateTimeFormatter` writes a past time in full, in each shipped language
@@ -49,7 +50,8 @@ Ported from the iPad's `DevicesView` and `KIFFClient.Device`, opened from **Peop
   calendar units.
 - **The footer:** what signing a device out does, and that this PC signs out with Sign out of KIFF.
 - **Sign out, for another device,** is an approval, signed by this device (`prepareRemoveDevice` behind Face ID on the
-  iPad). Until this PC can sign one, it's shown off.
+  iPad). Until this PC can sign one, it's left out, and Android's line says why under the list: "To sign another device
+  out, use a device that can approve."
 - **Not for Windows:** the iPad's **Add a device** (`PairComputerView`), where a phone adds a computer by its code. On
   Windows, this PC is the computer, and it's added from the phone.
 
