@@ -16,11 +16,11 @@ public sealed record ActivityFilter(string Id, string Title);
 
 /// <summary>
 /// A taf's Activity, as tafs cloud's <c>GET /v1/tafs/{id}/activity</c> answers it (contracts/taf-activity.json): its days,
-/// the filters with the one applied, the words under the last line, the revision sent back as If-None-Match, and the cursor
-/// of the next page when there's one.
+/// the filters with the one applied, the words under the last line, the revision sent back as If-None-Match, the cursor
+/// of the next page when there's one, and how many entries it holds (the iPad tests these, not the days, for "Nothing here.").
 /// </summary>
 public sealed record ActivityPage(IReadOnlyList<ActivityGroup> Groups, IReadOnlyList<ActivityFilter> Filters, string Filter,
-    string? EndWords, string? Revision, string? NextCursor = null);
+    string? EndWords, string? Revision, string? NextCursor = null, int Entries = 0);
 
 /// <summary>A taf's Activity tab: read from tafs cloud, or the iPad's sample (the reference set's taf.png).</summary>
 public static class TafActivity
@@ -40,7 +40,7 @@ public static class TafActivity
             .OfType<ActivityFilter>()
             .ToList();
         return new ActivityPage(groups, filters, Lenient.Text(answer, "filter") ?? "all", Lenient.Text(answer, "end_words"), Lenient.Text(answer, "revision"),
-            Lenient.Text(answer, "next_cursor"));
+            Lenient.Text(answer, "next_cursor"), Lenient.Array(answer, "entries").Count());
     }
 
     static ActivityLine? Line(JsonElement e) =>

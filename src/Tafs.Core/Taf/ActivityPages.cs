@@ -16,6 +16,8 @@ public sealed class ActivityPages
 {
     readonly List<ActivityPage> pages = [];
     bool moreWhenReady;
+    /// <summary>The cursor whose next page the ring last asked for.</summary>
+    string? seenCursor;
 
     public IReadOnlyList<ActivityPage> Pages => pages;
     public bool Loading { get; private set; }
@@ -66,6 +68,17 @@ public sealed class ActivityPages
     }
 
     /// <summary>
+    /// The next page's ring came into view: its page is read once for each cursor, as the iPad's <c>.task(id: cursor)</c>
+    /// on its ProgressView, however often the ring is seen while it's read.
+    /// </summary>
+    public Task SeenAsync(string taf, string filter, Func<string, Task<CloudRead>> read, string selection = "")
+    {
+        if (Error is not null || pages.LastOrDefault()?.NextCursor is not { } cursor || cursor == seenCursor) return Task.CompletedTask;
+        seenCursor = cursor;
+        return LoadAsync(taf, filter, read, more: true, selection);
+    }
+
+    /// <summary>
     /// What's under its lines, in the iPad's order: why the last read failed; else, with a cursor, a read of more (made as it
     /// comes into view); else a read going; else tafs cloud's end words; else, with no line at all, "Nothing here.".
     /// </summary>
@@ -74,7 +87,7 @@ public sealed class ActivityPages
         : pages.LastOrDefault()?.NextCursor is not null ? new(ActivityEndKind.More)
         : Loading ? new(ActivityEndKind.Loading)
         : pages.LastOrDefault()?.EndWords is { } words ? new(ActivityEndKind.EndWords, words)
-        : pages.All(p => p.Groups.Count == 0) ? new(ActivityEndKind.NothingHere, w.Get("record.nothing_here"))
+        : pages.All(p => p.Entries == 0) ? new(ActivityEndKind.NothingHere, w.Get("record.nothing_here"))
         : new(ActivityEndKind.None);
 
     /// <summary>The filters, from the first page, as the iPad draws them.</summary>

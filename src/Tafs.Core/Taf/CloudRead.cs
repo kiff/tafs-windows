@@ -38,6 +38,10 @@ public sealed record CloudRead(JsonElement? Answer, string? Why = null, int Stat
     /// <summary>A query's value, as the iPad's <c>query</c>: letters and digits as they are, every other character escaped.</summary>
     public static string QueryPart(string s) => Escape(s, "");
 
+    /// <summary>
+    /// ASCII on purpose: the iPad's character sets also keep non-ASCII letters as they are, but tafs cloud's ids, filters and
+    /// cursors are ASCII, so nothing sent differs, and a link stays plain ASCII.
+    /// </summary>
     static string Escape(string s, string keep)
     {
         var b = new StringBuilder();
