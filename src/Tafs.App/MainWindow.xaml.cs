@@ -28,8 +28,10 @@ public sealed partial class MainWindow : Window
     /// <summary>The held calls Needs you shows: from KIFF in their own change; until then none, or the iPad's samples.</summary>
     readonly IReadOnlyList<HeldCall> held;
 
-    /// <summary>The Record's lines: from tafs cloud and KIFF in their own change; until then none, or the iPad's sample.</summary>
-    readonly IReadOnlyList<RecordEntry> record;
+    /// <summary>The Record's lines: KIFF's activity once Home is read as the session, else none, or the iPad's sample.</summary>
+    IReadOnlyList<RecordEntry> record;
+    /// <summary>How this window reads KIFF for the Record: as the session, or a stand-in file for a screenshot; none signed out.</summary>
+    Func<string, Task<CloudRead>>? kiffRead;
     /// <summary>The Overview's lines: tafs cloud's once Home is read, else none, or the sample's.</summary>
     IReadOnlyList<OverviewRow> overviewRows;
     /// <summary>Home's answer from tafs cloud, for a taf's page; none until it's read.</summary>
@@ -185,11 +187,17 @@ public sealed partial class MainWindow : Window
         // From files, every read is done before the window first draws, so the screenshot has them.
         if (homeFile is not null)
         {
+            // The Record from a stand-in for KIFF's activity beside the Home contract (kiff-activity.json), if there is one.
+            var activity = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!, "kiff-activity.json");
+            kiffRead = _ => Task.FromResult(File.Exists(activity) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(activity)) : CloudRead.Unreached(w));
             _ = ReadHomeAsync(path => Task.FromResult(ContractRead(w, homeFile, path)));
             CoachMode.Read = path => Task.FromResult(ContractRead(w, homeFile, path));
             // The first taf's page, its Activity from taf-activity.json beside the Home contract.
             if (page is "taf" or "taf-setup" && home?.Tafs.FirstOrDefault() is { } first)
                 OpenBeside(typeof(TafPage), OpenTaf(w, first.Id, page == "taf-setup" ? TafTab.Setup : TafTab.Activity));
+            // Connect apps from connect-apps.json beside the Home contract, as tafs cloud's list.
+            if (page == "connect-apps")
+                Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(null, (path, _) => Task.FromResult(ContractRead(w, homeFile, path)), null));
         }
         else if (screenshot is null && !sample && App.Sessions.Kept() is { } session)
         {
@@ -212,10 +220,26 @@ public sealed partial class MainWindow : Window
         cloudRead = read;
         ShowHome(HomeList.Read(w, answer, TimeZoneInfo.Local));
         var listed = home!;
+        _ = ReadRecordAsync(listed, reading);
         var reports = await Task.WhenAll(listed.Tafs.Select(t => TafRuns.LoadReportAsync(w, t.Id, read)));
         if (reading != sessions) return;
         overviewRows = HomeList.Rows(w, listed, TimeZoneInfo.Local, listed.Tafs.Select((t, i) => (t.Id, Report: reports[i])).ToDictionary(r => r.Id, r => r.Report));
         if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows);
+    }
+
+    /// <summary>
+    /// The Record from KIFF's activity, with each refresh of Home's list, as the iPad's <c>refresh</c>: the calls of the tafs
+    /// on <paramref name="listed"/>, by each taf's agent in KIFF. A read that fails, or that KIFF answers in a way it can't
+    /// read, leaves the Record as it was, as the iPad's does; one that lands after another session began is dropped.
+    /// </summary>
+    async Task ReadRecordAsync(HomeAnswer listed, int reading)
+    {
+        if (kiffRead is not { } read) return;
+        var answer = (await read(KiffActivity.Path)).Answer;
+        if (reading != sessions || answer is not { } json || KiffActivity.Read(json) is not { } calls) return;
+        var tafs = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => (g.First().Name, g.First().Colour));
+        record = KiffActivity.Lines(App.Words, calls, agent => tafs.TryGetValue(agent, out var taf) ? taf : null);
+        if (Pages.Content is RecordPage page) page.ShowEntries(record);
     }
 
     /// <summary>
@@ -251,6 +275,7 @@ public sealed partial class MainWindow : Window
         ForgetSession();
         cloudReadWithProof = (path, proof) => CloudReadAsync(bearer, path, proof);
         setupProof = () => SetupProofAsync(session);
+        kiffRead = path => KiffReadAsync(bearer, path);
         CoachMode.Read = path => CloudReadAsync(bearer, path);
         _ = ReadHomeAsync(path => CloudReadAsync(bearer, path));
         _ = AllowCoachAsync(bearer);
@@ -258,8 +283,9 @@ public sealed partial class MainWindow : Window
 
     /// <summary>
     /// As the iPad's <c>forgetSession</c>, at sign-out and before each new session: what the last session read goes
-    /// (Home's list, on the Overview and under Your tafs; the pages' reads and Setup's proof; this device's id; Coach's
-    /// thread, what was answered and whether it may answer), and a read it started that lands later is dropped. Until a
+    /// (Home's list, on the Overview and under Your tafs; the pages' reads and Setup's proof; this device's id; the Record's
+    /// KIFF read and lines; Coach's thread, what was answered and whether it may answer), and a read it started that lands
+    /// later is dropped. Until a
     /// session is used, nothing reads as anyone.
     /// </summary>
     void ForgetSession()
@@ -269,6 +295,9 @@ public sealed partial class MainWindow : Window
         cloudReadWithProof = null;
         setupProof = null;
         deviceId = null;
+        kiffRead = null;
+        record = [];
+        if (Pages.Content is RecordPage page) page.ShowEntries(record);
         ShowHome(new HomeAnswer([], null));
         CoachMode.Read = null;
         CoachMode.Answer = null;
@@ -340,14 +369,15 @@ public sealed partial class MainWindow : Window
     /// <summary>
     /// For screenshots, tafs cloud's answers from the contracts beside <paramref name="homeFile"/>: Home's from it, a taf's
     /// runs from taf-runs.json, a run's report from taf-run-report.json, its Activity from taf-activity.json and its Setup from
-    /// taf-setup.json; Coach's from setup-coach.json, coach-chats.json and coach-conversation.json. With no such file, it reads
-    /// as not reached.
+    /// taf-setup.json; Coach's from setup-coach.json, coach-chats.json and coach-conversation.json; Connect apps' from
+    /// connect-apps.json. With no such file, it reads as not reached.
     /// </summary>
     static CloudRead ContractRead(Tafs.Core.Words.WordBook w, string homeFile, string path)
     {
         var file = path == HomeList.Path ? homeFile
             : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!,
-                path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "setup-coach.json"
+                path.StartsWith(ConnectAppsScreen.ListPath, StringComparison.Ordinal) ? "connect-apps.json"
+                : path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "setup-coach.json"
                 : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json"
                 : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
         return File.Exists(file) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(file)) : CloudRead.Unreached(w);
@@ -485,7 +515,7 @@ public sealed partial class MainWindow : Window
         else if (item.Tag is Screen.NeedsYou or HeldCall) Pages.Navigate(typeof(NeedsYouPage), held);
         else if (item.Tag is Screen.Record) Pages.Navigate(typeof(RecordPage), record);
         else if (item.Tag is Screen.Usage) Pages.Navigate(typeof(UsagePage), usage);
-        else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), connectApps);
+        else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof));
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
         else if (item.Tag is TafRow taf) Pages.Navigate(typeof(TafPage), OpenTaf(App.Words, taf.Key));
         else Pages.Navigate(typeof(ComingPage), item.Content);
