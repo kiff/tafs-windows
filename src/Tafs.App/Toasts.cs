@@ -43,15 +43,22 @@ static class Toasts
             && click.Arguments.TryGetValue(HoldToast.Argument, out var started) ? started : null;
     }
 
-    /// <summary>One hold's notification, tagged with its id, so a hold is never shown twice.</summary>
-    public static void Show(ToastLines lines)
+    /// <summary>Whether Windows lets tafs show notifications: registered, and not turned off in Windows' settings or by policy.</summary>
+    public static bool Allowed => on && AppNotificationManager.Default.Setting == AppNotificationSetting.Enabled;
+
+    /// <summary>
+    /// One hold's notification, tagged with its id, so a hold is never shown twice. With Sound off it comes silent, as the
+    /// iPad's passive alert.
+    /// </summary>
+    public static void Show(ToastLines lines, bool sound)
     {
         if (!on) return;
-        var notification = new AppNotificationBuilder()
+        var builder = new AppNotificationBuilder()
             .AddArgument(HoldToast.Argument, lines.Hold)
             .AddText(lines.Title)
-            .AddText(lines.Body)
-            .BuildNotification();
+            .AddText(lines.Body);
+        if (!sound) builder.MuteAudio();
+        var notification = builder.BuildNotification();
         notification.Tag = lines.Hold.Length <= 64 ? lines.Hold : lines.Hold[..64];
         AppNotificationManager.Default.Show(notification);
     }

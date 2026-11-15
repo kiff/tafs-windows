@@ -33,6 +33,29 @@ The sections, in the iPad's order:
     says "Sign out didn't go through" with Windows' error code only, and stays here to try again.
   - signed out: Sign in with KIFF.
 
+## Alerts (`AlertPrefs`, `AlertsScreen`, `AlertsPage`)
+
+Ported from the iPad's `NotificationSettingsView` and `LockScreenAlert`, for this PC's own alerts (the notifications a
+held call raises while tafs runs, `needs-you.md`). tafs-macos #68 is a second reference.
+- **What an alert looks like:** the iPad's two, on the raised colour with corners of 18. Each has the mascot, its title
+  and line, and the sound mark: "Chargebacks needs you" with sound, and "Refunds answered maria@…" silent. Narrator reads
+  "With sound: …" or "Silent: …".
+- **For a KIFF account:**
+  - **"Alerts on this Windows PC"** is on only when the person turned it on for this account and Windows allows tafs's
+    notifications.
+  - **Turning it on** checks Windows first, as the iPad asks the system. Refused, it says "Allow notifications for tafs in
+    Settings, then try again." with a link to Windows' notifications settings, and stays off.
+  - **The choice is kept for each account** (off until turned on, as the iPad's `alertsEnabledKey`), so an account never
+    inherits another's.
+  - Both choices are kept beside the session, in `alerts.json`.
+  - **Sound** ("For a hold or a halt only") is the PC's, on until turned off. It's off and greyed while alerts are off,
+    and keeps its choice for when they're back. With it off, a notification comes silent.
+- **Not here, as on macOS:**
+  - the footer, which says this device tells you "even with tafs closed": on Windows an alert comes only while tafs
+    runs;
+  - "What alerts you", which tafs cloud keeps per phone's push token, and this PC has none;
+  - Haptics, the phone's.
+
 **Not yet:**
 - **The KIFF account's rows**, from `GET /v1/me`:
   - KIFF account (its name, opening its details);

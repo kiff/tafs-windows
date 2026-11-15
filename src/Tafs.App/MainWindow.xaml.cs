@@ -190,7 +190,7 @@ public sealed partial class MainWindow : Window
             if (screenshot is null) Keep(chosen);
         };
         AccountPage.SignInChosen += OpenSignIn;
-        AccountPage.AlertsChosen += () => OpenBeside(typeof(ComingPage), w.Get("settings.alerts"));
+        AccountPage.AlertsChosen += () => OpenBeside(typeof(AlertsPage), new AlertsOpening(App.Sessions.Kept()?.Tenant));
         AccountPage.AddThisDeviceChosen += OpenPairing;
         // As the iPad's sign-out (its forgetSession): everything read as the last session goes, and nothing reads as anyone.
         AccountPage.SignedOut += () =>
@@ -308,9 +308,12 @@ public sealed partial class MainWindow : Window
         var tafs = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => (g.First().Name, g.First().Colour));
         var calls = KiffHeld.Calls(App.Words, holds, agent => tafs.TryGetValue(agent, out var taf) ? taf : null);
         ShowHeld(calls);
-        // A hold KIFF has held since the last read gets its notification, as the iPad's hold alert.
-        foreach (var fresh in HoldToast.New(notified, calls))
-            if (HoldToast.Lines(App.Words, fresh, TimeZoneInfo.Local) is { } lines) Toasts.Show(lines);
+        // A hold KIFF has held since the last read gets its notification, as the iPad's hold alert, once the person turned
+        // alerts on for this account (Account › Alerts).
+        var alerts = Alerts.Prefs;
+        if (App.Sessions.Kept()?.Tenant is { } tenant && alerts.IsOn(tenant))
+            foreach (var fresh in HoldToast.New(notified, calls))
+                if (HoldToast.Lines(App.Words, fresh, TimeZoneInfo.Local) is { } lines) Toasts.Show(lines, alerts.Sound);
         notified = calls.Where(c => c.KiffId is not null).Select(c => c.KiffId!).ToHashSet();
     }
 

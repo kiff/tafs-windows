@@ -65,7 +65,8 @@ that wide would put the amount far from the answers.
 ## Notifications (`HoldToast`, `Toasts`)
 
 While tafs runs, a call KIFF holds gets a Windows notification, as the iPad's hold alert (`HoldNotification.words`,
-`PushDelegate.open`):
+`PushDelegate.open`), once the person turned alerts on for this account in Account › Alerts. With Sound off there, it
+comes silent:
 - **Its words:**
   - "Rae needs you" (or "A taf needs you");
   - then "Refund order 42, €150.00 · Over €50 each. Answer by 14:05. Nothing is sent until you approve.", answering by
