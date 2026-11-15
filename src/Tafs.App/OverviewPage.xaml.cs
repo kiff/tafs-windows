@@ -7,10 +7,18 @@ using Tafs.Core.NeedsYou;
 namespace Tafs.App;
 
 /// <summary>A held call on the Overview, under NEEDS YOU.</summary>
-public sealed record HeldLine(string Title, string AnswerBy);
+public sealed record HeldLine(string Title, string AnswerBy)
+{
+    public string Name => $"{Title}, {AnswerBy}";
+}
 
 public sealed partial class OverviewPage : Page
 {
+    /// <summary>A held call's row was chosen: Needs you opens.</summary>
+    public static event Action? NeedsYouChosen;
+
+    void OnHeld(object sender, RoutedEventArgs e) => NeedsYouChosen?.Invoke();
+
     public OverviewPage()
     {
         InitializeComponent();

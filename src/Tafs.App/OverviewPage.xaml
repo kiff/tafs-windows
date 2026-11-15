@@ -27,7 +27,8 @@
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="local:HeldLine">
-              <Border Background="{ThemeResource TafsRaised}" CornerRadius="12" Padding="12">
+              <!-- A row opens Needs you, as the sidebar's do (a taf's page, as on the iPad, once there is one). -->
+              <Button Click="OnHeld" Style="{StaticResource TafsRow}" AutomationProperties.Name="{x:Bind Name}">
                 <Grid ColumnSpacing="10">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -39,7 +40,7 @@
                              Foreground="{ThemeResource TafsInk}" />
                   <TextBlock Grid.Column="2" Text="{x:Bind AnswerBy}" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TafsSoft}" />
                 </Grid>
-              </Border>
+              </Button>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
