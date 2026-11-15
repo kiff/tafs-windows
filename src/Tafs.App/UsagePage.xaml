@@ -1,0 +1,48 @@
+<!-- Plan & usage (the iPad's UsageView): the balance in tafs cloud's words with its bar, then the Credits panel,
+     this period or the one before, each taf's part, Coach's paid use, what wasn't counted and why, and the note. -->
+<Page x:Class="Tafs.App.UsagePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{ThemeResource TafsBackground}">
+  <ScrollViewer>
+    <StackPanel Padding="24,16,24,24" Spacing="16" MaxWidth="1180" HorizontalAlignment="Stretch">
+      <TextBlock x:Name="NavTitle" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource TafsInk}"
+                 AutomationProperties.HeadingLevel="Level1" />
+
+      <!-- The balance: its line around in the tone's colour when it isn't calm. -->
+      <Border x:Name="BalancePanel" Style="{StaticResource TafsCard}">
+        <StackPanel Spacing="12">
+          <TextBlock x:Name="BalanceWords" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{ThemeResource TafsInk}" />
+          <!-- The bar: 5 high, the ink at 10% under the tone's colour (calm is green). -->
+          <Grid x:Name="Meter" Height="5" SizeChanged="OnMeterSized">
+            <Rectangle RadiusX="2.5" RadiusY="2.5" Fill="{ThemeResource TafsLine}" />
+            <Rectangle x:Name="MeterOk" RadiusX="2.5" RadiusY="2.5" HorizontalAlignment="Left" Fill="{ThemeResource TafsOk}" />
+            <Rectangle x:Name="MeterWarning" RadiusX="2.5" RadiusY="2.5" HorizontalAlignment="Left" Fill="{ThemeResource TafsAmberText}" />
+            <Rectangle x:Name="MeterWaiting" RadiusX="2.5" RadiusY="2.5" HorizontalAlignment="Left" Fill="{ThemeResource TafsNo}" />
+          </Grid>
+          <TextBlock x:Name="BalanceDetail" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+          <TextBlock x:Name="BalanceWarning" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <!-- Credits: the eyebrow, Last period / This period, and the period's words. -->
+      <Border x:Name="CreditsPanel" Style="{StaticResource TafsCard}">
+        <StackPanel Spacing="12">
+          <TextBlock x:Name="CreditsTitle" Style="{StaticResource TafsEyebrow}" />
+          <Border Background="{ThemeResource TafsRaised}" CornerRadius="9" Padding="2">
+            <Grid ColumnSpacing="2">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition />
+              </Grid.ColumnDefinitions>
+              <Button x:Name="LastPeriod" Click="OnLastPeriod" />
+              <Button x:Name="ThisPeriod" Grid.Column="1" Click="OnThisPeriod" />
+            </Grid>
+          </Border>
+          <TextBlock x:Name="CreditsWords" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{ThemeResource TafsInk}" />
+        </StackPanel>
+      </Border>
+      <StackPanel x:Name="CreditsRows" Spacing="16" />
+    </StackPanel>
+  </ScrollViewer>
+</Page>

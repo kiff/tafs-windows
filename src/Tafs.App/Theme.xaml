@@ -23,6 +23,7 @@
       <SolidColorBrush x:Key="TafsInkFaint" Color="#331B1726" />
       <SolidColorBrush x:Key="TafsSegmentFill" Color="#FFFFFF" />
       <SolidColorBrush x:Key="TafsNo" Color="#DB1F25" />
+      <SolidColorBrush x:Key="TafsNoEdge" Color="#80DB1F25" />
       <!-- The taf's own words on a held call: the soft colour at 8%. -->
       <SolidColorBrush x:Key="TafsSoftWash" Color="#144F4A5E" />
       <!-- The sidebar's chosen row: a rounded fill of the ink, as the iPad's list draws it, not a side bar. -->
@@ -64,6 +65,7 @@
       <SolidColorBrush x:Key="TafsInkFaint" Color="#33F2EFE9" />
       <SolidColorBrush x:Key="TafsSegmentFill" Color="#4A4740" />
       <SolidColorBrush x:Key="TafsNo" Color="#FF8A73" />
+      <SolidColorBrush x:Key="TafsNoEdge" Color="#80FF8A73" />
       <SolidColorBrush x:Key="TafsSoftWash" Color="#14A8A49C" />
       <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#24F2EFE9" />
       <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#2EF2EFE9" />
@@ -219,6 +221,18 @@
   </Style>
 
   <!-- Words that follow the theme from code. -->
+  <Style x:Key="TafsNoText" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsNo}" /></Style>
+  <Style x:Key="TafsAmberWords" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsAmberText}" /></Style>
+  <!-- The iPad's Panel: the panel colour, corners of 18, a line around (amber or red at 50% for a warning or a wait), 16 in. -->
+  <Style x:Key="TafsCard" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource TafsPanel}" />
+    <Setter Property="BorderBrush" Value="{ThemeResource TafsLine}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="18" />
+    <Setter Property="Padding" Value="16" />
+  </Style>
+  <Style x:Key="TafsCardWarning" TargetType="Border" BasedOn="{StaticResource TafsCard}"><Setter Property="BorderBrush" Value="{StaticResource TafsAmberEdge}" /></Style>
+  <Style x:Key="TafsCardWaiting" TargetType="Border" BasedOn="{StaticResource TafsCard}"><Setter Property="BorderBrush" Value="{ThemeResource TafsNoEdge}" /></Style>
   <Style x:Key="TafsInkText" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsInk}" /></Style>
   <Style x:Key="TafsDimText" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsDim}" /></Style>
   <Style x:Key="TafsOnAmberText" TargetType="TextBlock"><Setter Property="Foreground" Value="White" /></Style>
