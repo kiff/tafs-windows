@@ -84,6 +84,8 @@ as one, with "Shows the receipt". In `Tafs.Core.Record` (`Receipt`):
     called KIFF's receipt, or checked, before it is.
   - **A line the steps contradict** says KIFF's receipt doesn't check out, and why: the decision step
     signed another amount, or the hold was settled with another answer (KIFF writes a refusal "reject").
+    Amounts are compared as numbers with their unit, so "150.00" and "150" agree. The iPad compares
+    the strings, which would call that a contradiction. One that isn't a number is compared as written.
   - **Not read:** why, and Try again.
 - For a screenshot, `--home` reads `kiff-receipt.json` beside the Home file as the receipt.
 

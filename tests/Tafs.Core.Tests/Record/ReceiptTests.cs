@@ -80,11 +80,16 @@ public class ReceiptTests
     public void A_sample_line_was_decided_by_its_Card() =>
         Assert.Equal("The Card", Receipt.DecidedBy(En, new RecordEntry("Refunds", 4, EntryKind.Done, "t", "d", DateTimeOffset.UnixEpoch)));
 
-    /// <summary>As the iPad's amountMismatch and answerMismatch: the line against what KIFF signed; KIFF records a refusal as "reject".</summary>
+    /// <summary>As the iPad's amountMismatch and answerMismatch: the line against what KIFF signed, amounts as numbers; KIFF records a refusal as "reject".</summary>
     [Theory]
     [InlineData(""", "amount": {"value": "150.00", "unit": "EUR"}""", """{"value": "150.00", "unit": "EUR"}""", "approved_once", null)]
     [InlineData(""", "amount": {"value": "150.00", "unit": "EUR"}""", """{"value": "950.00", "unit": "EUR"}""", "approved_once", "The amount on this line doesn't match KIFF's receipt.")]
     [InlineData(""", "amount": {"value": "150.00", "unit": "EUR"}""", """{"value": "150.00"}""", "approved_once", "The amount on this line doesn't match KIFF's receipt.")]
+    // The same amount written two ways agrees; one that isn't a number is compared as written.
+    [InlineData(""", "amount": {"value": "150.00", "unit": "EUR"}""", """{"value": "150", "unit": "EUR"}""", "approved_once", null)]
+    [InlineData(""", "amount": {"value": "150.5", "unit": "EUR"}""", """{"value": "150.50", "unit": "EUR"}""", "approved_once", null)]
+    [InlineData(""", "amount": {"value": "150.00", "unit": "EUR"}""", """{"value": "150.01", "unit": "EUR"}""", "approved_once", "The amount on this line doesn't match KIFF's receipt.")]
+    [InlineData(""", "amount": {"value": "lots", "unit": "EUR"}""", """{"value": "150", "unit": "EUR"}""", "approved_once", "The amount on this line doesn't match KIFF's receipt.")]
     [InlineData(""", "answer": {"decision": "approved"}""", "null", "approved_once", null)]
     [InlineData(""", "answer": {"decision": "approved"}""", "null", "reject", "The answer on this line doesn't match KIFF's receipt.")]
     [InlineData(""", "answer": {"decision": "refused"}""", "null", "approved_once", "The answer on this line doesn't match KIFF's receipt.")]

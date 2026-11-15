@@ -142,17 +142,26 @@ public static class Receipt
     /// <summary>
     /// Where the line and KIFF's signed steps disagree, as the iPad's <c>amountMismatch</c> and <c>answerMismatch</c>: the
     /// decision step signed another amount, or the hold's settling another answer (KIFF records a refusal as "reject").
-    /// None when they agree, or the steps don't say.
+    /// None when they agree, or the steps don't say. Amounts are compared as numbers with their unit, so "150.00" and "150"
+    /// agree (the iPad compares their strings); one that isn't a number is compared as written.
     /// </summary>
     public static string? Mismatch(WordBook w, RecordEntry e, IReadOnlyList<ReceiptStep> steps)
     {
         if (e.Call?.Amount is { } line && steps.Select(s => s.Amount).FirstOrDefault(a => a is not null) is { } signed
-            && (line.Value != signed.Value || (line.Unit ?? "") != (signed.Unit ?? "")))
+            && (!SameValue(line.Value, signed.Value) || (line.Unit ?? "") != (signed.Unit ?? "")))
             return w.Get("receipt.check.amount_mismatch");
         if (e.Call?.Answer is { } answer && steps.FirstOrDefault(s => s.Kind == "hold_settled")?.Answer is { } settled
             && (answer.Decision == "refused") != (settled == "reject"))
             return w.Get("receipt.check.answer_mismatch");
         return null;
+    }
+
+    /// <summary>The same amount: equal as decimals when both are numbers, else equal as written.</summary>
+    static bool SameValue(string line, string signed)
+    {
+        const System.Globalization.NumberStyles number = System.Globalization.NumberStyles.AllowLeadingSign | System.Globalization.NumberStyles.AllowDecimalPoint;
+        var c = System.Globalization.CultureInfo.InvariantCulture;
+        return decimal.TryParse(line, number, c, out var a) && decimal.TryParse(signed, number, c, out var b) ? a == b : line == signed;
     }
 }
 
