@@ -30,6 +30,25 @@ public class TafCardsTests
         Assert.Equal(TafCards.Read(En, Card("home.json")).Select(c => c.Id), TafCards.Shown(En, Card("home.json"), "Refunds").Select(c => c.Id));
     }
 
+    /// <summary>
+    /// Each sample taf's Card holds its template's rules, in the iPad's TafTemplates order, so its Card tab lists them;
+    /// Refunds keeps its own Card.
+    /// </summary>
+    [Fact]
+    public void Each_sample_taf_s_Card_holds_its_template_s_rules()
+    {
+        var cards = SampleTafs.All(En).ToDictionary(t => t.Key, t => t.Card);
+        Assert.Equal(["deploy", "rollback", "migration", "destroy_data"], cards["deploys"].Rules.Select(r => r.Action));
+        Assert.Equal(["pay_bill", "wire", "bank_details", "new_payee"], cards["bill_pay"].Rules.Select(r => r.Action));
+        Assert.Equal(["submit_evidence", "accept_dispute"], cards["chargebacks"].Rules.Select(r => r.Action));
+        Assert.Equal(["grant_role", "deactivate", "elevate", "grant_admin", "delete_user"], cards["access"].Rules.Select(r => r.Action));
+        Assert.Equal(["refund", "credit", "payout"], cards["refunds"].Rules.Select(r => r.Action));
+        Assert.Equal("Bills", cards["bill_pay"].Rules[0].Label);
+        Assert.Equal(25_000_00, cards["bill_pay"].Rules[0].PerWindow!.Minor);
+        Assert.True(cards["deploys"].Rules[3].Never);
+        Assert.All(cards.Values, c => Assert.NotEmpty(c.Rules));
+    }
+
     static JsonElement Card(string file) =>
         ContractFile.Answer(SharedFiles.Contract(file)).GetProperty("tafs")[0].GetProperty("card");
 

@@ -8,7 +8,9 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
 - **The tabs:** Chat, Activity, Card and Setup, in the iPad's order, on the system grey track (`taf.section.*`, named
   "View"). Activity, the Card and Setup are built and open on every taf, as the iPad's: a real taf's Cards as Home
   read them from KIFF (`TafCards.Shown`: with none listed, one merged from its rules, as `Taf.shownCards`), its Setup
-  read from tafs cloud; each sample taf with its own Card and job. Chat is shown, so the page has the iPad's shape,
+  read from tafs cloud; each sample taf with its own Card (its template's rules, as the iPad's `TafTemplates`) and job.
+  A real taf whose Card KIFF revoked (`card.active` false) opens revoked, as the iPad's `card.revoked`: every Card
+  says Revoked and fades, and the chip says Stopped. Chat is shown, so the page has the iPad's shape,
   and is off.
   The Card bar is above the Activity, and its chevron opens the Card tab.
 - **The Card bar:** a small Card in the taf's colour with the Card's mark, its Card's figure and words ("€1,960 left

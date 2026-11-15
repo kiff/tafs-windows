@@ -74,6 +74,15 @@ public class HomeListTests
         Assert.Empty(HomeList.YourTafs(En, home, SameDay.AddDays(2)));
     }
 
+    /// <summary>A taf whose Card KIFF says isn't active is revoked, as the iPad's card.revoked; with no Card, or active, it isn't.</summary>
+    [Theory]
+    [InlineData(""", "card": {"active": false}""", true)]
+    [InlineData(""", "card": {"active": true}""", false)]
+    [InlineData(""", "card": {}""", false)]
+    [InlineData("", false)]
+    public void A_taf_whose_Card_isn_t_active_is_revoked(string card, bool revoked) =>
+        Assert.Equal(revoked, Home($$"""{"tafs": [{"id": "t", "name": "T"{{card}} }]}""", TimeZoneInfo.Utc).Tafs[0].Revoked);
+
     /// <summary>With no job from Coach, as the iPad's: an agent tafs doesn't run is described by its Cards.</summary>
     [Fact]
     public void With_no_job_it_works_under_its_Cards() =>

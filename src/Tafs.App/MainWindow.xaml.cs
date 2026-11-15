@@ -601,7 +601,7 @@ public sealed partial class MainWindow : Window
                 filter => new ActivityPage([], [], filter, null, null), new SetupOpening(taf.Job, []), opensOn,
                 // Its Cards, as Home read them from KIFF: the Card tab opens on every taf, as the iPad's. Who manages each taf
                 // isn't read on this PC yet, so its issuer is the iPad's for anyone else: "The account".
-                Cards: taf.Cards, IssuedBy: w.Get("card.issued_by_account"),
+                Cards: taf.Cards, IssuedBy: w.Get("card.issued_by_account"), Revoked: taf.Revoked,
                 CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof)
             : SampleTaf(w, key, TafTab.Activity);
 

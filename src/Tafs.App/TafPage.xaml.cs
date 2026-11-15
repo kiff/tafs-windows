@@ -16,7 +16,7 @@ namespace Tafs.App;
 public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, ActivityPage> Activity, SetupOpening? Setup = null,
     TafTab OpensOn = TafTab.Activity, IReadOnlyList<TafCard>? Cards = null, string IssuedBy = "", string? CloudId = null,
     Func<string, Task<CloudRead>>? Read = null, Func<string, string?, Task<CloudRead>>? ReadWithProof = null,
-    Func<Task<string?>>? SetupProof = null);
+    Func<Task<string?>>? SetupProof = null, bool Revoked = false);
 
 /// <summary>The sample's Setup, as taf-setup.png: its job and the notes it keeps.</summary>
 public sealed record SetupOpening(string Job, IReadOnlyList<MemoryNote> Notes);
@@ -68,6 +68,8 @@ public sealed partial class TafPage : Page
         PausedText.Text = App.Words.Get("taf.state.paused");
         StoppedText.Text = App.Words.Get("taf.state.stopped");
         notes = [.. opening.Setup?.Notes ?? []];
+        // A taf whose Card KIFF revoked opens revoked, as the iPad's taf.card.revoked: its Cards say Revoked and fade.
+        revoked = opening.Revoked;
         tab = Built(opening.OpensOn) ? opening.OpensOn : TafTab.Activity;
 
         if (opening.Card is { } card)
