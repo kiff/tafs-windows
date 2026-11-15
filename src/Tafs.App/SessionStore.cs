@@ -64,10 +64,17 @@ sealed class SessionStore : ISessionStore
     public async Task SignOutAsync()
     {
         if (Kept() is not { } kept) return;
-        try { await KiffHttp.PostAsync(KeptSessions.LogoutPath, "{}"u8.ToArray(), bearer: kept.AccessToken); }
-        catch (HttpRequestException) { }
-        Delete();
-        try { TpmKey.Delete(kept.KeyName); } catch (CryptographicException) { }
+        try
+        {
+            try { await KiffHttp.PostAsync(KeptSessions.LogoutPath, "{}"u8.ToArray(), bearer: kept.AccessToken); }
+            catch (HttpRequestException) { }
+            Delete(); // may throw: the store refused
+        }
+        finally
+        {
+            // The key goes whatever the store did, so a refused Delete() never leaves sign-out half done.
+            try { TpmKey.Delete(kept.KeyName); } catch (CryptographicException) { }
+        }
     }
 
     /// <summary>A store that refused, for the screen: Windows' error code only, never a message that could hold a path.</summary>

@@ -89,7 +89,20 @@ public sealed partial class AccountPage : Page
                     CloseButtonText = App.Words.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
                 };
                 if (await ask.ShowAsync() != ContentDialogResult.Primary) return;
-                await App.Sessions.SignOutAsync();
+                try
+                {
+                    await App.Sessions.SignOutAsync();
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // Windows refused to forget the session: say so, with its code only, and stay here to try again.
+                    await new ContentDialog
+                    {
+                        XamlRoot = XamlRoot, CloseButtonText = App.Words.Get("common.ok"),
+                        Content = App.Words.Get("common.didnt_go_through", ("what", App.Words.Get("settings.sign_out")), ("why", SessionStore.Why(ex))),
+                    }.ShowAsync();
+                    return;
+                }
                 SignedOut?.Invoke();
                 break;
         }

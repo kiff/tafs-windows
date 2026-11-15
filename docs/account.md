@@ -18,8 +18,9 @@ The sections, in the iPad's order:
 - **Account actions:**
   - over the sample: Sign in with KIFF, and Clear the sample in red, which starts the app again without it;
   - signed in: **Sign out**, in red, asked first ("Sign out of KIFF?", with what it does to this Windows PC). Signing out
-    ends the session at KIFF (`POST /v1/auth/device/logout`), forgets the kept session, and removes its key from the TPM.
-    The window then opens sign-in.
+    ends the session at KIFF (`POST /v1/auth/device/logout`), forgets the kept session, and removes its key from the TPM,
+    whatever the store did (in a `finally`). The window then opens sign-in. If Windows refuses to forget the session, it
+    says "Sign out didn't go through" with Windows' error code only, and stays here to try again.
   - signed out: Sign in with KIFF.
 
 **Not yet:**
