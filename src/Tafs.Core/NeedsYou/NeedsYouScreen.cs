@@ -27,6 +27,15 @@ public sealed record HeldCall(
     /// </summary>
     public bool ApprovableOnce { get; init; } = true;
 
+    /// <summary>KIFF's action for the call (the iPad's <c>proposed.action</c>), when it came from KIFF.</summary>
+    public string? Action { get; init; }
+
+    /// <summary>The agent in KIFF the call is held for, KIFF's <c>subject</c> (the iPad's <c>agent</c>).</summary>
+    public string? Agent { get; init; }
+
+    /// <summary>Each breach's outcome, in KIFF's order (the iPad's <c>breachOutcomes</c>); none for a call not from KIFF.</summary>
+    public IReadOnlyList<string>? BreachOutcomes { get; init; }
+
     /// <summary>Whether it's a listed taf's: only those are in the sidebar's NEEDS YOU. Coach's and an unknown agent's aren't.</summary>
     public bool Listed { get; init; } = true;
 
