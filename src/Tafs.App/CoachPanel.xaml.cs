@@ -31,8 +31,38 @@ public sealed partial class CoachPanel : UserControl
 
     Func<string, Task<CloudRead>>? read;
 
-    /// <summary>How the panel sends a card's answer to tafs cloud (path and body), as the session; none for a screenshot.</summary>
-    public Func<string, byte[], Task<CloudRead>>? Answer { get; set; }
+    /// <summary>
+    /// How the panel sends a card's answer to tafs cloud (path and body), as the session: only for someone who may use Coach;
+    /// none for a screenshot. Without it, a card's Send stays off. Given while it's open, the thread is drawn again.
+    /// </summary>
+    public Func<string, byte[], Task<CloudRead>>? Answer
+    {
+        get => answer;
+        set
+        {
+            answer = value;
+            Redraw();
+        }
+    }
+
+    Func<string, byte[], Task<CloudRead>>? answer;
+
+    /// <summary>Which account the panel's state is for: each sign-out moves it on, so an answer or read in flight is dropped, as the iPad's <c>accountGeneration</c>.</summary>
+    int generation;
+
+    /// <summary>Signed out: the thread, Coach's id and what was answered here go, as the iPad's sign-out; the intro comes back.</summary>
+    public void Forget()
+    {
+        generation++;
+        (coach, thread) = (null, null);
+        answered.Clear();
+        notes.Clear();
+        cards.Clear();
+        ThreadItems.Children.Clear();
+        IntroError.Visibility = Visibility.Collapsed;
+        ThreadView.Visibility = Visibility.Collapsed;
+        Intro.Visibility = Visibility.Visible;
+    }
 
     /// <summary>Coach's id, its thread as last read, and each card's state here, as the iPad's model keeps them.</summary>
     string? coach;
@@ -93,7 +123,9 @@ public sealed partial class CoachPanel : UserControl
     async Task LoadThreadAsync()
     {
         if (read is not { } reader) return;
+        var gen = generation;
         var (loaded, error, id) = await CoachChat.LoadAsync(App.Words, reader);
+        if (gen != generation) return;
         IntroError.Text = error ?? "";
         IntroError.Visibility = error is null ? Visibility.Collapsed : Visibility.Visible;
         coach = id;
@@ -177,8 +209,9 @@ public sealed partial class CoachPanel : UserControl
     QuestionsCardView QuestionsCard(CoachThread thread, ShownCard shown)
     {
         if (!cards.TryGetValue(shown.Ref, out var state)) cards[shown.Ref] = state = new QuestionsCardState();
-        return new QuestionsCardView(shown, thread.AnswerTo(shown.Card.Id), state, answered.Contains(shown.Ref), notes.GetValueOrDefault(shown.Card.Id),
-            text => _ = AnswerAsync(shown, text), Brush);
+        // Busy as the iPad's isAnswered: by cardRef, so every card under one id goes quiet together.
+        return new QuestionsCardView(shown, thread.AnswerTo(shown.Card.Id), state, answered.Contains(thread.CardRef(shown.Card.Id)),
+            notes.GetValueOrDefault(shown.Card.Id), answer is null ? null : text => _ = AnswerAsync(thread, shown.Card.Id, text), Brush);
     }
 
     /// <summary>
@@ -186,15 +219,19 @@ public sealed partial class CoachPanel : UserControl
     /// again (the iPad then follows the run's stream, which comes with writing to Coach); a card that doesn't wait any more
     /// (409) is read again; refused for want of the AI-data consent, the card stays as chosen; else it says it didn't reach.
     /// </summary>
-    async Task AnswerAsync(ShownCard shown, string text)
+    async Task AnswerAsync(CoachThread thread, string id, string text)
     {
-        if (Answer is not { } post || coach is null || CoachChat.AnswerRequest(coach, shown, text) is not { } request) return;
+        // The card it's for, as the iPad's cardRef: the one waiting under that id, else the latest; its conversation goes with it.
+        if (answer is not { } post || coach is null || thread.CardFor(id) is not { } shown
+            || CoachChat.AnswerRequest(coach, shown, text) is not { } request) return;
+        var gen = generation;
         answered.Add(shown.Ref);
-        notes.Remove(shown.Card.Id);
+        notes.Remove(id);
         Redraw();
         var sent = CoachChat.Sent(await post(request.Path, request.Body));
+        if (gen != generation) return;
         if (sent != CardSent.Sent) answered.Remove(shown.Ref);
-        if (sent == CardSent.NotReached) notes[shown.Card.Id] = App.Words.Get("coach.answer_did_not_reach_setup");
+        if (sent == CardSent.NotReached) notes[id] = App.Words.Get("coach.answer_did_not_reach_setup");
         if (sent is CardSent.Sent or CardSent.ReadAgain) await LoadThreadAsync();
         else Redraw();
     }

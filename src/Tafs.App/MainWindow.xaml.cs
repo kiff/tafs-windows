@@ -122,7 +122,15 @@ public sealed partial class MainWindow : Window
         AccountPage.SignInChosen += OpenSignIn;
         AccountPage.AlertsChosen += () => OpenBeside(typeof(ComingPage), w.Get("settings.alerts"));
         AccountPage.AddThisDeviceChosen += OpenPairing;
-        AccountPage.SignedOut += () => { ViewOnly.IsOpen = false; OpenSignIn(); };
+        AccountPage.SignedOut += () =>
+        {
+            ViewOnly.IsOpen = false;
+            // As the iPad's sign-out: Coach reads and answers as no one, and forgets the thread and what was answered.
+            CoachMode.Read = null;
+            CoachMode.Answer = null;
+            CoachMode.Forget();
+            OpenSignIn();
+        };
         // Leaving the sample: the app starts again without it, as the iPad's Clear the sample leaves it.
         AccountPage.ClearSampleChosen += () => Microsoft.Windows.AppLifecycle.AppInstance.Restart(
             string.Join(' ', Environment.GetCommandLineArgs().Skip(1).Where(a => a != "--sample")));
@@ -162,7 +170,7 @@ public sealed partial class MainWindow : Window
         {
             // Coach's thread comes through the same read, as the session; a screenshot never reads it.
             CoachMode.Read = path => CloudReadAsync(session.AccessToken, path);
-            CoachMode.Answer = (path, body) => CloudSendAsync(session.AccessToken, path, body);
+            // Its cards' answers are wired once who may use Coach is read, in its own change: until then, Send stays off.
             Root.Loaded += async (_, _) => await ReadHomeAsync(path => CloudReadAsync(session.AccessToken, path));
         }
     }

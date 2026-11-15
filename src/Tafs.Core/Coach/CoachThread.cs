@@ -127,6 +127,16 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
             || CardReply.Parse(m.Text) is not { Failed: false } a || !Shown.Any(c => c.Card.Id == a.Id && kinds.Contains(c.Card.Kind))).ToList();
 
     /// <summary>
+    /// The card an answer for <paramref name="id"/> is for, as the iPad's <c>cardRef</c>: the one waiting under that id, since
+    /// Coach can use an id again, else the latest. Its ref keys what's answered here; its conversation goes with the answer.
+    /// </summary>
+    public ShownCard? CardFor(string id) =>
+        Shown.LastOrDefault(c => c.Card.Id == id && c.Answer is null) ?? Shown.LastOrDefault(c => c.Card.Id == id);
+
+    /// <summary>The ref an answer for <paramref name="id"/> is kept under, as the iPad's <c>cardRef</c>.</summary>
+    public string CardRef(string id) => CardFor(id)?.Ref ?? "#" + id;
+
+    /// <summary>
     /// The person's latest answer to a card, as the iPad's <c>answer(to:)</c>: the one kiff/agents recorded on it, else one
     /// sent as a message since the card first appeared.
     /// </summary>
@@ -182,8 +192,7 @@ public static class CoachChat
 
     /// <summary>
     /// An owner's message in their own words, as the iPad's <c>ownerWords</c>: an answer to a card ("[approval a1] declined")
-    /// reads as what they chose. The kinds whose words come from their card (a confirm's options, a questions card) read as
-    /// the answer itself until their cards are drawn.
+    /// reads as what they chose; a confirm's as its option's label, a questions card's as its answers, from the card.
     /// </summary>
     public static string OwnerWords(WordBook w, string text, IReadOnlyList<ShownCard>? cards = null)
     {
@@ -200,9 +209,14 @@ public static class CoachChat
         };
     }
 
-    /// <summary>What tafs cloud's answer to a card's answer comes to, in the iPad's order: a 409 before the consent's code.</summary>
+    /// <summary>
+    /// What tafs cloud's answer to a card's answer comes to, in the iPad's order: sent only when it reads as the iPad's
+    /// <c>CardAnswered</c> (its session, run and status), a 409 before the consent's code, anything else not reached.
+    /// </summary>
     public static CardSent Sent(CloudRead r) =>
-        r.Answer is not null ? CardSent.Sent : r.Status == 409 ? CardSent.ReadAgain
+        r.Answer is { } a ? (Shape.Required(a, "session", Shape.Text) && Shape.Required(a, "run", Shape.Text) && Shape.Required(a, "status", Shape.Text)
+            ? CardSent.Sent : CardSent.NotReached)
+        : r.Status == 409 ? CardSent.ReadAgain
         : r.Code == "ai_consent_required" ? CardSent.Consent : CardSent.NotReached;
 
     /// <summary>
