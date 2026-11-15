@@ -85,6 +85,12 @@ public static class ConnectAppsScreen
             app.NeedsSetup ? app.SetupWords ?? "" : null);
     }
 
+    /// <summary>
+    /// "Apps connect for a taf. Make one first", over Discover only, as the iPad says it: there are apps to connect, the list
+    /// wasn't opened from a taf, and no taf can have them. This PC reads no tafs yet, so none can.
+    /// </summary>
+    public static bool SaysMakeATaf(int discover, bool forTaf = false, int connectableTafs = 0) => discover > 0 && !forTaf && connectableTafs == 0;
+
     /// <summary>An app tafs cloud hasn't set up for anyone has its name in the soft colour; the others in the ink.</summary>
     public static bool NameIsSoft(ConnectApp app) => app.NeedsSetup;
 
@@ -130,8 +136,8 @@ public static class ConnectAppsScreen
     /// <summary>The iPad's sample for the reference screenshots: two apps connected, four to connect.</summary>
     public static ConnectAppsList Sample() => Read("""
         {"apps":[
-         {"entry":"connector:composio:gmail","vendor":"Gmail","name":"Gmail","subtitle":"Mail: reads, and drafts replies","how":"oauth","method":"sign_in","state":"connected","connected":true,"whose":"Yours","used_by":[{"name":"Refunds"}]},
-         {"entry":"stripe@3","vendor":"Stripe","name":"Stripe","subtitle":"Payments: refunds and charges","how":"key","method":"key","state":"connected","connected":true,"whose":"Yours","used_by":[{"name":"Refunds"},{"name":"Chargebacks"}]},
+         {"entry":"connector:composio:gmail","vendor":"Gmail","name":"Gmail","subtitle":"Mail: reads, and drafts replies","how":"oauth","method":"sign_in","state":"connected","connected":true,"whose":"Yours"},
+         {"entry":"stripe@3","vendor":"Stripe","name":"Stripe","subtitle":"Payments: refunds and charges","how":"key","method":"key","state":"connected","connected":true,"whose":"Yours"},
          {"entry":"connector:composio:googlesheets","vendor":"Google Sheets","name":"Google Sheets","subtitle":"Spreadsheets: rows read and written","how":"oauth","method":"sign_in","state":"available"},
          {"entry":"connector:composio:slack","vendor":"Slack","name":"Slack","subtitle":"Messages to your team's channels","how":"oauth","method":"sign_in","state":"available"},
          {"entry":"qonto@1","vendor":"Qonto","name":"Qonto","subtitle":"Invoicing: reads, and invoice drafts from quotes","how":"key","method":"key","state":"available"},

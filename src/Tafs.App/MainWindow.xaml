@@ -51,9 +51,16 @@
           <Button x:Name="AccountButton" Click="OnAccount" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                   MinHeight="44" Padding="4,0" BorderThickness="0" Background="Transparent">
             <StackPanel Orientation="Horizontal" Spacing="10">
-              <Grid>
-                <FontIcon x:Name="AccountIcon" Glyph="&#xE77B;" FontSize="20" Foreground="{ThemeResource TafsSoft}" />
-                <FontIcon x:Name="AccountIconChosen" Glyph="&#xE77B;" FontSize="20" Foreground="{ThemeResource TafsAmberText}" Visibility="Collapsed" />
+              <!-- A person in a circle, as the iPad's person.crop.circle in the soft colour; filled amber while Account is open. -->
+              <Grid Width="22" Height="22">
+                <Grid x:Name="AccountIcon">
+                  <Ellipse Stroke="{ThemeResource TafsSoft}" StrokeThickness="1.5" />
+                  <FontIcon Glyph="&#xE77B;" FontSize="12" Foreground="{ThemeResource TafsSoft}" />
+                </Grid>
+                <Grid x:Name="AccountIconChosen" Visibility="Collapsed">
+                  <Ellipse Fill="{ThemeResource TafsAmberText}" />
+                  <FontIcon Glyph="&#xEA8C;" FontSize="12" Foreground="{ThemeResource TafsOnFill}" />
+                </Grid>
               </Grid>
               <StackPanel Spacing="1" VerticalAlignment="Center">
                 <TextBlock x:Name="AccountTitle" FontSize="14" FontWeight="SemiBold" Foreground="{ThemeResource TafsInk}" />

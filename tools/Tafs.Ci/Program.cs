@@ -8,6 +8,7 @@ using Tafs.Core.Ci;
 //   Tafs.Ci test <part>... | all           run one or more parts; "all" runs every test, unfiltered
 //   Tafs.Ci sync                           fetch words and contracts at the pin into shared/
 //   Tafs.Ci drift                          fail when the pin is more than 7 days or 20 commits behind main
+//   Tafs.Ci xaml-keys                      fail on a key given twice in one of the app's resource dictionaries
 var root = FindRoot();
 var config = PartsConfig.Parse(File.ReadAllText(Path.Combine(root, "ci", "parts.json")));
 var pin = SharedPin.Parse(File.ReadAllText(Path.Combine(root, "shared-pin.json")));
@@ -20,6 +21,7 @@ try
         "test" => Test(args.Skip(1).ToArray()),
         "sync" => Sync(),
         "drift" => await Drift(),
+        "xaml-keys" => XamlKeysCheck(),
         _ => Usage(),
     };
 }
@@ -29,9 +31,21 @@ catch (Exception e) when (e is InvalidDataException or InvalidOperationException
     return 1;
 }
 
+int XamlKeysCheck()
+{
+    var found = 0;
+    foreach (var file in Directory.EnumerateFiles(Path.Combine(root, "src", "Tafs.App"), "*.xaml"))
+        foreach (var (dictionary, key) in XamlKeys.Duplicates(File.ReadAllText(file)))
+        {
+            Console.Error.WriteLine($"{Path.GetRelativePath(root, file)}: \"{key}\" is given twice in {dictionary} dictionary");
+            found++;
+        }
+    return found == 0 ? 0 : 1;
+}
+
 int Usage()
 {
-    Console.Error.WriteLine("usage: Tafs.Ci parts [--base <ref> | --all | --only <part|all>] | test <part>... | all | sync | drift");
+    Console.Error.WriteLine("usage: Tafs.Ci parts [--base <ref> | --all | --only <part|all>] | test <part>... | all | sync | drift | xaml-keys");
     Console.Error.WriteLine("parts: " + string.Join(", ", config.Parts.Keys));
     return 2;
 }

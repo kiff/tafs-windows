@@ -96,6 +96,8 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Words and contracts at the pin
         run: dotnet run --project tools/Tafs.Ci -- sync
+      - name: No key twice in a resource dictionary
+        run: dotnet run --project tools/Tafs.Ci -- xaml-keys
       - name: Build
         run: dotnet build src/Tafs.App -c Release -p:Platform=x64
       # Each screen in en, fr and pt, light and dark. The job fails if any is missing: a crash at launch
@@ -113,8 +115,8 @@ jobs:
               pair) opts=(--page pair) ;;
               needs-you) opts=(--page needs-you --sample) ;;
               record) opts=(--page record --sample) ;;
-              calendar) opts=(--page calendar) ;;
-              calendar-week) opts=(--page calendar-week) ;;
+              calendar) opts=(--page calendar --sample) ;;
+              calendar-week) opts=(--page calendar-week --sample) ;;
               usage) opts=(--page usage --sample) ;;
               connect-apps) opts=(--page connect-apps --sample) ;;
               account) opts=(--page account --sample) ;;

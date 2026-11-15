@@ -28,7 +28,8 @@ public sealed partial class CalendarPage : Page
         // The date in the person's language, "November 15, 2026" or "15 novembre 2026": the full month, so juin and juillet never read alike.
         // A template, not a pattern: Windows' formatter for the language decides the order, the particles and the case.
         Picker.Language = w.Language == "pt" ? "pt-PT" : w.Language;
-        Picker.DateFormat = "day month.full year";
+        // As the iPad's compact DatePicker: the month short ("Nov 15, 2026"), in the language's own order.
+        Picker.DateFormat = "day month.abbreviated year.full";
         AutomationProperties.SetName(Modes, w.Get("calendar.view_picker"));
         AutomationProperties.SetName(Picker, w.Get("calendar.date_picker"));
         AutomationProperties.SetHelpText(Picker, w.Get("calendar.choose_date"));
@@ -183,5 +184,21 @@ public sealed partial class CalendarPage : Page
         if (e.NewDate is not { } date) return;
         state = state with { Selected = DateOnly.FromDateTime(date.Date) };
         Show();
+    }
+    /// <summary>No calendar glyph on the date pill, as the iPad's compact DatePicker shows none.</summary>
+    void OnPickerLoaded(object sender, RoutedEventArgs e)
+    {
+        if (Find((DependencyObject)sender, "CalendarGlyph") is UIElement glyph) glyph.Visibility = Visibility.Collapsed;
+    }
+
+    static DependencyObject? Find(DependencyObject root, string name)
+    {
+        for (var i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i);
+            if (child is FrameworkElement { Name: var n } && n == name) return child;
+            if (Find(child, name) is { } found) return found;
+        }
+        return null;
     }
 }

@@ -24,7 +24,11 @@ public class ConnectAppsScreenTests
     [Fact]
     public void A_row_says_how_whose_where_it_stands_and_who_uses_it()
     {
-        var stripe = ConnectAppsScreen.Sample().Apps[1];
+        // As the iPad's sample shows it (the reference set's connect-apps.png): no "Used by" there, so from tafs cloud's used_by here.
+        var stripe = ConnectAppsScreen.Read("""
+            {"apps":[{"entry":"stripe@3","vendor":"Stripe","method":"key","state":"connected","whose":"Yours","used_by":[{"name":"Refunds"},{"name":"Chargebacks"}]}]}
+            """).Apps[0];
+        Assert.Null(ConnectAppsScreen.Row(En, ConnectAppsScreen.Sample().Apps[1]).UsedBy);
         var row = ConnectAppsScreen.Row(En, stripe);
         Assert.Equal(new ConnectRow("With a key", "Yours", "Connected", "Used by Refunds and Chargebacks", null), row);
         Assert.Null(ConnectAppsScreen.Button(En, stripe));
@@ -125,5 +129,15 @@ public class ConnectAppsScreenTests
         }).Concat(new[] { "connect.apps.title", "connect.apps.yours", "connect.apps.discover", "connect.apps.not_listed",
             "connect.apps.column_app", "connect.apps.column_how", "connect.apps.column_whose", "connect.apps.column_status" }.Select(k => w.Get(k)));
         Assert.All(lines.OfType<string>(), l => Assert.DoesNotContain("{", l));
+    }
+
+    [Fact]
+    public void Make_one_first_shows_over_Discover_while_no_taf_can_have_an_app()
+    {
+        Assert.True(ConnectAppsScreen.SaysMakeATaf(4));
+        Assert.False(ConnectAppsScreen.SaysMakeATaf(0));
+        Assert.False(ConnectAppsScreen.SaysMakeATaf(4, forTaf: true));
+        Assert.False(ConnectAppsScreen.SaysMakeATaf(4, connectableTafs: 1));
+        Assert.DoesNotContain("{", En.Get("connect.apps_connect_taf_make_one"));
     }
 }

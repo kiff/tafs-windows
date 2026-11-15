@@ -60,7 +60,7 @@ public sealed partial class MainWindow : Window
             {
                 Content = item.Title,
                 Tag = item.Screen,
-                Icon = new FontIcon { Glyph = item.Glyph },
+                Icon = new FontIcon { Glyph = item.Glyph, Style = (Style)Application.Current.Resources["TafsSidebarIcon"] },
                 Style = (Style)Application.Current.Resources["TafsSidebarItem"],
             };
             if (item.Screen == Screen.NeedsYou) ShowCount(row, w, item.Title);
