@@ -9,6 +9,7 @@ using Tafs.Core.Home;
 using Tafs.Core.Kiff;
 using Tafs.Core.NeedsYou;
 using Tafs.Core.Record;
+using Tafs.Core.Taf;
 using Tafs.Core.Usage;
 using Tafs.Core.Pairing;
 using Windows.Graphics;
@@ -35,7 +36,7 @@ public sealed partial class MainWindow : Window
     /// <summary>The view the Calendar opens on: Week; Day or Month for `--page calendar` or `calendar-month`.</summary>
     CalendarMode calendarOpensOn = CalendarMode.Week;
 
-    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you", "record", "calendar" (Day), "calendar-week", "calendar-month", "usage", "connect-apps" or "account". Otherwise the Overview.</param>
+    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you", "record", "calendar" (Day), "calendar-week", "calendar-month", "usage", "connect-apps", "account", or "taf" (the sample's Refunds, with --sample). Otherwise the Overview.</param>
     /// <param name="viewOnly">The session can't approve yet: show the View only notice above every screen.</param>
     /// <param name="sample">Show the iPad's sample held calls and Record: for screenshots.</param>
     public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false)
@@ -119,6 +120,7 @@ public sealed partial class MainWindow : Window
         else if (page == "connect-apps") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
         else if (page == "record") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
         else if (page == "needs-you") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
+        else if (page == "taf" && sample) OpenBeside(typeof(TafPage), SampleTaf(w));
         else Nav.SelectedItem = BrandItem;
         if (screenshot is not null) Root.Loaded += async (_, _) => await SaveAndQuitAsync(screenshot);
     }
@@ -221,6 +223,14 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>A screen that isn't a sidebar row: no row stays chosen while it's open.</summary>
+    /// <summary>The taf the reference set opens: the sample's Refunds, on its Activity.</summary>
+    static TafOpening SampleTaf(Tafs.Core.Words.WordBook w)
+    {
+        var now = DateTimeOffset.UtcNow;
+        return new(TafScreen.SampleHead(w), TafScreen.SampleCard(w),
+            filter => TafActivity.Sample(w, TafScreen.SampleTaf(w), filter, now, TimeZoneInfo.Local));
+    }
+
     void OpenBeside(Type page, object? parameter = null)
     {
         Nav.SelectedItem = null;
@@ -243,6 +253,10 @@ public sealed partial class MainWindow : Window
     async Task SaveAndQuitAsync(string file)
     {
         await Task.Delay(500); // let the first layout settle
+        // Launched with no input, the first focus counts as the keyboard's and draws its ring, which a person clicking
+        // never sees: the same element, focused as by the pointer, keeps the shot as the screen looks.
+        if (Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(Root.XamlRoot) is Control focused) focused.Focus(FocusState.Pointer);
+        await Task.Delay(100);
         var bitmap = new RenderTargetBitmap();
         await bitmap.RenderAsync(Root);
         var pixels = await bitmap.GetPixelsAsync();
