@@ -86,9 +86,11 @@ Ported from the iPad's `DidThisHappenCard` (NeedsYouView.swift), `KIFFClient.Unp
   call, else its title, 15 semibold; the amount only without KIFF's words (two places unless KIFF says, and "725 (no
   currency)" with no unit); why KIFF asks, in its words, 13 soft.
 - **"Nothing waiting"** only with no held call and no call to say about.
-- **The answers:** the iPad's Yes and No are signed like an approval (`tafs.happened.v1|…`). Until this PC approves,
-  the card says why it can't and offers **Add this Windows PC**, as a held call's does, for someone who answers held
-  calls. The line about No goes with the buttons, so it isn't shown.
+- **The answers:** the iPad's Yes and No are signed like an approval (`tafs.happened.v1|…`). On a view-only PC, for
+  someone who answers held calls, the card says why it can't approve and offers **Add this Windows PC**, as the iPad's
+  `ApprovalGate` shows `ApprovalNotReady` only while a device can't approve. A PC that approves (a key or passkey
+  session) shows neither the line nor buttons until Yes and No are ported. The line about No goes with the buttons, so
+  it isn't shown.
 
 ## Answering a held call (`HeldAnswers`), the signing
 
@@ -113,12 +115,18 @@ card's buttons come with the passkey's wiring; this is what they send.
 
 ## Where the calls come from
 
-**From KIFF** (`KiffHeld`), as the iPad's `KIFFClient.heldCalls` and `KIFFMapping.held`, with each refresh of Home's
-list. It's `GET /v1/me/card-exceptions?status=held`, a plain read as the session, as the iPad's.
-- **Decoded as the iPad's `CardException`:** a hold missing its id, subject, action, entity, status, breaches or time
-  fails the read, and Needs you stays as it was. The taf's words that aren't text are left out, never the hold. A Card
-  unit's hold (`kind: card_unit`) is left to its own panel.
-- **Under its taf,** by its agent in KIFF, from Home's list (else under the agent's own name), in the taf's colour.
+**From KIFF** (`KiffHeld`), as the iPad's `KIFFClient.heldCalls` and `KIFFMapping.held`, with each read of Home's list:
+at sign-in, when Coach asks for Home, and with **F5** on Needs you, the Windows form of the iPad's pull-to-refresh. It's
+`GET /v1/me/card-exceptions?status=held`, a plain read as the session, as the iPad's.
+- **Decoded as the iPad's synthesized `CardException` decoder:** a hold missing its id, subject, action, entity, status,
+  breaches or time fails the read, and so does any field of the wrong kind where it's there and not null (a decimal
+  parameter, a unit without its scale, a next step that isn't text, a string limit, `"kind": 1`, a time that isn't ISO
+  8601 with an offset or Z). Needs you then stays as it was. Only the taf's words (left out when they aren't text, never
+  the hold) and the arguments (written as text whatever they are) are read leniently. A Card unit's hold
+  (`kind: card_unit`) is left to its own panel.
+- **Under its holder,** as the iPad's `holderName ?? aTaf`: the taf by its agent in KIFF, from Home's list, with its
+  avatar in its colour; Coach for Setup's agent; else "A taf", with no avatar. Only a taf's calls are listed in the
+  sidebar's NEEDS YOU (the iPad's `HomeSplitView`); all are on Needs you and in its count.
 - **What it asks:** its title, with its action in words unless the title names the action's last word (`Says`).
   planque's four letters ending a tool's name never show. With no arguments kept, the entity follows.
 - **The amount:** a parameter KIFF declares a unit for, written as money; else the parameter a breach sums, as a bare
@@ -136,6 +144,12 @@ list. It's `GET /v1/me/card-exceptions?status=held`, a plain read as the session
 - **When it lapses:** KIFF's `expires_at`, else ten minutes after it was held.
 - **Drawn again with each read:** NEEDS YOU in the sidebar, Needs you's count, and Needs you or the Overview when open.
   A sign-out clears them.
+- **Not like the iPad:**
+  - A read that fails, or can't be read, is silent and keeps what's shown, as the Record's. The iPad's refresh says
+    "Couldn't load from KIFF" and tries again.
+  - Needs you's count is the held calls'. The iPad uses Home's `needs_you` count when tafs cloud sends it; that comes
+    with Card units and steps.
+  - Not yet: reading again at the next expiry and on return to the app.
 
 `--sample` shows the iPad's two sample calls for screenshots, and never reads KIFF: Deploys' migration and Bill pay's
 €8,400. Their words are the shared sample words, so they're in every shipped language. Needs you's row in the sidebar carries their count at its end, as

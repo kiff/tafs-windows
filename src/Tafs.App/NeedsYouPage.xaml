@@ -48,7 +48,7 @@
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Border Width="32" Height="32" CornerRadius="10" Background="{x:Bind Avatar}">
+                    <Border Width="32" Height="32" CornerRadius="10" Background="{x:Bind Avatar}" Visibility="{x:Bind AvatarShown}">
                       <TextBlock Text="{x:Bind Lines.Initial}" FontSize="16" FontWeight="Bold" Foreground="White"
                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>

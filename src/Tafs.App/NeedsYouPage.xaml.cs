@@ -14,7 +14,7 @@ public sealed class HeldCallView : INotifyPropertyChanged
 {
     readonly WordBook words;
 
-    public HeldCallView(WordBook words, HeldCall call, DateTimeOffset now)
+    public HeldCallView(WordBook words, HeldCall call, DateTimeOffset now, bool mayAnswerHolds = true, bool managesCards = true)
     {
         this.words = words;
         Call = call;
@@ -23,6 +23,9 @@ public sealed class HeldCallView : INotifyPropertyChanged
         Avatar = new SolidColorBrush(ColorHelper.FromArgb(0xFF, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb));
         var gate = NeedsYouScreen.Gate(words);
         (GateLead, GateAdd) = (gate.Lead, gate.Add);
+        var answers = NeedsYouScreen.Answers(words, call, mayAnswerHolds, managesCards);
+        (AnswerLine, GateShown) = (answers.Line, answers.Gate ? Visibility.Visible : Visibility.Collapsed);
+        AvatarShown = call.Avatar ? Visibility.Visible : Visibility.Collapsed;
         DetailsHeading = words.Get("common.details");
         DetailsText = string.Join(Environment.NewLine, call.Details);
     }
@@ -39,6 +42,13 @@ public sealed class HeldCallView : INotifyPropertyChanged
     public Brush Avatar { get; }
     public string GateLead { get; }
     public string GateAdd { get; }
+
+    /// <summary>Where the answers go, as the iPad's: who answers, or the line over a Card total; the gate only where ApprovalGate would be.</summary>
+    public string? AnswerLine { get; }
+    public Visibility GateShown { get; }
+
+    /// <summary>A taf's and Coach's calls have an avatar; an unknown agent's has none.</summary>
+    public Visibility AvatarShown { get; }
 
     HeldCallLines lines;
     public HeldCallLines Lines => lines;
@@ -73,6 +83,9 @@ public sealed partial class NeedsYouPage : Page
     /// <summary>Done (true) or Skip on a step.</summary>
     public static event Action<YourStep, bool>? StepAnswerChosen;
 
+    /// <summary>F5: Needs you read again, the Windows form of the iPad's pull-to-refresh.</summary>
+    public static event Action? RefreshChosen;
+
     readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromSeconds(1) };
     IReadOnlyList<HeldCallView> views = [];
     IReadOnlyList<Unproven> unproven = [];
@@ -81,6 +94,9 @@ public sealed partial class NeedsYouPage : Page
     public NeedsYouPage()
     {
         InitializeComponent();
+        var refresh = new Microsoft.UI.Xaml.Input.KeyboardAccelerator { Key = Windows.System.VirtualKey.F5 };
+        refresh.Invoked += (_, e) => { e.Handled = true; RefreshChosen?.Invoke(); };
+        KeyboardAccelerators.Add(refresh);
         clock.Tick += (_, _) => { foreach (var view in views) view.Tick(DateTimeOffset.UtcNow); };
         Unloaded += (_, _) => clock.Stop();
     }
@@ -285,7 +301,7 @@ public sealed partial class NeedsYouPage : Page
             lines.Children.Add(Line(said, 15, "TafsInkText", semibold: true));
             if (amount is not null) lines.Children.Add(Line(amount, 15, "TafsInkText"));
             if (why is not null) lines.Children.Add(Line(why, 13, "TafsSoftText"));
-            if (mayAnswerHolds)
+            if (DidThisHappen.Gate(mayAnswerHolds, App.Sessions.Kept()?.Mode ?? Tafs.Core.Kiff.ApprovalMode.View))
             {
                 var add = new Button { Content = gate.Add, Style = (Style)Application.Current.Resources["TafsOutlineButton"] };
                 add.Click += OnAddThisDevice;

@@ -29,6 +29,13 @@ public static class DidThisHappen
     public static bool MayAnswerHolds(IReadOnlyList<string>? capabilities) => capabilities?.Contains("holds.answer") ?? true;
 
     /// <summary>
+    /// Whether the card shows the gate (why this PC can't approve, and Add this Windows PC), as the iPad's <c>ApprovalGate</c>
+    /// shows <c>ApprovalNotReady</c> only while the device can't approve (ApprovalSetupView.swift:39-42): for someone who
+    /// answers held calls, on a view-only PC. A PC that approves shows neither the line nor buttons until Yes and No are ported.
+    /// </summary>
+    public static bool Gate(bool mayAnswerHolds, Kiff.ApprovalMode mode) => mayAnswerHolds && mode == Kiff.ApprovalMode.View;
+
+    /// <summary>
     /// <c>{"calls": […]}</c>, newest first as KIFF sends them, as the iPad's decoder: each call's proposal is required, its
     /// title "" and its status unknown when not said, every other field checked for its kind when it's there. Anything else
     /// fails the read. No calls is none.
