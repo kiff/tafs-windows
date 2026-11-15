@@ -117,7 +117,38 @@ rules and totals.
 - **The sample's Card** is Refunds' own: refunds up to €150 each and €2,000 a day, credits up to €100 and €1,000, never
   a payout, with €40 used today.
 
+**Halt** (`Halt`, `HaltPage`), as the iPad's `HaltScreen`, `HaltRow` and `TafsCloud.Halt`, with tafs-macos #70 as a second
+reference:
+- **Who sees it:**
+  - **A taf's halt** is a row on its Card tab, after its rules and before Revoke, as the iPad's `card(_:)`. It shows only
+    for whoever manages the taf, as KIFF says (`GET /v1/me/access`, the iPad's `manages`), and nothing shows until that's
+    read. It never shows once the taf is revoked. A tafs cloud taf's Card tab opens for that row even before its Cards
+    are drawn here.
+  - **Every taf's halt** is a row in the sidebar, under the screens, as the iPad's `haltAllRow`. It shows to someone who
+    manages the account's Cards (`cards.manage`, or when KIFF doesn't say, from `GET /v1/me`), while a taf runs, and
+    whenever the account is halted or halting, tafs or not (`showsAccountHalt`). Its second line, in red, is its state
+    once it isn't running.
+  - The access and capabilities are read with each session, and kept as they were when a read fails.
+- **The screen:**
+  - the taf's name, or "All your tafs", dim while running and red after;
+  - Running, Halting… or Halted, and what halting does or since when it holds, in this PC's time;
+  - once halting, who holds it, each part Done or Waiting: no run starts (kiff/agents), KIFF refuses its calls, the
+    connection sends nothing (planque).
+- **Halt now / Halt all now:** one click with no Windows Hello, since halting only takes authority away. `POST` to
+  `/v1/tafs/{id}/halt`, or `/v1/halt` for every taf, as the session.
+  - A halt tafs cloud answers reads Home's list and every taf's halt again at once.
+  - It's read again every 2 seconds while halting, for up to 2 minutes.
+  - Halt again re-asks a part that didn't take it.
+  - A refusal says "tafs couldn't halt it." with why.
+- **Resuming gives authority back,** so it's signed (KIFF first, behind Face ID on the iPad). Until this PC can sign it,
+  where the iPad has Resume the screen says this device can't approve, and to approve on another device. A taf halted
+  with every taf is resumed from every taf's screen, as the iPad's.
+- **Decoded as the iPad's `Halt`:** its state one of the three and its four flags true or false, or the read fails;
+  `halted_at` and `stopped` absent or null when not given. There's no halt fixture at the pin yet, so the shape is the
+  iPad's reader.
+
 **Not yet:**
+- **Resuming** (`ResumeConfirmation`), with the approvals.
 - **The revision as If-None-Match:** the server's ETag is the quoted form of `revision`; each read is whole for now. Its
   days are titled as sent, in 12 semibold, not in the sample's capitals. Pull to refresh has no Windows gesture yet.
 - **Chat,** in its own change.
