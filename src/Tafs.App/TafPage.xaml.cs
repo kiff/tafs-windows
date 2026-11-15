@@ -92,7 +92,13 @@ public sealed partial class TafPage : Page
         if (tab == TafTab.Setup) ShowSetup();
     }
 
-    ActivityPages CloudPages() => cloudPages.TryGetValue(filter, out var p) ? p : cloudPages[filter] = new();
+    /// <summary>
+    /// The pages for the filter and selection, as the iPad's <c>activityKey(id, filter, selection)</c>. No screen gives a
+    /// selection yet (Setup's "last 7 days" will); until then it's always none.
+    /// </summary>
+    const string Selection = "";
+
+    ActivityPages CloudPages() => cloudPages.TryGetValue($"{filter}:{Selection}", out var p) ? p : cloudPages[$"{filter}:{Selection}"] = new();
 
     /// <summary>
     /// The filter's newest page, or with <paramref name="more"/> its next, drawn as the read starts and once it's in, as the
@@ -102,7 +108,7 @@ public sealed partial class TafPage : Page
     {
         if (opening is not { CloudId: { } id, Read: { } read }) return;
         var pages = CloudPages();
-        var loading = pages.LoadAsync(id, filter, read, more);
+        var loading = pages.LoadAsync(id, filter, read, more, Selection);
         Show();
         await loading;
         Show();
@@ -111,11 +117,15 @@ public sealed partial class TafPage : Page
     /// <summary>Try again: the next page when some are in, else the newest, as the iPad's.</summary>
     void OnActivityTryAgain(object sender, RoutedEventArgs e) => _ = LoadActivityAsync(more: CloudPages().Pages.Count > 0);
 
-    /// <summary>The next page is read once its ring comes into view, as the iPad's <c>.task</c> on its ProgressView.</summary>
-    void OnActivityLoadingSeen(FrameworkElement sender, EffectiveViewportChangedEventArgs e)
+    /// <summary>The next page is read once its ring comes into view, once for each cursor, as the iPad's <c>.task(id: cursor)</c>.</summary>
+    async void OnActivityLoadingSeen(FrameworkElement sender, EffectiveViewportChangedEventArgs e)
     {
         var inView = e.EffectiveViewport.Height > 0 && e.BringIntoViewDistanceY <= 0;
-        if (inView && opening?.CloudId is not null && CloudPages().End(App.Words).Kind == ActivityEndKind.More) _ = LoadActivityAsync(more: true);
+        if (!inView || opening is not { CloudId: { } id, Read: { } read }) return;
+        var seen = CloudPages().SeenAsync(id, filter, read, Selection);
+        Show();
+        await seen;
+        Show();
     }
 
     /// <summary>
@@ -698,8 +708,14 @@ public sealed partial class TafPage : Page
         var chip = new Button { Content = f.Title, FontSize = 13, Style = Look(chosen ? "TafsChipChosen" : "TafsChip") };
         AutomationProperties.SetName(chip, f.Title);
         if (chosen) AutomationProperties.SetItemStatus(chip, "selected");
-        // A cloud taf reads the filter's newest page each time it's chosen, as the iPad's .task on the filter.
-        chip.Click += (_, _) => { filter = f.Id; Show(); _ = LoadActivityAsync(); };
+        // A cloud taf reads the filter's newest page when the filter changes, as the iPad's .task(id: filter).
+        chip.Click += (_, _) =>
+        {
+            if (f.Id == filter) return;
+            filter = f.Id;
+            Show();
+            _ = LoadActivityAsync();
+        };
         return chip;
     }
 

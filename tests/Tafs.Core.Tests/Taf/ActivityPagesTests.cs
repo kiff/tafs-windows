@@ -15,7 +15,7 @@ public class ActivityPagesTests
     static readonly JsonElement Contract = ContractFile.Answer(SharedFiles.Contract("taf-activity.json"));
 
     static JsonElement Page(string cursor, string? next, string title = "Read a case") => JsonDocument.Parse($$"""
-        {"groups": [{"title": "", "entries": [{"id": "{{cursor}}", "kind": "done", "title": "{{title}}"}]}],
+        {"entries": [{"id": "{{cursor}}"}], "groups": [{"title": "", "entries": [{"id": "{{cursor}}", "kind": "done", "title": "{{title}}"}]}],
          "filters": [{"id": "all", "title": "All"}], "filter": "all"{{(next is null ? "" : $", \"next_cursor\": \"{next}\"")}}}
         """).RootElement;
 
@@ -98,13 +98,47 @@ public class ActivityPagesTests
         Assert.Equal(new ActivityEnd(ActivityEndKind.Error, "moved on"), pages.End(En));
     }
 
+    /// <summary>As the iPad's: "Nothing here." when no page has an entry, whatever its days.</summary>
     [Fact]
-    public async Task With_no_line_and_no_end_words_it_says_nothing_here()
+    public async Task With_no_entry_and_no_end_words_it_says_nothing_here()
     {
         var pages = new ActivityPages();
         await pages.LoadAsync("t", "refused", _ => Task.FromResult(CloudRead.Of(JsonDocument.Parse("""{"groups": []}""").RootElement)));
-
         Assert.Equal(new ActivityEnd(ActivityEndKind.NothingHere, "Nothing here."), pages.End(En));
+
+        var entry = JsonDocument.Parse("""{"entries": [{"id": "e"}], "groups": []}""").RootElement;
+        await pages.LoadAsync("t", "refused", _ => Task.FromResult(CloudRead.Of(entry)));
+        Assert.Equal(ActivityEndKind.None, pages.End(En).Kind);
+    }
+
+    /// <summary>The ring seen again and again while its page is read reads that page once, as the iPad's .task(id: cursor).</summary>
+    [Fact]
+    public async Task The_next_page_is_read_once_for_each_cursor_however_often_its_ring_is_seen()
+    {
+        var asked = new List<string>();
+        var pages = new ActivityPages();
+        var next = new TaskCompletionSource<CloudRead>();
+        Task<CloudRead> Read(string path)
+        {
+            asked.Add(path);
+            return path.Contains("cursor=") ? next.Task : Task.FromResult(CloudRead.Of(Page("c1", "two")));
+        }
+
+        await pages.LoadAsync("t", "all", Read);
+        var first = pages.SeenAsync("t", "all", Read);
+        await pages.SeenAsync("t", "all", Read);
+        await pages.SeenAsync("t", "all", Read);
+        next.SetResult(CloudRead.Of(Page("c2", "three")));
+        await first;
+        Assert.Equal(2, asked.Count);
+
+        next = new TaskCompletionSource<CloudRead>();
+        var second = pages.SeenAsync("t", "all", Read);
+        next.SetResult(CloudRead.Of(Page("c3", null)));
+        await second;
+        await pages.SeenAsync("t", "all", Read);
+        Assert.Equal(3, asked.Count);
+        Assert.Equal(3, pages.Pages.Count);
     }
 
     [Fact]
