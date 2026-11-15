@@ -1,0 +1,114 @@
+using Tafs.Core.NeedsYou;
+using Tafs.Core.Tests.Strings;
+using Tafs.Core.Words;
+
+namespace Tafs.Core.Tests.NeedsYou;
+
+[Part("approvals")]
+public class NeedsYouScreenTests
+{
+    static readonly DateTimeOffset Now = new(2026, 11, 15, 1, 0, 0, TimeSpan.Zero);
+    static readonly WordBook En = WordBook.Load(SharedFiles.Strings, "en");
+
+    public static IEnumerable<object[]> Shipped() => WordBook.Shipped(SharedFiles.Strings).Select(l => new object[] { l });
+
+    static HeldCall Call(TimeSpan left, string? about = null, string? reason = null) =>
+        new("Refunds", 0, "Refund order #4502", "€480", "", "Over €150 each", Now + left, [], about, reason);
+
+    [Theory]
+    [InlineData(577, "9:37 left")]
+    [InlineData(59, "0:59 left")]
+    [InlineData(3723, "1:02:03 left")]
+    [InlineData(0, "expired")]
+    [InlineData(-30, "expired")]
+    public void The_countdown_reads_minutes_and_seconds_then_expired(int seconds, string expected) =>
+        Assert.Equal(expected, NeedsYouScreen.Left(En, Call(TimeSpan.FromSeconds(seconds)), Now));
+
+    [Fact]
+    public void While_it_can_be_answered_nothing_is_sent_until_you_approve()
+    {
+        var lines = NeedsYouScreen.Card(En, Call(TimeSpan.FromMinutes(5)), Now);
+        Assert.True(lines.Answerable);
+        Assert.Equal("Nothing is sent until you approve.", lines.Footer);
+        Assert.Equal(("Refunds", "R", "€480", "Over €150 each"), (lines.Holder, lines.Initial, lines.Amount, lines.Reason));
+        Assert.Null(lines.Context);
+        Assert.Null(lines.TafSays);
+    }
+
+    [Fact]
+    public void Once_it_lapses_KIFF_refused_it_and_there_is_nothing_to_answer()
+    {
+        var lines = NeedsYouScreen.Card(En, Call(TimeSpan.FromSeconds(-1)), Now);
+        Assert.False(lines.Answerable);
+        Assert.Equal("Expired. Nobody answered in time, so KIFF refused it and nothing was sent.", lines.Footer);
+        Assert.Equal("expired", lines.Left);
+    }
+
+    [Fact]
+    public void The_taf_s_own_words_sit_under_their_own_heading_and_never_replace_KIFF_s()
+    {
+        var lines = NeedsYouScreen.Card(En, Call(TimeSpan.FromMinutes(5), about: "Order 1042", reason: "Arrived broken"), Now);
+        Assert.Equal("The taf says", lines.TafSays);
+        Assert.Equal(("Order 1042", "Arrived broken"), (lines.TafAbout, lines.TafReason));
+        Assert.Equal(("Refund order #4502", "€480", "Over €150 each"), (lines.Summary, lines.Amount, lines.Reason));
+    }
+
+    [Fact]
+    public void Until_this_PC_approves_the_answers_are_words_and_the_way_to_add_it()
+    {
+        var gate = NeedsYouScreen.Gate(En);
+        Assert.Contains("can't approve", gate.Lead);
+        Assert.Equal("Add this Windows PC", gate.Add);
+    }
+
+    [Fact]
+    public void The_samples_are_the_iPad_s_two_calls()
+    {
+        var calls = NeedsYouScreen.Sample(En, Now);
+        Assert.Equal(new[] { "Deploys", "Bill pay" }, calls.Select(c => c.Taf));
+        Assert.Equal("Run migration 0042_orders_index", calls[0].Summary);
+        Assert.Equal("Schema migrations: always asks you", calls[0].Reason);
+        Assert.Null(calls[0].Amount);
+        Assert.Equal(("€8,400", "Pay Atlas Freight", "Over €5,000 each"), (calls[1].Amount, calls[1].Summary, calls[1].Reason));
+        Assert.All(calls, c => Assert.Equal("9:37 left", NeedsYouScreen.Left(En, c, Now)));
+    }
+
+    /// <summary>The spaces are the system's own (Windows and ICU pick different no-break spaces), so they're compared as spaces.</summary>
+    [Theory]
+    [InlineData("en", "€8,400")]
+    [InlineData("fr", "8 400 €")]
+    public void Euros_are_written_the_language_s_way(string language, string expected)
+    {
+        var euros = NeedsYouScreen.Euros(WordBook.Load(SharedFiles.Strings, language), 8_400);
+        Assert.Equal(expected.Replace(" ", ""), string.Concat(euros.Where(c => !char.IsWhiteSpace(c))));
+        Assert.True(expected.Count(c => c == ' ') == euros.Count(char.IsWhiteSpace), $"{language}: {euros}");
+    }
+
+    [Fact]
+    public void Portuguese_money_is_written_as_in_Portugal() =>
+        Assert.EndsWith("€", NeedsYouScreen.Euros(WordBook.Load(SharedFiles.Strings, "pt"), 8_400));
+
+    [Fact]
+    public void A_taf_s_initial_and_colour()
+    {
+        Assert.Equal("É", NeedsYouScreen.Initial("équipe"));
+        Assert.Equal(0xE51255u, TafColors.Of(1));
+        Assert.Equal(TafColors.Of(0), TafColors.Of(6));
+        Assert.Equal(TafColors.Of(5), TafColors.Of(-1));
+    }
+
+    [Theory]
+    [MemberData(nameof(Shipped))]
+    public void Every_line_is_there_in_every_shipped_language(string language)
+    {
+        var w = WordBook.Load(SharedFiles.Strings, language);
+        var calls = NeedsYouScreen.Sample(w, Now);
+        var cards = calls.Select(c => NeedsYouScreen.Card(w, c, Now))
+            .Concat([NeedsYouScreen.Card(w, calls[0] with { ExpiresAt = Now }, Now)]);
+        var empty = NeedsYouScreen.Empty(w);
+        var all = cards.SelectMany(l => new[] { l.Holder, l.Left, l.Summary, l.Reason, l.Footer, l.Amount ?? "x", l.Context ?? "x" })
+            .Concat(calls.SelectMany(c => c.NextSteps))
+            .Concat([NeedsYouScreen.Title(w), empty.Lead, empty.Hint, NeedsYouScreen.Gate(w).Lead]);
+        Assert.All(all, line => { Assert.False(string.IsNullOrWhiteSpace(line)); Assert.DoesNotContain("{", line); });
+    }
+}

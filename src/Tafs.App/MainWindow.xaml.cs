@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Tafs.Core.Home;
+using Tafs.Core.NeedsYou;
 using Tafs.Core.Pairing;
 using Windows.Graphics;
 using Windows.Graphics.Imaging;
@@ -17,9 +18,13 @@ public sealed partial class MainWindow : Window
     /// <summary>A laptop's window: the size the PR screenshots are taken at.</summary>
     static readonly SizeInt32 LaptopSize = new(1280, 800);
 
-    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in". Otherwise the Overview.</param>
+    /// <summary>The held calls Needs you shows: from KIFF in their own change; until then none, or the iPad's samples.</summary>
+    readonly IReadOnlyList<HeldCall> held;
+
+    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you". Otherwise the Overview.</param>
     /// <param name="viewOnly">The session can't approve yet: show the View only notice above every screen.</param>
-    public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly)
+    /// <param name="sample">Show the iPad's sample held calls in Needs you: for screenshots.</param>
+    public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false)
     {
         InitializeComponent();
         if (theme is "light" or "dark") Root.RequestedTheme = theme == "light" ? ElementTheme.Light : ElementTheme.Dark;
@@ -29,6 +34,7 @@ public sealed partial class MainWindow : Window
 
         Brand.Text = w.Get("app.name");
         AutomationProperties.SetName(BrandItem, w.Get("home.overview.title"));
+        held = sample ? NeedsYouScreen.Sample(w, DateTimeOffset.UtcNow) : [];
         var at = Nav.MenuItems.IndexOf(BrandItem) + 1;
         foreach (var item in Sidebar.Screens(w))
             Nav.MenuItems.Insert(at++, new NavigationViewItem
@@ -37,6 +43,8 @@ public sealed partial class MainWindow : Window
                 Tag = item.Screen,
                 Icon = new FontIcon { Glyph = item.Glyph },
                 Style = (Style)Application.Current.Resources["TafsSidebarItem"],
+                // How many calls wait, on Needs you's row, as the iPad's badge.
+                InfoBadge = item.Screen == Screen.NeedsYou && held.Count > 0 ? new InfoBadge { Value = held.Count } : null,
             });
         YourTafs.Content = Sidebar.Eyebrow(w, "home.your_tafs");
         // No tafs list yet: it comes from tafs cloud in its own change.
@@ -55,6 +63,7 @@ public sealed partial class MainWindow : Window
         ViewOnly.IsOpen = viewOnly;
 
         SignInPage.PairInsteadChosen += OpenPairing;
+        NeedsYouPage.AddThisDeviceChosen += OpenPairing;
         SignInPage.SignedIn += _ =>
         {
             // Kept in memory for now. Until this PC is paired (or has its own passkey), it reads and doesn't approve.
@@ -64,6 +73,7 @@ public sealed partial class MainWindow : Window
 
         if (page == "pair") OpenPairing();
         else if (page == "sign-in") OpenSignIn();
+        else if (page == "needs-you") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         else Nav.SelectedItem = BrandItem;
         if (screenshot is not null) Root.Loaded += async (_, _) => await SaveAndQuitAsync(screenshot);
     }
@@ -73,6 +83,7 @@ public sealed partial class MainWindow : Window
         if (args.SelectedItem is not NavigationViewItem item) return;
         ShowAccountChosen(false);
         if (item == BrandItem) Pages.Navigate(typeof(OverviewPage));
+        else if (item.Tag is Screen.NeedsYou) Pages.Navigate(typeof(NeedsYouPage), held);
         else Pages.Navigate(typeof(ComingPage), item.Content);
     }
 

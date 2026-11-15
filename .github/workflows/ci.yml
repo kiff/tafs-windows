@@ -105,12 +105,13 @@ jobs:
           exe=src/Tafs.App/bin/x64/Release/net8.0-windows10.0.19041.0/Tafs.App.exe
           mkdir -p screenshots
           missing=0
-          for screen in sign-in overview view-only pair; do
+          for screen in sign-in overview view-only pair needs-you; do
             case $screen in
               sign-in) opts=(--page sign-in) ;;
               overview) opts=() ;;
               view-only) opts=(--view-only) ;;
               pair) opts=(--page pair) ;;
+              needs-you) opts=(--page needs-you --sample) ;;
             esac
             for lang in en fr pt; do for theme in light dark; do
               file="screenshots/$screen-$lang-$theme.png"

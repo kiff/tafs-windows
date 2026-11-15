@@ -30,7 +30,7 @@ A test says which part it belongs to with `[Part("approvals")]` on its class or 
 | Part | What it covers |
 | :- | :- |
 | pairing | adding a computer, the view-only sign-in |
-| approvals | the signed action digest, the approval window |
+| approvals | the signed action digest, the approval window, Needs you |
 | home | the sidebar and the Overview |
 | coach | Coach chat, creating a taf, connecting an app |
 | record | the Record and a taf's detail |
