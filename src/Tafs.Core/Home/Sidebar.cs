@@ -61,7 +61,7 @@ public static class OverviewScreen
 {
     /// <summary>
     /// The iPad's Overview beside the whole app's sidebar. It has no calendar button: the sidebar already has
-    /// Calendar (the owner's 14 Nov iPad fix: two ways to it side by side was one too many).
+    /// Calendar (the iPad's fix of 14 Nov: two ways to it side by side was one too many).
     /// </summary>
     public const bool ShowsCalendar = false;
 

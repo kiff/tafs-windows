@@ -13,6 +13,13 @@ namespace Tafs.Core.Approvals;
 public static class Features
 {
     public static readonly bool WindowsPasskeyApprovals = true;
+
+    /// <summary>
+    /// The pairing claim proves this PC's passkey was made for this pairing: the create's challenge is
+    /// <see cref="Pairing.PairingClaim.PasskeyChallenge"/>, and the claim sends client_data_json and attestation_object.
+    /// Off until KIFF takes them: the QR's credential ships as it is.
+    /// </summary>
+    public static readonly bool PairingPasskeyProof = false;
 }
 
 /// <summary>authenticatorData's fixed head: rpIdHash (32), flags (1), signCount (4).</summary>

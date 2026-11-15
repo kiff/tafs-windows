@@ -9,11 +9,13 @@ portable core in `Tafs.Core` and the screen; the Windows key store comes in its 
 | Key | Signs | Where it lives |
 | :- | :- | :- |
 | Device key | setup calls, the pairing claim, taps inside an approval window | the TPM, no prompt |
-| Approval key | anything that grants authority | the TPM, behind Windows Hello on every use |
+| This PC's passkey | anything that grants authority, one assertion each time | the TPM, Windows Hello's own (ES256), Windows asking on every use ([approvals](approvals.md)) |
 
 `IKiffSigner` is all `Tafs.Core` sees of a key: its public half (SPKI DER) and DER signatures.
 **No private key is ever in this app's memory.** The software signer in the tests exists only there.
-With no TPM, the computer has no approval key: it pairs as `passkey` and approves on the phone.
+Windows Hello can't hold a P-256 approval key, so a Windows PC never sends `approval_pub`: it pairs as
+`passkey`, with its own passkey as `credential` when it has one. With no TPM, it pairs as a view device
+(`key_store: "software"`, no credential) and every approval goes to the phone.
 
 ## Signatures (`Tafs.Core.Kiff`)
 
@@ -28,9 +30,15 @@ this against KIFF's worked example (§2.4), down to verifying its signature.
    padding, a 32-byte random nonce, `exp` 4.5 minutes ahead (KIFF allows 5). `kind` is `hello`
    with an approval key and `passkey` without one. A device key in the TPM sends no `key_store`; a
    PC with no TPM sends `"key_store": "software"` (passkey only), and KIFF never lets that key approve.
+   - **This PC's own passkey** goes in as `"credential": {"id", "public_key"}`, base64url, the key
+     as SPKI DER (§5.1). Only with `kind: "passkey"`: never with `approval_pub` or a software device
+     key, never equal to the device key, its id 1 to 1023 bytes. The phone's one pairing approval
+     registers it for this PC, and removing the PC removes it.
 2. **The check code.** Both screens show `CheckCode()`, the first 6 characters of
-   base32(sha256(device key ‖ approval key)). It's tested on the vector the phones and KIFF pin
-   (the public keys of private keys 1 and 2: `H6SJNU`; the first alone: `LTJFF6`). The phone asks whether the computer shows it, so a
+   base32(sha256(device key ‖ approval key)). With a credential, its key takes the approval key's
+   place, so the code covers the passkey the phone registers. It's tested on the vector the phones and
+   KIFF pin (the public keys of private keys 1 and 2: `H6SJNU`, the second as an approval key or as
+   the credential's; the first alone: `LTJFF6`). The phone asks whether the computer shows it, so a
    page showing its own QR can't get the phone to add someone else's key.
 3. **The phone approves** with its approval key and the person's fingerprint (`POST /v1/me/pairings`,
    the phone's side).

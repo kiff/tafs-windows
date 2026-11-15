@@ -1,2 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- The native structures' layouts are pinned by tests (WindowsHelloLayoutTests). -->
+    <InternalsVisibleTo Include="Tafs.Core.Tests" />
+  </ItemGroup>
 </Project>
