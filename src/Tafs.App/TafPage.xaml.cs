@@ -490,7 +490,8 @@ public sealed partial class TafPage : Page
         }
         if (shown.Rules.Count > 0) CardPane.Children.Add(Panel(lines));
 
-        if (revoked) return;
+        // Revoke reaches nothing yet, so it's the sample's only: on a real taf it would look done when KIFF revoked nothing.
+        if (revoked || opening?.CloudId is not null) return;
         var revoke = new Button { Content = w.Get("taf.revoke"), Style = Look("TafsOutlineNo"), HorizontalAlignment = HorizontalAlignment.Stretch };
         revoke.Click += async (_, _) => await RevokeAsync();
         CardPane.Children.Add(revoke);
