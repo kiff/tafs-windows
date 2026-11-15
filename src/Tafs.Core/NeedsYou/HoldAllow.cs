@@ -6,6 +6,7 @@ using Tafs.Core.Approvals;
 using Tafs.Core.Coach;
 using Tafs.Core.Record;
 using Tafs.Core.Taf;
+using Tafs.Core.Words;
 
 namespace Tafs.Core.NeedsYou;
 
@@ -125,24 +126,100 @@ public static class HoldAllow
     static TermList<T> Replaced<T>(TermList<T> list, int at, T item) => new(list.Select((x, i) => i == at ? item : x));
 
     /// <summary>
-    /// tafs cloud's offer for a held call, then KIFF's draft, read by this PC, and whether the draft is what was offered, as
-    /// the iPad's <c>HoldAllow.read</c>. A <c>none</c> reads no draft. None when an answer can't be read, where the iPad throws.
+    /// <summary>KIFF's confirm of a draft, as the iPad's <c>KIFFClient.confirmDraft</c>.</summary>
+    public static string ConfirmPath(string draft) => KiffDrafts.Path(draft) + "/confirm";
+
+    /// <summary>
+    /// The confirm's body: <c>{"version"}</c>, and with a held call <c>"hold": {"id", "accounting_version"}</c>, which KIFF lets
+    /// go under the same signature (the iPad's <c>confirmDraft(id:version:hold:accountingVersion:)</c>).
     /// </summary>
-    /// <param name="post">tafs cloud's <c>POST</c> of a path and body, its answer as JSON, or none.</param>
-    /// <param name="draft">KIFF's draft by its id (<see cref="KiffDrafts.Read"/>), or none.</param>
-    public static async Task<AllowRead?> ReadAsync(string taf, HeldCall call, bool round,
-        Func<string, byte[], Task<JsonElement?>> post, Func<string, Task<AgentDraft?>> draft)
+    public static byte[] ConfirmBody(string version, (string Id, int AccountingVersion)? hold)
     {
-        if (await post(AllowOffers.Path(taf, call.KiffId ?? ""), AllowOffers.Body(round)) is not { } json || AllowOffers.Read(json) is not { } answer)
-            return null;
-        if (answer.Offer is not { } offer || offer.Draft.Length == 0) return new(answer, null, false);
-        if (await draft(offer.Draft) is not { } read) return null;
-        return new(answer, read, Matches(read, offer, call.Agent, call.KiffId, call.Action ?? ""));
+        var body = new System.Text.Json.Nodes.JsonObject { ["version"] = version };
+        if (hold is { } h) body["hold"] = new System.Text.Json.Nodes.JsonObject { ["id"] = h.Id, ["accounting_version"] = h.AccountingVersion };
+        return Encoding.UTF8.GetBytes(body.ToJsonString());
+    }
+
+    /// <summary>
+    /// "Allow this from now on" on the card, as the iPad's <c>offersAllow</c>: once <c>holds.allow</c> is live, for someone who
+    /// manages Cards, on a listed taf's hold a Card change can lift. Decided with no request.
+    /// </summary>
+    public static bool Offers(HeldCall call, IReadOnlyList<string>? capabilities, bool managesCards, string? taf) =>
+        AllowIsLive(capabilities) && managesCards && !string.IsNullOrEmpty(taf) && Allowable(call);
+
+    /// tafs cloud's offer for a held call, then KIFF's draft, read by this PC, and whether the draft is what was offered, as
+    /// the iPad's <c>HoldAllow.read</c>. A <c>none</c> reads no draft. Where the iPad throws, why instead: the service's
+    /// refusal as each read says it, or "KIFF didn't answer as expected" for an answer that can't be read.
+    /// </summary>
+    /// <param name="post">tafs cloud's <c>POST</c> of a path and body.</param>
+    /// <param name="get">KIFF's <c>GET</c> of a path, as the session.</param>
+    public static async Task<(AllowRead? Read, string? Why)> ReadAsync(WordBook w, string taf, HeldCall call, bool round,
+        Func<string, byte[], Task<CloudRead>> post, Func<string, Task<CloudRead>> get)
+    {
+        var offered = await post(AllowOffers.Path(taf, call.KiffId ?? ""), AllowOffers.Body(round));
+        if (offered.Answer is not { } json) return (null, offered.Why);
+        if (AllowOffers.Read(json) is not { } answer) return (null, w.Get("kiff.kiff_did_not_answer_expected"));
+        if (answer.Offer is not { } offer || offer.Draft.Length == 0) return (new(answer, null, false), null);
+        var kept = await get(KiffDrafts.Path(offer.Draft));
+        if (kept.Answer is not { } d) return (null, kept.Why);
+        if (KiffDrafts.Read(d) is not { } read) return (null, w.Get("kiff.kiff_did_not_answer_expected"));
+        return (new(answer, read, Matches(read, offer, call.Agent, call.KiffId, call.Action ?? "")), null);
     }
 }
 
 /// <summary>What <see cref="HoldAllow.ReadAsync"/> read: tafs cloud's answer, KIFF's draft when there's an offer, and whether they match.</summary>
 public sealed record AllowRead(AllowAnswer Answer, AgentDraft? Draft, bool Matches);
+
+/// <summary>
+/// "Allow this from now on", open on a held call, as the iPad's <c>AppModel.AllowSheet</c>: tafs cloud's answer, KIFF's draft
+/// as this PC read it, whether it's what was offered, and the person's switch ("Let this one go out too", on unless the offer
+/// says). Rounding up was asked for once <see cref="Rounded"/>, and the sheet no longer offers it.
+/// </summary>
+public sealed record AllowSheet(HeldCall Call, AllowAnswer? Answer = null, AgentDraft? Draft = null, bool Matches = false, bool Busy = false,
+    string? Error = null, bool SendHeld = true, bool Rounded = false)
+{
+    /// <summary>Opened on a tap: tafs cloud makes the offer now, as the iPad's <c>openAllow</c>.</summary>
+    public static AllowSheet Open(HeldCall call) => new(call, Busy: true);
+
+    /// <summary>
+    /// What was read, as the iPad's <c>loadAllow</c>: the answer, the draft and whether they match; the switch as the offer
+    /// says on the first read, and as the person left it when rounding up.
+    /// </summary>
+    public AllowSheet Loaded(AllowRead read, bool round) => this with
+    {
+        Answer = read.Answer, Draft = read.Draft, Matches = read.Matches, Busy = false, Error = null,
+        SendHeld = round ? SendHeld : read.Answer.Offer?.SendHeld ?? true, Rounded = round,
+    };
+
+    /// <summary>A read or a confirm that didn't go: "Couldn't read this version's Card." with why, as the iPad's.</summary>
+    public AllowSheet Failed(WordBook w, string? why) => this with { Busy = false, Error = w.Get("version.card_not_read", ("why", why ?? "")) };
+
+    /// <summary>KIFF's own lines for each Card the draft changes, as it keeps them: what's signed.</summary>
+    public IReadOnlyList<string> KiffLines(WordBook w) => Draft is not { Cards: { } cards } draft ? []
+        : cards.Zip(draft.CardLines(w)).Where(p => !p.First.IsUnchanged).SelectMany(p => p.Second).ToList();
+
+    /// <summary>
+    /// "This change isn't what was offered.": an offer whose draft doesn't match. A draft that couldn't be read says so in the
+    /// error line alone.
+    /// </summary>
+    public bool NotOffered => Answer?.Offer is not null && !Matches && (Draft is not null || (!Busy && Error is null));
+
+    /// <summary>"Round up to {amount}": a matching offer that names a rounded figure, not yet asked for.</summary>
+    public string? RoundTo => Matches && !Rounded && Answer?.Offer?.Round?.Words is { Length: > 0 } words ? words : null;
+
+    /// <summary>
+    /// The confirm's body, as the iPad's <c>confirmAllow</c>: the draft's version as this PC read it, with the held call at the
+    /// version the person saw when the switch is on. None when there's nothing to sign; with the switch on and no version,
+    /// why ("KIFF doesn't take your answer to this one."), and nothing is signed.
+    /// </summary>
+    public (byte[]? Body, string? Why) Confirmation(WordBook w)
+    {
+        if (Draft is not { } draft || !Matches || Busy || draft.Confirmed) return (null, null);
+        if (!SendHeld) return (HoldAllow.ConfirmBody(draft.Version, null), null);
+        if (Call.KiffId is not { } id || Call.AccountingVersion is not { } version) return (null, w.Get("needs_you.answer_not_taken"));
+        return (HoldAllow.ConfirmBody(draft.Version, (id, version)), null);
+    }
+}
 
 /// <summary>
 /// A list compared item by item, so the records holding it compare by value: <see cref="Terms"/> are equal when every term

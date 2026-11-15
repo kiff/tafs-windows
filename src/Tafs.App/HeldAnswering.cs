@@ -10,9 +10,11 @@ namespace Tafs.App;
 /// <param name="Approves">A passkey session with this PC's own passkey: Approve once and Extra room.</param>
 /// <param name="Lasting">KIFF's lasting refusal for a hold, by its id.</param>
 /// <param name="Sending">The holds whose answer is on its way.</param>
+/// <param name="OffersAllow">Whether the card offers "Allow this from now on" (<see cref="HoldAllow.Offers"/>).</param>
 sealed record HeldAnswering(bool MayAnswerHolds, Func<HeldCall, bool> CanAnswer, bool Approves, bool ManagesCards,
-    IReadOnlyDictionary<string, string> Lasting, IReadOnlySet<string> Sending)
+    IReadOnlyDictionary<string, string> Lasting, IReadOnlySet<string> Sending, Func<HeldCall, bool> OffersAllow)
 {
     /// <summary>Signed out, or the sample: nothing is sent. The sample's calls show the answers, as the iPad's, with the gate for approving.</summary>
-    public static readonly HeldAnswering None = new(true, call => call.KiffId is null, false, false, new Dictionary<string, string>(), new HashSet<string>());
+    public static readonly HeldAnswering None = new(true, call => call.KiffId is null, false, false, new Dictionary<string, string>(), new HashSet<string>(),
+        _ => false);
 }

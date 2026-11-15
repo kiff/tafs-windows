@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Tafs.Core.Approvals;
 using Tafs.Core.NeedsYou;
+using Tafs.Core.Taf;
 using Tafs.Core.Tests.Strings;
 using Tafs.Core.Words;
 
@@ -341,20 +342,25 @@ public class HoldAllowTests
         public readonly Dictionary<string, string> Responses = [];
         public readonly List<(string Request, string? Body)> Sent = [];
 
-        public Task<JsonElement?> Post(string path, byte[] body)
+        public Task<CloudRead> Post(string path, byte[] body)
         {
             Sent.Add(("POST " + path, Encoding.UTF8.GetString(body)));
-            return Task.FromResult<JsonElement?>(Responses.TryGetValue("POST " + path, out var json) ? Json(json) : null);
+            return Task.FromResult(Answer("POST " + path));
         }
 
-        public Task<AgentDraft?> Draft(string id)
+        public Task<CloudRead> Get(string path)
         {
-            var path = KiffDrafts.Path(id);
             Sent.Add(("GET " + path, null));
-            return Task.FromResult(Responses.TryGetValue("GET " + path, out var json) ? KiffDrafts.Read(Json(json)) : null);
+            return Task.FromResult(Answer("GET " + path));
         }
 
-        public Task<AllowRead?> Read(bool round) => HoldAllow.ReadAsync("taf_1", Held(["per_action_exceeded"]), round, Post, Draft);
+        CloudRead Answer(string request) =>
+            Responses.TryGetValue(request, out var json) ? CloudRead.Of(Json(json)) : new CloudRead(null, "refused", 409);
+
+        public Task<(AllowRead? Read, string? Why)> ReadWhy(bool round) =>
+            HoldAllow.ReadAsync(En, "taf_1", Held(["per_action_exceeded"]), round, Post, Get);
+
+        public async Task<AllowRead?> Read(bool round) => (await ReadWhy(round)).Read;
     }
 
     /// <summary>The iPad's testTheOfferIsAskedOnTheTapAndTheDraftIsReadFromKiff.</summary>
@@ -408,15 +414,75 @@ public class HoldAllowTests
         Assert.DoesNotContain(services.Sent, s => s.Request.StartsWith("GET "));
     }
 
-    /// <summary>An answer that can't be read, from tafs cloud or KIFF, reads as none, where the iPad throws.</summary>
+    /// <summary>The card's button, as the iPad's offersAllow: live, a Cards manager, a listed taf, and a hold a change can lift.</summary>
     [Fact]
-    public async Task An_answer_that_cant_be_read_is_none()
+    public void The_button_needs_it_live_a_manager_a_taf_and_a_liftable_hold()
+    {
+        var call = Held(["per_action_exceeded"]);
+        string[] live = ["holds.answer", "cards.manage", "holds.allow"];
+        Assert.True(HoldAllow.Offers(call, live, managesCards: true, taf: "taf_1"));
+        Assert.False(HoldAllow.Offers(call, ["holds.answer", "cards.manage"], true, "taf_1"), "not live");
+        Assert.False(HoldAllow.Offers(call, live, false, "taf_1"), "not a manager");
+        Assert.False(HoldAllow.Offers(call, live, true, null), "no taf in tafs cloud");
+        Assert.False(HoldAllow.Offers(Held(["action_not_on_card"]), live, true, "taf_1"), "no change lifts it");
+    }
+
+    /// <summary>The confirm's body: the version read, and the held call only with the switch on, at the version seen.</summary>
+    [Fact]
+    public async Task The_confirm_signs_the_version_read_and_the_call_only_with_the_switch_on()
     {
         var services = new Services();
-        services.Responses["POST /v1/tafs/taf_1/holds/ce_9/allow"] = """{"offer":{"draft":"dr_9"}}""";
-        Assert.Null(await services.Read(round: false));
         services.Responses["POST /v1/tafs/taf_1/holds/ce_9/allow"] = OfferJson();
-        Assert.Null(await services.Read(round: false));
+        services.Responses["GET /v1/me/agent-drafts/dr_9"] = Draft();
+        var sheet = AllowSheet.Open(Held(["per_action_exceeded"])).Loaded((await services.Read(round: false))!, round: false);
+        Assert.Equal("/v1/me/agent-drafts/dr_9/confirm", HoldAllow.ConfirmPath("dr_9"));
+        Assert.True(sheet.SendHeld);
+        Assert.Equal("""{"version":"v7","hold":{"id":"ce_9","accounting_version":3}}""", Encoding.UTF8.GetString(sheet.Confirmation(En).Body!));
+        Assert.Equal("""{"version":"v7"}""", Encoding.UTF8.GetString((sheet with { SendHeld = false }).Confirmation(En).Body!));
+
+        // No version for the call: nothing signed, and why.
+        var unseen = sheet with { Call = sheet.Call with { AccountingVersion = null } };
+        Assert.Equal((null, En.Get("needs_you.answer_not_taken")), unseen.Confirmation(En));
+        // Not what was offered, busy, or already confirmed: nothing to sign.
+        Assert.Null((sheet with { Matches = false }).Confirmation(En).Body);
+        Assert.Null((sheet with { Busy = true }).Confirmation(En).Body);
+        Assert.Null((sheet with { Draft = sheet.Draft! with { Status = "confirmed" } }).Confirmation(En).Body);
+    }
+
+    /// <summary>Rounding up keeps the person's switch and is offered once; the first read takes the offer's.</summary>
+    [Fact]
+    public async Task Rounding_up_keeps_the_switch_and_is_offered_once()
+    {
+        var services = new Services();
+        services.Responses["POST /v1/tafs/taf_1/holds/ce_9/allow"] = OfferJson().Replace("\"send_held\":true", "\"send_held\":false");
+        services.Responses["GET /v1/me/agent-drafts/dr_9"] = Draft();
+        var read = (await services.Read(round: false))!;
+        var sheet = AllowSheet.Open(Held(["per_action_exceeded"])).Loaded(read, round: false);
+        Assert.False(sheet.SendHeld);
+        Assert.Equal("€350", sheet.RoundTo);
+        var rounded = (sheet with { SendHeld = true }).Loaded(read, round: true);
+        Assert.True(rounded.SendHeld);
+        Assert.Null(rounded.RoundTo);
+        Assert.False(sheet.NotOffered);
+        Assert.True((sheet with { Matches = false }).NotOffered);
+        Assert.Equal(En.Get("version.card_not_read", ("why", "refused")), sheet.Failed(En, "refused").Error);
+    }
+
+    /// <summary>
+    /// An answer that can't be read, from tafs cloud or KIFF, reads as none with why, where the iPad throws: the service's
+    /// refusal as it says it, or that it didn't answer as expected.
+    /// </summary>
+    [Fact]
+    public async Task An_answer_that_cant_be_read_is_none_with_why()
+    {
+        var services = new Services();
+        Assert.Equal((null, "refused"), await services.ReadWhy(round: false));
+        services.Responses["POST /v1/tafs/taf_1/holds/ce_9/allow"] = """{"offer":{"draft":"dr_9"}}""";
+        Assert.Equal((null, En.Get("kiff.kiff_did_not_answer_expected")), await services.ReadWhy(round: false));
+        services.Responses["POST /v1/tafs/taf_1/holds/ce_9/allow"] = OfferJson();
+        Assert.Equal((null, "refused"), await services.ReadWhy(round: false));
+        services.Responses["GET /v1/me/agent-drafts/dr_9"] = """{"id":"dr_9"}""";
+        Assert.Equal((null, En.Get("kiff.kiff_did_not_answer_expected")), await services.ReadWhy(round: false));
     }
 
     /// <summary>The iPad's testAnOfferWithoutItsReplayStillReads: the replay couldn't be read.</summary>
