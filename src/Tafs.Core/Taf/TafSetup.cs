@@ -1,0 +1,126 @@
+using System.Globalization;
+using System.Text.Json;
+using Tafs.Core.Words;
+
+namespace Tafs.Core.Taf;
+
+/// <summary>One action a connection gives the taf: its name, its title, and its limits in KIFF's words.</summary>
+public sealed record SetupAction(string Name, string Title, IReadOnlyList<string> Limits);
+
+/// <summary>
+/// One connected app, as tafs cloud says it: its status in words ("Sign in again") and whether that means signing in
+/// again, its actions, and the last seven days in words with the query that opens them on the Activity.
+/// </summary>
+public sealed record SetupConnection(string Id, string Name, string Status, string StatusWords, bool Reconnect,
+    string ActionWords, IReadOnlyList<SetupAction> Actions, string? WorkflowWords, string StatsWords, string? ActivityQuery);
+
+/// <summary>A step of the taf's workflow: its number, label and words, the app it uses, and whether it's running.</summary>
+public sealed record WorkflowStep(int Number, string Label, string Words, string? App, bool Running);
+
+public sealed record SetupWorkflow(string Title, string Summary, IReadOnlyList<WorkflowStep> Steps);
+
+/// <summary>What it remembers, in short: "3 notes", and the latest when there is one.</summary>
+public sealed record SetupMemory(int Count, string Title, string? Latest);
+
+/// <summary>Its versions, in short: "Changes to how it runs", "Runs its original definition".</summary>
+public sealed record SetupVersions(string Title, string Summary, int? Live, int Earlier);
+
+/// <summary>
+/// A call its Card couldn't count, in tafs cloud's words ("Rae needs a USD limit"): what happened, how often, and what
+/// to do. Approving the change goes through Coach and is signed there; nothing here approves.
+/// </summary>
+public sealed record CardUnitException(string Id, string Title, string Words, string History, string ActionTitle,
+    string DismissTitle, string CoachText, bool CanApproveOnce);
+
+/// <summary>The taf's own Connect again: the connection whose sign-in expired, and tafs cloud's words for it and after it.</summary>
+public sealed record ConnectAgain(string Grant, string App, string Title, string Words, string DoneWords);
+
+/// <summary>
+/// A taf's Setup, as tafs cloud's <c>GET /v1/tafs/{id}/setup</c> answers whoever manages it (contracts/taf-setup*.json):
+/// its connections (or why they couldn't be read), workflow, memory and versions, the Card-unit exceptions waiting, and
+/// its own Connect again.
+/// </summary>
+public sealed record SetupPage(IReadOnlyList<SetupConnection> Connections, string? ConnectionsError, SetupWorkflow Workflow,
+    SetupMemory Memory, SetupVersions Versions, IReadOnlyList<CardUnitException> CardUnitExceptions, ConnectAgain? ConnectAgain);
+
+/// <summary>A note the taf keeps, as tafs cloud's memory: its file's path, what it says, and when it changed.</summary>
+public sealed record MemoryNote(string Id, string Path, string Content, DateTimeOffset UpdatedAt);
+
+/// <summary>Reads a taf's Setup, as the iPad's SetupView: what can't be read reads as none, never the page with it.</summary>
+public static class TafSetup
+{
+    public static SetupPage Read(JsonElement answer)
+    {
+        var workflow = Lenient.Field(answer, "workflow") ?? default;
+        var memory = Lenient.Field(answer, "memory") ?? default;
+        var versions = Lenient.Field(answer, "versions") ?? default;
+        return new SetupPage(
+            Lenient.Array(answer, "connections").Select(Connection).OfType<SetupConnection>().ToList(),
+            Lenient.Text(answer, "connections_error"),
+            new SetupWorkflow(Lenient.Text(workflow, "title") ?? "", Lenient.Text(workflow, "summary") ?? "",
+                Lenient.Array(workflow, "steps").Select(Step).OfType<WorkflowStep>().ToList()),
+            new SetupMemory(Lenient.Int(memory, "count") ?? 0, Lenient.Text(memory, "title") ?? "", Lenient.Text(memory, "latest")),
+            new SetupVersions(Lenient.Text(versions, "title") ?? "", Lenient.Text(versions, "summary") ?? "",
+                Lenient.Int(versions, "live"), Lenient.Int(versions, "earlier") ?? 0),
+            Lenient.Array(answer, "card_unit_exceptions").Select(Exception).OfType<CardUnitException>().ToList(),
+            Again(Lenient.Field(answer, "connect_again")));
+    }
+
+    /// <summary>A connection with no id or name is left out.</summary>
+    static SetupConnection? Connection(JsonElement c)
+    {
+        if (Lenient.Text(c, "id") is not { } id || Lenient.Text(c, "name") is not { } name) return null;
+        var stats = Lenient.Field(c, "stats") ?? default;
+        return new SetupConnection(id, name, Lenient.Text(c, "status") ?? "", Lenient.Text(c, "status_words") ?? "",
+            Lenient.Bool(c, "reconnect"), Lenient.Text(c, "action_words") ?? "",
+            Lenient.Array(c, "actions").Select(Action).OfType<SetupAction>().ToList(),
+            Lenient.Text(c, "workflow_words"), Lenient.Text(stats, "words") ?? "", Lenient.Text(stats, "activity_query"));
+    }
+
+    static SetupAction? Action(JsonElement a) =>
+        Lenient.Text(a, "name") is { } name
+            ? new SetupAction(name, Lenient.Text(a, "title") ?? name,
+                Lenient.Array(a, "limits").Where(l => l.ValueKind == JsonValueKind.String).Select(l => l.GetString()!).ToList())
+            : null;
+
+    static WorkflowStep? Step(JsonElement s) =>
+        Lenient.Int(s, "number") is { } n && Lenient.Text(s, "label") is { } label
+            ? new WorkflowStep(n, label, Lenient.Text(s, "words") ?? "", Lenient.Text(s, "app"), Lenient.Bool(s, "running"))
+            : null;
+
+    /// <summary>An exception with no id, title or words is left out: there'd be nothing to say.</summary>
+    static CardUnitException? Exception(JsonElement e) =>
+        Lenient.Text(e, "id") is { } id && Lenient.Text(e, "title") is { } title && Lenient.Text(e, "words") is { } words
+            ? new CardUnitException(id, title, words, Lenient.Text(e, "history") ?? "", Lenient.Text(e, "action_title") ?? "",
+                Lenient.Text(e, "dismiss_title") ?? "", Lenient.Text(e, "coach_text") ?? "", Lenient.Bool(e, "can_approve_once"))
+            : null;
+
+    /// <summary>As the iPad's ConnectAgain.usable: one without its connection, title or words reads as none.</summary>
+    static ConnectAgain? Again(JsonElement? a)
+    {
+        if (a is not { } o) return null;
+        string T(string name) => Lenient.Text(o, name)?.Trim() ?? "";
+        var again = new ConnectAgain(T("grant"), T("app"), T("title"), T("words"), T("done_words"));
+        return again.Grant.Length > 0 && again.Title.Length > 0 && again.Words.Length > 0 ? again : null;
+    }
+
+    /// <summary>A note's line under it: its path as words, then its time ("customers · regulars · 02:57").</summary>
+    public static string NoteLine(MemoryNote note, TimeZoneInfo zone) =>
+        string.Join(" · ", note.Path.Split('/', StringSplitOptions.RemoveEmptyEntries)
+                .Select(part => (part.EndsWith(".md", StringComparison.Ordinal) ? part[..^3] : part).Replace('-', ' '))
+                .Append(TimeZoneInfo.ConvertTime(note.UpdatedAt, zone).ToString("HH:mm", CultureInfo.InvariantCulture)));
+
+    /// <summary>The sample Refunds' job, as the reference set's taf-setup.png.</summary>
+    public static string SampleJob(WordBook w) => w.Get("sample.refunds.job");
+
+    /// <summary>
+    /// The sample's notes, as the iPad's: the kind of thing a real taf writes down as it learns, an hour, a day and three
+    /// days old, newest first.
+    /// </summary>
+    public static IReadOnlyList<MemoryNote> SampleNotes(WordBook w, DateTimeOffset now) =>
+    [
+        new("sample-0", "/how-you-like-it.md", w.Get("sample.memory.explain"), now.AddHours(-1)),
+        new("sample-1", "/customers/regulars.md", w.Get("sample.memory.regulars"), now.AddDays(-1)),
+        new("sample-2", "/from-the-owner.md", w.Get("sample.memory.ask_first"), now.AddDays(-3)),
+    ];
+}

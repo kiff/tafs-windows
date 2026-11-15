@@ -30,27 +30,21 @@ public static class TafActivity
     /// </summary>
     public static ActivityPage Read(JsonElement answer)
     {
-        var groups = Array(answer, "groups")
-            .Select(g => new ActivityGroup(Text(g, "title") ?? "", Array(g, "entries").Select(Line).OfType<ActivityLine>().ToList()))
+        var groups = Lenient.Array(answer, "groups")
+            .Select(g => new ActivityGroup(Lenient.Text(g, "title") ?? "", Lenient.Array(g, "entries").Select(Line).OfType<ActivityLine>().ToList()))
             .Where(g => g.Lines.Count > 0)
             .ToList();
-        var filters = Array(answer, "filters")
-            .Select(f => Text(f, "id") is { } id && Text(f, "title") is { } title ? new ActivityFilter(id, title) : null)
+        var filters = Lenient.Array(answer, "filters")
+            .Select(f => Lenient.Text(f, "id") is { } id && Lenient.Text(f, "title") is { } title ? new ActivityFilter(id, title) : null)
             .OfType<ActivityFilter>()
             .ToList();
-        return new ActivityPage(groups, filters, Text(answer, "filter") ?? "all", Text(answer, "end_words"), Text(answer, "revision"));
+        return new ActivityPage(groups, filters, Lenient.Text(answer, "filter") ?? "all", Lenient.Text(answer, "end_words"), Lenient.Text(answer, "revision"));
     }
 
     static ActivityLine? Line(JsonElement e) =>
-        Text(e, "id") is { } id && Text(e, "title") is { } title
-            ? new ActivityLine(id, EntryKinds.Parse(Text(e, "kind")), title, Text(e, "detail") ?? "", Text(e, "time") ?? "", Text(e, "amount_text"))
+        Lenient.Text(e, "id") is { } id && Lenient.Text(e, "title") is { } title
+            ? new ActivityLine(id, EntryKinds.Parse(Lenient.Text(e, "kind")), title, Lenient.Text(e, "detail") ?? "", Lenient.Text(e, "time") ?? "", Lenient.Text(e, "amount_text"))
             : null;
-
-    static IEnumerable<JsonElement> Array(JsonElement o, string name) =>
-        o.ValueKind == JsonValueKind.Object && o.TryGetProperty(name, out var a) && a.ValueKind == JsonValueKind.Array ? a.EnumerateArray() : [];
-
-    static string? Text(JsonElement o, string name) =>
-        o.ValueKind == JsonValueKind.Object && o.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
     /// <summary>The iPad's filters of a taf's Activity (its ActivityFilter): All, Done (its own word, not the Record's), Held, Refused.</summary>
     public static IReadOnlyList<ActivityFilter> Filters(WordBook w) =>
