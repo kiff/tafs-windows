@@ -88,7 +88,7 @@ public static class PairingScreen
         var newCode = w.Get("pair.new_code");
         return step switch
         {
-            // The steps name the phone's own menu, in the same language: Account, Devices, Add a computer.
+            // The steps name the phone's own menu, in the same language: Account, Devices, Add a device.
             PairingStep.Waiting => new PairingLines(title,
                 w.Get("pair.steps",
                     ("account", w.Get("settings.title")),
