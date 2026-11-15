@@ -139,8 +139,8 @@ public class CoachStartTests
         Assert.Equal(new StartResult(StartOutcome.Failed, "Only an admin can connect apps."), await stubs.Run(Session(ApprovalMode.Key)));
         Assert.Equal(["read", "sign draft", "enrol"], stubs.Calls);
 
-        stubs = new Stubs { Draft = (403, """{"error": "only the owner can give keys"}""") };
-        Assert.Equal(new StartResult(StartOutcome.Failed, "Couldn't start. only the owner can give keys"), await stubs.Run(Session(ApprovalMode.Key)));
+        stubs = new Stubs { Draft = (403, """{"error": "only an admin can give keys"}""") };
+        Assert.Equal(new StartResult(StartOutcome.Failed, "Couldn't start. only an admin can give keys"), await stubs.Run(Session(ApprovalMode.Key)));
         Assert.DoesNotContain("claim", stubs.Calls);
 
         stubs = new Stubs { Draft = (201, """{"id": "drf_1", "status": "draft"}""") };
