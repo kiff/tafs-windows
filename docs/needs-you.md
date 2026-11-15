@@ -30,10 +30,32 @@ iPad's own gate does when a device can't approve: words, never buttons that can'
 
 ## Where the calls come from
 
-Reading the held calls from KIFF needs signed requests, which come with the approvals. Until then
-Needs you is empty ("Nothing is waiting."), and `--sample` shows the iPad's two sample calls for
-screenshots: Deploys' migration and Bill pay's €8,400. Their words are the shared sample words, so
-they're in every shipped language. Needs you's row in the sidebar carries their count at its end, as
+**From KIFF** (`KiffHeld`), as the iPad's `KIFFClient.heldCalls` and `KIFFMapping.held`, with each refresh of Home's
+list. It's `GET /v1/me/card-exceptions?status=held`, a plain read as the session, as the iPad's.
+- **Decoded as the iPad's `CardException`:** a hold missing its id, subject, action, entity, status, breaches or time
+  fails the read, and Needs you stays as it was. The taf's words that aren't text are left out, never the hold. A Card
+  unit's hold (`kind: card_unit`) is left to its own panel.
+- **Under its taf,** by its agent in KIFF, from Home's list (else under the agent's own name), in the taf's colour.
+- **What it asks:** its title, with its action in words unless the title names the action's last word (`Says`).
+  planque's four letters ending a tool's name never show. With no arguments kept, the entity follows.
+- **The amount:** a parameter KIFF declares a unit for, written as money; else the parameter a breach sums, as a bare
+  number; else none.
+- **Why:** KIFF's own words for people when it sends them; else the Card's in money ("€150.00 is over the €100.00 limit
+  for one call"); else in a count ("1 call a day for each invoice id: this would be the 2nd for in_42"); else the
+  breach's or the hold's reason; else what the outcome means. A call over both a one-call limit and a total, and not
+  approvable once, names the total.
+- **The ordinal** ("the 2nd") is written as Apple's formatter writes digits in each shipped language (1st, 1er, 2.,
+  2.º, 2º, 2e). .NET has no ordinal formatter.
+- **Details:** what it's on, one line an argument as KIFF keeps them ("payment_intent: pi_…"), folded under Details as
+  the iPad's. Not the amount, and not KIFF's own arguments (`kiff_operation_id`, `kiff_about`, `kiff_reason`).
+- **The taf's own words:** one plain line each, control and format characters and breaks as spaces, cut at 120 and 280
+  with "…". They're never KIFF's amount, rule or action.
+- **When it lapses:** KIFF's `expires_at`, else ten minutes after it was held.
+- **Drawn again with each read:** NEEDS YOU in the sidebar, Needs you's count, and Needs you or the Overview when open.
+  A sign-out clears them.
+
+`--sample` shows the iPad's two sample calls for screenshots, and never reads KIFF: Deploys' migration and Bill pay's
+€8,400. Their words are the shared sample words, so they're in every shipped language. Needs you's row in the sidebar carries their count at its end, as
 the iPad's sidebar list draws a row's badge: a plain number, 15 regular, in the soft colour (not the
 tab bar's red pill). The row is named with it: "Needs you, 2".
 

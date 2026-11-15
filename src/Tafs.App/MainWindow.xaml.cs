@@ -25,8 +25,16 @@ public sealed partial class MainWindow : Window
     /// <summary>A laptop's window: the size the PR screenshots are taken at.</summary>
     static readonly SizeInt32 LaptopSize = new(1280, 800);
 
-    /// <summary>The held calls Needs you shows: from KIFF in their own change; until then none, or the iPad's samples.</summary>
-    readonly IReadOnlyList<HeldCall> held;
+    /// <summary>The held calls Needs you shows: KIFF's, read with each refresh of Home's list, or the iPad's samples.</summary>
+    IReadOnlyList<HeldCall> held;
+
+    /// <summary>A screenshot's samples: they stay, and KIFF isn't read for them.</summary>
+    readonly bool sampleHeld;
+
+    /// <summary>Needs you's row and its title, for its count; the NEEDS YOU section's rows, drawn again with each read.</summary>
+    NavigationViewItem? needsYouRow;
+    string needsYouTitle = "";
+    readonly List<object> heldRows = [];
 
     /// <summary>The Record's lines: KIFF's activity once Home is read as the session, else none, or the iPad's sample.</summary>
     IReadOnlyList<RecordEntry> record;
@@ -67,6 +75,7 @@ public sealed partial class MainWindow : Window
         Brand.Text = w.Get("app.name");
         AutomationProperties.SetName(BrandItem, w.Get("home.overview.title"));
         held = sample ? NeedsYouScreen.Sample(w, DateTimeOffset.UtcNow) : [];
+        sampleHeld = sample;
         record = sample ? RecordScreen.Sample(w, DateTimeOffset.UtcNow) : [];
         usage = sample ? new(UsageScreen.SampleBalance(w), UsageScreen.SampleCredits(w), UsageScreen.SampleCredits(w, previous: true)) : new(null, null, null);
         connectApps = sample ? ConnectAppsScreen.Sample() : null;
@@ -81,7 +90,11 @@ public sealed partial class MainWindow : Window
                 Icon = new FontIcon { Glyph = item.Glyph, Style = (Style)Application.Current.Resources["TafsSidebarIcon"] },
                 Style = (Style)Application.Current.Resources["TafsSidebarItem"],
             };
-            if (item.Screen == Screen.NeedsYou) ShowCount(row, w, item.Title);
+            if (item.Screen == Screen.NeedsYou)
+            {
+                (needsYouRow, needsYouTitle) = (row, item.Title);
+                ShowCount(row, w, item.Title);
+            }
             Nav.MenuItems.Insert(at++, row);
         }
         AddHeldCalls(w);
@@ -231,6 +244,7 @@ public sealed partial class MainWindow : Window
         ShowHome(HomeList.Read(w, answer, TimeZoneInfo.Local));
         var listed = home!;
         _ = ReadRecordAsync(listed, reading);
+        _ = ReadHeldAsync(listed, reading);
         var reports = await Task.WhenAll(listed.Tafs.Select(t => TafRuns.LoadReportAsync(w, t.Id, read)));
         if (reading != sessions) return;
         overviewRows = HomeList.Rows(w, listed, TimeZoneInfo.Local, listed.Tafs.Select((t, i) => (t.Id, Report: reports[i])).ToDictionary(r => r.Id, r => r.Report));
@@ -250,6 +264,31 @@ public sealed partial class MainWindow : Window
         var tafs = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => (g.First().Name, g.First().Colour));
         record = KiffActivity.Lines(App.Words, calls, agent => tafs.TryGetValue(agent, out var taf) ? taf : null);
         if (Pages.Content is RecordPage page) page.ShowEntries(record);
+    }
+
+    /// <summary>
+    /// Needs you from KIFF's held calls, with each refresh of Home's list, as the iPad's <c>refresh</c> and <c>show</c>: a
+    /// plain read as the session, each hold under its taf by its agent. A read that fails, or that KIFF answers in a way it
+    /// can't read, leaves Needs you as it was; one that lands after another session began is dropped.
+    /// </summary>
+    async Task ReadHeldAsync(HomeAnswer listed, int reading)
+    {
+        if (kiffRead is not { } read || sampleHeld) return;
+        var answer = (await read(KiffHeld.Path)).Answer;
+        if (reading != sessions || answer is not { } json || KiffHeld.Read(json) is not { } holds) return;
+        var tafs = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => (g.First().Name, g.First().Colour));
+        ShowHeld(KiffHeld.Calls(App.Words, holds, agent => tafs.TryGetValue(agent, out var taf) ? taf : null));
+    }
+
+    /// <summary>The held calls drawn again: NEEDS YOU in the sidebar, Needs you's count, and Needs you or the Overview when open.</summary>
+    void ShowHeld(IReadOnlyList<HeldCall> calls)
+    {
+        var w = App.Words;
+        held = calls;
+        AddHeldCalls(w);
+        if (needsYouRow is { } row) ShowCount(row, w, needsYouTitle);
+        if (Pages.Content is NeedsYouPage page) page.Show(held);
+        if (Pages.Content is OverviewPage overview) overview.ShowHeld(held);
     }
 
     /// <summary>
@@ -313,6 +352,7 @@ public sealed partial class MainWindow : Window
         ReceiptSheet.Read = null;
         record = [];
         if (Pages.Content is RecordPage page) page.ShowEntries(record);
+        if (!sampleHeld) ShowHeld([]);
         ShowHome(new HomeAnswer([], null));
         CoachMode.Read = null;
         CoachMode.Answer = null;
@@ -455,7 +495,11 @@ public sealed partial class MainWindow : Window
     {
         var (count, name) = Sidebar.NeedsYouCount(w, held.Count);
         AutomationProperties.SetName(row, name);
-        if (count is null) return;
+        if (count is null)
+        {
+            row.Content = title;
+            return;
+        }
         var line = new Grid();
         line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -515,13 +559,17 @@ public sealed partial class MainWindow : Window
     /// </summary>
     void AddHeldCalls(Tafs.Core.Words.WordBook w)
     {
+        foreach (var old in heldRows) Nav.MenuItems.Remove(old);
+        heldRows.Clear();
         if (held.Count == 0) return;
         var at = Nav.MenuItems.IndexOf(YourTafs);
-        Nav.MenuItems.Insert(at++, new NavigationViewItemHeader
+        var header = new NavigationViewItemHeader
         {
             Content = Sidebar.Eyebrow(w, "needs_you.title"),
             Style = (Style)Application.Current.Resources["TafsSidebarHeaderAmber"],
-        });
+        };
+        heldRows.Add(header);
+        Nav.MenuItems.Insert(at++, header);
         foreach (var call in held)
         {
             var (title, line) = NeedsYouScreen.SidebarRow(w, call, TimeZoneInfo.Local);
@@ -549,6 +597,7 @@ public sealed partial class MainWindow : Window
                 MinHeight = 52,
             };
             AutomationProperties.SetName(row, $"{title}. {line}");
+            heldRows.Add(row);
             Nav.MenuItems.Insert(at++, row);
         }
     }

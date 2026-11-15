@@ -154,6 +154,20 @@ public class KiffHeldTests
     [InlineData("list_charges", null, "list charges")]
     public void A_held_call_s_name(string action, string? title, string says) => Assert.Equal(says, KiffHeld.Says(action, title));
 
+    /// <summary>As the iPad's show: every hold but a Card unit's, under its taf by its agent, else under the agent's own name.</summary>
+    [Fact]
+    public void Each_hold_is_under_its_taf()
+    {
+        var holds = KiffHeld.Read(JsonDocument.Parse("""
+            {"exceptions":[
+              {"id":"a","subject":"rae-agent","action":"refund","entity_id":"e1","status":"held","breaches":[],"created_at":"2026-10-19T19:00:00Z"},
+              {"id":"b","subject":"stranger","action":"refund","entity_id":"e2","status":"held","breaches":[],"created_at":"2026-10-19T19:00:00Z"},
+              {"id":"c","subject":"rae-agent","action":"refund","entity_id":"e3","status":"held","kind":"card_unit","breaches":[],"created_at":"2026-10-19T19:00:00Z"}]}
+            """).RootElement)!;
+        var calls = KiffHeld.Calls(En, holds, agent => agent == "rae-agent" ? ("Rae", 4) : null);
+        Assert.Equal([("a", "Rae", 4), ("b", "stranger", 0)], calls.Select(c => (c.KiffId!, c.Taf, c.TafColor)));
+    }
+
     /// <summary>Ordinals as Apple's formatter writes digits in each shipped language.</summary>
     [Theory]
     [InlineData("en", 1, "1st")] [InlineData("en", 2, "2nd")] [InlineData("en", 3, "3rd")] [InlineData("en", 4, "4th")]

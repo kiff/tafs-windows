@@ -27,6 +27,8 @@ public sealed record KiffHold(
     public string? ProposalId { get; init; }
     public string? ReasonText { get; init; }
     public bool? CanApproveOnce { get; init; }
+    /// <summary>KIFF's kind of hold: <c>card_unit</c> is a Card unit's exception, which Needs you leaves to its own panel.</summary>
+    public string? Kind { get; init; }
     public string? TafAbout { get; init; }
     public string? TafReason { get; init; }
 }
@@ -94,7 +96,7 @@ public static class KiffHeld
             (int?)Long(e, "accounting_version"))
         {
             Title = S("title"), Arguments = arguments, ProposalId = S("proposal_id"), ReasonText = S("reason_text"),
-            CanApproveOnce = Flag(e, "can_approve_once"), TafAbout = S("taf_about"), TafReason = S("taf_reason"),
+            CanApproveOnce = Flag(e, "can_approve_once"), TafAbout = S("taf_about"), TafReason = S("taf_reason"), Kind = S("kind"),
         };
     }
 
@@ -250,6 +252,14 @@ public static class KiffHeld
             Details = Details(e), KiffId = e.Id,
         };
     }
+
+    /// <summary>
+    /// Needs you's held calls, as the iPad's <c>show</c>: every hold but a Card unit's, each under its taf by its agent in
+    /// KIFF (<paramref name="taf"/>), else under the agent's own name.
+    /// </summary>
+    public static IReadOnlyList<HeldCall> Calls(WordBook w, IReadOnlyList<KiffHold> holds, Func<string, (string Name, int Colour)?> taf) =>
+        holds.Where(h => h.Kind != "card_unit")
+            .Select(h => taf(h.Subject) is { } t ? ToHeldCall(w, h, t.Name, t.Colour) : ToHeldCall(w, h, h.Subject, 0)).ToList();
 
     /// <summary>
     /// "1st", "2nd": as Apple's ordinal formatter writes digits in each shipped language, which .NET has no formatter for.

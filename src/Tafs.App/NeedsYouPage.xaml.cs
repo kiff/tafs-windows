@@ -54,7 +54,7 @@ public sealed class HeldCallView : INotifyPropertyChanged
     public static Visibility Shown(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
 }
 
-/// <summary>Needs you. The held calls come from KIFF in their own change: until then, none, or the iPad's samples.</summary>
+/// <summary>Needs you: KIFF's held calls, or the iPad's samples for a screenshot.</summary>
 public sealed partial class NeedsYouPage : Page
 {
     /// <summary>Add this Windows PC, from a card's answers.</summary>
@@ -75,12 +75,19 @@ public sealed partial class NeedsYouPage : Page
         var w = App.Words;
         Heading.Text = NeedsYouScreen.Title(w);
         (EmptyLead.Text, EmptyHint.Text) = NeedsYouScreen.Empty(w);
-        var calls = e.Parameter as IReadOnlyList<HeldCall> ?? [];
+        Show(e.Parameter as IReadOnlyList<HeldCall> ?? []);
+    }
+
+    /// <summary>The held calls, each on its card, or that nothing waits: drawn again with each read of KIFF's.</summary>
+    internal void Show(IReadOnlyList<HeldCall> calls)
+    {
+        var w = App.Words;
         var now = DateTimeOffset.UtcNow;
         views = calls.Select(c => new HeldCallView(w, c, now)).ToList();
         Calls.ItemsSource = views;
         Empty.Visibility = views.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         if (views.Count > 0) clock.Start();
+        else clock.Stop();
     }
 
     void OnAddThisDevice(object sender, RoutedEventArgs e) => AddThisDeviceChosen?.Invoke();
