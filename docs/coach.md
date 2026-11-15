@@ -46,14 +46,7 @@ the newest by update's `GET /v1/tafs/{id}/conversation/{session}` (the whole thr
   "Something else…", which opens a field for the person's own words; a multi question takes several. Send answers (the brand
   button) once every question is answered; Chat about this puts the card away ("You're talking these questions through…",
   Show them again). Answered, it's one line, "Your answers · Test mode · Weekdays", and the answer's bubble is folded in.
-- **Who may answer:** sending is wired only once `AppModel.mayUseCoach` is ported, in its own change; until then, Send
-  stays off.
-- **Sending** (`AnswerAsync`, as `AppModel.answer`): `POST /v1/tafs/{id}/components/{card}/answer` with
-  `{"answer": {…}, "session": …}`, only to the exact hosts, allowing 70 seconds, for the card waiting under that id
-  (`cardRef`), every card under it busy meanwhile. Sent only when tafs cloud answers its session, run and status.
-  Signing out drops the thread, what was answered and an answer in flight. Sent, the thread is read again; a 409
-  (the card doesn't wait any more) reads it again too; refused for want of the AI-data consent (`ai_consent_required`), the
-  card stays as chosen; anything else says "Your answer didn't reach Setup. Tap it again." under the card.
+- **Answering** comes in its own change, with who may use Coach: until then, Send answers stays off.
 - `--home` with `--page coach` reads `coach-setup.json`, `coach-chats.json` and `coach-conversation.json` beside the Home
   file. tafs cloud has no contract for these reads yet; the tests use answers shaped as the iPad's decoders.
 
@@ -62,8 +55,6 @@ the newest by update's `GET /v1/tafs/{id}/conversation/{session}` (the whole thr
 - **A Coach with an empty thread:** the iPad shows `starts` ("Ask anything"); here the intro stays until writing is ported.
 - **Coach's other cards** (notices, results, confirms, approvals, sign-ins), and the conversation read's proof and `?can=`
   (they mark approval cards).
-- **After an answer:** the iPad follows the run's stream as it writes; here the thread is read again, until the stream is
-  ported. The AI-data consent's screen isn't ported, so a refusal for it leaves the card as it was, with no line.
 - **A drive's end** (what Coach did in the app, `DriveRecap`), placed in the thread on the iPad: with drives.
 - **Writing to Coach:** the composer, sending, the stream, Stop, unsent and queued messages, steering, reading again.
 - **Starting Coach:** Start stays off until it's wired.
