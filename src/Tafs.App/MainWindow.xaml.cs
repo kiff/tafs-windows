@@ -15,7 +15,7 @@ public sealed partial class MainWindow : Window
     /// <summary>A laptop's window: the size the PR screenshots are taken at.</summary>
     static readonly SizeInt32 LaptopSize = new(1280, 800);
 
-    /// <param name="page">A screen to open first: "pair" for Add this computer. Otherwise the Overview.</param>
+    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in". Otherwise the Overview.</param>
     /// <param name="viewOnly">The session can't approve yet: show the View only notice above every screen.</param>
     public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly)
     {
@@ -43,7 +43,16 @@ public sealed partial class MainWindow : Window
         AddThisDevice.Content = notice.Add;
         ViewOnly.IsOpen = viewOnly;
 
+        SignInPage.PairInsteadChosen += OpenPairing;
+        SignInPage.SignedIn += _ =>
+        {
+            // Kept in memory for now. Until this PC is paired (or has its own passkey), it reads and doesn't approve.
+            ViewOnly.IsOpen = true;
+            Nav.SelectedItem = OverviewItem;
+        };
+
         if (page == "pair") OpenPairing();
+        else if (page == "sign-in") OpenSignIn();
         else Nav.SelectedItem = OverviewItem;
         if (screenshot is not null) Root.Loaded += async (_, _) => await SaveAndQuitAsync(screenshot);
     }
@@ -62,6 +71,13 @@ public sealed partial class MainWindow : Window
     {
         Nav.SelectedItem = null;
         Pages.Navigate(typeof(PairingPage));
+    }
+
+    /// <summary>Sign in with KIFF: the first screen of a PC with no session.</summary>
+    void OpenSignIn()
+    {
+        Nav.SelectedItem = null;
+        Pages.Navigate(typeof(SignInPage));
     }
 
     /// <summary>Saves the window as a PNG and quits: the screenshots posted with each PR that changes a screen.</summary>

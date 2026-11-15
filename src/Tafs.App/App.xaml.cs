@@ -6,7 +6,7 @@ namespace Tafs.App;
 
 /// <summary>
 /// tafs for Windows. It draws what tafs cloud sends; this first shell has no network yet.
-/// Options: --lang &lt;code&gt; to speak a shipped language, --theme light|dark, --page pair to open a screen,
+/// Options: --lang &lt;code&gt; to speak a shipped language, --theme light|dark, --page pair|sign-in to open a screen,
 /// --view-only to show the session as view-only, and --screenshot &lt;file.png&gt; to save the window and quit.
 /// </summary>
 public partial class App : Application

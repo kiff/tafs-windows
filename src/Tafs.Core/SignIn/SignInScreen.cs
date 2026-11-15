@@ -59,6 +59,27 @@ public static class SignInScreen
         };
     }
 
+    /// <summary>tafs's own Terms and Privacy policy, as on the iPad and Android (English only for now).</summary>
+    public static readonly Uri Terms = new("https://kiff.dev/tafs/terms");
+    public static readonly Uri Privacy = new("https://kiff.dev/tafs/privacy");
+
+    /// <summary>"By signing in, you agree to …", in pieces: the two names linked wherever the language puts them.</summary>
+    public static IReadOnlyList<(string Text, Uri? Link)> Agreement(WordBook w)
+    {
+        var line = w.Get("sign_in.agree", ("terms", "\u0001"), ("privacy", "\u0002"));
+        var parts = new List<(string Text, Uri? Link)>();
+        var start = 0;
+        for (var i = 0; i < line.Length; i++)
+        {
+            if (line[i] is not ('\u0001' or '\u0002')) continue;
+            if (i > start) parts.Add((line[start..i], null));
+            parts.Add(line[i] == '\u0001' ? (w.Get("settings.terms"), Terms) : (w.Get("settings.privacy_policy"), Privacy));
+            start = i + 1;
+        }
+        if (start < line.Length) parts.Add((line[start..], null));
+        return parts;
+    }
+
     /// <summary>Where a poll's answer leaves the screen. Null: signed in, the screen closes.</summary>
     public static SignInStep? After(SignInStatus status) => status switch
     {
@@ -72,9 +93,8 @@ public static class SignInScreen
     public static string Why(WordBook w, SignInResult result) =>
         w.Get("error.kiff_answered", ("status", Status(result.Detail)));
 
-    /// <summary>Why a start failed: KIFF's status, or "?" for an answer that couldn't be used.</summary>
-    public static string WhyStart(WordBook w, int status) =>
-        w.Get("error.kiff_answered", ("status", status > 0 ? status.ToString(System.Globalization.CultureInfo.InvariantCulture) : "?"));
+    /// <summary>Why a start failed: KIFF's status and error code (<see cref="DeviceSignIn.StartRefusal"/>).</summary>
+    public static string WhyStart(WordBook w, string refusal) => w.Get("error.kiff_answered", ("status", refusal));
 
     static string Status(string? detail)
     {
