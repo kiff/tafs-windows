@@ -137,13 +137,31 @@ public static class HeldAnswers
     /// refusal, then posted. Closed, it's cancelled and the call stays; not confirmed, it says so; refused, KIFF's reason in
     /// the app's words. Each step stops once another session began.
     /// </summary>
+    /// <param name="mode">The session's approval mode, with <paramref name="passkeyId"/>: only a passkey session that knows its
+    /// passkey grants (<see cref="Approves"/>); any other is refused before anything is asked or sent.</param>
+    /// <param name="confirm">Windows Hello over the iPad's prompt, before the device key signs a refusal.</param>
     /// <param name="passkey">The passkey's half over the message (Windows Hello), for an answer that grants.</param>
     /// <param name="deviceSign">The device key's DER signature over the message, base64, for a refusal.</param>
-    public static async Task<Answered> AnswerAsync(WordBook w, HeldCall call, HeldAnswer answer, string tenant,
-        Func<byte[], Task<JsonObject>> passkey, Func<byte[], Task<string>> deviceSign,
+    /// <param name="signedAt"><see cref="Kiff.SigningTime.Next"/>'s time, as written (RFC 3339 with milliseconds, never the same
+    /// twice), taken once the person confirmed.</param>
+    public static async Task<Answered> AnswerAsync(WordBook w, HeldCall call, HeldAnswer answer, string tenant, ApprovalMode mode, string? passkeyId,
+        Func<string, Task<StepConfirmed>> confirm, Func<byte[], Task<JsonObject>> passkey, Func<byte[], Task<string>> deviceSign,
         Func<string, byte[], Task<(int Status, string Body)>> post, Func<string> signedAt, Func<bool> current)
     {
         if (call.KiffId is not { } id || call.AccountingVersion is not { } version) return new(false, w.Get("needs_you.answer_in_kiff"));
+        // Coach's version goes live from its card, never by approving its hold once, as the iPad's answer refuses it.
+        if (answer is HeldAnswer.ApproveOnce && call.Install is not null) return new(false, w.Get("needs_you.install_from_card"));
+        // Only a session that approves with this PC's passkey grants: any other is refused here, whatever the card shows.
+        if (Grants(answer) && !Approves(mode, passkeyId)) return new(false, w.Get("needs_you.answer_in_kiff"));
+        if (!Grants(answer))
+        {
+            // The device key's answer asks for the person first, as the iPad's signer.sign(message, reason:) asks Face ID.
+            var confirmed = await confirm(w.Get("needs_you.prompt.answer", ("summary", call.Summary)));
+            if (!current()) return new(false, Stopped: true);
+            if (confirmed != StepConfirmed.Yes)
+                return new(false, w.Get(confirmed == StepConfirmed.Cancelled ? "approval.cancelled_nothing_approved_request_kept" : "common.not_sent_unconfirmed"));
+        }
+        // signed_at once the person confirmed: a slow confirmation never ages the answer KIFF checks for skew.
         var at = signedAt();
         var message = Message(tenant, id, answer, version, at);
         byte[] body;
