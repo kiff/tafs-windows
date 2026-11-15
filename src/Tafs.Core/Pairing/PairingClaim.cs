@@ -42,17 +42,18 @@ public static class PairingClaim
         if (!deviceKey.PublicKeyDer.AsSpan().SequenceEqual(offer.PublicKeyDer))
             throw new ArgumentException("the claim is signed by the device key the QR showed", nameof(deviceKey));
         var proof = await deviceKey.SignDerAsync(ProofMessage(offer.Nonce, offer.PublicKeyDer), cancel);
-        var body = new Dictionary<string, string>
+        var body = new Dictionary<string, object>
         {
             ["nonce"] = offer.Nonce,
             ["pub"] = KiffSigning.Base64Url(offer.PublicKeyDer),
             ["proof"] = Convert.ToBase64String(proof),
         };
         if (withPasskeyProof && offer.Credential?.Proof is { } made)
-        {
-            body["client_data_json"] = KiffSigning.Base64Url(made.ClientDataJson);
-            body["attestation_object"] = KiffSigning.Base64Url(made.AttestationObject);
-        }
+            body["credential_proof"] = new Dictionary<string, string>
+            {
+                ["client_data_json"] = KiffSigning.Base64Url(made.ClientDataJson),
+                ["attestation_object"] = KiffSigning.Base64Url(made.AttestationObject),
+            };
         return JsonSerializer.SerializeToUtf8Bytes(body);
     }
 

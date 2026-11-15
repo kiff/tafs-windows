@@ -97,13 +97,15 @@ public class PairingTests
         Assert.False(Features.PairingPasskeyProof, "off until KIFF takes it");
 
         using var on = JsonDocument.Parse(await PairingClaim.BodyAsync(offer, device, withPasskeyProof: true));
-        Assert.Equal("AQI", on.RootElement.GetProperty("client_data_json").GetString());
-        Assert.Equal("AwQ", on.RootElement.GetProperty("attestation_object").GetString());
+        var made2 = on.RootElement.GetProperty("credential_proof");
+        Assert.Equal(new[] { "client_data_json", "attestation_object" }, made2.EnumerateObject().Select(p => p.Name));
+        Assert.Equal("AQI", made2.GetProperty("client_data_json").GetString());
+        Assert.Equal("AwQ", made2.GetProperty("attestation_object").GetString());
 
         // An offer with no credential, or a credential with no proof, sends none even when on.
         var plain = PairingOffer.Create(device.PublicKeyDer, null, "tafs", Now, Nonce, credential: made with { Proof = null });
         using var none = JsonDocument.Parse(await PairingClaim.BodyAsync(plain, device, withPasskeyProof: true));
-        Assert.False(none.RootElement.TryGetProperty("client_data_json", out _));
+        Assert.False(none.RootElement.TryGetProperty("credential_proof", out _));
     }
 
     [Fact]

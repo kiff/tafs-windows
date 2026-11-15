@@ -67,8 +67,8 @@ leaves the TPM.
 - When KIFF takes the proof, the pairing's passkey is made with the challenge
   `PairingClaim.PasskeyChallenge`: base64url(sha256 of `kiff.passkey.pair.v1`, the nonce and pub, joined
   by newlines, as the QR writes them).
-- The claim then also sends the create's `client_data_json` and `attestation_object`, as Windows returned
-  them, base64url. Off, the claim is unchanged.
+- The claim then also sends `credential_proof: {client_data_json, attestation_object}`, as Windows
+  returned them, base64url. Off, the claim is unchanged.
 
 **Not decided yet:**
 - `residentKey: preferred` needs the options' version 4. Version 1 asks for a non-discoverable
