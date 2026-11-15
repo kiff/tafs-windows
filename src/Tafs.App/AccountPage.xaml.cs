@@ -118,7 +118,8 @@ public sealed partial class AccountPage : Page
             var row = new Border { Style = Look("TafsHourLine"), Child = rows[i], BorderThickness = new Thickness(0, i > 0 ? 1 : 0, 0, 0) };
             list.Children.Add(row);
         }
-        Sections.Children.Add(new Border { Style = Look("TafsListPanel"), Child = list, Margin = new Thickness(0, title is null ? 14 : 0, 0, 0) });
+        // A section with no head sits as far below the one before as the iPad's inset-grouped list puts it (about 35).
+        Sections.Children.Add(new Border { Style = Look("TafsListPanel"), Child = list, Margin = new Thickness(0, title is null ? 26 : 0, 0, 0) });
     }
 
     /// <summary>A label and its value on the right, 17, as the iPad's LabeledContent; a chevron for a row that opens.</summary>

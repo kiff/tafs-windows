@@ -236,6 +236,8 @@ public sealed partial class TafPage : Page
                 Content = Face(card, depth) };
             AutomationProperties.SetName(face, depth == 0 ? card.Spoken(w, opening.IssuedBy, revoked) : w.Get("taf.show_card", ("title", card.Title)));
             face.Click += (_, _) => { front = card.Id; ShowCards(); };
+            // Each Card casts the iPad's shadow up onto the one behind (black at 16%, radius 4, 2 up), so the bands read apart.
+            if (i > 0) stack.Children.Add(CastShadow(i * Edge));
             stack.Children.Add(face);
         }
         CardPane.Children.Add(stack);
@@ -264,6 +266,24 @@ public sealed partial class TafPage : Page
         revoke.Click += async (_, _) => await RevokeAsync();
         CardPane.Children.Add(revoke);
     }
+
+    /// <summary>
+    /// The shadow a Card casts up onto the Card behind it, as the iPad's (black at 16%, radius 4, offset 2 up): a soft
+    /// 6-high band over its top edge, inside its rounded corners. A gradient, so it shows in the screenshots too.
+    /// </summary>
+    static Microsoft.UI.Xaml.Shapes.Rectangle CastShadow(double top) => new()
+    {
+        Height = 6, Margin = new Thickness(10, top - 6, 10, 0), VerticalAlignment = VerticalAlignment.Top, IsHitTestVisible = false,
+        Fill = new Microsoft.UI.Xaml.Media.LinearGradientBrush
+        {
+            StartPoint = new Windows.Foundation.Point(0.5, 0), EndPoint = new Windows.Foundation.Point(0.5, 1),
+            GradientStops =
+            {
+                new Microsoft.UI.Xaml.Media.GradientStop { Color = Microsoft.UI.ColorHelper.FromArgb(0, 0, 0, 0), Offset = 0 },
+                new Microsoft.UI.Xaml.Media.GradientStop { Color = Microsoft.UI.ColorHelper.FromArgb(0x29, 0, 0, 0), Offset = 1 },
+            },
+        },
+    };
 
     /// <summary>A payment card's proportions, 85.6 by 54 mm, at most 300 wide, as the iPad's.</summary>
     const double CardWidth = 300;
@@ -307,16 +327,23 @@ public sealed partial class TafPage : Page
             var figure = Text(hero.Figure, 34, bold: true);
             figure.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
             middle.Children.Add(figure);
-            middle.Children.Add(Text(hero.Words, 12, 0.9));
+            var words = Text(hero.Words, 12, 0.9);
+            words.FontWeight = Microsoft.UI.Text.FontWeights.Medium;
+            middle.Children.Add(words);
         }
         Grid.SetRow(middle, 1);
         inside.Children.Add(middle);
 
         var facts = new StackPanel { Spacing = 2 };
-        // A long fact shrinks to fit before anything is cut, as the iPad's minimumScaleFactor.
+        // A long fact shrinks to fit, to 80% at most as the iPad's minimumScaleFactor(0.8), and past that ends in "…".
         foreach (var fact in card.Facts(w))
-            facts.Children.Add(new Viewbox { Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform, StretchDirection = StretchDirection.DownOnly,
-                HorizontalAlignment = HorizontalAlignment.Left, Child = Text(fact, 11, 0.92, mono: true) });
+        {
+            var line = Text(fact, 11, 0.92, mono: true);
+            line.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+            var room = CardWidth - 32;
+            if (line.DesiredSize.Width > room) line.FontSize = Math.Max(11 * 0.8, Math.Floor(11 * room / line.DesiredSize.Width * 10) / 10);
+            facts.Children.Add(line);
+        }
         if (card.Rules.Count == 0) facts.Children.Add(Text(w.Get("card.no_actions_short"), 12, mono: true));
         Grid.SetRow(facts, 2);
         inside.Children.Add(facts);

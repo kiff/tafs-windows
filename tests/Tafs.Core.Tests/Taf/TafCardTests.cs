@@ -141,9 +141,17 @@ public class TafCardTests
     public void A_currency_s_symbol_is_the_app_language_s(string language, string code, string shown) =>
         Assert.Equal(shown, new KiffAmount(200_000, code, 2).Figure(WordBook.Load(SharedFiles.Strings, language)).Replace(' ', ' ').Replace(' ', ' '));
 
+    /// <summary>
+    /// .NET writes French's currency pattern ("n $") with a plain space (U+0020) before "€", only the thousands with U+202F,
+    /// so "2 000 €" broke before "€" in a narrow column. The space before the symbol is U+00A0.
+    /// </summary>
     [Fact]
-    public void A_currency_s_symbol_never_wraps_away_from_its_number() =>
-        Assert.DoesNotContain(" ", new KiffAmount(200_000, "EUR", 2).Figure(WordBook.Load(SharedFiles.Strings, "fr")));
+    public void A_currency_s_symbol_never_wraps_away_from_its_number()
+    {
+        var figure = new KiffAmount(200_000, "EUR", 2).Figure(WordBook.Load(SharedFiles.Strings, "fr"));
+        Assert.Equal('\u00A0', figure[figure.IndexOf('€') - 1]);
+        Assert.DoesNotContain(" ", figure);
+    }
 
     [Fact]
     public void A_currency_its_language_has_no_region_for_reads_as_its_code() =>
