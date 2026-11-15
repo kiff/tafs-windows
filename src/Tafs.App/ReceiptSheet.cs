@@ -115,7 +115,8 @@ sealed class ReceiptSheet
 
     /// <summary>
     /// The receipt's panel: a line KIFF's steps contradict, else the receipt's decision and when it was issued, and Copy.
-    /// Whether KIFF signed it, the full receipt with its signer, come with its check.
+    /// Never headed "KIFF receipt" or said to be checked: that, whether KIFF signed it, and the full receipt with its signer
+    /// come with its check.
     /// </summary>
     void DrawReceipt(WordBook w, IReadOnlyList<ReceiptStep> steps)
     {
@@ -126,7 +127,6 @@ sealed class ReceiptSheet
             shown.Children.Add(Words(w.Get("record.kiff_receipt_does_not_check"), 14, "TafsNo", FontWeights.SemiBold));
             shown.Children.Add(Words(wrong, 13, "TafsSoft"));
         }
-        else shown.Children.Add(Words(w.Get("receipt.kiff_receipt"), 14, "TafsInk", FontWeights.SemiBold));
         var issued = Receipt.Field(raw!, "issued_at") is { } at && DateTimeOffset.TryParse(at, out var when)
             ? " · " + w.Get("receipt.issued", ("at", Receipt.Shown(w, when, TimeZoneInfo.Local))) : "";
         shown.Children.Add(Mono(Receipt.DecisionWords(w, entry) + issued, 11.5));

@@ -78,8 +78,9 @@ as one, with "Shows the receipt". In `Tafs.Core.Record` (`Receipt`):
   (`RawJson`, as the iPad's `RawJSON`), since that's what KIFF signed.
   - **What happened:** each step KIFF signed, its message (else its kind in words) and its time, on a
     line of dots.
-  - **The receipt's panel:** "KIFF receipt", the decision in the receipt's words and when it was issued
-    ("held → approved once by you · issued …"), and Copy receipt.
+  - **The receipt's panel:** the decision in the receipt's words and when it was issued ("held →
+    approved once by you · issued …"), and Copy receipt. Until the check, it has no heading: it's never
+    called KIFF's receipt, or checked, before it is.
   - **A line the steps contradict** says KIFF's receipt doesn't check out, and why: the decision step
     signed another amount, or the hold was settled with another answer (KIFF writes a refusal "reject").
   - **Not read:** why, and Try again.
