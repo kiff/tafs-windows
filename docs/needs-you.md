@@ -85,8 +85,12 @@ that wide would put the amount far from the answers.
 
 While tafs runs, a call KIFF holds gets a Windows notification, as the iPad's hold alert (`HoldNotification.words`,
 `PushDelegate.open`):
+- **Who:** only someone who answers held calls (KIFF's `holds.answer` on `GET /v1/me`, none listed allows), as the
+  iPad's `canAnswerHolds`. The iPad's per-account switch (Account › Alerts, off until turned on) is its own change; until
+  it lands, Windows' own per-app switch for tafs (Settings › System › Notifications) is the off switch.
 - **Its words:**
-  - "Rae needs you" (or "A taf needs you");
+  - "Rae needs you": a listed taf's name, "Coach" for Coach's own agent (`setup`), and "A taf needs you" for an agent no
+    taf has, as the iPad's `HoldNotification.fill`;
   - then "Refund order 42, €150.00 · Over €50 each. Answer by 14:05. Nothing is sent until you approve.", answering by
     this PC's time, as every screen here shows it.
 - **When it's read:** with each refresh of Home's list, and every minute while a session is in use. The iPad hears of a
@@ -95,12 +99,17 @@ While tafs runs, a call KIFF holds gets a Windows notification, as the iPad's ho
 - **Which holds:** one KIFF has held since the last read of Needs you. A session's first read notifies nothing, so opening
   tafs doesn't announce what was already waiting: it's all in Needs you. A sample is never notified. A sign-out starts
   again.
-- **One per hold:** each is tagged with the hold's id, so it's never shown twice.
+- **One per hold:** each is tagged with the SHA-256 of the hold's id (Windows keeps 64 characters), so it's never shown
+  twice.
+- **Gone when the hold is:** a hold no longer held at a read, answered elsewhere or lapsed, loses its notification, as the
+  iPad's `removeAlerts(forHold:)`. A sign-out takes every notification of tafs's away, so the last account's calls never
+  stay on a shared PC.
 - **Clicking one** brings the window forward and opens Needs you with that hold's card in view, whether tafs was open or
-  the click started it.
+  the click started it. The hold is kept until Needs you lists it, as the iPad's `requestedHold`: a click that started
+  tafs lands on it after sign-in's first read, and one naming a hold not read yet reads KIFF again (`onHoldAlert`). A
+  sign-out forgets it.
 - **How:** the Windows App SDK's `AppNotificationManager`, which works for an unpackaged app. It's registered at start
   (never for a screenshot). On a PC that refuses it, there are no notifications, and Needs you still shows every hold.
 - **Not yet:**
   - a notification while tafs is closed, which needs a push from tafs cloud, as the iPad's;
   - Approve and Refuse on the notification itself;
-  - taking a hold's notification away once it's answered elsewhere;
