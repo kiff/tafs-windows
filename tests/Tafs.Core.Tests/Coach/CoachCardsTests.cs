@@ -334,4 +334,18 @@ public class CoachCardsTests
         Assert.False(new CoachThread([], [], null, [OneResult(Result)]).ReadHomeFor([], new HashSet<string>()));
         Assert.False(new CoachThread([], [], null, [OneResult(Result, """{"failed": "no"}""")]).ReadHomeFor([], new HashSet<string>()));
     }
+
+    /// <summary>As the iPad's answerValue for a confirm: its option's value as words, to its card; an empty one isn't an answer.</summary>
+    [Fact]
+    public void A_confirm_s_answer_is_its_option_s_value()
+    {
+        var shown = Assert.Single(Thread(Shown("""{"type": "confirm", "id": "c1", "text": "Live?", "options": [{"value": "live", "label": "Live money"}]}""")).Shown);
+
+        var (path, body) = CoachChat.AnswerRequest("taf-coach", shown, "live")!.Value;
+
+        Assert.Equal("/v1/tafs/taf-coach/components/c1/answer", path);
+        Assert.Equal("""{"answer":"live","session":"s1"}""", Encoding.UTF8.GetString(body));
+        Assert.Null(CoachChat.AnswerRequest("taf-coach", shown, ""));
+        Assert.Equal("Live money", CoachChat.OwnerWords(En, "[confirm c1] live", [shown]));
+    }
 }

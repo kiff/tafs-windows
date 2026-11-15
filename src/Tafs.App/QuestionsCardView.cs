@@ -55,7 +55,7 @@ sealed class QuestionsCardView : StackPanel
         refresh.Clear();
         if (answer is { } a)
         {
-            Children.Add(Outcome(w.Get("coach.questions.your_answers") + (a.Words ?? QuestionAnswers.Words(w, a.Text, Questions) ?? a.Text)));
+            Children.Add(Outcome(w.Get("coach.questions.your_answers") + (a.Words ?? QuestionAnswers.Words(w, a.Text, Questions) ?? a.Text), brush));
             return;
         }
         if (state.Chatting)
@@ -99,7 +99,7 @@ sealed class QuestionsCardView : StackPanel
         actions.Children.Add(sending);
         actions.Children.Add(talk);
         panel.Children.Add(actions);
-        if (note is not null) panel.Children.Add(Note(note));
+        if (note is not null) panel.Children.Add(Note(note, brush));
         Children.Add(new Border { Style = Look("TafsCard"), Child = panel });
         Refresh();
     }
@@ -173,7 +173,7 @@ sealed class QuestionsCardView : StackPanel
     }
 
     /// <summary>An answered card, folded to one line, as the iPad's <c>OutcomeLine</c>: a tick in the green, its words soft, at 14.</summary>
-    Border Outcome(string text)
+    internal static Border Outcome(string text, Func<string, Brush> brush)
     {
         var line = new Grid { ColumnSpacing = 8 };
         line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -188,7 +188,7 @@ sealed class QuestionsCardView : StackPanel
     }
 
     /// <summary>Why a tap ended without reaching Setup, as the iPad's <c>CardNote</c>: an ⓘ and the words, soft, at 13.</summary>
-    Grid Note(string text)
+    internal static Grid Note(string text, Func<string, Brush> brush)
     {
         var line = new Grid { ColumnSpacing = 6 };
         line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
