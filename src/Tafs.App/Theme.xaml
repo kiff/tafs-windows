@@ -153,6 +153,26 @@
     <Setter Property="Padding" Value="18,8" />
   </Style>
 
+  <!-- A list's section label, as the iPad's grouped list heads a section: 13, in capitals, dim. -->
+  <Style x:Key="TafsListHead" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Margin" Value="16,14,0,0" />
+    <Setter Property="Foreground" Value="{ThemeResource TafsDim}" />
+  </Style>
+  <!-- A grouped list's section, and its table's column names (12 semibold, dim). -->
+  <Style x:Key="TafsListPanel" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource TafsPanel}" />
+    <Setter Property="CornerRadius" Value="12" />
+    <Setter Property="Padding" Value="16,0" />
+  </Style>
+  <Style x:Key="TafsColumnHead" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    <Setter Property="Foreground" Value="{ThemeResource TafsDim}" />
+  </Style>
+
   <!-- A count at a sidebar row's end (Needs you's): 15 regular in the soft colour, as the iPad's list badge. -->
   <Style x:Key="TafsSidebarCount" TargetType="TextBlock">
     <Setter Property="FontSize" Value="15" />

@@ -1,0 +1,29 @@
+using Tafs.Core.Words;
+
+namespace Tafs.Core.Tests.Strings;
+
+[Part("strings")]
+public class ListsTests
+{
+    [Theory]
+    [InlineData("en", "Refunds and Chargebacks", "Refunds, Chargebacks, and Invoices")]
+    [InlineData("de", "Refunds und Chargebacks", "Refunds, Chargebacks und Invoices")]
+    [InlineData("fr", "Refunds et Chargebacks", "Refunds, Chargebacks et Invoices")]
+    [InlineData("es", "Refunds y Chargebacks", "Refunds, Chargebacks e Invoices")]
+    [InlineData("it", "Refunds e Chargebacks", "Refunds, Chargebacks e Invoices")]
+    [InlineData("pt", "Refunds e Chargebacks", "Refunds, Chargebacks e Invoices")]
+    [InlineData("nl", "Refunds en Chargebacks", "Refunds, Chargebacks en Invoices")]
+    [InlineData("pl", "Refunds i Chargebacks", "Refunds, Chargebacks i Invoices")]
+    public void Names_join_as_CLDR_s_and_list(string language, string two, string three)
+    {
+        Assert.Equal("Refunds", Lists.And(language, ["Refunds"]));
+        Assert.Equal(two, Lists.And(language, ["Refunds", "Chargebacks"]));
+        Assert.Equal(three, Lists.And(language, ["Refunds", "Chargebacks", "Invoices"]));
+    }
+
+    [Theory]
+    [InlineData("Iberia", "Ventas e Iberia")]
+    [InlineData("Hilton", "Ventas e Hilton")]
+    [InlineData("hielo", "Ventas y hielo")]
+    public void Spanish_says_e_before_an_i_sound(string last, string joined) => Assert.Equal(joined, Lists.And("es", ["Ventas", last]));
+}

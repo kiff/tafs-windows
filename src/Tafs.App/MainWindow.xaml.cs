@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Tafs.Core.Connections;
 using Tafs.Core.Home;
 using Tafs.Core.NeedsYou;
 using Tafs.Core.Record;
@@ -24,8 +25,9 @@ public sealed partial class MainWindow : Window
 
     /// <summary>The Record's lines: from tafs cloud and KIFF in their own change; until then none, or the iPad's sample.</summary>
     readonly IReadOnlyList<RecordEntry> record;
+    readonly ConnectAppsList? connectApps;
 
-    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you", "record". Otherwise the Overview.</param>
+    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you", "record", "connect-apps". Otherwise the Overview.</param>
     /// <param name="viewOnly">The session can't approve yet: show the View only notice above every screen.</param>
     /// <param name="sample">Show the iPad's sample held calls and Record: for screenshots.</param>
     public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false)
@@ -40,6 +42,7 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetName(BrandItem, w.Get("home.overview.title"));
         held = sample ? NeedsYouScreen.Sample(w, DateTimeOffset.UtcNow) : [];
         record = sample ? RecordScreen.Sample(w, DateTimeOffset.UtcNow) : [];
+        connectApps = sample ? ConnectAppsScreen.Sample() : null;
         var at = Nav.MenuItems.IndexOf(BrandItem) + 1;
         foreach (var item in Sidebar.Screens(w))
         {
@@ -72,6 +75,7 @@ public sealed partial class MainWindow : Window
 
         SignInPage.PairInsteadChosen += OpenPairing;
         NeedsYouPage.AddThisDeviceChosen += OpenPairing;
+        ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
         OverviewPage.NeedsYouChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         SignInPage.SignedIn += _ =>
         {
@@ -82,6 +86,7 @@ public sealed partial class MainWindow : Window
 
         if (page == "pair") OpenPairing();
         else if (page == "sign-in") OpenSignIn();
+        else if (page == "connect-apps") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
         else if (page == "record") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
         else if (page == "needs-you") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         else Nav.SelectedItem = BrandItem;
@@ -163,6 +168,7 @@ public sealed partial class MainWindow : Window
         if (item == BrandItem) Pages.Navigate(typeof(OverviewPage), held);
         else if (item.Tag is Screen.NeedsYou or HeldCall) Pages.Navigate(typeof(NeedsYouPage), held);
         else if (item.Tag is Screen.Record) Pages.Navigate(typeof(RecordPage), record);
+        else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), connectApps);
         else Pages.Navigate(typeof(ComingPage), item.Content);
     }
 
