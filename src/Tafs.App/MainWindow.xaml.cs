@@ -37,15 +37,17 @@ public sealed partial class MainWindow : Window
         held = sample ? NeedsYouScreen.Sample(w, DateTimeOffset.UtcNow) : [];
         var at = Nav.MenuItems.IndexOf(BrandItem) + 1;
         foreach (var item in Sidebar.Screens(w))
-            Nav.MenuItems.Insert(at++, new NavigationViewItem
+        {
+            var row = new NavigationViewItem
             {
                 Content = item.Title,
                 Tag = item.Screen,
                 Icon = new FontIcon { Glyph = item.Glyph },
                 Style = (Style)Application.Current.Resources["TafsSidebarItem"],
-                // How many calls wait, on Needs you's row, as the iPad's badge.
-                InfoBadge = item.Screen == Screen.NeedsYou && held.Count > 0 ? new InfoBadge { Value = held.Count } : null,
-            });
+            };
+            if (item.Screen == Screen.NeedsYou) ShowCount(row, w, item.Title);
+            Nav.MenuItems.Insert(at++, row);
+        }
         YourTafs.Content = Sidebar.Eyebrow(w, "home.your_tafs");
         // No tafs list yet: it comes from tafs cloud in its own change.
         NoTafs.Content = Sidebar.NoTafs(w);
@@ -76,6 +78,30 @@ public sealed partial class MainWindow : Window
         else if (page == "needs-you") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         else Nav.SelectedItem = BrandItem;
         if (screenshot is not null) Root.Loaded += async (_, _) => await SaveAndQuitAsync(screenshot);
+    }
+
+    /// <summary>
+    /// How many calls wait, at Needs you's row's end: a plain number in the soft colour, as the iPad's sidebar list
+    /// draws a row's badge (not the tab bar's red pill). The row is named with it.
+    /// </summary>
+    void ShowCount(NavigationViewItem row, Tafs.Core.Words.WordBook w, string title)
+    {
+        var (count, name) = Sidebar.NeedsYouCount(w, held.Count);
+        AutomationProperties.SetName(row, name);
+        if (count is null) return;
+        var line = new Grid();
+        line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        line.Children.Add(new TextBlock { Text = title, VerticalAlignment = VerticalAlignment.Center });
+        var number = new TextBlock
+        {
+            Text = count, FontWeight = Microsoft.UI.Text.FontWeights.Normal, Margin = new Thickness(8, 0, 12, 0),
+            VerticalAlignment = VerticalAlignment.Center, Style = (Style)Application.Current.Resources["TafsSidebarCount"],
+        };
+        Grid.SetColumn(number, 1);
+        line.Children.Add(number);
+        row.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+        row.Content = line;
     }
 
     void OnSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)

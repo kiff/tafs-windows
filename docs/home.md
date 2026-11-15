@@ -46,5 +46,7 @@ headings.
 - **+ New**, above Coach on the iPad, comes with Coach: on Windows it would have nothing to open yet.
 - **Needs you's count** on its row, the held calls above Your tafs, and the tafs themselves come with
   tafs cloud's list.
+- **Coach's sparkle**: the iPad's Coach button has a sparkle (sparkles while Coach drives). Segoe
+  Fluent Icons has no sparkle, so it's the closest it has, a star (U+E734).
 - **The rounded type**: the iPad's titles use its rounded system face. Windows has none, so they are
   the system face, bold.

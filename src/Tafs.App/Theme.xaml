@@ -19,9 +19,6 @@
       <SolidColorBrush x:Key="TafsOnFill" Color="#FFFFFF" />
       <!-- The taf's own words on a held call: the soft colour at 8%. -->
       <SolidColorBrush x:Key="TafsSoftWash" Color="#144F4A5E" />
-      <!-- A count on a sidebar row (Needs you's): the theme's red, as the iPad's badge, not the system accent. -->
-      <SolidColorBrush x:Key="InfoBadgeBackground" Color="#DB1F25" />
-      <SolidColorBrush x:Key="InfoBadgeForeground" Color="#FFFFFF" />
       <!-- The sidebar's chosen row: a rounded fill of the ink, as the iPad's list draws it, not a side bar. -->
       <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#1F1B1726" />
       <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#291B1726" />
@@ -57,8 +54,6 @@
       <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#141311" />
       <SolidColorBrush x:Key="TafsOnFill" Color="#141311" />
       <SolidColorBrush x:Key="TafsSoftWash" Color="#14A8A49C" />
-      <SolidColorBrush x:Key="InfoBadgeBackground" Color="#FF8A73" />
-      <SolidColorBrush x:Key="InfoBadgeForeground" Color="#141311" />
       <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#24F2EFE9" />
       <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#2EF2EFE9" />
       <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#38F2EFE9" />
@@ -134,6 +129,12 @@
     <Setter Property="FontWeight" Value="Medium" />
     <Setter Property="MinHeight" Value="44" />
     <Setter Property="Padding" Value="18,8" />
+  </Style>
+
+  <!-- A count at a sidebar row's end (Needs you's): 15 regular in the soft colour, as the iPad's list badge. -->
+  <Style x:Key="TafsSidebarCount" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="Foreground" Value="{ThemeResource TafsSoft}" />
   </Style>
 
   <!-- The sidebar's rows: 15 semibold, as the iPad's items, on a rounded fill when chosen. -->

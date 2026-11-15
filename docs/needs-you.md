@@ -33,5 +33,9 @@ iPad's own gate does when a device can't approve: words, never buttons that can'
 Reading the held calls from KIFF needs signed requests, which come with the approvals. Until then
 Needs you is empty ("Nothing is waiting."), and `--sample` shows the iPad's two sample calls for
 screenshots: Deploys' migration and Bill pay's €8,400. Their words are the shared sample words, so
-they're in every shipped language. Needs you's row in the sidebar carries their count in the
-theme's red.
+they're in every shipped language. Needs you's row in the sidebar carries their count at its end, as
+the iPad's sidebar list draws a row's badge: a plain number, 15 regular, in the soft colour (not the
+tab bar's red pill). The row is named with it: "Needs you, 2".
+
+The page is capped at 760 wide, from the leading edge. The iPad's has no cap; on a wide window, cards
+that wide would put the amount far from the answers.
