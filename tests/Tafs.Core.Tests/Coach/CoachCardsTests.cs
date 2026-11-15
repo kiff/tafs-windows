@@ -118,4 +118,25 @@ public class CoachCardsTests
             QuestionAnswers.Words(En, text, [new CardQuestion("days", "?", [new CardChoice("mon", "Monday")]), new CardQuestion("mode", "?", [])]));
         Assert.Null(QuestionAnswers.Words(En, "not json", []));
     }
+
+    /// <summary>
+    /// As the iPad's synthesized decoder: an optional field absent or null is none, one of another shape fails the card, even a
+    /// field this app doesn't keep yet; an answer whose state, words or by isn't words leaves the card unanswered.
+    /// </summary>
+    [Fact]
+    public void A_card_s_fields_are_read_with_the_iPad_s_shapes()
+    {
+        const string confirm = """{"type": "confirm", "id": "c1", "text": "Live?", "options": null, "title": null}""";
+        Assert.Null(Assert.Single(Thread(Shown(confirm)).Shown).Card.Options);
+        Assert.Empty(Thread(Shown("""{"type": "notice", "id": "n1", "title": 1}""")).Shown);
+        Assert.Empty(Thread(Shown(Questions.Replace("\"multi\": true", "\"multi\": \"yes\""))).Shown);
+        Assert.Empty(Thread(Shown("""{"type": "result", "id": "r1", "taf": {"name": "Rae"}}""")).Shown);
+        Assert.Empty(Thread(Shown("""{"type": "approval", "id": "a1", "signs": true}""")).Shown);
+        Assert.Single(Thread(Shown("""{"type": "result", "id": "r1", "version": 2, "tools": ["kiff_refund"], "taf": {"agent": "a", "name": "Rae", "unscheduled": null}}""")).Shown);
+
+        var unanswered = Thread(Shown(Questions, answer: """, "answer": {"state": 1, "words": "Test mode"}"""));
+        Assert.Null(Assert.Single(unanswered.Shown).Answer);
+        var timeless = Thread(Shown(Questions, answer: """, "answer": {"words": "Test mode", "at": 5}"""));
+        Assert.Equal(new CardAnswer("answered", "Test mode", null), Assert.Single(timeless.Shown).Answer);
+    }
 }

@@ -37,7 +37,9 @@ the newest by update's `GET /v1/tafs/{id}/conversation/{session}` (the whole thr
   words (`WorkLog.rows`: "2 tries", failures only when nothing worked); a run's start as a centred line of two lines at
   most; then **While you were away** and the handed tasks' lines ("↳ Rae: …").
 - **Coach's cards** are read with the thread, as the iPad's `SetupThread`: one it can't read is left out; one shown again
-  replaces itself in place; a card its run waits on goes after Coach's words with it. None is drawn yet, so an answer to one
+  replaces itself in place; a card its run waits on goes after Coach's words with it. Each field the iPad declares is read
+  with its decoder's shapes: absent or null is none, another shape leaves the card out; an answer whose state or words
+  aren't words leaves the card unanswered. None is drawn yet, so an answer to one
   stays in its bubble, in the person's words: a confirm's option, a questions card's answers ("Test mode · In your words: …").
 - `--home` with `--page coach` reads `coach-setup.json`, `coach-chats.json` and `coach-conversation.json` beside the Home
   file. tafs cloud has no contract for these reads yet; the tests use answers shaped as the iPad's decoders.
@@ -47,6 +49,7 @@ the newest by update's `GET /v1/tafs/{id}/conversation/{session}` (the whole thr
 - **A Coach with an empty thread:** the iPad shows `starts` ("Ask anything"); here the intro stays until writing is ported.
 - **Drawing Coach's cards**, each answer folded into its card, and the conversation read's proof and `?can=` (they mark
   approval cards).
+- **A drive's end** (what Coach did in the app, `DriveRecap`), placed in the thread on the iPad: with drives.
 - **Writing to Coach:** the composer, sending, the stream, Stop, unsent and queued messages, steering, reading again.
 - **Starting Coach:** Start stays off until it's wired.
   - tafs cloud's first start (its own words and the tools Coach is given, signed under one Windows Hello prompt);

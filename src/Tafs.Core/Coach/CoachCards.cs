@@ -21,6 +21,27 @@ public sealed record CoachCard(string Kind, string Id, string? Title = null, str
     public static readonly string[] Kinds = ["steps", "notice", "confirm", "questions", "approval", "sign_in", "result", "knob", "drive"];
 }
 
+/// <summary>
+/// A field's shape as Swift's decoder checks it: a required field is there and of its shape; an optional one is absent,
+/// null, or of its shape. Words are strings; a yes-or-no is true or false; a number is whole.
+/// </summary>
+static class Shape
+{
+    public static bool Required(JsonElement o, string name, Func<JsonElement, bool> fits) =>
+        o.ValueKind == JsonValueKind.Object && o.TryGetProperty(name, out var v) && fits(v);
+
+    public static bool Optional(JsonElement o, string name, Func<JsonElement, bool> fits) =>
+        o.ValueKind == JsonValueKind.Object && (!o.TryGetProperty(name, out var v) || v.ValueKind == JsonValueKind.Null || fits(v));
+
+    public static bool Text(JsonElement v) => v.ValueKind == JsonValueKind.String;
+
+    public static bool Bool(JsonElement v) => v.ValueKind is JsonValueKind.True or JsonValueKind.False;
+
+    public static bool Int(JsonElement v) => v.ValueKind == JsonValueKind.Number && v.TryGetDouble(out var d) && d == Math.Floor(d) && Math.Abs(d) < 9e15;
+
+    public static bool List(JsonElement v, Func<JsonElement, bool> each) => v.ValueKind == JsonValueKind.Array && v.EnumerateArray().All(each);
+}
+
 /// <summary>A card's answer as kiff/agents recorded it (the iPad's <c>CardAnswer</c>): its state, its words, and when.</summary>
 public sealed record CardAnswer(string State, string Words, DateTimeOffset? At);
 
@@ -40,45 +61,61 @@ public sealed record ShownCard(DateTimeOffset FirstAt, string Session, string Ru
     {
         if (Lenient.At(s, "at") is not { } at || Lenient.Text(s, "session") is not { } session || Lenient.Text(s, "run") is not { } run
             || Lenient.Field(s, "component") is not { } c || ReadCard(c) is not { } card) return null;
-        var a = Lenient.Field(s, "answer") ?? default;
-        var answer = a.ValueKind == JsonValueKind.Object
-            ? new CardAnswer(Lenient.Text(a, "state") ?? "answered", Lenient.Text(a, "words") ?? "", Lenient.At(a, "at")) : null;
-        return new(at, session, run, card, answer, Lenient.Text(s, "key"));
+        return new(at, session, run, card, Recorded(Lenient.Field(s, "answer")), Lenient.Text(s, "key"));
     }
 
-    /// <summary>A card with a kind this app doesn't know, or no id, can't be read, as the iPad's decoder; a question or choice it can't read fails the card.</summary>
+    /// <summary>
+    /// A recorded answer, as the iPad's <c>CardAnswer</c> read with <c>try?</c>: its state, words and who answered are each
+    /// absent, null or words, or the card is unanswered; a time it can't read is no time.
+    /// </summary>
+    static CardAnswer? Recorded(JsonElement? field)
+    {
+        if (field is not { ValueKind: JsonValueKind.Object } a || !Shape.Optional(a, "state", Shape.Text) || !Shape.Optional(a, "words", Shape.Text)
+            || !Shape.Optional(a, "by", Shape.Text)) return null;
+        return new CardAnswer(Lenient.Text(a, "state") ?? "answered", Lenient.Text(a, "words") ?? "", Lenient.At(a, "at"));
+    }
+
+    /// <summary>
+    /// A card as the iPad's synthesized <c>SetupComponent</c> decoder reads it: its kind (one this app knows) and id are
+    /// required; every other field it declares is absent, null, or of its own shape, and one of another shape fails the card,
+    /// whether this app keeps it yet or not.
+    /// </summary>
     static CoachCard? ReadCard(JsonElement c)
     {
-        if (Lenient.Text(c, "type") is not { } kind || !CoachCard.Kinds.Contains(kind) || Lenient.Text(c, "id") is not { } id) return null;
-        List<CardQuestion>? questions = null;
-        if (Lenient.Field(c, "questions") is { ValueKind: JsonValueKind.Array } qs)
-        {
-            questions = [];
-            foreach (var q in qs.EnumerateArray())
-            {
-                if (Lenient.Text(q, "id") is not { } qid || Lenient.Text(q, "text") is not { } text
-                    || Choices(Lenient.Field(q, "options"), withDescription: true) is not { } options) return null;
-                questions.Add(new CardQuestion(qid, text, options, Lenient.Bool(q, "multi"), Lenient.Text(q, "note")));
-            }
-        }
-        var optionsField = Lenient.Field(c, "options");
-        var choices = optionsField is null ? null : Choices(optionsField, withDescription: false);
-        if (optionsField is not null && choices is null) return null;
-        return new CoachCard(kind, id, Lenient.Text(c, "title"), Lenient.Text(c, "text"), Lenient.Text(c, "tone"), choices, questions,
-            Lenient.Text(c, "waits"));
+        if (c.ValueKind != JsonValueKind.Object || !Shape.Required(c, "type", Shape.Text) || !CoachCard.Kinds.Contains(c.GetProperty("type").GetString())
+            || !Shape.Required(c, "id", Shape.Text)) return null;
+        foreach (var text in (string[])["title", "text", "tone", "grant", "draft", "service", "yes", "no", "note", "waits", "taf_id"])
+            if (!Shape.Optional(c, text, Shape.Text)) return null;
+        if (!Shape.Optional(c, "steps", v => Shape.List(v, Step)) || !Shape.Optional(c, "options", v => Shape.List(v, Option))
+            || !Shape.Optional(c, "questions", v => Shape.List(v, Question)) || !Shape.Optional(c, "taf", Taf)
+            || !Shape.Optional(c, "tools", v => Shape.List(v, Shape.Text)) || !Shape.Optional(c, "version", Shape.Int)
+            || !Shape.Optional(c, "connection", Connection) || !Shape.Optional(c, "signs", v => v.ValueKind == JsonValueKind.Object)) return null;
+        var questions = Lenient.Field(c, "questions") is { ValueKind: JsonValueKind.Array } qs
+            ? qs.EnumerateArray().Select(q => new CardQuestion(Lenient.Text(q, "id")!, Lenient.Text(q, "text")!, Choices(q.GetProperty("options")),
+                Lenient.Bool(q, "multi"), Lenient.Text(q, "note"))).ToList()
+            : null;
+        var options = Lenient.Field(c, "options") is { ValueKind: JsonValueKind.Array } os ? Choices(os) : null;
+        return new CoachCard(c.GetProperty("type").GetString()!, c.GetProperty("id").GetString()!, Lenient.Text(c, "title"), Lenient.Text(c, "text"),
+            Lenient.Text(c, "tone"), options, questions, Lenient.Text(c, "waits"));
     }
 
-    static List<CardChoice>? Choices(JsonElement? field, bool withDescription)
-    {
-        if (field is not { ValueKind: JsonValueKind.Array } a) return null;
-        var list = new List<CardChoice>();
-        foreach (var o in a.EnumerateArray())
-        {
-            if (Lenient.Text(o, "value") is not { } value || Lenient.Text(o, "label") is not { } label) return null;
-            list.Add(new CardChoice(value, label, withDescription ? Lenient.Text(o, "description") : null));
-        }
-        return list;
-    }
+    // The shapes inside a card, as the iPad declares them: Step, Option, Question with its Choice, Taf, Connection.
+    static bool Step(JsonElement v) => Shape.Required(v, "label", Shape.Text) && Shape.Required(v, "status", Shape.Text);
+
+    static bool Option(JsonElement v) => Shape.Required(v, "value", Shape.Text) && Shape.Required(v, "label", Shape.Text);
+
+    static bool Choice(JsonElement v) => Option(v) && Shape.Optional(v, "description", Shape.Text);
+
+    static bool Question(JsonElement v) => Shape.Required(v, "id", Shape.Text) && Shape.Required(v, "text", Shape.Text)
+        && Shape.Required(v, "options", o => Shape.List(o, Choice)) && Shape.Optional(v, "multi", Shape.Bool) && Shape.Optional(v, "note", Shape.Text);
+
+    static bool Taf(JsonElement v) => Shape.Required(v, "agent", Shape.Text) && Shape.Required(v, "name", Shape.Text)
+        && ((string[])["job", "draft", "improves", "note", "try", "notes"]).All(f => Shape.Optional(v, f, Shape.Text)) && Shape.Optional(v, "unscheduled", Shape.Bool);
+
+    static bool Connection(JsonElement v) => v.ValueKind == JsonValueKind.Object && Shape.Optional(v, "done", Shape.Bool) && Shape.Optional(v, "words", Shape.Text);
+
+    static List<CardChoice> Choices(JsonElement a) =>
+        a.EnumerateArray().Select(o => new CardChoice(Lenient.Text(o, "value")!, Lenient.Text(o, "label")!, Lenient.Text(o, "description"))).ToList();
 
     /// <summary>
     /// The cards in the order they first appeared, as the iPad's <c>SetupThread.fold</c>: a card shown again replaces its
