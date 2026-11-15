@@ -36,7 +36,7 @@ public sealed partial class MainWindow : Window
     /// <summary>The view the Calendar opens on: Week; Day or Month for `--page calendar` or `calendar-month`.</summary>
     CalendarMode calendarOpensOn = CalendarMode.Week;
 
-    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you", "record", "calendar" (Day), "calendar-week", "calendar-month", "usage", "connect-apps", "account", or "taf" (the sample's Refunds, with --sample). Otherwise the Overview.</param>
+    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you", "record", "calendar" (Day), "calendar-week", "calendar-month", "usage", "connect-apps", "account", "coach", or "taf" (the sample's Refunds, with --sample). Otherwise the Overview.</param>
     /// <param name="viewOnly">The session can't approve yet: show the View only notice above every screen.</param>
     /// <param name="sample">Show the iPad's sample held calls and Record: for screenshots.</param>
     public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false)
@@ -88,6 +88,8 @@ public sealed partial class MainWindow : Window
         SignInPage.PairInsteadChosen += OpenPairing;
         NeedsYouPage.AddThisDeviceChosen += OpenPairing;
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
+        // Focus goes back to the sidebar's Coach when Coach mode has gone.
+        CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
         OverviewPage.NeedsYouChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         SignInPage.SignedIn += session =>
         {
@@ -117,6 +119,12 @@ public sealed partial class MainWindow : Window
             Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Calendar);
         }
         else if (page == "usage") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
+        else if (page == "coach")
+        {
+            // Over the Overview, which stays in view beside it.
+            Nav.SelectedItem = BrandItem;
+            CoachMode.Open(animate: false);
+        }
         else if (page == "connect-apps") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
         else if (page == "record") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
         else if (page == "needs-you") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
@@ -206,8 +214,8 @@ public sealed partial class MainWindow : Window
         else Pages.Navigate(typeof(ComingPage), item.Content);
     }
 
-    /// <summary>Coach at the sidebar's foot. Coach itself comes in its own change, in the spec's order.</summary>
-    void OnCoach(object sender, RoutedEventArgs e) => OpenBeside(typeof(ComingPage), CoachText.Text);
+    /// <summary>Coach mode slides in from the right, over what's open, which stays in view.</summary>
+    void OnCoach(object sender, RoutedEventArgs e) => CoachMode.Open();
 
     /// <summary>Account, at the very foot: it opens beside the sidebar, and its icon shows it's open.</summary>
     void OnAccount(object sender, RoutedEventArgs e)
