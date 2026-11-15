@@ -28,9 +28,9 @@ public static class TafRuns
             ? new RunReport(session, Lenient.Text(r, "status") ?? "", Lenient.Text(r, "text") ?? "", Lenient.Text(r, "counted"))
             : null;
 
-    public static string RunsPath(string taf) => $"/v1/tafs/{Uri.EscapeDataString(taf)}/runs";
+    public static string RunsPath(string taf) => $"/v1/tafs/{CloudRead.PathPart(taf)}/runs";
 
-    public static string ReportPath(string taf, string session) => $"{RunsPath(taf)}/{Uri.EscapeDataString(session)}";
+    public static string ReportPath(string taf, string session) => $"{RunsPath(taf)}/{CloudRead.PathPart(session)}";
 
     /// <summary>
     /// A taf's latest run, as the iPad's <c>AppModel.loadReport</c>, read through <paramref name="read"/>: its runs, then the

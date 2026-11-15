@@ -137,6 +137,13 @@
         </ItemsControl>
         <!-- tafs cloud's words under the last line: "Nothing older in this view". -->
         <TextBlock x:Name="EndWords" FontSize="14" Foreground="{ThemeResource TafsDim}" Visibility="Collapsed" />
+        <!-- tafs cloud's Activity: a read going, or the next page's, read as it comes into view; or why a read failed. -->
+        <ProgressRing x:Name="ActivityLoading" Width="24" Height="24" HorizontalAlignment="Center" Visibility="Collapsed"
+                      EffectiveViewportChanged="OnActivityLoadingSeen" />
+        <StackPanel x:Name="ActivityFailed" Spacing="8" Visibility="Collapsed">
+          <TextBlock x:Name="ActivityError" FontSize="14" TextWrapping="Wrap" Style="{StaticResource TafsNoText}" />
+          <Button x:Name="ActivityTryAgain" Click="OnActivityTryAgain" />
+        </StackPanel>
       </StackPanel>
       </Grid>
     </ScrollViewer>

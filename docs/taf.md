@@ -24,6 +24,21 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
   id or title is left out.
 - The filters are tafs cloud's. The app sends the chosen one back.
 
+**A taf from tafs cloud** (opened from the Overview or Your tafs) reads its Activity there, page after page
+(`ActivityPages`, ported from `SourcePages` and `AppModel.loadActivityPage`, and drawn as `TafPresentationViews.swift`'s
+Activity):
+- **The read:** `GET /v1/tafs/{id}/activity?filter=…`, with tafs cloud's selection when it gives one and `&cursor=…` for
+  the next page, escaped as the iPad's `escaped` and `query`. It goes through the same read as Home's, so the session's
+  token goes only to the exact hosts.
+- **When it reads:** on opening, and each time a filter is chosen (that filter's newest page); the next page when its
+  ring comes into view, as the iPad's `.task` on its ProgressView. One asked for while a read is going waits for it.
+- **What it draws:** the first page's filters, every page's days (a day going on from the page before has no title),
+  then what ends them, in the iPad's order: why a read failed, in red, with Try again (the next page when some are in);
+  the next page's ring; a read going; tafs cloud's end words; or, with no line at all, "Nothing here.".
+- **A more read refused with 409** (its history moved on) starts again from the newest page; any other failure keeps the
+  pages and says why, as `CloudRead` words it.
+- `--home shared/contracts/home.json --page taf` opens the first taf, its Activity from `taf-activity.json` beside it.
+
 **Setup**, as `taf-setup.png`:
 - **The job,** under "THE JOB".
 - **Starts when and Results go to:** shown, off until their screens are built.
@@ -86,9 +101,8 @@ rules and totals.
   a payout, with €40 used today.
 
 **Not yet:**
-- **Reading it from tafs cloud:** the next pages, Try again, and the revision as If-None-Match. The server's ETag is
-  the quoted form of `revision`. Its days are titled as sent, in 12 semibold, not in the sample's capitals.
-- **Opening a taf from the sidebar's Your tafs and the Overview,** once they list the tafs.
+- **The revision as If-None-Match:** the server's ETag is the quoted form of `revision`; each read is whole for now. Its
+  days are titled as sent, in 12 semibold, not in the sample's capitals. Pull to refresh has no Windows gesture yet.
 - **Chat,** in its own change.
 - **Setup from tafs cloud:** drawing what `TafSetup.Read` reads. That means the connected apps and their sheets, the
   Card-unit exceptions (whose change Coach asks to sign), Connect again, the memory's See all, Improve in Coach, and
