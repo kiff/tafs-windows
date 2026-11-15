@@ -19,9 +19,7 @@
       <SolidColorBrush x:Key="TafsOnFill" Color="#FFFFFF" />
       <!-- Done and refused, as on the iPad (Theme.ok, Theme.no). -->
       <SolidColorBrush x:Key="TafsOk" Color="#198056" />
-      <!-- The ink at 40%: the Today pill's line. -->
       <SolidColorBrush x:Key="TafsInkLine" Color="#661B1726" />
-      <!-- The chosen segment of Day / Week / Month: lighter than its track, in both. -->
       <SolidColorBrush x:Key="TafsSegmentFill" Color="#FFFFFF" />
       <SolidColorBrush x:Key="TafsNo" Color="#DB1F25" />
       <!-- The taf's own words on a held call: the soft colour at 8%. -->
@@ -90,7 +88,6 @@
   <!-- A held call's edge (amber at 40%) and its reason's pill (amber at 14%), as on the iPad. -->
   <SolidColorBrush x:Key="TafsAmberEdge" Color="#66FF8A1F" />
   <SolidColorBrush x:Key="TafsAmberWash" Color="#24FF8A1F" />
-  <!-- The month's selected day: amber at 18%. -->
   <SolidColorBrush x:Key="TafsAmberSelect" Color="#2EFF8A1F" />
   <LinearGradientBrush x:Key="TafsBrand" StartPoint="0,0" EndPoint="1,1">
     <GradientStop Color="#B35C00" Offset="0" />
@@ -224,8 +221,7 @@
   <Style x:Key="TafsDimText" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsDim}" /></Style>
   <Style x:Key="TafsOnAmberText" TargetType="TextBlock"><Setter Property="Foreground" Value="White" /></Style>
 
-  <!-- A box that's a button: the Calendar's tiles, segments, pills and arrows. Its own template, so Windows' hover
-       fill never covers their colours: pointing dims it a little. Windows' focus ring still shows. -->
+  <!-- A button drawn as a box (Calendar's tiles, segments, pills, arrows): pointing dims it; the focus ring shows. -->
   <Style x:Key="TafsBox" TargetType="Button">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderBrush" Value="Transparent" />
@@ -255,7 +251,7 @@
     </Setter>
   </Style>
 
-  <!-- Today, a pill sized to its word: 15 medium, a line around of the ink at 40%; at today, the line and the soft colour. -->
+  <!-- Today: 15 medium, the ink's line around; at today, fainter. -->
   <Style x:Key="TafsTodayPill" TargetType="Button" BasedOn="{StaticResource TafsBox}">
     <Setter Property="BorderBrush" Value="{ThemeResource TafsInkLine}" />
     <Setter Property="BorderThickness" Value="1" />
@@ -321,7 +317,6 @@
     <Setter Property="BorderThickness" Value="1.5" />
   </Style>
 
-  <!-- An hour's line across the day. -->
   <Style x:Key="TafsHourLine" TargetType="Border"><Setter Property="BorderBrush" Value="{ThemeResource TafsLine}" /></Style>
 
   <!-- The sidebar's rows: 15 semibold, as the iPad's items, on a rounded fill when chosen. -->

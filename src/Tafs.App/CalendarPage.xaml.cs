@@ -145,13 +145,7 @@ public sealed partial class CalendarPage : Page
                 Content = Text(day.Day.ToString(), 13, chosen ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.Normal,
                     day.Month == state.Selected.Month ? "TafsInkText" : "TafsDimText"),
                 // Selected and today are separate marks, as on the iPad: the fill, and the ring.
-                Style = (Style)Application.Current.Resources[(chosen, day == today) switch
-                {
-                    (true, true) => "TafsMonthChosenToday",
-                    (true, false) => "TafsMonthChosen",
-                    (false, true) => "TafsMonthToday",
-                    _ => "TafsMonthDay",
-                }],
+                Style = (Style)Application.Current.Resources["TafsMonth" + (chosen ? "Chosen" : "") + (day == today ? "Today" : chosen ? "" : "Day")],
             };
             AutomationProperties.SetName(cell, CalendarScreen.DayHeading(w, day));
             cell.Click += (_, _) => { state = state with { Selected = day }; Show(); };

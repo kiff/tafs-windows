@@ -13,11 +13,9 @@ public class CalendarScreenTests
     public static IEnumerable<object[]> Shipped() => WordBook.Shipped(SharedFiles.Strings).Select(l => new object[] { l });
 
     [Fact]
-    public void It_opens_on_the_week_of_today() => Assert.Equal(new CalendarState(CalendarMode.Week, Sunday), CalendarScreen.Opening(Sunday));
-
-    [Fact]
-    public void Weeks_start_on_Monday_and_the_week_strip_is_exactly_seven_days()
+    public void It_opens_on_today_s_week_which_starts_on_Monday_and_its_strip_is_seven_days()
     {
+        Assert.Equal(new CalendarState(CalendarMode.Week, Sunday), CalendarScreen.Opening(Sunday));
         Assert.Equal(6, CalendarScreen.WeekdayIndex(Sunday));
         Assert.Equal(new DateOnly(2026, 11, 9), CalendarScreen.WeekStart(Sunday));
         var strip = CalendarScreen.StripDays(new(CalendarMode.Week, Sunday));
