@@ -69,8 +69,8 @@ work, where the iPad's decoder fails the thread.
   Signing out drops the thread, what was answered and an answer in flight. Sent, the thread is read again; a 409
   (the card doesn't wait any more) reads it again too; refused for want of the AI-data consent (`ai_consent_required`), the
   card stays as chosen; anything else says "Your answer didn't reach Setup. Tap it again." under the card.
-- `--home` with `--page coach` reads `coach-setup.json`, `coach-chats.json` and `coach-conversation.json` beside the Home
-  file. tafs cloud has no contract for these reads yet; the tests use answers shaped as the iPad's decoders.
+- `--home` with `--page coach` reads tafs cloud's contracts beside the Home file: `setup-coach.json`, `coach-chats.json`
+  and `coach-conversation.json`. CI saves Coach's thread that way (`coach-home`), and `CoachContractTests` read them.
 
 **Not yet:**
 - **Coach's words as Markdown:** they show as written until `MarkdownText` is ported.
