@@ -86,7 +86,7 @@ public sealed partial class CoachPanel : UserControl
         var (thread, error) = await CoachChat.LoadAsync(App.Words, reader);
         IntroError.Text = error ?? "";
         IntroError.Visibility = error is null ? Visibility.Collapsed : Visibility.Visible;
-        if (thread is null || thread.Items.Count == 0) return;
+        if (thread is null || thread.Drawn().Count == 0) return;
         ShowThread(thread);
         Intro.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Visible;
@@ -101,17 +101,18 @@ public sealed partial class CoachPanel : UserControl
     {
         var w = App.Words;
         ThreadItems.Children.Clear();
-        var items = thread.Items;
+        // No card is drawn yet: each kind comes in its own change, and until then its answer reads in a bubble.
+        var items = thread.Drawn();
         for (var i = 0; i < items.Count; i++)
         {
-            var m = items[i];
+            var m = items[i].Message!;
             if (CoachChat.GapTime(w, items, i, DateTimeOffset.Now, TimeZoneInfo.Local) is { } gap)
                 ThreadItems.Children.Add(Words(gap, 12, "TafsDimText", HorizontalAlignment.Center));
             // As the iPad's ChatBubble: a run's start is a line, inside either branch, so its work and answered line still show.
             if (m.From == ChatFrom.Owner)
             {
                 var said = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0) };
-                var words = CoachChat.OwnerWords(w, m.Text);
+                var words = CoachChat.OwnerWords(w, m.Text, thread.Shown);
                 if (m.Kickoff) said.Children.Add(Kickoff(m));
                 else if (words.Length > 0)
                     said.Children.Add(new Border

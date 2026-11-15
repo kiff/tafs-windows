@@ -36,13 +36,17 @@ the newest by update's `GET /v1/tafs/{id}/conversation/{session}` (the whole thr
   "Answered the card above"; Coach's words full width at 16 under "Worked for 12 s ›", which opens the steps in Coach's
   words (`WorkLog.rows`: "2 tries", failures only when nothing worked); a run's start as a centred line of two lines at
   most; then **While you were away** and the handed tasks' lines ("↳ Rae: …").
+- **Coach's cards** are read with the thread, as the iPad's `SetupThread`: one it can't read is left out; one shown again
+  replaces itself in place; a card its run waits on goes after Coach's words with it. None is drawn yet, so an answer to one
+  stays in its bubble, in the person's words: a confirm's option, a questions card's answers ("Test mode · In your words: …").
 - `--home` with `--page coach` reads `coach-setup.json`, `coach-chats.json` and `coach-conversation.json` beside the Home
   file. tafs cloud has no contract for these reads yet; the tests use answers shaped as the iPad's decoders.
 
 **Not yet:**
 - **Coach's words as Markdown:** they show as written until `MarkdownText` is ported.
 - **A Coach with an empty thread:** the iPad shows `starts` ("Ask anything"); here the intro stays until writing is ported.
-- **Coach's cards**, an answer folded into its card, and the conversation read's proof and `?can=` (they mark approval cards).
+- **Drawing Coach's cards**, each answer folded into its card, and the conversation read's proof and `?can=` (they mark
+  approval cards).
 - **Writing to Coach:** the composer, sending, the stream, Stop, unsent and queued messages, steering, reading again.
 - **Starting Coach:** Start stays off until it's wired.
   - tafs cloud's first start (its own words and the tools Coach is given, signed under one Windows Hello prompt);

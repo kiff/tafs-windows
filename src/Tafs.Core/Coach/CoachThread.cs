@@ -31,9 +31,19 @@ public sealed record ChatMessage(DateTimeOffset At, ChatFrom From, bool Kickoff,
 /// <summary>How a task Coach handed a taf went (the iPad's <c>CoachLine</c>); <paramref name="Away"/> when kept while the person was away.</summary>
 public sealed record CoachLine(DateTimeOffset At, string Taf, string Said, bool Away);
 
-/// <summary>Coach's thread, as tafs cloud answers <c>…/conversation</c>: its messages, its lines, and the session at work.</summary>
-public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyList<CoachLine> Lines, string? Working)
+/// <summary>One item of the thread, in order: a message, or a card where it's placed.</summary>
+public sealed record ThreadItem(ChatMessage? Message, ShownCard? Card)
 {
+    public DateTimeOffset At => Message?.At ?? Card!.FirstAt;
+    public string Id => Message is { } m ? "m|" + m.Id : "c|" + Card!.Ref;
+}
+
+/// <summary>Coach's thread, as tafs cloud answers <c>…/conversation</c>: its messages, its cards, its lines, and the session at work.</summary>
+public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyList<CoachLine> Lines, string? Working,
+    IReadOnlyList<ShownCard>? Cards = null)
+{
+    public IReadOnlyList<ShownCard> Shown => Cards ?? [];
+
     /// <summary>
     /// The thread from tafs cloud's answer, as the iPad's <c>setupThread(decoding:)</c>: a message without its time, sender,
     /// text or session fails the whole read, as the iPad's decoder does; a line it can't read is left out.
@@ -51,7 +61,9 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
             .Select(l => Lenient.At(l, "at") is { } at && Lenient.Text(l, "taf") is { } taf && Lenient.Text(l, "said") is { } said
                 ? new CoachLine(at, taf, said, Lenient.Bool(l, "away")) : null)
             .OfType<CoachLine>().ToList();
-        return new(messages, lines, Lenient.Text(Lenient.Field(answer, "working") ?? default, "session"));
+        // A card the app can't read is left out, never the thread with it.
+        var cards = ShownCard.Fold(Lenient.Array(answer, "components").Select(ShownCard.Read).OfType<ShownCard>());
+        return new(messages, lines, Lenient.Text(Lenient.Field(answer, "working") ?? default, "session"), cards);
     }
 
     static ChatMessage? Message(JsonElement m)
@@ -81,10 +93,50 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
     /// <summary>One of tafs cloud's lines as drawn: trimmed, none when blank.</summary>
     public static string? Line(string? words) => string.IsNullOrWhiteSpace(words) ? null : words.Trim();
 
-    /// <summary>The thread in order, as it happened, each message once, as the iPad's <c>SetupThread.items</c> for its messages.</summary>
-    public IReadOnlyList<ChatMessage> Items =>
-        Messages.Select((m, i) => (m, i)).OrderBy(x => x.m.At).ThenBy(x => x.i).Select(x => x.m)
-            .DistinctBy(m => m.Id).ToList();
+    /// <summary>
+    /// The thread in order, as the iPad's <c>SetupThread.items</c>: messages and cards as they happened, the plan left out,
+    /// each once; a message before a card placed at its time. A card its run waits on comes after what Coach wrote with it.
+    /// </summary>
+    public IReadOnlyList<ThreadItem> Items =>
+        Messages.Select(m => (Item: new ThreadItem(m, null), At: m.At))
+            .Concat(Shown.Where(c => c.Card.Kind != "steps").Select(c => (Item: new ThreadItem(null, c), At: PlacedAt(c))))
+            .Select((x, i) => (x.Item, x.At, i)).OrderBy(x => x.At).ThenBy(x => x.i).Select(x => x.Item)
+            .DistinctBy(x => x.Id).ToList();
+
+    /// <summary>
+    /// Where a card goes, as the iPad's <c>placedAt</c>: a card its run waits on, after Coach's words with it in its
+    /// conversation, up to the person's next message, or once answered up to its answer; any other card at its own time.
+    /// </summary>
+    DateTimeOffset PlacedAt(ShownCard c)
+    {
+        if (string.IsNullOrEmpty(c.Card.Waits)) return c.FirstAt;
+        if (c.Answer is { At: null }) return c.FirstAt;
+        var nextOwner = Messages.FirstOrDefault(m => m.From == ChatFrom.Owner && m.At > c.FirstAt)?.At ?? DateTimeOffset.MaxValue;
+        var end = c.Answer?.At is { } answered && answered < nextOwner ? answered : nextOwner;
+        return Messages.LastOrDefault(m => m.From == ChatFrom.Taf && m.Session == c.Session && m.At >= c.FirstAt && m.At < end)?.At ?? c.FirstAt;
+    }
+
+    /// <summary>
+    /// The thread as drawn, as the iPad's <c>textBeforeCards</c> with nothing streaming, with the kinds of card this app draws
+    /// so far: an answer to a card it draws reads once, folded into its card, so no bubble repeats it; one that didn't go
+    /// through keeps its bubble, which says so. A card of another kind is left out, and its answer keeps its bubble.
+    /// </summary>
+    public IReadOnlyList<ThreadItem> Drawn(params string[] kinds) =>
+        Items.Where(x => x.Card is { } card ? kinds.Contains(card.Card.Kind) : x.Message is not { From: ChatFrom.Owner } m
+            || CardReply.Parse(m.Text) is not { Failed: false } a || !Shown.Any(c => c.Card.Id == a.Id && kinds.Contains(c.Card.Kind))).ToList();
+
+    /// <summary>
+    /// The person's latest answer to a card, as the iPad's <c>answer(to:)</c>: the one kiff/agents recorded on it, else one
+    /// sent as a message since the card first appeared.
+    /// </summary>
+    public CardReply? AnswerTo(string id)
+    {
+        var shown = Shown.LastOrDefault(c => c.Card.Id == id);
+        if (shown is { Answer: { } recorded } && CardReply.Of(recorded, shown.Card) is { } a) return a;
+        var since = shown?.FirstAt ?? DateTimeOffset.MinValue;
+        return Messages.AsEnumerable().Reverse().Where(m => m.From == ChatFrom.Owner && m.At >= since)
+            .Select(m => CardReply.Parse(m.Text)).FirstOrDefault(r => r?.Id == id);
+    }
 }
 
 /// <summary>Coach's thread read and drawn, as the iPad's <c>loadSetupThread</c>, <c>SetupChatView.thread</c> and <c>WorkLog</c>.</summary>
@@ -129,23 +181,20 @@ public static class CoachChat
 
     /// <summary>
     /// An owner's message in their own words, as the iPad's <c>ownerWords</c>: an answer to a card ("[approval a1] declined")
-    /// reads as what they chose. The kinds whose words come from their card (a confirm's options, a questions card) read as
-    /// the answer itself until their cards are drawn.
+    /// reads as what they chose; a confirm's as its option's label, a questions card's as its answers, from the card.
     /// </summary>
-    public static string OwnerWords(WordBook w, string text)
+    public static string OwnerWords(WordBook w, string text, IReadOnlyList<ShownCard>? cards = null)
     {
-        if (!text.StartsWith('[') || text.IndexOf(']') is var close && close < 0) return text;
-        var head = text[1..close].Split(' ', 2);
-        string[] kinds = ["steps", "notice", "confirm", "questions", "approval", "sign_in", "result", "knob", "drive"];
-        if (head.Length != 2 || !kinds.Contains(head[0])) return text;
-        var answer = text[(close + 1)..].Trim(' ', '\t');
-        var failed = answer.StartsWith("failed", StringComparison.Ordinal);
-        return head[0] switch
+        if (CardReply.Parse(text) is not { } a) return text;
+        var card = cards?.FirstOrDefault(c => c.Card.Id == a.Id)?.Card;
+        return a.Kind switch
         {
-            "approval" => failed ? w.Get("coach.answer.approve_failed") : answer == "declined" ? w.Get("coach.answer.decline") : w.Get("approval.approve"),
-            "sign_in" => failed ? w.Get("coach.answer.sign_in_failed") : answer == "not now" ? w.Get("common.not_now") : w.Get("coach.answer.signed_in"),
-            "drive" => answer == "declined" ? w.Get("common.not_now") : w.Get("approval.approve"),
-            _ => answer,
+            "confirm" => card?.Options?.FirstOrDefault(o => o.Value == a.Text)?.Label ?? a.Text,
+            "approval" => a.Failed ? w.Get("coach.answer.approve_failed") : a.Text == "declined" ? w.Get("coach.answer.decline") : w.Get("approval.approve"),
+            "sign_in" => a.Failed ? w.Get("coach.answer.sign_in_failed") : a.Text == "not now" ? w.Get("common.not_now") : w.Get("coach.answer.signed_in"),
+            "drive" => a.Text == "declined" ? w.Get("common.not_now") : w.Get("approval.approve"),
+            "questions" => QuestionAnswers.Words(w, a.Text, card?.Questions ?? []) ?? a.Text,
+            _ => a.Text,
         };
     }
 
@@ -153,7 +202,7 @@ public static class CoachChat
     /// A time between parts of the thread an hour or more apart, not on every line, as the iPad's <c>gapTime</c>: today's at
     /// "14:05", an earlier one with its date.
     /// </summary>
-    public static string? GapTime(WordBook w, IReadOnlyList<ChatMessage> items, int i, DateTimeOffset now, TimeZoneInfo zone)
+    public static string? GapTime(WordBook w, IReadOnlyList<ThreadItem> items, int i, DateTimeOffset now, TimeZoneInfo zone)
     {
         var at = items[i].At;
         if (i > 0 && at - items[i - 1].At < TimeSpan.FromHours(1)) return null;
