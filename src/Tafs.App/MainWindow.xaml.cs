@@ -343,9 +343,10 @@ public sealed partial class MainWindow : Window
         var bearer = session.AccessToken;
         var gen = sessions;
         try { return await StartCoachWithKeyAsync(session, bearer, gen); }
-        catch (System.Security.Cryptography.CryptographicException e)
+        catch (Exception e) when (e is System.Security.Cryptography.CryptographicException or FormatException)
         {
-            // The TPM key gone or refusing, as the iPad's catch covers every error: "Couldn't start." and why.
+            // The TPM key gone or refusing, or a kept passkey id that can't be read, as the iPad's catch covers every error:
+            // "Couldn't start." and why.
             return new(Tafs.Core.Coach.StartOutcome.Failed, w.Get("coach.couldnt_start", ("why", SessionStore.Why(e))));
         }
     }
@@ -375,7 +376,9 @@ public sealed partial class MainWindow : Window
                     var signature = await PlanqueEnrolment.MintSignatureAsync(key, session.Tenant, SigningTime.Next(DateTimeOffset.UtcNow));
                     return await KiffHttp.PostAsync(new Uri(kiff, PlanqueEnrolment.KeysPath), PlanqueEnrolment.MintBody(), bearer, w.Language,
                         signature: ("KIFF-Device-Signature", signature));
-                }),
+                },
+                // Signed out between planque's ask, KIFF's mint and the enrolment: nothing more is sent.
+                () => gen == sessions),
             SubmitDraft: (body, signature) => KiffHttp.PostAsync(new Uri(kiff, Tafs.Core.Coach.CoachStart.DraftPath), body, bearer, w.Language,
                 signature: signature),
             Claim: body => CloudSendAsync(bearer, Tafs.Core.Coach.CoachStart.SetupPath, body),
