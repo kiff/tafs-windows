@@ -160,12 +160,15 @@ public sealed partial class MainWindow : Window
         if (homeFile is not null)
         {
             _ = ReadHomeAsync(path => Task.FromResult(ContractRead(w, homeFile, path)));
+            CoachMode.Read = path => Task.FromResult(ContractRead(w, homeFile, path));
             // The first taf's page, its Activity from taf-activity.json beside the Home contract.
             if (page is "taf" or "taf-setup" && home?.Tafs.FirstOrDefault() is { } first)
                 OpenBeside(typeof(TafPage), OpenTaf(w, first.Id, page == "taf-setup" ? TafTab.Setup : TafTab.Activity));
         }
         else if (screenshot is null && !sample && App.Sessions.Kept() is { } session)
         {
+            // Coach's thread comes through the same read, as the session; a screenshot never reads it.
+            CoachMode.Read = path => CloudReadAsync(session.AccessToken, path);
             cloudReadWithProof = (path, proof) => CloudReadAsync(session.AccessToken, path, proof);
             setupProof = () => SetupProofAsync(session);
             Root.Loaded += async (_, _) => await ReadHomeAsync(path => CloudReadAsync(session.AccessToken, path));
@@ -232,14 +235,16 @@ public sealed partial class MainWindow : Window
     /// <summary>
     /// For screenshots, tafs cloud's answers from the contracts beside <paramref name="homeFile"/>: Home's from it, a taf's
     /// runs from taf-runs.json, a run's report from taf-run-report.json, its Activity from taf-activity.json and its Setup from
-    /// taf-setup.json. With no such file, it reads as not reached.
+    /// taf-setup.json; Coach's from coach-setup.json, coach-chats.json and coach-conversation.json. With no such file, it reads
+    /// as not reached.
     /// </summary>
     static CloudRead ContractRead(Tafs.Core.Words.WordBook w, string homeFile, string path)
     {
         var file = path == HomeList.Path ? homeFile
             : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!,
-                path.Contains("/activity?") ? "taf-activity.json" : path.EndsWith("/setup") ? "taf-setup.json"
-                : path.EndsWith("/runs") ? "taf-runs.json" : "taf-run-report.json");
+                path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "coach-setup.json"
+                : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json"
+                : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
         return File.Exists(file) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(file)) : CloudRead.Unreached(w);
     }
 

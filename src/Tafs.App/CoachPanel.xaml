@@ -55,7 +55,7 @@
                      Foreground="{ThemeResource TafsInk}" />
         </Grid>
         <!-- The intro, on Coach's wash, padded 20 as the iPad's. -->
-        <Grid Grid.Row="1" Grid.Column="1" Background="{ThemeResource TafsCoachWash}" Padding="20" RowSpacing="14">
+        <Grid x:Name="Intro" Grid.Row="1" Grid.Column="1" Background="{ThemeResource TafsCoachWash}" Padding="20" RowSpacing="14">
           <Grid.RowDefinitions>
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
@@ -65,12 +65,18 @@
             <TextBlock x:Name="Heading" FontSize="30" FontWeight="Bold" TextWrapping="Wrap" Foreground="{ThemeResource TafsCoach}"
                        AutomationProperties.HeadingLevel="Level1" />
             <TextBlock x:Name="LineText" FontSize="16" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+            <!-- Why the conversation couldn't be loaded, as the iPad's setupError under its intro. -->
+            <TextBlock x:Name="IntroError" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
           </StackPanel>
           <!-- Start: dimmed, as the iPad's is with nothing to start Coach with, until starting is wired. -->
           <Button x:Name="Start" Grid.Row="1" IsEnabled="False" Style="{StaticResource TafsPrimaryOff}" />
           <TextBlock x:Name="Footnote" Grid.Row="2" FontSize="12" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center"
                      Foreground="{ThemeResource TafsDim}" />
         </Grid>
+        <!-- Coach's thread, once it has one: drawn in code, as the iPad's SetupChatView.thread. -->
+        <ScrollViewer x:Name="ThreadView" Grid.Row="1" Grid.Column="1" Visibility="Collapsed" Padding="0,0,16,16">
+          <StackPanel x:Name="ThreadItems" Spacing="12" />
+        </ScrollViewer>
       </Grid>
     </Grid>
   </Grid>

@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Animation;
 using Tafs.Core.Coach;
+using Tafs.Core.Taf;
 using Windows.UI.ViewManagement;
 
 namespace Tafs.App;
@@ -16,6 +17,19 @@ public sealed partial class CoachPanel : UserControl
 
     /// <summary>After it has gone: the window gives focus back to what opened it.</summary>
     public event Action? Closed;
+
+    /// <summary>How the panel reads tafs cloud, as the session; none for the sample. Given while it's open, it reads at once.</summary>
+    public Func<string, Task<CloudRead>>? Read
+    {
+        get => read;
+        set
+        {
+            read = value;
+            if (IsOpen) _ = LoadThreadAsync();
+        }
+    }
+
+    Func<string, Task<CloudRead>>? read;
 
     public CoachPanel()
     {
@@ -59,7 +73,156 @@ public sealed partial class CoachPanel : UserControl
         Visibility = Visibility.Visible;
         if (animate) Animate(0, 1, 1);
         DispatcherQueue.TryEnqueue(() => Back.Focus(FocusState.Programmatic));
+        _ = LoadThreadAsync();
     }
+
+    /// <summary>
+    /// Coach's newest conversation, read as the panel opens, as the iPad's <c>loadSetupThread</c>. With messages, the thread
+    /// shows in place of the intro; with no Coach yet, none, or a read that fails, the intro stays.
+    /// </summary>
+    async Task LoadThreadAsync()
+    {
+        if (read is not { } reader) return;
+        var (thread, error) = await CoachChat.LoadAsync(App.Words, reader);
+        IntroError.Text = error ?? "";
+        IntroError.Visibility = error is null ? Visibility.Collapsed : Visibility.Visible;
+        if (thread is null || thread.Items.Count == 0) return;
+        ShowThread(thread);
+        Intro.Visibility = Visibility.Collapsed;
+        ThreadView.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>
+    /// The thread, as the iPad's <c>SetupChatView.thread</c>: a time between parts an hour apart; the person's words on the
+    /// right, in a brand bubble, "Answered the card above" under an answer; Coach's full width, "Worked for 12 s" above them,
+    /// which opens its steps; a run's start as a line; then what ended while the person was away, and how handed tasks went.
+    /// </summary>
+    void ShowThread(CoachThread thread)
+    {
+        var w = App.Words;
+        ThreadItems.Children.Clear();
+        var items = thread.Items;
+        for (var i = 0; i < items.Count; i++)
+        {
+            var m = items[i];
+            if (CoachChat.GapTime(w, items, i, DateTimeOffset.Now, TimeZoneInfo.Local) is { } gap)
+                ThreadItems.Children.Add(Words(gap, 12, "TafsDimText", HorizontalAlignment.Center));
+            // As the iPad's ChatBubble: a run's start is a line, inside either branch, so its work and answered line still show.
+            if (m.From == ChatFrom.Owner)
+            {
+                var said = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0) };
+                var words = CoachChat.OwnerWords(w, m.Text);
+                if (m.Kickoff) said.Children.Add(Kickoff(m));
+                else if (words.Length > 0)
+                    said.Children.Add(new Border
+                    {
+                        Background = Brush("TafsBrand"), CornerRadius = new CornerRadius(18),
+                        Padding = new Thickness(14, 10, 14, 10), HorizontalAlignment = HorizontalAlignment.Right,
+                        Child = new TextBlock { Text = words, FontSize = 15, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
+                            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White) },
+                    });
+                if (m.Answers is not null) said.Children.Add(Words(w.Get("chat.answered_card_above"), 12, "TafsDimText", HorizontalAlignment.Right));
+                if (said.Children.Count > 0) ThreadItems.Children.Add(said);
+            }
+            else
+            {
+                var said = new StackPanel { Spacing = 6 };
+                if (m.Work is { } work) said.Children.Add(WorkSummary(work));
+                if (m.Kickoff) said.Children.Add(Kickoff(m));
+                else
+                {
+                    var text = Words(m.Text, 16, "TafsInkText");
+                    text.IsTextSelectionEnabled = true;
+                    said.Children.Add(text);
+                }
+                ThreadItems.Children.Add(said);
+            }
+        }
+        var away = thread.Lines.Where(l => l.Away).ToList();
+        if (away.Count > 0)
+        {
+            var box = new StackPanel { Spacing = 6 };
+            var title = Words(w.Get("coach.away"), 14, "TafsInkText");
+            title.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+            box.Children.Add(title);
+            foreach (var line in away) box.Children.Add(Words($"{line.Taf}: {line.Said}", 13, "TafsSoftText"));
+            ThreadItems.Children.Add(new Border { Child = box, Padding = new Thickness(12), CornerRadius = new CornerRadius(14),
+                Background = Brush("TafsRaised") });
+        }
+        foreach (var line in thread.Lines.Where(l => !l.Away))
+            ThreadItems.Children.Add(Words($"↳ {line.Taf}: {line.Said}", 13, "TafsSoftText"));
+    }
+
+    /// <summary>A run's start, as the iPad's kickoff line: "Run started 09:00 · …", centred, two lines at most.</summary>
+    static TextBlock Kickoff(ChatMessage m)
+    {
+        var line = Words(App.Words.Get("chat.run_started_with", ("time", TimeZoneInfo.ConvertTime(m.At, TimeZoneInfo.Local).ToString("HH:mm",
+            System.Globalization.CultureInfo.InvariantCulture)), ("text", m.Text)), 12, "TafsDimText", HorizontalAlignment.Center);
+        line.MaxLines = 2;
+        line.TextTrimming = TextTrimming.CharacterEllipsis;
+        return line;
+    }
+
+    /// <summary>
+    /// A finished answer's work, folded, as the iPad's <c>WorkSummary(coach: true)</c>: "Worked for 12 s ›", which opens its
+    /// steps, each with its mark, in Coach's words, "2 tries" after a step tried again.
+    /// </summary>
+    StackPanel WorkSummary(ChatWork work)
+    {
+        var w = App.Words;
+        var rows = WorkLog.CoachRows(w, work);
+        var took = WorkLog.Duration(w, work.Ms);
+        var chevron = new FontIcon { Glyph = "\uE76C", FontSize = 11, Foreground = Brush("TafsDim") };
+        var label = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+        label.Children.Add(Words(w.Get("chat.work.worked_for", ("ms", took)), 13, "TafsDimText"));
+        label.Children.Add(chevron);
+        var toggle = new Button { Content = label, Style = (Style)Application.Current.Resources["TafsQuietButton"], Padding = new Thickness(0) };
+        AutomationProperties.SetName(toggle, w.Count("chat.work.worked_for_steps", rows.Count, ("took", took)));
+        AutomationProperties.SetHelpText(toggle, w.Get("chat.work.shows_steps"));
+        var steps = new StackPanel { Spacing = 4, Padding = new Thickness(6, 0, 0, 0), Margin = new Thickness(4, 0, 0, 0), Visibility = Visibility.Collapsed,
+            BorderThickness = new Thickness(1, 0, 0, 0), BorderBrush = Brush("TafsLine") };
+        foreach (var row in rows)
+        {
+            var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            line.Children.Add(new FontIcon { Glyph = row.Status switch { StepStatus.Error => "\uE783", StepStatus.NotMade => "\uE7A7", _ => "\uE73E" }, FontSize = 11, Width = 14,
+                Foreground = Brush(row.Status == StepStatus.Error ? "TafsNo" : "TafsDim") });
+            line.Children.Add(Words(WorkLog.Past(row.Words), 13, "TafsSoftText"));
+            if (row.Status == StepStatus.NotMade) line.Children.Add(Words(w.Get("chat.work.not_made_read_first"), 12, "TafsDimText"));
+            else if (row.Tries > 1) line.Children.Add(Words(w.Count("chat.work.tries", row.Tries), 12, "TafsDimText"));
+            steps.Children.Add(line);
+        }
+        toggle.Click += (_, _) =>
+        {
+            var open = steps.Visibility != Visibility.Visible;
+            steps.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+            chevron.Rotation = open ? 90 : 0;
+            AutomationProperties.SetHelpText(toggle, w.Get(open ? "chat.work.hides_steps" : "chat.work.shows_steps"));
+        };
+        chevron.CenterPoint = new System.Numerics.Vector3(5.5f, 5.5f, 0);
+        var summary = new StackPanel { Spacing = 6 };
+        summary.Children.Add(toggle);
+        summary.Children.Add(steps);
+        return summary;
+    }
+
+    /// <summary>
+    /// A theme brush in this panel's theme: Theme.xaml's dictionaries are merged into the app's, so they're looked for there;
+    /// a brush that's the same in both themes is the app's own.
+    /// </summary>
+    Microsoft.UI.Xaml.Media.Brush Brush(string key)
+    {
+        var theme = ActualTheme == ElementTheme.Dark ? "Dark" : "Light";
+        foreach (var merged in Application.Current.Resources.MergedDictionaries.Prepend(Application.Current.Resources))
+            if (merged.ThemeDictionaries.TryGetValue(theme, out var found) && found is ResourceDictionary d && d.TryGetValue(key, out var brush)
+                && brush is Microsoft.UI.Xaml.Media.Brush b)
+                return b;
+        return (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources[key];
+    }
+
+    static TextBlock Words(string text, double size, string style, HorizontalAlignment align = HorizontalAlignment.Left) =>
+        new() { Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, HorizontalAlignment = align,
+            TextAlignment = align == HorizontalAlignment.Center ? TextAlignment.Center : TextAlignment.Left,
+            Style = (Style)Application.Current.Resources[style] };
 
     /// <summary>It slides back out to the right (or fades), then tells the window it has gone.</summary>
     public void Close()
