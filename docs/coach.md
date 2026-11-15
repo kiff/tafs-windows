@@ -88,6 +88,24 @@ work, where the iPad's decoder fails the thread.
 - `--home` with `--page coach` reads tafs cloud's contracts beside the Home file: `setup-coach.json`, `coach-chats.json`
   and `coach-conversation.json`. CI saves Coach's thread that way (`coach-home`), and `CoachContractTests` read them.
 
+## Reporting an answer (`AnswerReport`, `ReportAnswerDialog`)
+
+Ported from the iPad's `ReportAnswerSheet` and `reportable`, `AppModel.canReport`/`reportAnswer`/`ReportOutcome` and
+`TafsCloud.ReportReason`/`reportAnswer` (kiff/tafs#421, Google Play's rule for content an AI generates). tafs-macos #77 is
+a second reference.
+- **Which answers:** Coach's, with words, not a run's start, with tafs cloud's id, for a KIFF account. Right-click (or
+  the menu key) on one gives **Report this answer**, with its flag. Copy stays on Ctrl+C.
+- **The dialog:** "What's wrong with it?" with Offensive, Harmful, Wrong and Other; the note ("Add a note (optional)"),
+  with the red line past 1,000 characters (as a person counts them); the footer, that a person at KIFF reads it.
+  Send is off with no reason, while sending, or past the limit.
+- **The request:** `POST /v1/tafs/{coach}/messages/{id}/report` with `reason`, the note trimmed (left out when blank)
+  and the answer's `session`.
+- **What it comes to:** `{"report": {"id", "at", "new"}}`: new says "Thanks. Someone at KIFF will read your report.",
+  else that it was reported already, each with Done. Not sent, it stays open with "Not sent:" and tafs cloud's `words`,
+  or that the answer isn't on tafs cloud any more (404), or "It didn't reach KIFF. Try again.", never tafs cloud's codes.
+  One answered after the person signed out says "You signed out."
+- **Not yet:** a taf's and a trial's answers, whose chats aren't on Windows yet.
+
 **Not yet:**
 - **Coach's words as Markdown:** they show as written until `MarkdownText` is ported.
 - **A Coach with an empty thread:** the iPad shows `starts` ("Ask anything"); here the intro stays until writing is ported.
