@@ -144,7 +144,8 @@ public sealed partial class NeedsYouPage : Page
             if (canAnswer)
             {
                 var busy = answering.Contains(step.Handoff);
-                var done = new Button { Content = step.Said.Done, Style = (Style)Application.Current.Resources["AccentButtonStyle"], IsEnabled = !busy };
+                // The iPad's PrimaryButtonStyle, and its look while off, as Coach's Send answers.
+                var done = new Button { Content = step.Said.Done, Style = (Style)Application.Current.Resources[busy ? "TafsPrimaryOff" : "TafsPrimary"], IsEnabled = !busy };
                 var skip = new Button { Content = step.Said.Skip, Style = (Style)Application.Current.Resources["TafsOutlineButton"], IsEnabled = !busy };
                 done.Click += (_, _) => StepAnswerChosen?.Invoke(step, true);
                 skip.Click += (_, _) => StepAnswerChosen?.Invoke(step, false);
