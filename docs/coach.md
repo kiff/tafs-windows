@@ -83,6 +83,19 @@ work, where the iPad's decoder fails the thread.
   Show them again). Answered, it's one line, "Your answers · Test mode · Weekdays", and the answer's bubble is folded in.
 - **A notice** (as `SetupComponentView.notice`): its title at 14 in its tone's colour (error the red, warning the amber,
   success the green, else soft), its words in the ink, on that colour at 10%.
+- **An approval** (as `SetupApproval`), its Approve and Decline off until approving is ported:
+  - "NEEDS YOU · APPROVE", and planque's own words for the connection, read from planque as this device with its digest
+    checked (`PlanqueGrants`); its exact terms under Details; "This request doesn't match what it shows" when the digest
+    doesn't; "Reading the request…" until it's read. A connection already connected says so in one line (tafs cloud's
+    `connection`, else "Stripe is connected").
+  - The taf's Card as KIFF drafted it (`KiffDrafts`), its title and lines; by tafs cloud's mark (`signs`), as the Card
+    approved next, under its words and dimmed.
+  - Where it stands (`ApprovalCard.State`): done only by its answer in the thread, never by planque's state alone;
+    declined; didn't go through, with why, or planque's reason when it failed the grant.
+  - Answered, one line ("Approved · Refunds' Card", "Declined · Stripe"), with the Card KIFF signed under it. A newer
+    request for the same connection folds the earlier one ("Approved · Setup asked for more below").
+  - Not yet: KIFF's words for a connection's profile (it says they aren't read), opening a folded card again, and the
+    key sheet.
 - **A confirm** (as `SetupComponentView.confirm`): Coach's question and its options as capsules; a tap answers the card with
   the option's value, as a questions card's answers go, and the options fade while it's sent. Answered, one line: "Live or
   test? · Test mode".
@@ -113,7 +126,7 @@ work, where the iPad's decoder fails the thread.
 - **A Coach with an empty thread:** the iPad shows `starts` ("Ask anything"); here the intro stays until writing is ported.
 - **See version 3,** which opens the taf's Versions on the iPad: Versions aren't ported, so the made line shows instead,
   as the iPad does when it can't find the taf.
-- **Coach's other cards** (approvals, sign-ins), and the conversation read's proof and `?can=`
+- **Coach's other cards** (sign-ins), approving, and the conversation read's proof and `?can=`
   (they mark approval cards).
 - **After an answer:** the iPad follows the run's stream as it writes; here the thread is read again, until the stream is
   ported. The AI-data consent's screen isn't ported, so a refusal for it leaves the card as it was, with no line.
