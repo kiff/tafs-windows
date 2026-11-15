@@ -21,6 +21,15 @@ public sealed record KiffAmount
     public string? Unit { get; }
     public int Scale { get; }
 
+    /// <summary>
+    /// The most decimal places an amount is written with, as the iPad's <c>Money</c>: past it, 10 to that power overflows,
+    /// so KIFF's amount isn't read as a figure at all.
+    /// </summary>
+    public const int MaxScale = 18;
+
+    /// <summary>Its scale is one a figure can be written with (<see cref="MaxScale"/>).</summary>
+    public bool Writable => Scale <= MaxScale;
+
     public static KiffAmount Euros(decimal euros) => new((long)decimal.Round(euros * 100), "EUR", 2);
 
     /// <summary>The same unit and scale: amounts that can be taken from one another.</summary>
@@ -28,10 +37,12 @@ public sealed record KiffAmount
 
     /// <summary>
     /// As shown in the app's language, never the PC's region: "€2,000" (a currency keeps its own symbol and isn't
-    /// converted), "1,500 credits" for another unit, "30,000" for none. Decimals only when it has some.
+    /// converted), "1,500 credits" for another unit, "30,000" for none. Decimals only when it has some. With a scale past
+    /// <see cref="MaxScale"/>, "–": no amount rather than a wrong one, and never a crash on KIFF's answer.
     /// </summary>
     public string Figure(WordBook w)
     {
+        if (!Writable) return "–";
         var culture = CultureInfo.GetCultureInfo(w.Language == "pt" ? "pt-PT" : w.Language);
         var value = Minor / (decimal)Math.Pow(10, Scale);
         var places = value == decimal.Truncate(value) ? 0 : Scale;
