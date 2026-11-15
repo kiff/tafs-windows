@@ -165,7 +165,8 @@ public class KiffHeldTests
               {"id":"c","subject":"rae-agent","action":"refund","entity_id":"e3","status":"held","kind":"card_unit","breaches":[],"created_at":"2026-10-19T19:00:00Z"}]}
             """).RootElement)!;
         var calls = KiffHeld.Calls(En, holds, agent => agent == "rae-agent" ? ("Rae", 4) : null);
-        Assert.Equal([("a", "Rae", 4), ("b", "stranger", 0)], calls.Select(c => (c.KiffId!, c.Taf, c.TafColor)));
+        // An agent Home doesn't list is "A taf", with no avatar and out of the sidebar, as the iPad's holderName ?? aTaf.
+        Assert.Equal([("a", "Rae", 4, true, true), ("b", "A taf", 0, false, false)], calls.Select(c => (c.KiffId!, c.Taf, c.TafColor, c.Listed, c.Avatar)));
     }
 
     /// <summary>Ordinals as Apple's formatter writes digits in each shipped language.</summary>
