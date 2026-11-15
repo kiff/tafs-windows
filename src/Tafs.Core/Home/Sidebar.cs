@@ -29,6 +29,15 @@ public static class Sidebar
         new(Screen.ConnectApps, w.Get("connect.apps.title"), ""),
     ];
 
+    /// <summary>
+    /// Needs you's count at its row's end, as the iPad's sidebar list draws a row's badge: a plain number, none at
+    /// zero. The row is then named with it, as the iPad's tab is: "Needs you, 2".
+    /// </summary>
+    public static (string? Count, string Name) NeedsYouCount(WordBook w, int waiting) =>
+        waiting > 0
+            ? (waiting.ToString(CultureInfo.GetCultureInfo(w.Language)), w.Get("needs_you.tab_label", ("n", waiting.ToString(CultureInfo.GetCultureInfo(w.Language)))))
+            : (null, w.Get("needs_you.title"));
+
     /// <summary>A section's label, as the iPad's Eyebrow: in capitals, by the language's own rules.</summary>
     public static string Eyebrow(WordBook w, string key) => w.Get(key).ToUpper(CultureInfo.GetCultureInfo(w.Language));
 

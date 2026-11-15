@@ -44,6 +44,13 @@ public class SidebarTests
         Assert.Equal("Account", Sidebar.Foot(En).AccountLabel);
     }
 
+    [Fact]
+    public void Needs_you_s_count_is_a_plain_number_and_names_the_row()
+    {
+        Assert.Equal(("2", "Needs you, 2"), Sidebar.NeedsYouCount(En, 2));
+        Assert.Equal((null, "Needs you"), Sidebar.NeedsYouCount(En, 0));
+    }
+
     [Theory]
     [InlineData("en", "YOUR TAFS")]
     [InlineData("fr", null)]
