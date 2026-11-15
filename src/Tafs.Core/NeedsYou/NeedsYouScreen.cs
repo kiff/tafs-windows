@@ -10,7 +10,14 @@ namespace Tafs.Core.NeedsYou;
 /// </summary>
 public sealed record HeldCall(
     string Taf, int TafColor, string Summary, string? Amount, string Context, string Reason,
-    DateTimeOffset ExpiresAt, IReadOnlyList<string> NextSteps, string? TafAbout = null, string? TafReason = null);
+    DateTimeOffset ExpiresAt, IReadOnlyList<string> NextSteps, string? TafAbout = null, string? TafReason = null)
+{
+    /// <summary>What it's on, one line an argument as KIFF keeps them, under Details (the iPad's <c>details</c>).</summary>
+    public IReadOnlyList<string> Details { get; init; } = [];
+
+    /// <summary>KIFF's id for the hold, when it came from KIFF.</summary>
+    public string? KiffId { get; init; }
+}
 
 /// <summary>What a held call's card says, top to bottom, as the iPad's HeldCallCard.</summary>
 public sealed record HeldCallLines(
