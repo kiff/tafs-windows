@@ -7,7 +7,7 @@ namespace Tafs.App;
 /// <summary>
 /// tafs for Windows. It draws what tafs cloud sends; this first shell has no network yet.
 /// Options: --lang &lt;code&gt; to speak a shipped language, --theme light|dark, --page pair|sign-in|needs-you|record|calendar|calendar-week|calendar-month|usage|connect-apps|account|coach|taf|taf-setup|taf-card to open a screen,
-/// --view-only to show the session as view-only, --sample for the iPad's sample held calls and Record, and --screenshot &lt;file.png&gt; to save the window and quit.
+/// --view-only to show the session as view-only, --sample for the iPad's sample held calls and Record, --home &lt;contract.json&gt; for Home's list from a file in place of tafs cloud, and --screenshot &lt;file.png&gt; to save the window and quit.
 /// </summary>
 public partial class App : Application
 {
@@ -41,7 +41,7 @@ public partial class App : Application
         Words = WordBook.Load(strings, AppLanguage.Pick(wanted, shipped));
 
         window = new MainWindow(Option("--screenshot"), Option("--theme"), Option("--page"), options.Contains("--view-only"),
-            options.Contains("--sample"));
+            options.Contains("--sample"), Option("--home"));
         WindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(window);
         window.Activate();
     }

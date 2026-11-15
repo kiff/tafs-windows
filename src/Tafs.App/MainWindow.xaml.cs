@@ -30,6 +30,10 @@ public sealed partial class MainWindow : Window
 
     /// <summary>The Record's lines: from tafs cloud and KIFF in their own change; until then none, or the iPad's sample.</summary>
     readonly IReadOnlyList<RecordEntry> record;
+    /// <summary>The Overview's lines: tafs cloud's once Home is read, else none, or the sample's.</summary>
+    IReadOnlyList<OverviewRow> overviewRows;
+    /// <summary>Home's answer from tafs cloud, for a taf's page; none until it's read.</summary>
+    HomeAnswer? home;
     readonly bool sample;
     readonly UsageReads usage;
     readonly ConnectAppsList? connectApps;
@@ -40,7 +44,8 @@ public sealed partial class MainWindow : Window
     /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you", "record", "calendar" (Day), "calendar-week", "calendar-month", "usage", "connect-apps", "account", "coach", or "taf" / "taf-setup" / "taf-card" (the sample's Refunds on its Activity, Setup or Card, with --sample). Otherwise the Overview.</param>
     /// <param name="viewOnly">The session can't approve yet: show the View only notice above every screen.</param>
     /// <param name="sample">Show the iPad's sample held calls and Record: for screenshots.</param>
-    public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false)
+    /// <param name="homeFile">Home's list from a contract file (contracts/home.json) in place of tafs cloud: for screenshots.</param>
+    public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false, string? homeFile = null)
     {
         InitializeComponent();
         // --theme for CI's screenshots, else the one chosen in Account last time, else the system's.
@@ -56,6 +61,7 @@ public sealed partial class MainWindow : Window
         record = sample ? RecordScreen.Sample(w, DateTimeOffset.UtcNow) : [];
         usage = sample ? new(UsageScreen.SampleBalance(w), UsageScreen.SampleCredits(w), UsageScreen.SampleCredits(w, previous: true)) : new(null, null, null);
         connectApps = sample ? ConnectAppsScreen.Sample() : null;
+        overviewRows = sample ? OverviewScreen.SampleRows(w, DateTimeOffset.UtcNow) : [];
         var at = Nav.MenuItems.IndexOf(BrandItem) + 1;
         foreach (var item in Sidebar.Screens(w))
         {
@@ -95,7 +101,7 @@ public sealed partial class MainWindow : Window
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
         // Focus goes back to the sidebar's Coach when Coach mode has gone.
         CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
-        OverviewPage.TafChosen += key => OpenBeside(typeof(TafPage), SampleTaf(w, key, TafTab.Activity));
+        OverviewPage.TafChosen += key => OpenBeside(typeof(TafPage), OpenTaf(w, key));
         OverviewPage.NeedsYouChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         SignInPage.SignedIn += session =>
         {
@@ -142,6 +148,42 @@ public sealed partial class MainWindow : Window
             OpenBeside(typeof(TafPage), SampleTaf(w, page switch { "taf-setup" => TafTab.Setup, "taf-card" => TafTab.Card, _ => TafTab.Activity }));
         else Nav.SelectedItem = BrandItem;
         if (screenshot is not null) Root.Loaded += async (_, _) => await SaveAndQuitAsync(screenshot);
+        if (homeFile is not null) ShowHome(HomeList.Read(w, Tafs.Core.Contracts.ContractFile.Answer(homeFile), TimeZoneInfo.Local));
+        else if (screenshot is null && !sample && App.Sessions.Kept() is { } session) Root.Loaded += async (_, _) => await ReadHomeAsync(session.AccessToken);
+    }
+
+    /// <summary>
+    /// Home's list from tafs cloud, as the session, once the window is up: the Overview's lines and Your tafs. An answer
+    /// that can't be read leaves them as they were ("No tafs yet."). A screenshot never reads it.
+    /// </summary>
+    async Task ReadHomeAsync(string bearer)
+    {
+        var w = App.Words;
+        HomeAnswer read;
+        try
+        {
+            var (status, body) = await KiffHttp.GetAsync(new Uri(HomeList.Api, HomeList.Path), bearer, w.Language);
+            if (status != 200) return;
+            using var json = System.Text.Json.JsonDocument.Parse(body);
+            read = HomeList.Read(w, json.RootElement, TimeZoneInfo.Local);
+        }
+        catch (Exception e) when (e is System.Net.Http.HttpRequestException or System.Text.Json.JsonException) { return; }
+        ShowHome(read);
+    }
+
+    /// <summary>Home's answer on the Overview and under Your tafs, and for a taf's page.</summary>
+    void ShowHome(HomeAnswer read)
+    {
+        var w = App.Words;
+        home = read;
+        overviewRows = HomeList.Rows(w, home);
+        var yours = HomeList.YourTafs(w, home, DateTimeOffset.UtcNow);
+        AddYourTafs(yours);
+        // As the iPad's sidebar: the line for no tafs only with none at all, and with tafs but none relevant now, no Your
+        // tafs: they're all on the Overview.
+        NoTafs.Visibility = home.Tafs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        YourTafs.Visibility = home.Tafs.Count > 0 && yours.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows);
     }
 
     /// <summary>
@@ -255,13 +297,13 @@ public sealed partial class MainWindow : Window
         if (args.SelectedItem is not NavigationViewItem item) return;
         ShowAccountChosen(false);
         if (item == BrandItem)
-            Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, sample ? OverviewScreen.SampleRows(App.Words, DateTimeOffset.UtcNow) : []));
+            Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, overviewRows));
         else if (item.Tag is Screen.NeedsYou or HeldCall) Pages.Navigate(typeof(NeedsYouPage), held);
         else if (item.Tag is Screen.Record) Pages.Navigate(typeof(RecordPage), record);
         else if (item.Tag is Screen.Usage) Pages.Navigate(typeof(UsagePage), usage);
         else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), connectApps);
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
-        else if (item.Tag is TafRow taf) Pages.Navigate(typeof(TafPage), SampleTaf(App.Words, taf.Key, TafTab.Activity));
+        else if (item.Tag is TafRow taf) Pages.Navigate(typeof(TafPage), OpenTaf(App.Words, taf.Key));
         else Pages.Navigate(typeof(ComingPage), item.Content);
     }
 
@@ -283,6 +325,16 @@ public sealed partial class MainWindow : Window
 
     /// <summary>The taf the reference set opens: the sample's Refunds, on its Activity (taf.png), its Setup (taf-setup.png) or its Card (taf-card.png).</summary>
     TafOpening SampleTaf(Tafs.Core.Words.WordBook w, TafTab opensOn) => SampleTaf(w, "refunds", opensOn);
+
+    /// <summary>
+    /// A taf's page from its line: from Home's answer, its head (its state in the app's words) and its Card bar; its
+    /// Activity, Setup and Cards come with their reads. Otherwise the sample's.
+    /// </summary>
+    TafOpening OpenTaf(Tafs.Core.Words.WordBook w, string key) =>
+        home?.Tafs.FirstOrDefault(t => t.Id == key) is { } taf
+            ? new(TafScreen.Head(w, taf.Name, taf.Colour, taf.StateKey), taf.Cards.FirstOrDefault()?.Bar(w, taf.Cards.Count),
+                filter => new ActivityPage([], [], filter, null, null))
+            : SampleTaf(w, key, TafTab.Activity);
 
     /// <summary>
     /// A sample taf's page, opened from its Overview line: its head (Waiting when a call of its waits), its Card bar and its

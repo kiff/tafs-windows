@@ -10,6 +10,10 @@ closing the window would sign the PC out while its device stayed at KIFF.
 - **Reading it:**
   - only for KIFF's exact API host (`api.kiff.dev`), and only until it expires;
   - an unreadable one reads as none.
+- **Where its token goes** (`KeptSessions.MaySendTo`): https only, on exactly `api.kiff.dev` or tafs cloud's
+  `cloud.tafs.kiff.dev`, on the default port, with no user in the link. tafs cloud asks KIFF who the session is, and gets
+  only reads (`GET /v1/home`). `KiffHttp.GetAsync` refuses any other link before sending. On a redirect, .NET drops the
+  `Authorization` header, so the token doesn't follow it.
 - **`approval_mode`:** `view`, `key` or `passkey`, from KIFF's answer. An unknown word, or none (`device_key`
   included), counts as view. The view-only notice shows exactly when the kept session says view.
 - **Keeping one** (`KeptSessions.Replace`):
