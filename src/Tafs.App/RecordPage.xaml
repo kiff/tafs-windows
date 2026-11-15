@@ -33,6 +33,9 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="local:RecordLineView">
+                    <!-- A tap opens its sheet, as the iPad's RecordRow. -->
+                    <Button Style="{StaticResource TafsRow}" Background="Transparent" Padding="0" Click="OnLine" Tag="{x:Bind Entry}"
+                            AutomationProperties.Name="{x:Bind Name}" AutomationProperties.HelpText="{x:Bind Hint}">
                     <Border Background="{ThemeResource TafsPanel}" BorderBrush="{ThemeResource TafsLine}" BorderThickness="1"
                             CornerRadius="14" Padding="14">
                       <Grid ColumnSpacing="12">
@@ -63,6 +66,7 @@
                         </StackPanel>
                       </Grid>
                     </Border>
+                    </Button>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
