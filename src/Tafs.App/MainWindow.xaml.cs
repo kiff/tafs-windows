@@ -361,24 +361,21 @@ public sealed partial class MainWindow : Window
         }
         var reading = sessions;
         var bearer = session.AccessToken;
-        var prompt = w.Get("needs_you.prompt.answer", ("summary", call.Summary));
         sendingHolds.Add(id);
         needsYouError = null;
         ShowHeld(held);
         ShowSteps();
         var hello = new WindowsHello(() => App.WindowHandle);
         var credential = session.PasskeyId is { } passkeyId ? KiffSigning.FromBase64Url(passkeyId) : null;
-        var answered = await HeldAnswers.AnswerAsync(w, call, answer, session.Tenant,
+        var answered = await HeldAnswers.AnswerAsync(w, call, answer, session.Tenant, session.Mode, session.PasskeyId,
+            // The device key's answer asks for the person first, as the iPad's signer.sign(message, reason:).
+            ConfirmStepAsync,
             message => credential is null
                 ? Task.FromException<System.Text.Json.Nodes.JsonObject>(new PasskeyRefusedException("this PC has no passkey"))
                 : HeldAnswers.PasskeyAsync(message, credential,
                     clientData => hello.GetAssertionAsync(PasskeyApprover.RpId, credential, clientData, CancellationToken.None)),
             async message =>
             {
-                // The device key's answer asks for the person first, as the iPad's deviceOwnerAuthentication.
-                var confirmed = await ConfirmStepAsync(prompt);
-                if (confirmed == StepConfirmed.Cancelled) throw new OperationCanceledException();
-                if (confirmed != StepConfirmed.Yes) throw new InvalidOperationException("not confirmed");
                 using var key = TpmKey.Open(session.KeyName);
                 return Convert.ToBase64String(await key.SignDerAsync(message));
             },
