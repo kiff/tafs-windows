@@ -17,16 +17,19 @@ public sealed record StartResult(StartOutcome Outcome, string? Why = null, strin
 }
 
 /// <summary>
-/// What Start sends, and how, given by the app and faked in tests. <see cref="SignDraft"/> signs Setup's draft: with the
+/// What Start sends, and how, given by the app and faked in tests. <see cref="SignDraft"/> signs a draft: with the
 /// device key for a key session, which asks no one, or with this PC's passkey for a passkey session, which is its one
-/// Windows Hello. <see cref="Confirm"/> asks Windows Hello over a message. Each send throws
-/// <see cref="HttpRequestException"/> when not reached.
+/// Windows Hello. <see cref="SignTogether"/> signs tafs cloud's pair once with the device key (<see cref="RequestsTogether"/>);
+/// <see cref="SendBatch"/> sends its batch to KIFF's gateway. <see cref="Confirm"/> asks Windows Hello over a message.
+/// Each send throws <see cref="HttpRequestException"/> when not reached.
 /// </summary>
 public sealed record StartCalls(
     Func<Task<CloudRead>> ReadSetup,
     Func<byte[], byte[], Task> Confirm,
     Func<byte[], DateTimeOffset, Task<(string Header, string Value)>> SignDraft,
+    Func<StartRequest, StartRequest, DateTimeOffset, Task<(string Batch, string Draft)>> SignTogether,
     Func<Task<EnrolResult>> Enrol,
+    Func<byte[], (string Header, string Value), Task<(int Status, string Body)>> SendBatch,
     Func<byte[], (string Header, string Value), Task<(int Status, string Body)>> SubmitDraft,
     Func<byte[], Task<CloudRead>> Claim,
     Func<DateTimeOffset> Now);
@@ -41,6 +44,14 @@ public static class CoachStart
 {
     public const string SetupPath = "/v1/setup";
     public const string DraftPath = "/v1/me/agent-drafts";
+
+    /// <summary>KIFF's gateway, as the iPad's <c>KIFFClient.gatewayURL</c>: where Coach's tools batch goes, with the session's token.</summary>
+    public static readonly Uri Gateway = new("https://mcp.kiff.dev");
+
+    /// <summary>Whether a call may go to the gateway: https, on exactly its host, on the default port, with no user in it.</summary>
+    public static bool IsGateway(Uri url) =>
+        url.IsAbsoluteUri && url.Scheme == Uri.UriSchemeHttps && url.UserInfo.Length == 0 && url.IsDefaultPort
+        && string.Equals(url.Host, Gateway.Host, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Setup's agent in KIFF, as the iPad's <c>AppModel.setupAgent</c>.</summary>
     public const string SetupAgent = "setup";
@@ -81,8 +92,10 @@ public static class CoachStart
     /// cloud's claim of its key. The one confirmation comes before anything is sent: for a passkey session, Windows Hello
     /// asserting Setup's draft itself, built in full first (as the iPad's prepared requests), or, with Coach already there,
     /// over <see cref="Message"/>. <c>/v1/setup</c> is read before it, so nothing is asked for what won't be sent.
-    /// tafs cloud's own first start (<c>start</c>, the tools and Coach's Cards signed together) isn't on this PC yet: it
-    /// says so as <see cref="StartOutcome.FirstStart"/>, and nothing is asked or sent.
+    /// With tafs cloud's first start (<see cref="FirstStart"/>, as the iPad's <c>startCoachTogether</c>), its draft goes in
+    /// place of Setup's: alone, signed as Setup's is; or with the tools batch, both signed once by the device key
+    /// (<c>kiff.requests.v1</c>), the batch first and the draft once the batch answered. A passkey session can't sign the
+    /// pair (<see cref="StartOutcome.FirstStart"/>): nothing is asked or sent.
     /// </summary>
     public static async Task<StartResult> StartAsync(WordBook w, KeptSession session, bool planqueReady, StartCalls calls)
     {
@@ -91,14 +104,22 @@ public static class CoachStart
         if (read.Answer is not { } setup) return Failed(w, read.Why);
         var coach = Lenient.Text(Lenient.Field(setup, "setup") ?? default, "id");
         if (coach is not null && planqueReady) return new(StartOutcome.Started, Coach: coach);
-        if (coach is null && Startable(setup)) return new(StartOutcome.FirstStart);
+        var first = coach is null && FirstStart.Read(setup) is { Startable: true } f ? f : null;
+        // Signed only as Start's own screen draws it (its words, Coach's Cards in KIFF's): the tools step that shows them
+        // otherwise isn't on this PC yet. And kiff.requests.v1 is one approval-key signature: a passkey's assertion can't be it.
+        if (first is { OneScreen: false } || (first is { Together: true } && session.Mode != ApprovalMode.Key)) return new(StartOutcome.FirstStart);
 
         byte[]? draft = null;
         (string Header, string Value) signature = default;
+        (string Batch, string Draft)? together = null;
         if (coach is null)
         {
-            draft = DraftBody();
-            try { signature = await calls.SignDraft(draft, calls.Now()); }
+            draft = first?.Draft!.Body ?? DraftBody();
+            try
+            {
+                if (first is { Together: true }) together = await calls.SignTogether(first.Connect!, first.Draft!, calls.Now());
+                else signature = await calls.SignDraft(draft, calls.Now());
+            }
             catch (OperationCanceledException) { return new(StartOutcome.Cancelled); }
             catch (PasskeyRefusedException e) { return Failed(w, e.Message); }
         }
@@ -112,6 +133,14 @@ public static class CoachStart
 
         int status;
         string body;
+        if (together is { } pair)
+        {
+            // The batch first; the draft only once it answered, as the iPad's sendTogether.
+            try { (status, body) = await calls.SendBatch(first!.Connect!.Body, (DeviceSignature, pair.Batch)); }
+            catch (HttpRequestException) { return Failed(w, CloudRead.Unreached(w).Why); }
+            if (status is < 200 or > 299) return Failed(w, CloudRead.Refused(w, status, body).Why);
+            signature = (DeviceSignature, pair.Draft);
+        }
         try { (status, body) = await calls.SubmitDraft(draft!, signature); }
         catch (HttpRequestException) { return Failed(w, CloudRead.Unreached(w).Why); }
         if (status is < 200 or > 299) return Failed(w, CloudRead.Refused(w, status, body).Why);
@@ -122,6 +151,8 @@ public static class CoachStart
             ? new(StartOutcome.Started, Coach: started)
             : Failed(w, w.Get("error.ours"));
     }
+
+    const string DeviceSignature = "KIFF-Device-Signature";
 
     static StartResult Failed(WordBook w, string? why) => new(StartOutcome.Failed, w.Get("coach.couldnt_start", ("why", why ?? "")));
 
@@ -135,26 +166,5 @@ public static class CoachStart
                 ? (id, secret) : null;
         }
         catch (JsonException) { return null; }
-    }
-
-    /// <summary>
-    /// tafs cloud's first start, as the iPad's <c>CoachStart.startable</c>: <c>to_give</c>, with Coach's Cards' draft (a
-    /// <c>POST</c> to <c>/v1/me/agent-drafts</c>, with its Cards' words), alone under <c>kiff.request.v1</c> or with the tools batch under
-    /// <c>kiff.requests.v1</c>. Only before Coach exists.
-    /// </summary>
-    public static bool Startable(JsonElement setup)
-    {
-        if (Lenient.Field(setup, "start") is not { ValueKind: JsonValueKind.Object } start || Lenient.Text(start, "state") != "to_give") return false;
-        if (Lenient.Field(start, "requests") is not { ValueKind: JsonValueKind.Array } requests) return false;
-        JsonElement? Request(string id) => requests.EnumerateArray().Where(r => r.ValueKind == JsonValueKind.Object && Lenient.Text(r, "id") == id)
-            .Select(r => (JsonElement?)r).FirstOrDefault();
-        static bool Gateway(JsonElement r) => r.TryGetProperty("gateway", out var g) && g.ValueKind == JsonValueKind.True;
-        if (Request("draft") is not { } draft || Lenient.Text(draft, "method") != "POST" || Lenient.Text(draft, "path") != DraftPath || Gateway(draft)) return false;
-        // Never Cards the person hasn't read in KIFF's own words.
-        if (Lenient.Field(draft, "cards") is not { ValueKind: JsonValueKind.Array } cards || cards.GetArrayLength() == 0) return false;
-        var scheme = Lenient.Text(start, "scheme");
-        if (Request("connect") is { } connect)
-            return scheme == "kiff.requests.v1" && Lenient.Text(connect, "method") == "POST" && Lenient.Text(connect, "path") == "/v1/connections/batch" && Gateway(connect);
-        return scheme == "kiff.request.v1";
     }
 }

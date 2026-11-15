@@ -331,6 +331,7 @@ public sealed partial class MainWindow : Window
             ReadSetup: () => CloudReadAsync(bearer, Tafs.Core.Coach.CoachStart.SetupPath),
             Confirm: (credential, message) => new PasskeyApprover(hello, credential, Features.WindowsPasskeyApprovals).ConfirmAsync(message),
             SignDraft: (body, at) => Tafs.Core.Coach.CoachStart.SignDraftAsync(session, key, passkey, body, at),
+            SignTogether: (connect, draft, at) => Tafs.Core.Coach.RequestsTogether.SignAsync(key, session.Tenant, connect, draft, at),
             Enrol: () => PlanqueEnrolment.EnrolAsync(w, key.PublicKeyDer,
                 async body =>
                 {
@@ -347,6 +348,8 @@ public sealed partial class MainWindow : Window
                     return await KiffHttp.PostAsync(new Uri(kiff, PlanqueEnrolment.KeysPath), PlanqueEnrolment.MintBody(), bearer, w.Language,
                         signature: ("KIFF-Device-Signature", signature));
                 }),
+            SendBatch: (body, signature) => KiffHttp.GatewayPostAsync(new Uri(Tafs.Core.Coach.CoachStart.Gateway, "/v1/connections/batch"), body,
+                bearer, w.Language, signature),
             SubmitDraft: (body, signature) => KiffHttp.PostAsync(new Uri(kiff, Tafs.Core.Coach.CoachStart.DraftPath), body, bearer, w.Language,
                 signature: signature),
             Claim: body => CloudSendAsync(bearer, Tafs.Core.Coach.CoachStart.SetupPath, body),

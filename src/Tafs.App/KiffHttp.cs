@@ -80,6 +80,23 @@ static class KiffHttp
         return await SendAsync(request, cancel, Patient);
     }
 
+    /// <summary>
+    /// Coach's tools batch to KIFF's gateway as the session, as the iPad's <c>connectBatch</c>: its bytes as tafs cloud wrote
+    /// them, signed with <paramref name="signature"/>. Only the gateway's exact host gets the token this way.
+    /// </summary>
+    /// <exception cref="HttpRequestException">It wasn't reached, or isn't the gateway.</exception>
+    public static async Task<(int Status, string Body)> GatewayPostAsync(Uri url, byte[] body, string bearer, string language,
+        (string Header, string Value) signature, CancellationToken cancel = default)
+    {
+        if (!Tafs.Core.Coach.CoachStart.IsGateway(url)) throw new HttpRequestException("not KIFF's gateway");
+        using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = new ByteArrayContent(body) };
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
+        request.Headers.Add(signature.Header, signature.Value);
+        return await SendAsync(request, cancel, Patient);
+    }
+
     /// <summary>A JSON POST to planque as this device (its enrolment), signed with <c>Planque-Device-Signature</c>, with no token.</summary>
     /// <exception cref="HttpRequestException">It wasn't reached, or isn't planque.</exception>
     public static async Task<(int Status, string Body)> PlanquePostAsync(Uri url, byte[] body, string deviceSignature, string language,
