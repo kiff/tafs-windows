@@ -17,6 +17,15 @@ public sealed record HeldCall(
 
     /// <summary>KIFF's id for the hold, when it came from KIFF.</summary>
     public string? KiffId { get; init; }
+
+    /// <summary>KIFF's accounting version for the hold, signed with the answer.</summary>
+    public int? AccountingVersion { get; init; }
+
+    /// <summary>
+    /// Whether approving it once can pass it (the iPad's <c>approvableOnce</c>): not when it's over a total the Card keeps
+    /// across calls, which only extra room or a change to the Card lifts.
+    /// </summary>
+    public bool ApprovableOnce { get; init; } = true;
 }
 
 /// <summary>What a held call's card says, top to bottom, as the iPad's HeldCallCard.</summary>

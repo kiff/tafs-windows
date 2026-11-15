@@ -76,6 +76,27 @@ Ported from the iPad's `DidThisHappenCard` (NeedsYouView.swift), `KIFFClient.Unp
   the card says why it can't and offers **Add this Windows PC**, as a held call's does, for someone who answers held
   calls. The line about No goes with the buttons, so it isn't shown.
 
+## Answering a held call (`HeldAnswers`), the signing
+
+Ported from the iPad's `AppModel.answer(_:with:)`, `kiffAnswer`, `canAnswer`, `lastingRefusal`, `refusesOnly` and
+`KIFFClient.answerMessage`/`approveOnce`/`reject`/`changeCard`, signed as KIFF's desktop spec says (§2.5, §2.6). The
+card's buttons come with the passkey's wiring; this is what they send.
+- **The message:** `kiff.answer.v1`: tenant, the hold's id, `approve-once`, `reject` (a next step too) or
+  `change-card`, the next step or empty, sha256 of the note in hex or empty, KIFF's accounting version for the hold, and
+  signed-at.
+- **Which key:** approving once and extra room grant authority, so this PC's passkey signs them. One fresh Windows Hello
+  assertion, its challenge base64url(sha256) of the message, checked before anything is sent: kiff.dev, the person
+  verified, a passkey that can't leave this PC. It goes as `"signature": {"signed_at", "passkey": {credential_id,
+  client_data_json, authenticator_data, signature}}`. A refusal, with a next step or not, grants nothing: the device key
+  (TPM) signs it, as `"signature": {"signed_at", "value"}`.
+- **The routes:** `POST /v1/me/card-exceptions/{id}/approve-once`, `…/reject` (with `next_step`) and `…/change-card`.
+- **Who answers here:** the hold came from KIFF with its version, the tenant is known, and the session's device key is
+  here. Approving takes a passkey session with this PC's own passkey besides.
+- **What it comes to:** closing Windows Hello is "Cancelled, so nothing was approved…"; an assertion KIFF would refuse is
+  "Not sent: it wasn't confirmed."; either way nothing is sent and the call stays. KIFF's refusal is worded as the iPad's
+  (`self_review`, `role_forbidden`…), and a lasting one is kept for the card: `self_review` leaves Refuse and the next
+  steps, any other takes the answers away. A sign-out at any point sends nothing more.
+
 ## Where the calls come from
 
 **From KIFF** (`KiffHeld`), as the iPad's `KIFFClient.heldCalls` and `KIFFMapping.held`, with each refresh of Home's
