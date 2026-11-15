@@ -50,9 +50,11 @@ Ported from the iPad's `DidThisHappenCard` (NeedsYouView.swift), `KIFFClient.Unp
   call, else its title, 15 semibold; the amount only without KIFF's words (two places unless KIFF says, and "725 (no
   currency)" with no unit); why KIFF asks, in its words, 13 soft.
 - **"Nothing waiting"** only with no held call and no call to say about.
-- **The answers:** the iPad's Yes and No are signed like an approval (`tafs.happened.v1|…`). Until this PC approves,
-  the card says why it can't and offers **Add this Windows PC**, as a held call's does, for someone who answers held
-  calls. The line about No goes with the buttons, so it isn't shown.
+- **The answers:** the iPad's Yes and No are signed like an approval (`tafs.happened.v1|…`). On a view-only PC, for
+  someone who answers held calls, the card says why it can't approve and offers **Add this Windows PC**, as the iPad's
+  `ApprovalGate` shows `ApprovalNotReady` only while a device can't approve. A PC that approves (a key or passkey
+  session) shows neither the line nor buttons until Yes and No are ported. The line about No goes with the buttons, so
+  it isn't shown.
 
 ## Where the calls come from
 

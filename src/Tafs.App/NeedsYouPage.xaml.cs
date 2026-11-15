@@ -135,7 +135,7 @@ public sealed partial class NeedsYouPage : Page
             lines.Children.Add(Line(said, 15, "TafsInkText", semibold: true));
             if (amount is not null) lines.Children.Add(Line(amount, 15, "TafsInkText"));
             if (why is not null) lines.Children.Add(Line(why, 13, "TafsSoftText"));
-            if (mayAnswerHolds)
+            if (DidThisHappen.Gate(mayAnswerHolds, App.Sessions.Kept()?.Mode ?? Tafs.Core.Kiff.ApprovalMode.View))
             {
                 var add = new Button { Content = gate.Add, Style = (Style)Application.Current.Resources["TafsOutlineButton"] };
                 add.Click += OnAddThisDevice;

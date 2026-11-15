@@ -298,8 +298,10 @@ public sealed partial class MainWindow : Window
     async Task ReadUnprovenAsync(int reading)
     {
         if (kiffRead is not { } read || sampleHeld) return;
-        mayAnswerHolds = DidThisHappen.MayAnswerHolds(Tafs.Core.Coach.CoachAccess.Capabilities((await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer));
+        // Read into a local first: an answer from an earlier session never replaces this one's, as the iPad's accountGeneration.
+        var may = DidThisHappen.MayAnswerHolds(Tafs.Core.Coach.CoachAccess.Capabilities((await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer));
         if (reading != sessions) return;
+        mayAnswerHolds = may;
         if (mayAnswerHolds && (await read(DidThisHappen.Path)).Answer is { } json && reading == sessions && DidThisHappen.Read(json) is { } calls)
             unproven = calls;
         if (reading == sessions && Pages.Content is NeedsYouPage page) page.ShowUnproven(unproven, mayAnswerHolds);
