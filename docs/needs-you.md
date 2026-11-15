@@ -107,7 +107,8 @@ Notification Center without a banner or sound, as the iPad's passive alert (tafs
 - **Clicking one** brings the window forward and opens Needs you with that hold's card in view, whether tafs was open or
   the click started it. The hold is kept until Needs you lists it, as the iPad's `requestedHold`: a click that started
   tafs lands on it after sign-in's first read, and one naming a hold not read yet reads KIFF again (`onHoldAlert`). A
-  sign-out forgets it.
+  session starting keeps it (a click while signed out lands after signing in); only a sign-out forgets it. Starting a
+  session clears tafs's notifications.
 - **How:** the Windows App SDK's `AppNotificationManager`, which works for an unpackaged app. It's registered at start
   (never for a screenshot). On a PC that refuses it, there are no notifications, and Needs you still shows every hold.
 - **Not yet:**

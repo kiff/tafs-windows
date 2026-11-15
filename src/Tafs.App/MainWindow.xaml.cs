@@ -205,6 +205,7 @@ public sealed partial class MainWindow : Window
         AccountPage.SignedOut += () =>
         {
             ViewOnly.IsOpen = false;
+            requestedHold = null;
             ForgetSession();
             OpenSignIn();
         };
@@ -429,7 +430,8 @@ public sealed partial class MainWindow : Window
         if (Pages.Content is RecordPage page) page.ShowEntries(record);
         if (!sampleHeld) ShowHeld([]);
         notified = null;
-        requestedHold = null;
+        // The requested hold is kept: a session starting (a cold start from a click, or signing in after one) forgets the
+        // last one's state first, and the click must still land once Needs you lists it. Only a sign-out drops it.
         Toasts.RemoveAll();
         heldClock.Stop();
         ShowHome(new HomeAnswer([], null));
