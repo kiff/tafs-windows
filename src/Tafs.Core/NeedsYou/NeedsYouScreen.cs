@@ -59,6 +59,24 @@ public static class NeedsYouScreen
             w.Get(expired ? "needs_you.expired_line" : "needs_you.nothing_sent"), !expired);
     }
 
+    /// <summary>"answer by 00:27": when the call lapses, in this PC's time, 24-hour, as the iPad shows it.</summary>
+    public static string AnswerBy(WordBook w, HeldCall call, TimeZoneInfo zone) =>
+        w.Get("needs_you.answer_by", ("time", TimeZoneInfo.ConvertTime(call.ExpiresAt, zone).ToString("HH:mm", CultureInfo.InvariantCulture)));
+
+    /// <summary>
+    /// A held call in the sidebar, under NEEDS YOU (the iPad's heldRow): "Deploys: Run migration…", then
+    /// "Schema migrations: always asks you · answer by 00:27".
+    /// </summary>
+    public static (string Title, string Line) SidebarRow(WordBook w, HeldCall call, TimeZoneInfo zone)
+    {
+        var time = TimeZoneInfo.ConvertTime(call.ExpiresAt, zone).ToString("HH:mm", CultureInfo.InvariantCulture);
+        return ($"{call.Taf}: {call.Summary}", w.Get("home.reason_answer_by", ("why", call.Reason), ("time", time)));
+    }
+
+    /// <summary>A held call on the Overview, under NEEDS YOU: "Deploys · Run migration…", and "answer by 00:27" at its end.</summary>
+    public static (string Title, string AnswerBy) OverviewRow(WordBook w, HeldCall call, TimeZoneInfo zone) =>
+        ($"{call.Taf} · {call.Summary}", AnswerBy(w, call, zone));
+
     /// <summary>
     /// Where the answers go, until this PC approves with Windows Hello (its own change): why it can't, and Add
     /// this Windows PC. Words, as the iPad's ApprovalNotReady, never buttons that can't work.

@@ -3,6 +3,7 @@
 <Page x:Class="Tafs.App.OverviewPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:local="using:Tafs.App"
       Background="{ThemeResource TafsBackground}">
   <ScrollViewer>
     <!-- Up to 980 wide with its padding of 24, from the leading edge, as on the iPad. -->
@@ -15,6 +16,33 @@
       <StackPanel Spacing="4">
         <TextBlock x:Name="Heading" FontSize="30" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
         <TextBlock x:Name="Subtitle" FontSize="14" Foreground="{ThemeResource TafsDim}" />
+      </StackPanel>
+
+      <!-- What waits for the person, above the tafs: one raised row per held call, as on the iPad. -->
+      <StackPanel x:Name="NeedsYou" Spacing="8" Visibility="Collapsed">
+        <TextBlock x:Name="NeedsYouLabel" Style="{StaticResource TafsEyebrow}" Foreground="{StaticResource TafsAmber}" />
+        <ItemsControl x:Name="Held">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate><StackPanel Spacing="8" /></ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="local:HeldLine">
+              <Border Background="{ThemeResource TafsRaised}" CornerRadius="12" Padding="12">
+                <Grid ColumnSpacing="10">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <Ellipse Width="8" Height="8" Fill="{StaticResource TafsAmber}" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                             Foreground="{ThemeResource TafsInk}" />
+                  <TextBlock Grid.Column="2" Text="{x:Bind AnswerBy}" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TafsSoft}" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
       </StackPanel>
 
       <!-- One grid, so each heading sits over its column: four equal columns, a line between rows, on the ground. -->

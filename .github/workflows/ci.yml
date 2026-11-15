@@ -108,7 +108,7 @@ jobs:
           for screen in sign-in overview view-only pair needs-you; do
             case $screen in
               sign-in) opts=(--page sign-in) ;;
-              overview) opts=() ;;
+              overview) opts=(--sample) ;;
               view-only) opts=(--view-only) ;;
               pair) opts=(--page pair) ;;
               needs-you) opts=(--page needs-you --sample) ;;
