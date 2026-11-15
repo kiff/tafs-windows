@@ -8,6 +8,7 @@ using QRCoder;
 using Tafs.Core.Approvals;
 using Tafs.Core.Kiff;
 using Tafs.Core.Pairing;
+using Tafs.Core.SignIn;
 using Windows.Storage.Streams;
 using System.Runtime.InteropServices.WindowsRuntime;
 
@@ -70,6 +71,15 @@ public sealed partial class PairingPage : Page
                 return;
             }
 
+            // Already paired (kept from an earlier launch): never the same key in a new QR, which KIFF would refuse.
+            if (PairingScreen.Opening(App.Sessions.Kept()) == PairingStep.Added)
+            {
+                offer = null;
+                Show(PairingStep.Added);
+                return;
+            }
+            // A store that refuses stops the pairing before the code: a session KIFF hands over must be kept.
+            App.Sessions.CheckWritable();
             deviceKey ??= TpmKey.OpenOrCreate(TpmKey.PairingKeyName);
             MakePasskey? make = WindowsHello.IsAvailable()
                 ? (challenge, c) => new WindowsHello(() => App.WindowHandle)
@@ -82,9 +92,15 @@ public sealed partial class PairingPage : Page
 
             var result = await PairingClaim.PollAsync(offer, deviceKey,
                 (body, c) => KiffHttp.PostAsync(PairingClaim.Path, body, c), () => DateTimeOffset.UtcNow, Task.Delay, token);
+            if (result.Session is { } session)
+            {
+                // Kept before Added shows, so a relaunch reads it instead of pairing the same key again.
+                await App.Sessions.KeepAsync(KeptSession.Of(DeviceSignIn.Api, session.AccessToken, session.Tenant, session.Subject,
+                    session.DeviceId, session.Mode, session.ExpiresIn, DateTimeOffset.UtcNow, TpmKey.PairingKeyName));
+                Paired?.Invoke(session);
+            }
             var step = PairingScreen.After(result.Status);
             Show(step, step == PairingStep.Failed ? PairingScreen.Why(App.Words, result) : null);
-            if (result.Session is { } session) Paired?.Invoke(session);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -97,6 +113,10 @@ public sealed partial class PairingPage : Page
         catch (HttpRequestException)
         {
             Show(PairingStep.Offline);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Show(PairingStep.Failed, SessionStore.Why(e)); // the session store refused
         }
         finally
         {

@@ -6,7 +6,9 @@ using Tafs.Core.Kiff;
 namespace Tafs.Core.Pairing;
 
 /// <summary>The session KIFF hands over once, when the phone has approved. Its token is never printed.</summary>
-public sealed record PairedSession(string AccessToken, string Tenant, string Subject, string DeviceId, TimeSpan ExpiresIn)
+/// <param name="Mode">From approval_mode: unknown or missing is View.</param>
+public sealed record PairedSession(string AccessToken, string Tenant, string Subject, string DeviceId, TimeSpan ExpiresIn,
+    ApprovalMode Mode = ApprovalMode.View)
 {
     public override string ToString() => $"PairedSession {{ Tenant = {Tenant}, DeviceId = {DeviceId}, AccessToken = (hidden) }}";
 }
@@ -81,7 +83,8 @@ public static class PairingClaim
                     root.GetProperty("tenant").GetString()!,
                     root.GetProperty("subject").GetString()!,
                     root.GetProperty("device_id").GetString()!,
-                    TimeSpan.FromSeconds(root.GetProperty("expires_in").GetInt64())));
+                    TimeSpan.FromSeconds(root.GetProperty("expires_in").GetInt64()),
+                    KeptSession.ModeOf(root.TryGetProperty("approval_mode", out var m) ? m.GetString() : null)));
 
             var error = root.TryGetProperty("error", out var e) ? e.GetString() : null;
             return (status, error) switch

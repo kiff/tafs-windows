@@ -63,7 +63,7 @@ public sealed class TpmKey : IKiffSigner, IDisposable
         if (key.Provider?.Provider != Provider.Provider || !KiffSigning.IsP256Spki(tpm.PublicKeyDer))
         {
             tpm.Dispose();
-            throw new CryptographicException($"'{name}' isn't a P-256 key in the TPM");
+            throw new CryptographicException("the key isn't a P-256 key in the TPM"); // shown on screen: no name, no path
         }
         return tpm;
     }

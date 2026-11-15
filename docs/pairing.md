@@ -83,11 +83,17 @@ The QR is black on white in both themes, so any phone camera reads it. The code 
 expires with the offer. A view-only session shows a notice above every screen, with Add this
 Windows PC opening this screen.
 
-Added closes the view-only notice. The session is kept in memory for now, as from sign-in.
+## The kept session
+
+A pairing must never leave a device at KIFF that this PC can't use: a relaunch would put the same key in a new QR, and KIFF
+would refuse it as already registered. So, with [the session](session.md) kept across launches:
+- **Before the code,** the store is checked (`CheckWritable`). A store that refuses stops the pairing with nothing sent.
+- **Before Added,** the claimed session is kept, with its `approval_mode` (unknown is view) and the pairing key's name. If
+  it isn't kept, the screen says it wasn't added, with Windows' error code only.
+- **The view-only sign-in it replaces** is signed out at KIFF, and its key leaves the TPM.
+- **A relaunch after pairing** opens this screen on Added (`PairingScreen.Opening`), never a new code.
 
 **Not yet:**
-- Keeping the session in Windows' credential store, and reading `approval_mode` from the claim.
-- **A view-only PC** pairs with a key of its own, not the sign-in's, which KIFF already holds for the view-only
-  session. Signing that old session out after the pairing comes with keeping sessions.
 - Closing Windows Hello's prompt when the attempt is stopped (`WebAuthNCancelCurrentOperation`).
-- The view-only notice is shown with `--view-only`. It waits on how KIFF tells a session that it holds no approval authority.
+- If the phone approved but the claim's answer was lost, Show a new code puts the same key in the QR, and KIFF refuses
+  it. Removing this PC in Devices on the phone frees it.

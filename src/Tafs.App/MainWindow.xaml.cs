@@ -85,7 +85,7 @@ public sealed partial class MainWindow : Window
             Nav.SelectedItem = BrandItem;
         };
         // Paired with a key in the TPM: this PC approves, with its own passkey or the account's. Kept in memory for now.
-        PairingPage.Paired += _ => ViewOnly.IsOpen = false;
+        PairingPage.Paired += session => ViewOnly.IsOpen = session.Mode == ApprovalMode.View;
         this.screenshot = screenshot;
 
         if (page == "pair") OpenPairing();

@@ -86,6 +86,22 @@ public class PairingScreenTests
     }
 
     [Fact]
+    public void Pair_relaunch_and_pair_again_opens_on_Added_never_a_new_QR_with_the_same_key()
+    {
+        var api = new Uri("https://api.kiff.dev");
+        byte[]? disk = null;
+        Assert.Equal(PairingStep.Waiting, PairingScreen.Opening(Tafs.Core.Kiff.KeptSessions.Read(disk, api, Now)));
+        var paired = Tafs.Core.Kiff.KeptSession.Of(api, "paired-token", "t1", "s1", "dev_1", Tafs.Core.Kiff.ApprovalMode.Passkey,
+            TimeSpan.FromDays(90), Now, "tafs paired device key");
+        disk = Tafs.Core.Kiff.KeptSessions.Write(paired); // kept before Added, then the app closes
+        var relaunch = Tafs.Core.Kiff.KeptSessions.Read(disk, api, Now.AddDays(1));
+        Assert.Equal(PairingStep.Added, PairingScreen.Opening(relaunch));
+        Assert.Equal("This Windows PC is added.", PairingScreen.Lines(En, PairingScreen.Opening(relaunch), offer: null).Status);
+        // A view-only session (from sign-in) still pairs.
+        Assert.Equal(PairingStep.Waiting, PairingScreen.Opening(paired with { Mode = Tafs.Core.Kiff.ApprovalMode.View }));
+    }
+
+    [Fact]
     public void Offline_says_so_and_offers_a_new_code_with_or_without_an_offer()
     {
         var lines = PairingScreen.Lines(En, PairingStep.Offline, offer: null);
