@@ -17,7 +17,8 @@ signed. Everyone else waits for the signed package.
   3. Run `Tafs.App.exe`. Pin it to Start or the taskbar if you like.
 - **Updating:** unzip the newer one in place of the old folder.
 - **Removing:** delete the folder. What the app keeps (the session, the theme) is in `%LOCALAPPDATA%\tafs`; delete that
-  too to forget them. The TPM key and the Windows Hello passkey are this PC's, and signing out removes them.
+  too to forget them. Sign out first: that removes the session's key from the TPM. A Windows Hello passkey made for
+  kiff.dev stays with Windows Hello.
 - **Building it yourself:**
 
   ```bash
