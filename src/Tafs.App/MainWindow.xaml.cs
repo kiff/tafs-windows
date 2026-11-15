@@ -45,6 +45,9 @@ public sealed partial class MainWindow : Window
     /// </summary>
     readonly DispatcherTimer heldClock = new() { Interval = TimeSpan.FromMinutes(1) };
 
+    /// <summary>When the window was minimised, if it is: past ten minutes the minute's read stops (<see cref="HoldToast.Reads"/>).</summary>
+    DateTimeOffset? minimisedSince;
+
     /// <summary>The Record's lines: KIFF's activity once Home is read as the session, else none, or the iPad's sample.</summary>
     IReadOnlyList<RecordEntry> record;
     /// <summary>How this window reads KIFF for the Record: as the session, or a stand-in file for a screenshot; none signed out.</summary>
@@ -132,7 +135,19 @@ public sealed partial class MainWindow : Window
         Toasts.HoldChosen += hold => DispatcherQueue.TryEnqueue(() => OpenHold(hold));
         heldClock.Tick += (_, _) =>
         {
-            if (home is { } listed && kiffRead is not null) _ = ReadHeldAsync(listed, sessions);
+            if (home is { } listed && kiffRead is not null && HoldToast.Reads(minimisedSince, DateTimeOffset.UtcNow)) _ = ReadHeldAsync(listed, sessions);
+        };
+        // Minimised for more than ten minutes, the minute's read stops; the window coming back reads once.
+        AppWindow.Changed += (window, change) =>
+        {
+            var minimised = window.Presenter is Microsoft.UI.Windowing.OverlappedPresenter { State: Microsoft.UI.Windowing.OverlappedPresenterState.Minimized };
+            var now = DateTimeOffset.UtcNow;
+            if (minimised && minimisedSince is null) minimisedSince = now;
+            else if (!minimised && minimisedSince is { } since)
+            {
+                minimisedSince = null;
+                if (!HoldToast.Reads(since, now) && home is { } listed && kiffRead is not null) _ = ReadHeldAsync(listed, sessions);
+            }
         };
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
         // Focus goes back to the sidebar's Coach when Coach mode has gone.

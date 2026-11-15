@@ -37,6 +37,16 @@ public class HoldToastTests
     public void A_sample_is_never_notified() =>
         Assert.All(NeedsYouScreen.Sample(En, DateTimeOffset.UtcNow), c => Assert.Null(HoldToast.Lines(En, c, TimeZoneInfo.Utc)));
 
+    /// <summary>The minute's read goes on while the window isn't minimised, and for ten minutes after it was; then it stops.</summary>
+    [Fact]
+    public void Minimised_for_more_than_ten_minutes_the_minute_s_read_stops()
+    {
+        var at = new DateTimeOffset(2026, 11, 15, 20, 0, 0, TimeSpan.Zero);
+        Assert.True(HoldToast.Reads(null, at));
+        Assert.True(HoldToast.Reads(at, at.AddMinutes(10)));
+        Assert.False(HoldToast.Reads(at, at.AddMinutes(10).AddSeconds(1)));
+    }
+
     /// <summary>The first read notifies nothing; after it, only calls whose ids weren't there before.</summary>
     [Fact]
     public void Only_a_call_held_since_the_last_read_is_new()

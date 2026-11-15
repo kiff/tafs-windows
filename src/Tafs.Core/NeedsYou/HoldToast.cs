@@ -31,6 +31,15 @@ public static class HoldToast
             hold);
     }
 
+    /// <summary>How long tafs may sit minimised and still read held calls every minute.</summary>
+    public static readonly TimeSpan MinimisedPause = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// Whether the minute's read of held calls goes ahead: always while the window isn't minimised, and for
+    /// <see cref="MinimisedPause"/> after it was; then it stops until the window comes back, which reads once.
+    /// </summary>
+    public static bool Reads(DateTimeOffset? minimisedSince, DateTimeOffset now) => minimisedSince is not { } since || now - since <= MinimisedPause;
+
     /// <summary>
     /// The calls held since the last read: their ids weren't in <paramref name="seen"/>. A session's first read
     /// (<paramref name="seen"/> none) notifies nothing, so opening tafs doesn't announce what was already waiting; it's
