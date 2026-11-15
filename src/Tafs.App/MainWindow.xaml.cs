@@ -36,6 +36,11 @@ public sealed partial class MainWindow : Window
     HomeAnswer? home;
     /// <summary>How this window reads tafs cloud (as the session, or the contracts for a screenshot); none until Home is read.</summary>
     Func<string, Task<CloudRead>>? cloudRead;
+    /// <summary>The same read with planque's proof, and the proof for a taf's Setup: the session's, none for a screenshot.</summary>
+    Func<string, string?, Task<CloudRead>>? cloudReadWithProof;
+    Func<Task<string?>>? setupProof;
+    /// <summary>This device's id in KIFF, as the iPad's <c>deviceID</c>: read from KIFF before the first proof, and kept once found.</summary>
+    string? deviceId;
     readonly bool sample;
     readonly UsageReads usage;
     readonly ConnectAppsList? connectApps;
@@ -122,7 +127,8 @@ public sealed partial class MainWindow : Window
         AccountPage.SignInChosen += OpenSignIn;
         AccountPage.AlertsChosen += () => OpenBeside(typeof(ComingPage), w.Get("settings.alerts"));
         AccountPage.AddThisDeviceChosen += OpenPairing;
-        AccountPage.SignedOut += () => { ViewOnly.IsOpen = false; OpenSignIn(); };
+        // As the iPad clears its deviceID on sign-out: the next session reads its own.
+        AccountPage.SignedOut += () => { ViewOnly.IsOpen = false; deviceId = null; OpenSignIn(); };
         // Leaving the sample: the app starts again without it, as the iPad's Clear the sample leaves it.
         AccountPage.ClearSampleChosen += () => Microsoft.Windows.AppLifecycle.AppInstance.Restart(
             string.Join(' ', Environment.GetCommandLineArgs().Skip(1).Where(a => a != "--sample")));
@@ -156,12 +162,15 @@ public sealed partial class MainWindow : Window
             _ = ReadHomeAsync(path => Task.FromResult(ContractRead(w, homeFile, path)));
             CoachMode.Read = path => Task.FromResult(ContractRead(w, homeFile, path));
             // The first taf's page, its Activity from taf-activity.json beside the Home contract.
-            if (page == "taf" && home?.Tafs.FirstOrDefault() is { } first) OpenBeside(typeof(TafPage), OpenTaf(w, first.Id));
+            if (page is "taf" or "taf-setup" && home?.Tafs.FirstOrDefault() is { } first)
+                OpenBeside(typeof(TafPage), OpenTaf(w, first.Id, page == "taf-setup" ? TafTab.Setup : TafTab.Activity));
         }
         else if (screenshot is null && !sample && App.Sessions.Kept() is { } session)
         {
             // Coach's thread comes through the same read, as the session; a screenshot never reads it.
             CoachMode.Read = path => CloudReadAsync(session.AccessToken, path);
+            cloudReadWithProof = (path, proof) => CloudReadAsync(session.AccessToken, path, proof);
+            setupProof = () => SetupProofAsync(session);
             Root.Loaded += async (_, _) => await ReadHomeAsync(path => CloudReadAsync(session.AccessToken, path));
         }
     }
@@ -187,12 +196,16 @@ public sealed partial class MainWindow : Window
     /// A read from tafs cloud as the session: its answer on a 2xx, else why not in the person's words, as the iPad's
     /// <c>TafsCloud.send</c>. Bodies are never logged.
     /// </summary>
-    static async Task<CloudRead> CloudReadAsync(string bearer, string path)
+    static async Task<CloudRead> CloudReadAsync(string bearer, string path, string? proof = null) =>
+        await ReadAsync(new Uri(HomeList.Api, path), bearer, proof);
+
+    /// <summary>A read as the session, from tafs cloud or KIFF, answered as <see cref="CloudRead"/>.</summary>
+    static async Task<CloudRead> ReadAsync(Uri url, string bearer, string? proof = null)
     {
         var w = App.Words;
         int status;
         string body;
-        try { (status, body) = await KiffHttp.GetAsync(new Uri(HomeList.Api, path), bearer, w.Language); }
+        try { (status, body) = await KiffHttp.GetAsync(url, bearer, w.Language, deviceSignature: proof); }
         catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
         if (status is < 200 or > 299) return CloudRead.Refused(w, status, body);
         try
@@ -204,17 +217,34 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
+    /// planque's signed read of the grants for a taf's Setup, as the iPad's <c>grantsReadProof</c>: signed with the TPM key
+    /// the session is bound to, which asks no one, and this device's id in KIFF, read from KIFF's <c>GET /v1/me/devices</c>
+    /// as the iPad's <c>deviceLoader</c>. None when the key isn't there or anything fails: Setup then reads without it.
+    /// </summary>
+    async Task<string?> SetupProofAsync(KeptSession session)
+    {
+        // Open only: a key gone with a sign-out throws, and Setup reads without the proof.
+        using var key = TpmKey.Open(session.KeyName);
+        return await PlanqueProof.GrantsReadAsync(session.Tenant, deviceId, async () =>
+        {
+            var devices = await ReadAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, PlanqueProof.DevicesPath), session.AccessToken);
+            return deviceId = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
+        }, key, () => SigningTime.Next(DateTimeOffset.UtcNow));
+    }
+
+    /// <summary>
     /// For screenshots, tafs cloud's answers from the contracts beside <paramref name="homeFile"/>: Home's from it, a taf's
-    /// runs from taf-runs.json, a run's report from taf-run-report.json and its Activity from taf-activity.json; Coach's from
-    /// coach-setup.json, coach-chats.json and coach-conversation.json. With no such file, it reads as not reached.
+    /// runs from taf-runs.json, a run's report from taf-run-report.json, its Activity from taf-activity.json and its Setup from
+    /// taf-setup.json; Coach's from coach-setup.json, coach-chats.json and coach-conversation.json. With no such file, it reads
+    /// as not reached.
     /// </summary>
     static CloudRead ContractRead(Tafs.Core.Words.WordBook w, string homeFile, string path)
     {
         var file = path == HomeList.Path ? homeFile
             : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!,
-                path.Contains("/activity?") ? "taf-activity.json" : path.EndsWith("/runs") ? "taf-runs.json"
-                : path == "/v1/setup" ? "coach-setup.json" : path.EndsWith("/chats") ? "coach-chats.json"
-                : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
+                path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "coach-setup.json"
+                : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json"
+                : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
         return File.Exists(file) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(file)) : CloudRead.Unreached(w);
     }
 
@@ -377,10 +407,11 @@ public sealed partial class MainWindow : Window
     /// A taf's page from its line: from Home's answer, its head (its state in the app's words) and its Card bar; its
     /// Activity, Setup and Cards come with their reads. Otherwise the sample's.
     /// </summary>
-    TafOpening OpenTaf(Tafs.Core.Words.WordBook w, string key) =>
+    TafOpening OpenTaf(Tafs.Core.Words.WordBook w, string key, TafTab opensOn = TafTab.Activity) =>
         home?.Tafs.FirstOrDefault(t => t.Id == key) is { } taf
             ? new(TafScreen.Head(w, taf.Name, taf.Colour, taf.StateKey), taf.Cards.FirstOrDefault()?.Bar(w, taf.Cards.Count),
-                filter => new ActivityPage([], [], filter, null, null), CloudId: taf.Id, Read: cloudRead)
+                filter => new ActivityPage([], [], filter, null, null), new SetupOpening(taf.Job, []), opensOn,
+                CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof)
             : SampleTaf(w, key, TafTab.Activity);
 
     /// <summary>

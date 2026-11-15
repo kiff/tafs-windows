@@ -93,25 +93,26 @@ public class CoachThreadTests
         Assert.Equal(En.Get("coach.conversation_not_loaded", ("why", En.Get("error.ours"))), (await CoachChat.LoadAsync(En, Undecodable)).Error);
     }
 
-    /// <summary>As the iPad's strict [Chat]: one entry it can't read fails the list, and the whole thread is read instead.</summary>
-    [Fact]
-    public async Task A_list_with_an_entry_it_can_t_read_reads_the_whole_thread()
+    /// <summary>
+    /// As the iPad's strict [Chat] and chats.max(by:): a list with one entry it can't read fails, and one with none yet has no
+    /// newest; either way the whole thread is read, never an error.
+    /// </summary>
+    [Theory]
+    [InlineData("""{"chats": [{"session": "new", "title": "b", "started": "2026-11-15T08:00:00Z", "updated": "2026-11-15T09:00:00Z"}, {"session": "x", "updated": "2026-11-15T10:00:00Z"}]}""")]
+    [InlineData("""{"chats": []}""")]
+    public async Task A_list_it_can_t_read_or_an_empty_one_reads_the_whole_thread(string chats)
     {
         var asked = new List<string>();
         Task<CloudRead> Read(string path)
         {
             asked.Add(path);
-            return Task.FromResult(CloudRead.Of(Json(path switch
-            {
-                "/v1/setup" => """{"setup": {"id": "c"}}""",
-                "/v1/tafs/c/chats" => """{"chats": [{"session": "new", "title": "b", "started": "2026-11-15T08:00:00Z", "updated": "2026-11-15T09:00:00Z"}, {"session": "x", "updated": "2026-11-15T10:00:00Z"}]}""",
-                _ => Thread,
-            })));
+            return Task.FromResult(CloudRead.Of(Json(path switch { "/v1/setup" => """{"setup": {"id": "c"}}""", "/v1/tafs/c/chats" => chats, _ => Thread })));
         }
 
-        await CoachChat.LoadAsync(En, Read);
+        var (thread, error) = await CoachChat.LoadAsync(En, Read);
 
         Assert.Equal("/v1/tafs/c/conversation", asked[^1]);
+        Assert.Equal((true, (string?)null), (thread is not null, error));
     }
 
     /// <summary>As the iPad's ownerWords: a card's answer as what was chosen (a key), anything else as written.</summary>
