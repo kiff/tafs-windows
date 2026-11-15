@@ -175,7 +175,8 @@ public static class KiffActivity
 
     /// <summary>
     /// "€150.00", as the iPad's <c>amountText</c>: as the app writes money everywhere when its unit is a currency; the value
-    /// and its unit as written when it isn't; the value alone with none. None when the value isn't a decimal.
+    /// and its unit as written when it isn't; the value alone with none. None when the value isn't a decimal, or can't be
+    /// written as the money it is (more than 18 decimals, or more minor units than a whole number holds).
     /// </summary>
     public static string? AmountText(WordBook w, CallAmount? amount)
     {
@@ -185,7 +186,18 @@ public static class KiffActivity
         var unit = amount.Unit;
         if (unit.Length != 3 || unit != unit.ToUpperInvariant() || !Currencies.Contains(unit)) return $"{amount.Value} {unit}";
         var scale = amount.Value.Split('.') is { Length: > 1 } parts ? parts[1].Length : 0;
-        return new KiffAmount((long)decimal.Round(value * (decimal)Math.Pow(10, scale)), unit, scale).Figure(w);
+        // Past what a figure can be written with, or past a whole number of minor units: no amount rather than a wrong one,
+        // and never a crash on KIFF's answer.
+        if (scale > KiffAmount.MaxScale) return null;
+        try { return new KiffAmount(checked((long)(value * Pow10(scale))), unit, scale).Figure(w); }
+        catch (OverflowException) { return null; }
+    }
+
+    static decimal Pow10(int n)
+    {
+        var p = 1m;
+        for (var i = 0; i < n; i++) p *= 10;
+        return p;
     }
 
     /// <summary>Who decided, as the iPad's <c>decidedLine</c>: whoever answered it, else its Card or KIFF's refusal.</summary>
