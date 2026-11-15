@@ -40,7 +40,7 @@ ports a file updates its line here.
 | iPad file | Lines | What | Models |
 | :- | -: | :- | :- |
 | AIConsentView.swift | 74 | The AI-data consent screen | |
-| AllowSheetView.swift | 96 | "Allow this from now on" | |
+| AllowSheetView.swift | 96 | "Allow this from now on" (#80, open, with `HoldAllow.swift` and `TafsCloud+Allow.swift`) | |
 | AppEventApprovalSheet.swift | 54 | An app event's filters before signing a subscription | |
 | AttachViews.swift | 267 | Attaching photos and files in a chat | Attachment |
 | DeleteAccountView.swift | 60 | Deleting the account | |
