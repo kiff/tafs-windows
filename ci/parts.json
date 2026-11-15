@@ -15,7 +15,7 @@
     "coach": ["src/*/Coach/**", "tests/*/Coach/**"],
     "record": ["src/*/Record/**", "tests/*/Record/**"],
     "connections": ["src/*/Connections/**", "tests/*/Connections/**"],
-    "calendar": ["src/*/Calendar/**", "tests/*/Calendar/**"],
+    "calendar": ["src/*/Calendar/**", "tests/*/Calendar/**", "src/*/Usage/**", "tests/*/Usage/**"],
     "account": ["src/*/Account/**", "tests/*/Account/**"],
     "strings": ["src/*/Words/**", "tests/*/Strings/**"],
     "contracts": ["src/*/Contracts/**", "tests/*/Contracts/**"],
