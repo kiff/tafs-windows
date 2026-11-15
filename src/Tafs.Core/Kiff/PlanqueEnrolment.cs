@@ -6,7 +6,7 @@ using Tafs.Core.Words;
 namespace Tafs.Core.Kiff;
 
 /// <summary>How setting up planque ended: its key kept, enrolled with a new one, or why not.</summary>
-public enum EnrolOutcome { Kept, Enrolled, AdminOnly, OtherDevice, NotSetUp }
+public enum EnrolOutcome { Kept, Enrolled, AdminOnly, OtherDevice, NotSetUp, CantApprove, Cancelled }
 
 /// <summary>What setting up planque came to, with the person's words for why when it didn't.</summary>
 public sealed record EnrolResult(EnrolOutcome Outcome, string? Why = null)
@@ -29,6 +29,34 @@ public static class PlanqueEnrolment
 
     /// <summary>What the device confirms before setting up, as the iPad's Face ID prompt signs it: <c>tafs.planque.v1|{tenant}</c>.</summary>
     public static byte[] GateMessage(string tenant) => System.Text.Encoding.UTF8.GetBytes($"tafs.planque.v1|{tenant}");
+
+    /// <summary>
+    /// Whether this session may set planque up, and behind what, before anything is sent: a view session never ("This device
+    /// can't approve…"), nor a passkey session that doesn't know its passkey; a key session with no prompt, like its other
+    /// setup calls; a passkey session behind Windows Hello over <see cref="GateMessage"/>, as the iPad's one Face ID.
+    /// <paramref name="hello"/> asks Windows Hello with the passkey's credential id; closing it stops quietly, and a refusal says
+    /// why. None means it may go on. <paramref name="message"/> is what's confirmed, when it's a step with planque in it
+    /// (Start's <c>tafs.setup.v1</c>); <see cref="GateMessage"/> otherwise.
+    /// </summary>
+    public static async Task<EnrolResult?> GateAsync(WordBook w, KeptSession session, Func<byte[], byte[], Task> hello, byte[]? message = null)
+    {
+        var cant = new EnrolResult(EnrolOutcome.CantApprove, w.Get("approval.device_can_not_approve_approve"));
+        switch (session.Mode)
+        {
+            case ApprovalMode.Key:
+                return null;
+            case ApprovalMode.Passkey when session.PasskeyId is { } id:
+                try
+                {
+                    await hello(KiffSigning.FromBase64Url(id), message ?? GateMessage(session.Tenant));
+                    return null;
+                }
+                catch (OperationCanceledException) { return new(EnrolOutcome.Cancelled); }
+                catch (Approvals.PasskeyRefusedException e) { return NotSetUp(w, e.Message); }
+            default:
+                return cant;
+        }
+    }
 
     /// <summary>The key KIFF mints for planque: labelled <c>planque</c>, with the <c>connector</c> role only.</summary>
     public static byte[] MintBody() => JsonSerializer.SerializeToUtf8Bytes(new { label = "planque", roles = new[] { "connector" } });

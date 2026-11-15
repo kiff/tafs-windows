@@ -95,8 +95,12 @@ public sealed partial class PairingPage : Page
             if (result.Session is { } session)
             {
                 // Kept before Added shows, so a relaunch reads it instead of pairing the same key again.
+                // A passkey session keeps its passkey's credential id, the one the QR offered, so Windows Hello can be asked for it.
                 await App.Sessions.KeepAsync(KeptSession.Of(DeviceSignIn.Api, session.AccessToken, session.Tenant, session.Subject,
-                    session.DeviceId, session.Mode, session.ExpiresIn, DateTimeOffset.UtcNow, TpmKey.PairingKeyName));
+                    session.DeviceId, session.Mode, session.ExpiresIn, DateTimeOffset.UtcNow, TpmKey.PairingKeyName) with
+                {
+                    PasskeyId = session.Mode == ApprovalMode.Passkey && passkey is { } made ? KiffSigning.Base64Url(made.CredentialId) : null,
+                });
                 Paired?.Invoke(session);
             }
             var step = PairingScreen.After(result.Status);

@@ -13,9 +13,10 @@ and KIFF takes P-256 only.
 - a Windows sign-in asks for a passkey-only session (`"approval": "passkey"`), and KIFF refuses a Windows start with neither approval key nor that flag;
 - a passkey session approves only with `KIFF-Passkey-Assertion`.
 
-The Windows WebAuthn calls are built (`WindowsHello`, below). Until the pairing screen makes this PC's
-passkey and puts it in the QR (its own change), this PC has no passkey to assert with, so its approvals
-go to the phone. Switched off, `PasskeyApprover` refuses before Windows Hello is asked.
+The Windows WebAuthn calls are built (`WindowsHello`, below). A session paired with this PC's passkey keeps its credential
+id (`KeptSession.PasskeyId`). Two things assert with it: starting Coach, which signs Setup's draft with it (`coach.md`),
+and setting planque up. Until approving is wired, this PC asserts with it for nothing else, so its approvals go to the
+phone. Switched off, `PasskeyApprover` refuses before Windows Hello is asked.
 
 ## An approval (`PasskeyApprover`)
 

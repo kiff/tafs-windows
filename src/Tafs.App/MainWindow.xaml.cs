@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Tafs.Core.Account;
+using Tafs.Core.Approvals;
 using Tafs.Core.Calendar;
 using Tafs.Core.Connections;
 using Tafs.Core.Home;
@@ -450,6 +451,8 @@ public sealed partial class MainWindow : Window
         CoachMode.Grants = () => GrantsAsync(session);
         CoachMode.Drafts = async id => (await KiffReadAsync(bearer, Tafs.Core.Approvals.KiffDrafts.Path(id))).Answer is { } d ? Tafs.Core.Approvals.KiffDrafts.Read(d) : null;
         CoachMode.Read = path => CloudReadAsync(bearer, path);
+        // Start, as the iPad's: off for a session that can't approve.
+        CoachMode.StartCoach = Tafs.Core.Coach.CoachStart.MayStart(session) ? () => StartCoachAsync(session) : null;
         _ = ReadHomeAsync(path => CloudReadAsync(bearer, path));
         _ = AllowCoachAsync(bearer);
     }
@@ -484,9 +487,71 @@ public sealed partial class MainWindow : Window
         ShowHome(new HomeAnswer([], null));
         CoachMode.Read = null;
         CoachMode.Answer = null;
+        CoachMode.StartCoach = null;
+        planqueReady = false;
         CoachMode.Grants = null;
         CoachMode.Drafts = null;
         CoachMode.Forget();
+    }
+
+    /// <summary>This session set planque up, as the iPad's <c>planqueReady</c>: kept until sign-out, not across launches.</summary>
+    bool planqueReady;
+
+    /// <summary>
+    /// Start, as the iPad's <c>startSetup</c> (<c>CoachStart</c>): planque set up first with the session's TPM key, as its
+    /// <c>setUpPlanque</c> and <c>enrolPlanque</c>; then Setup's draft, signed by the device key or, in a passkey session, by
+    /// this PC's passkey (its one Windows Hello), sent to KIFF; then tafs cloud claims its key.
+    /// </summary>
+    async Task<Tafs.Core.Coach.StartResult> StartCoachAsync(KeptSession session)
+    {
+        var w = App.Words;
+        var bearer = session.AccessToken;
+        var gen = sessions;
+        using var key = TpmKey.Open(session.KeyName);
+        var hello = new WindowsHello(() => App.WindowHandle);
+        var passkey = session.PasskeyId is { } id ? new PasskeyApprover(hello, KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals) : null;
+        DateTimeOffset Now() => DateTimeOffset.Parse(SigningTime.Next(DateTimeOffset.UtcNow), System.Globalization.CultureInfo.InvariantCulture);
+        var kiff = Tafs.Core.SignIn.DeviceSignIn.Api;
+        var calls = new Tafs.Core.Coach.StartCalls(
+            ReadSetup: () => CloudReadAsync(bearer, Tafs.Core.Coach.CoachStart.SetupPath),
+            Confirm: (credential, message) => new PasskeyApprover(hello, credential, Features.WindowsPasskeyApprovals).ConfirmAsync(message),
+            SignDraft: (body, at) => Tafs.Core.Coach.CoachStart.SignDraftAsync(session, key, passkey, body, at),
+            SignTogether: (connect, draft, at) => passkey is not null && session.Mode == ApprovalMode.Passkey
+                ? Tafs.Core.Coach.RequestsTogether.SignAsync(passkey, session.Tenant, connect, draft, at)
+                : Tafs.Core.Coach.RequestsTogether.SignAsync(key, session.Tenant, connect, draft, at),
+            Enrol: () => PlanqueEnrolment.EnrolAsync(w, key.PublicKeyDer,
+                async body =>
+                {
+                    var path = PlanqueEnrolment.Path(session.Tenant);
+                    var signature = await PlanqueProof.SignAsync(session.Tenant, deviceId, LoadDeviceAsync, key,
+                        () => SigningTime.Next(DateTimeOffset.UtcNow), "POST", path, body)
+                        ?? throw new System.Net.Http.HttpRequestException("this device isn't listed in KIFF yet");
+                    return await KiffHttp.PlanquePostAsync(new Uri(PlanqueProof.Api, path), body, signature, w.Language);
+                },
+                async () =>
+                {
+                    var at = Now();
+                    var signature = await PlanqueEnrolment.MintSignatureAsync(key, session.Tenant, at);
+                    return await KiffHttp.PostAsync(new Uri(kiff, PlanqueEnrolment.KeysPath), PlanqueEnrolment.MintBody(), bearer, w.Language,
+                        signature: ("KIFF-Device-Signature", signature));
+                }),
+            SendBatch: (body, signature) => KiffHttp.GatewayPostAsync(new Uri(Tafs.Core.Coach.CoachStart.Gateway, "/v1/connections/batch"), body,
+                bearer, w.Language, signature),
+            SubmitDraft: (body, signature) => KiffHttp.PostAsync(new Uri(kiff, Tafs.Core.Coach.CoachStart.DraftPath), body, bearer, w.Language,
+                signature: signature),
+            Claim: body => CloudSendAsync(bearer, Tafs.Core.Coach.CoachStart.SetupPath, body),
+            Now: Now);
+        var started = await Tafs.Core.Coach.CoachStart.StartAsync(w, session, planqueReady, calls);
+        // Signed out meanwhile: it's no one's.
+        if (gen != sessions) return new(Tafs.Core.Coach.StartOutcome.Cancelled);
+        if (started.Started) planqueReady = true;
+        return started;
+
+        async Task<string?> LoadDeviceAsync()
+        {
+            var devices = await ReadAsync(new Uri(kiff, PlanqueProof.DevicesPath), bearer);
+            return deviceId = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
+        }
     }
 
     /// <summary>
