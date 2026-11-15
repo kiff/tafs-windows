@@ -367,7 +367,7 @@ public sealed partial class TafPage : Page
     Expander Workflow(SetupWorkflow workflow)
     {
         var header = new StackPanel { Spacing = 2 };
-        header.Children.Add(Words(workflow.Title, 15, "TafsInkText"));
+        header.Children.Add(Words(workflow.Title, 17, "TafsInkText")); // the DisclosureGroup label's default body size
         header.Children.Add(Words(workflow.Summary, 13, "TafsSoftText"));
         var steps = new StackPanel { Spacing = 8 };
         foreach (var step in workflow.Steps)
