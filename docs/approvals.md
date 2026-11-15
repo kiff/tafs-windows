@@ -62,10 +62,15 @@ leaves the TPM.
   - Closing Windows Hello (`ERROR_CANCELLED`, `NTE_USER_CANCELLED`) is a cancel.
   - Anything else is refused with Windows' own name for the error.
 
-**What isn't decided:**
-- Whether KIFF's new registration proof (a create over KIFF's challenge, `kiff.passkey.register.v1`)
-  applies to the pairing's credential too. That's with the server side. Until then, the create's
-  challenge is random.
+**The creation proof, built and switched off** (`Features.PairingPasskeyProof`, the PM's call of 15 Nov):
+- The QR's credential ships as it is.
+- When KIFF takes the proof, the pairing's passkey is made with the challenge
+  `PairingClaim.PasskeyChallenge`: base64url(sha256 of `kiff.passkey.pair.v1`, the nonce and pub, joined
+  by newlines, as the QR writes them).
+- The claim then also sends the create's `client_data_json` and `attestation_object`, as Windows returned
+  them, base64url. Off, the claim is unchanged.
+
+**Not decided yet:**
 - `residentKey: preferred` needs the options' version 4. Version 1 asks for a non-discoverable
   credential, which "preferred" allows.
 

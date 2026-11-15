@@ -4,7 +4,14 @@ using System.Security.Cryptography;
 namespace Tafs.Core.Approvals;
 
 /// <summary>The computer's new passkey, as KIFF registers it: its id and its P-256 public key, SPKI DER.</summary>
-public sealed record NewPasskey(byte[] CredentialId, byte[] PublicKeyDer);
+public sealed record NewPasskey(byte[] CredentialId, byte[] PublicKeyDer)
+{
+    /// <summary>The creation's response as WebAuthn gave it, for KIFF's creation proof (<see cref="Features.PairingPasskeyProof"/>).</summary>
+    public PasskeyCreationProof? Proof { get; init; }
+}
+
+/// <summary>What the create returned, kept as it is: KIFF reads the credential from it and checks the challenge.</summary>
+public sealed record PasskeyCreationProof(byte[] ClientDataJson, byte[] AttestationObject);
 
 /// <summary>
 /// Reads the authenticator data of a newly made passkey (attested credential data, then the COSE key)

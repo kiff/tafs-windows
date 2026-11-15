@@ -75,6 +75,38 @@ public class PairingTests
     }
 
     [Fact]
+    public void The_passkey_s_pairing_challenge_is_over_the_nonce_and_the_device_key()
+    {
+        var nonce = KiffSigning.Base64Url(Nonce);
+        var expected = KiffSigning.Base64Url(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes("kiff.passkey.pair.v1\n" + nonce + "\n" + KiffSigning.Base64Url(ExampleKey))));
+        Assert.Equal(expected, PairingClaim.PasskeyChallenge(nonce, ExampleKey));
+        Assert.NotEqual(expected, PairingClaim.PasskeyChallenge(nonce, ExampleKey[..^1].Append((byte)0).ToArray()));
+    }
+
+    [Fact]
+    public async Task The_claim_carries_the_passkey_s_creation_proof_only_when_switched_on()
+    {
+        using var device = new TestSigner();
+        using var passkey = new TestSigner();
+        var made = new NewPasskey([7], passkey.PublicKeyDer) { Proof = new PasskeyCreationProof([1, 2], [3, 4]) };
+        var offer = PairingOffer.Create(device.PublicKeyDer, null, "tafs", Now, Nonce, credential: made);
+
+        using var off = JsonDocument.Parse(await PairingClaim.BodyAsync(offer, device));
+        Assert.Equal(new[] { "nonce", "pub", "proof" }, off.RootElement.EnumerateObject().Select(p => p.Name));
+        Assert.False(Features.PairingPasskeyProof, "off until KIFF takes it");
+
+        using var on = JsonDocument.Parse(await PairingClaim.BodyAsync(offer, device, withPasskeyProof: true));
+        Assert.Equal("AQI", on.RootElement.GetProperty("client_data_json").GetString());
+        Assert.Equal("AwQ", on.RootElement.GetProperty("attestation_object").GetString());
+
+        // An offer with no credential, or a credential with no proof, sends none even when on.
+        var plain = PairingOffer.Create(device.PublicKeyDer, null, "tafs", Now, Nonce, credential: made with { Proof = null });
+        using var none = JsonDocument.Parse(await PairingClaim.BodyAsync(plain, device, withPasskeyProof: true));
+        Assert.False(none.RootElement.TryGetProperty("client_data_json", out _));
+    }
+
+    [Fact]
     public void A_credential_never_comes_with_an_approval_key_a_software_key_or_the_device_key()
     {
         using var device = new TestSigner();

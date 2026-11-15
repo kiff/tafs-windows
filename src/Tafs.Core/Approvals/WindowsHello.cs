@@ -35,13 +35,15 @@ public sealed class WindowsHello(Func<IntPtr> window) : IPasskeyAuthenticator
     /// <param name="userId">The account's subject, as bytes, when it's known (the contract's user.id); otherwise random bytes.</param>
     /// <param name="userName">The person's email when it's known (user.name); otherwise this PC's name.</param>
     /// <param name="displayName">What Windows' passkey list shows: this PC's name.</param>
-    public Task<NewPasskey> CreateAsync(byte[] userId, string userName, string displayName, CancellationToken cancel = default) => Task.Run(() =>
+    /// <param name="challenge">For a pairing, <see cref="Pairing.PairingClaim.PasskeyChallenge"/>; otherwise a random one.</param>
+    public Task<NewPasskey> CreateAsync(byte[] userId, string userName, string displayName, string? challenge = null,
+        CancellationToken cancel = default) => Task.Run(() =>
     {
         using var mem = new Memory();
         var clientData = JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, object>
         {
             ["type"] = "webauthn.create",
-            ["challenge"] = Kiff.KiffSigning.Base64Url(RandomNumberGenerator.GetBytes(32)),
+            ["challenge"] = challenge ?? Kiff.KiffSigning.Base64Url(RandomNumberGenerator.GetBytes(32)),
             ["origin"] = PasskeyApprover.Origin,
             ["crossOrigin"] = false,
         });
@@ -61,7 +63,10 @@ public sealed class WindowsHello(Func<IntPtr> window) : IPasskeyAuthenticator
         try
         {
             var attestation = Marshal.PtrToStructure<CredentialAttestation>(result);
-            return PasskeyRegistration.Read(Copy(attestation.AuthenticatorData, attestation.AuthenticatorDataLength));
+            return PasskeyRegistration.Read(Copy(attestation.AuthenticatorData, attestation.AuthenticatorDataLength)) with
+            {
+                Proof = new PasskeyCreationProof(clientData, Copy(attestation.AttestationObject, attestation.AttestationObjectLength)),
+            };
         }
         finally { Native.WebAuthNFreeCredentialAttestation(result); }
     }, cancel);

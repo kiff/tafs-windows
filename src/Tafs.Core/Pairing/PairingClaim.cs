@@ -1,4 +1,6 @@
+using System.Security.Cryptography;
 using System.Text.Json;
+using Tafs.Core.Approvals;
 using Tafs.Core.Kiff;
 
 namespace Tafs.Core.Pairing;
@@ -26,17 +28,32 @@ public static class PairingClaim
     public static byte[] ProofMessage(string nonce, byte[] pubDer) =>
         KiffSigning.Message("kiff.pair.claim.v1", nonce, KiffSigning.Sha256Hex(pubDer));
 
-    public static async Task<byte[]> BodyAsync(PairingOffer offer, IKiffSigner deviceKey, CancellationToken cancel = default)
+    /// <summary>
+    /// The create's challenge for this PC's passkey, so the passkey is provably made for this pairing:
+    /// base64url(sha256(kiff.passkey.pair.v1, nonce, pub joined by newlines)), the nonce and pub as the QR writes them.
+    /// </summary>
+    public static string PasskeyChallenge(string nonce, byte[] pubDer) =>
+        KiffSigning.Base64Url(SHA256.HashData(KiffSigning.Message("kiff.passkey.pair.v1", nonce, KiffSigning.Base64Url(pubDer))));
+
+    /// <param name="withPasskeyProof">Send the passkey's creation proof, when the offer has one (<see cref="Features.PairingPasskeyProof"/>).</param>
+    public static async Task<byte[]> BodyAsync(PairingOffer offer, IKiffSigner deviceKey, CancellationToken cancel = default,
+        bool withPasskeyProof = false)
     {
         if (!deviceKey.PublicKeyDer.AsSpan().SequenceEqual(offer.PublicKeyDer))
             throw new ArgumentException("the claim is signed by the device key the QR showed", nameof(deviceKey));
         var proof = await deviceKey.SignDerAsync(ProofMessage(offer.Nonce, offer.PublicKeyDer), cancel);
-        return JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, string>
+        var body = new Dictionary<string, string>
         {
             ["nonce"] = offer.Nonce,
             ["pub"] = KiffSigning.Base64Url(offer.PublicKeyDer),
             ["proof"] = Convert.ToBase64String(proof),
-        });
+        };
+        if (withPasskeyProof && offer.Credential?.Proof is { } made)
+        {
+            body["client_data_json"] = KiffSigning.Base64Url(made.ClientDataJson);
+            body["attestation_object"] = KiffSigning.Base64Url(made.AttestationObject);
+        }
+        return JsonSerializer.SerializeToUtf8Bytes(body);
     }
 
     public static ClaimResult Read(int status, string body)
@@ -86,7 +103,7 @@ public static class PairingClaim
         while (true)
         {
             if (offer.IsExpired(now())) return new ClaimResult(ClaimStatus.Expired);
-            var (status, body) = await post(await BodyAsync(offer, deviceKey, cancel), cancel);
+            var (status, body) = await post(await BodyAsync(offer, deviceKey, cancel, Features.PairingPasskeyProof), cancel);
             var result = Read(status, body);
             switch (result.Status)
             {
