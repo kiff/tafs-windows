@@ -19,7 +19,7 @@ public class TafSetupTests
         var setup = Contract("taf-setup.json");
 
         Assert.Empty(setup.Connections);
-        Assert.Equal("Connect this phone to read its connected apps", setup.ConnectionsError);
+        Assert.Equal("Connect this device to read its connected apps", setup.ConnectionsError);
         Assert.Equal(new SetupWorkflow("Workflow", "Ask Coach to set its workflow", []), setup.Workflow with { Steps = [] });
         Assert.Equal(new SetupMemory(0, "0 notes", null), setup.Memory);
         Assert.Equal(new SetupVersions("Changes to how it runs", "Runs its original definition", null, 0), setup.Versions);
