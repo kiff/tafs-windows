@@ -114,43 +114,32 @@ public static class RequestsTogether
     public static string Hash(byte[] message) => Convert.ToHexString(SHA256.HashData(message)).ToLowerInvariant();
 
     /// <summary>What the approval key signs: the scheme, the account, the one <c>signed_at</c>, and the two hashes in sorted order, a line each.</summary>
-    public static byte[] Message(string tenant, DateTimeOffset signedAt, string one, string other)
+    public static byte[] Message(string tenant, string signedAt, string one, string other)
     {
         var hashes = string.CompareOrdinal(one, other) <= 0 ? new[] { one, other } : [other, one];
-        return KiffSigning.Message([Scheme, tenant, KiffSigning.Time(signedAt), .. hashes]);
+        return KiffSigning.Message([Scheme, tenant, signedAt, .. hashes]);
     }
 
     /// <summary>A request's signature header: <c>v3</c> for the one signature, <c>with</c> for the other request's hash.</summary>
-    public static string Header(DateTimeOffset signedAt, byte[] derSignature, string other) =>
-        $"t={KiffSigning.Time(signedAt)},v3={Convert.ToBase64String(derSignature)},with=sha256:{other}";
+    public static string Header(string signedAt, byte[] derSignature, string other) =>
+        $"t={signedAt},v3={Convert.ToBase64String(derSignature)},with=sha256:{other}";
 
     /// <summary>
-    /// The batch's and the draft's headers, as the iPad's <c>sendTogether</c>: each request's <c>kiff.request.v1</c> message
-    /// (the batch's on the gateway's path), one signature by <paramref name="key"/> over both hashes, in
-    /// <c>KIFF-Device-Signature</c>.
-    /// </summary>
-    public static async Task<(string Header, string Batch, string Draft)> SignAsync(IKiffSigner key, string tenant, StartRequest connect,
-        StartRequest draft, DateTimeOffset signedAt, CancellationToken cancel = default)
-    {
-        var (batch, cards) = Hashes(tenant, connect, draft, signedAt);
-        var signature = await key.SignDerAsync(Message(tenant, signedAt, batch, cards), cancel);
-        return ("KIFF-Device-Signature", Header(signedAt, signature, cards), Header(signedAt, signature, batch));
-    }
-
-    /// <summary>
-    /// The same pair signed by this PC's passkey, for a passkey session: one Windows Hello, its assertion's challenge
-    /// base64url(sha256) of the same message, in <c>KIFF-Passkey-Assertion: t=…,a=…,with=sha256:…</c>, each header with the
-    /// other request's hash.
+    /// The pair signed by this PC's passkey, the only key that signs it here (the iPad's is its approval key under Face ID;
+    /// this PC's device key asks no one): one Windows Hello, its assertion's challenge base64url(sha256) of the message, in
+    /// <c>KIFF-Passkey-Assertion: t=…,a=…,with=sha256:…</c>, each header with the other request's hash. That's KIFF's
+    /// header for two requests under one passkey approval (its client spec §2.3 and §2.6; its API's
+    /// <c>parsePasskeyHeader</c> and <c>VerifyRequestPasskey</c>), which its API and gateway both take.
     /// </summary>
     public static async Task<(string Header, string Batch, string Draft)> SignAsync(Approvals.PasskeyApprover passkey, string tenant,
-        StartRequest connect, StartRequest draft, DateTimeOffset signedAt, CancellationToken cancel = default)
+        StartRequest connect, StartRequest draft, string signedAt, CancellationToken cancel = default)
     {
         var (batch, cards) = Hashes(tenant, connect, draft, signedAt);
         var assertion = await passkey.AssertAsync(Message(tenant, signedAt, batch, cards), signedAt, cancel);
         return (Approvals.PasskeyApprover.HeaderName, $"{assertion},with=sha256:{cards}", $"{assertion},with=sha256:{batch}");
     }
 
-    static (string Batch, string Cards) Hashes(string tenant, StartRequest connect, StartRequest draft, DateTimeOffset signedAt) =>
+    static (string Batch, string Cards) Hashes(string tenant, StartRequest connect, StartRequest draft, string signedAt) =>
         (Hash(KiffSigning.RequestV1(tenant, connect.Method, connect.Path, connect.Body, signedAt)),
          Hash(KiffSigning.RequestV1(tenant, draft.Method, draft.Path, draft.Body, signedAt)));
 }

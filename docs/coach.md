@@ -26,28 +26,35 @@ changed, over whatever is open. The core is `Tafs.Core.Coach.CoachScreen`; the w
 Ported from the iPad's `AppModel.startSetup`, which its Start calls (`SetupChatView.introBefore`), with `setUpPlanque` and
 `enrolPlanque` as its first step (kiff/tafs `ios/Tafs`, at d14217f).
 
-- **Who:** a session that can approve. A view session, or a passkey session that doesn't know its passkey, keeps Start
-  off (`CoachStart.MayStart`), as the iPad's sits behind its approval gate; if it's reached anyway, it says "This device
-  can't approve…" and nothing is read or sent.
+- **Who:** only a passkey session that knows its passkey (`CoachStart.MayStart`). The iPad signs Setup's draft only with
+  its approval key under a biometric Face ID; this PC's TPM device key asks no one, so a key session never gives that
+  authority. Any other signed-in session reads the iPad's gate line where Start would be ("This device can't approve.
+  Approve on another device signed in to your account.", its `ApprovalGate` in `introBefore`); if Start is reached anyway,
+  nothing is read, asked or sent.
 - **The order, as the iPad's:**
   1. `GET /v1/setup`, as its `setupRead`. Here it comes first, so nothing is asked for what won't be sent.
   2. **One confirmation, before anything is sent.**
-     - A key session asks no one, as with its other setup calls.
-     - A passkey session asks Windows Hello once. With no Coach yet, the one Hello is Setup's draft's own
-       `KIFF-Passkey-Assertion`, built in full first (body and `signed_at`), as the iPad's prepared requests are. With
-       Coach already there, it confirms over `tafs.setup.v1|{tenant}`, the iPad's message.
-     - Closing Windows Hello stops quietly; a refusal says why.
+     - Windows Hello, once. With no Coach yet, the one Hello is Setup's draft's own `KIFF-Passkey-Assertion`, built in
+       full first (body and `signed_at`, `SigningTime.Next`'s, milliseconds kept as written in the message and in `t=`),
+       as the iPad's prepared requests are. With Coach already there, it confirms over `tafs.setup.v1|{tenant}`, the
+       iPad's message.
+     - Closing Windows Hello, or one that doesn't verify, stops quietly, as the iPad's failed Face ID.
   3. **planque**, unless this session set it up already (`planqueReady`, kept until sign-out): `PlanqueEnrolment` with
      the session's TPM key (`keys.md`).
   4. **Setup's draft**, as the iPad's `submitNoToolsDraft`: `POST /v1/me/agent-drafts` with
-     `{"agent_id":"setup","label":"Setup","no_tools":true}`. It's signed as an approval: `KIFF-Device-Signature` by the
-     device key for a key session, or the passkey's assertion for a passkey session.
+     `{"agent_id":"setup","label":"Setup","no_tools":true}`. It's signed as an approval, by the passkey's assertion only:
+     anything else fails closed and signs nothing.
   5. **Its key, claimed by tafs cloud**, as the iPad's `TafsCloud.startSetup`: `POST /v1/setup` with `draft_id` and
      `claim_secret`, so the key never reaches this PC.
   6. Coach's thread is read again, as the iPad's `loadSetupThread`.
+- **A sign-out meanwhile** stops it: after the confirmation, after planque's enrolment and after the draft, nothing more
+  is sent once another session began (the iPad's `accountGeneration`). A late answer never sets the last account's device
+  id for the next session's proofs.
 - **What stops it says why**, under the intro, and what comes after isn't sent:
   - planque not set up (`keys.md`'s words);
-  - KIFF's refusal of the draft, "Couldn't start." with why;
+  - KIFF's refusal of the draft, "Couldn't start." with why, read as the iPad's `KIFFClient.send`: KIFF's `error`, else
+    "KIFF answered 500", and a 401 as signed out of KIFF;
+  - the TPM key gone or refusing, "Couldn't start." with its code;
   - an answer with no claim secret, "KIFF didn't answer as expected";
   - tafs cloud's refusal.
 - **While it runs,** Start says "Starting…" and is off, as the iPad's `startingSetup`. A sign-out meanwhile drops it.
@@ -70,21 +77,23 @@ Ported from the iPad's `AppModel.startSetup`, which its Start calls (`SetupChatV
     `kiff.request.v1`.
 - **Signed only as Start's screen draws it.** A first start without tafs cloud's words opens the iPad's tools step, which
   isn't on this PC yet. Here it asks and sends nothing, and Start turns off.
-- **The pair** (`kiff.requests.v1`):
-  - Both requests are built in full, with one `signed_at`, before anything is sent. Each body is exactly the bytes tafs
-    cloud wrote (`GetRawText`).
-  - The device key signs once, over the scheme, the account, `signed_at` and the two `kiff.request.v1` messages' hashes,
-    sorted.
-  - Each `KIFF-Device-Signature` is `t=…,v3=…,with=sha256:<the other's hash>`.
+- **The pair** (`kiff.requests.v1`): the iPad signs it only with its approval key under a biometric Face ID, and this
+  PC's only such key is its passkey. Its header is KIFF's passkey form for two requests under one approval,
+  `KIFF-Passkey-Assertion: t=…,a=…,with=sha256:…` (KIFF's client spec §2.3 and §2.6; its API's `parsePasskeyHeader` and
+  `VerifyRequestPasskey`), which KIFF's API and gateway both take. `PasskeyPairContractTests` checks each header the way
+  KIFF does. How it goes:
+  - Both requests are built in full, with one `signed_at` (`SigningTime.Next`'s, milliseconds kept as written), before
+    anything is sent. Each body is exactly the bytes tafs cloud wrote (`GetRawText`).
+  - One Windows Hello assertion signs once, its challenge base64url(sha256) of the scheme, the account, `signed_at` and
+    the two `kiff.request.v1` messages' hashes, sorted. Each request carries it with the other's hash. Anything but a
+    passkey session that knows its passkey fails closed.
   - Then planque, then the batch to KIFF's gateway (`https://mcp.kiff.dev`, the session's token on exactly that host),
-    then the draft once the batch answered, then tafs cloud's claim.
-  - A refused batch says why, and the draft isn't sent.
+    then the draft once the batch answered, then tafs cloud's claim. A sign-out after the signature, the enrolment, the
+    batch or the draft sends nothing more.
+  - A refused batch says why, read as KIFF's (`error`, else "KIFF answered 502"), and the draft isn't sent.
 - **The draft alone** (every tool already connected): tafs cloud's draft in place of Setup's, signed and sent as Setup's
-  is, so a passkey session's one Windows Hello is its assertion.
-- **A passkey session signs the pair with its one Windows Hello:** one assertion whose challenge is base64url(sha256) of
-  the same sorted `kiff.requests.v1` message, sent as `KIFF-Passkey-Assertion: t=…,a=…,with=sha256:…` on each request,
-  with the other's hash. KIFF's API takes it; until KIFF's gateway does too, the batch is refused, Start says why, and
-  the draft isn't sent.
+  is, so the one Windows Hello is its assertion. A draft with no claim secret says "Couldn't start. KIFF didn't answer as
+  expected. Try again."
 - **Not for Windows:** the iPad's separate approval key (`registerApprovalKey`, `approvalKeyUnheld`). A Windows session
   signs with one key.
 

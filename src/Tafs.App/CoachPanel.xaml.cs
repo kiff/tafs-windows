@@ -64,6 +64,23 @@ public sealed partial class CoachPanel : UserControl
 
     Func<Task<StartResult>>? startCoach;
 
+    /// <summary>
+    /// Signed in, but this PC can't approve (a view session, a key session, or a passkey session that doesn't know its
+    /// passkey): the iPad's gate line, <c>approval.device_can_not_approve_approve</c>, where Start would be (its
+    /// <c>ApprovalGate</c> in <c>introBefore</c>).
+    /// </summary>
+    public bool StartGate
+    {
+        get => startGate;
+        set
+        {
+            startGate = value;
+            ShowStart();
+        }
+    }
+
+    bool startGate;
+
     /// <summary>While Start runs, as the iPad's <c>startingSetup</c>: Start says "Starting…" and is off.</summary>
     bool starting;
 
@@ -76,6 +93,9 @@ public sealed partial class CoachPanel : UserControl
     void ShowStart()
     {
         var on = startCoach is not null && !starting && !firstStart;
+        Start.Visibility = startGate ? Visibility.Collapsed : Visibility.Visible;
+        StartGateLine.Visibility = startGate ? Visibility.Visible : Visibility.Collapsed;
+        StartGateLine.Text = App.Words.Get("approval.device_can_not_approve_approve");
         Start.IsEnabled = on;
         Start.Style = (Style)Application.Current.Resources[on ? "TafsPrimary" : "TafsPrimaryOff"];
         Start.Content = starting ? App.Words.Get("common.starting") : shown?.Words?.Start ?? App.Words.Get("coach.start");
