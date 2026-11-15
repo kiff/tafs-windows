@@ -157,6 +157,7 @@ public sealed partial class MainWindow : Window
             ViewOnly.IsOpen = false;
             deviceId = null;
             kiffRead = null;
+            ReceiptSheet.Read = null;
             record = [];
             CoachMode.Read = null;
             CoachMode.Answer = null;
@@ -196,6 +197,9 @@ public sealed partial class MainWindow : Window
             // The Record from a stand-in for KIFF's activity beside the Home contract (kiff-activity.json), if there is one.
             var activity = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!, "kiff-activity.json");
             kiffRead = _ => Task.FromResult(File.Exists(activity) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(activity)) : CloudRead.Unreached(w));
+            // And a line's receipt from kiff-receipt.json, as KIFF writes it.
+            var receipt = Path.Combine(Path.GetDirectoryName(activity)!, "kiff-receipt.json");
+            ReceiptSheet.Read = _ => Task.FromResult<(byte[]?, string?)>(File.Exists(receipt) ? (File.ReadAllBytes(receipt), null) : (null, CloudRead.Unreached(w).Why));
             _ = ReadHomeAsync(path => Task.FromResult(ContractRead(w, homeFile, path)));
             CoachMode.Read = path => Task.FromResult(ContractRead(w, homeFile, path));
             // The first taf's page, its Activity from taf-activity.json beside the Home contract.
@@ -281,6 +285,7 @@ public sealed partial class MainWindow : Window
         cloudReadWithProof = (path, proof) => CloudReadAsync(bearer, path, proof);
         setupProof = () => SetupProofAsync(session);
         kiffRead = path => KiffReadAsync(bearer, path);
+        ReceiptSheet.Read = path => KiffBytesAsync(bearer, path);
         record = [];
         if (Pages.Content is RecordPage page) page.ShowEntries(record);
         ShowHome(new HomeAnswer([], null));
@@ -313,6 +318,20 @@ public sealed partial class MainWindow : Window
         try { (status, body) = await KiffHttp.GetAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), bearer, w.Language); }
         catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
         return Answered(w, status, body);
+    }
+
+    /// <summary>
+    /// A KIFF receipt as the session, as KIFF wrote it (the iPad's <c>KIFFClient.receipt</c>), or why not. Its words are
+    /// written back as the UTF-8 they came as.
+    /// </summary>
+    static async Task<(byte[]? Raw, string? Why)> KiffBytesAsync(string bearer, string path)
+    {
+        var w = App.Words;
+        int status;
+        string body;
+        try { (status, body) = await KiffHttp.GetAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), bearer, w.Language); }
+        catch (System.Net.Http.HttpRequestException) { return (null, CloudRead.Unreached(w).Why); }
+        return status is < 200 or > 299 ? (null, CloudRead.Refused(w, status, body).Why) : (System.Text.Encoding.UTF8.GetBytes(body), null);
     }
 
     /// <summary>A card's answer sent to tafs cloud as the session, answered as a read is.</summary>

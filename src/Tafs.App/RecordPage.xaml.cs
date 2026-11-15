@@ -13,15 +13,22 @@ namespace Tafs.App;
 /// <summary>One day of the Record, as drawn.</summary>
 public sealed record RecordDayView(string Title, IReadOnlyList<RecordLineView> Entries);
 
-/// <summary>One line of the Record, as drawn: its status dot, its taf's colour, "Taf · what", the time and the detail.</summary>
-public sealed record RecordLineView(string Title, string Time, string Detail, Brush TafColour, Visibility IsDone, Visibility IsWaiting, Visibility IsRefused)
+/// <summary>
+/// One line of the Record, as drawn: its status dot, its taf's colour, "Taf · what", the time and the detail; read out as
+/// one, with what a tap does.
+/// </summary>
+public sealed record RecordLineView(string Title, string Time, string Detail, Brush TafColour, Visibility IsDone, Visibility IsWaiting, Visibility IsRefused,
+    RecordEntry Entry)
 {
+    public string Name => $"{Title}, {Time}, {Detail}";
+    public string Hint => App.Words.Get("record.shows_receipt");
+
     public static RecordLineView Of(RecordEntry e, TimeZoneInfo zone)
     {
         var (title, time) = RecordScreen.Line(e, zone);
         static Visibility Seen(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
         var dot = RecordScreen.DotOf(e.Kind);
-        return new(title, time, e.Detail, Colour(e.TafColor), Seen(dot == Dot.Went), Seen(dot == Dot.Waiting), Seen(dot == Dot.Stopped));
+        return new(title, time, e.Detail, Colour(e.TafColor), Seen(dot == Dot.Went), Seen(dot == Dot.Waiting), Seen(dot == Dot.Stopped), e);
     }
 
     public static Brush Colour(int taf)
@@ -52,6 +59,12 @@ public sealed partial class RecordPage : Page
     {
         entries = lines;
         Show();
+    }
+
+    /// <summary>A line's sheet: its facts, what happened and KIFF's receipt.</summary>
+    async void OnLine(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: RecordEntry entry }) await ReceiptSheet.ShowAsync(XamlRoot, ActualTheme, entry);
     }
 
     /// <summary>Draws the chips, the chosen ones inverted, and the days the filter and the taf leave.</summary>

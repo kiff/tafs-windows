@@ -123,7 +123,7 @@ public static class KiffActivity
                 detail = Decided(w, c.Answer, kind, allowed && c.Held) + " · " + Result(w, kind);
             var name = Name(c.ActionName, c.Title);
             var amount = AmountText(w, c.Amount);
-            lines.Add(new RecordEntry(taf.Name, taf.Colour, kind, amount is null ? name : $"{name} · {amount}", detail, c.CreatedAt, amount));
+            lines.Add(new RecordEntry(taf.Name, taf.Colour, kind, amount is null ? name : $"{name} · {amount}", detail, c.CreatedAt, amount, c));
         }
         return lines;
     }
@@ -204,7 +204,7 @@ public static class KiffActivity
     }
 
     /// <summary>Who answered, as the iPad's <c>answerer</c>: "you", or KIFF's role for them ("an admin").</summary>
-    static string Answerer(WordBook w, CallAnswer a)
+    internal static string Answerer(WordBook w, CallAnswer a)
     {
         if (a.You == true) return w.Get("record.answerer.you");
         if (string.IsNullOrEmpty(a.By)) return w.Get("record.answerer.someone_else");
