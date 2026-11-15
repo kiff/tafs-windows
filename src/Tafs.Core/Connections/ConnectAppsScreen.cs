@@ -38,11 +38,7 @@ public sealed record ConnectAppsList(IReadOnlyList<ConnectApp> Apps, bool ByKey,
 /// <summary>What a row says: how it connects, whose it is, where it stands, who uses it, or tafs cloud's setup line.</summary>
 public sealed record ConnectRow(string How, string? Whose, string? Status, string? UsedBy, string? Setup);
 
-/// <summary>
-/// Connect apps, as on the iPad (its ConnectAppsView): the person's own apps under Yours, then the rest of the catalog
-/// under Discover, in a table of App, How it connects, Whose and Status. Every word but the app's own is tafs cloud's
-/// or the word book's.
-/// </summary>
+/// <summary>Connect apps, as on the iPad (its ConnectAppsView): Yours, then Discover, in a table. Every word is tafs cloud's or the word book's.</summary>
 public static class ConnectAppsScreen
 {
     /// <summary>Reads the list leniently, as the iPad does: an app with no entry is left out, never the list.</summary>
@@ -76,14 +72,10 @@ public static class ConnectAppsScreen
     static string? Text(JsonElement o, string name) =>
         o.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String && v.GetString()!.Trim() is { Length: > 0 } s ? s : null;
 
-    /// <summary>used_by: [{taf, name}] by tafs cloud's names, or plain names. Anything else reads as none sent.</summary>
-    static IReadOnlyList<string>? Names(JsonElement a)
-    {
-        if (!a.TryGetProperty("used_by", out var u) || u.ValueKind != JsonValueKind.Array) return null;
-        return u.EnumerateArray()
-            .Select(n => n.ValueKind == JsonValueKind.String ? n.GetString()?.Trim() : n.ValueKind == JsonValueKind.Object ? Text(n, "name") : null)
-            .Where(n => !string.IsNullOrEmpty(n)).Select(n => n!).ToList();
-    }
+    /// <summary>used_by: [{taf, name}], by tafs cloud's names, as the iPad reads it. Anything else reads as none sent.</summary>
+    static IReadOnlyList<string>? Names(JsonElement a) => a.TryGetProperty("used_by", out var u) && u.ValueKind == JsonValueKind.Array
+        ? u.EnumerateArray().Where(n => n.ValueKind == JsonValueKind.Object).Select(n => Text(n, "name")).OfType<string>().ToList()
+        : null;
 
     public static ConnectRow Row(WordBook w, ConnectApp app)
     {
@@ -100,10 +92,7 @@ public static class ConnectAppsScreen
     public static string? Button(WordBook w, ConnectApp app) =>
         app.NeedsSetup || app.Connected ? null : w.Get(app.NeedsReconnect ? "connect.sign_in_again" : "connect.apps.connect");
 
-    /// <summary>
-    /// Yours first, then Discover, each in tafs cloud's order. An app under Yours isn't under Discover again in another of
-    /// its catalog forms: Stripe connected as connector:composio:stripe leaves out stripe@3, and the other way round.
-    /// </summary>
+    /// <summary>Yours, then Discover, in tafs cloud's order; an app under Yours isn't under Discover in another catalog form.</summary>
     public static (IReadOnlyList<ConnectApp> Yours, IReadOnlyList<ConnectApp> Discover) Split(IReadOnlyList<ConnectApp> apps)
     {
         var yours = apps.Where(a => a.Yours).ToList();
@@ -141,8 +130,8 @@ public static class ConnectAppsScreen
     /// <summary>The iPad's sample for the reference screenshots: two apps connected, four to connect.</summary>
     public static ConnectAppsList Sample() => Read("""
         {"apps":[
-         {"entry":"connector:composio:gmail","vendor":"Gmail","name":"Gmail","subtitle":"Mail: reads, and drafts replies","how":"oauth","method":"sign_in","state":"connected","connected":true,"whose":"Yours","used_by":["Refunds"]},
-         {"entry":"stripe@3","vendor":"Stripe","name":"Stripe","subtitle":"Payments: refunds and charges","how":"key","method":"key","state":"connected","connected":true,"whose":"Yours","used_by":["Refunds","Chargebacks"]},
+         {"entry":"connector:composio:gmail","vendor":"Gmail","name":"Gmail","subtitle":"Mail: reads, and drafts replies","how":"oauth","method":"sign_in","state":"connected","connected":true,"whose":"Yours","used_by":[{"name":"Refunds"}]},
+         {"entry":"stripe@3","vendor":"Stripe","name":"Stripe","subtitle":"Payments: refunds and charges","how":"key","method":"key","state":"connected","connected":true,"whose":"Yours","used_by":[{"name":"Refunds"},{"name":"Chargebacks"}]},
          {"entry":"connector:composio:googlesheets","vendor":"Google Sheets","name":"Google Sheets","subtitle":"Spreadsheets: rows read and written","how":"oauth","method":"sign_in","state":"available"},
          {"entry":"connector:composio:slack","vendor":"Slack","name":"Slack","subtitle":"Messages to your team's channels","how":"oauth","method":"sign_in","state":"available"},
          {"entry":"qonto@1","vendor":"Qonto","name":"Qonto","subtitle":"Invoicing: reads, and invoice drafts from quotes","how":"key","method":"key","state":"available"},

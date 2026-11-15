@@ -63,7 +63,7 @@ public class ConnectAppsScreenTests
         Assert.True(z.Yours);
         Assert.False(y.Yours);
         // Used by, only for the person's own.
-        Assert.Null(ConnectAppsScreen.Row(En, ConnectAppsScreen.Read("""{"apps":[{"entry":"a","used_by":["R"]}]}""").Apps[0]).UsedBy);
+        Assert.Null(ConnectAppsScreen.Row(En, ConnectAppsScreen.Read("""{"apps":[{"entry":"a","used_by":[{"name":"R"}]}]}""").Apps[0]).UsedBy);
     }
 
     [Fact]

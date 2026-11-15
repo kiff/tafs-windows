@@ -1,5 +1,4 @@
 namespace Tafs.Core.Words;
-
 /// <summary>Names joined in the person's language as the iPad's ListFormatter joins them: CLDR's standard "and" list.</summary>
 public static class Lists
 {

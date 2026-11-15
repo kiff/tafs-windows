@@ -1,5 +1,4 @@
 using Tafs.Core.Words;
-
 namespace Tafs.Core.Tests.Strings;
 
 [Part("strings")]

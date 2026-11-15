@@ -54,15 +54,11 @@ public sealed class ConnectRowView
     public Visibility HasButton { get; init; } = Visibility.Collapsed;
 }
 
-/// <summary>
-/// Connect apps. tafs cloud's list comes in its own change: until then nothing is listed, or the iPad's sample.
-/// Nothing here connects yet, so Connect stays dimmed.
-/// </summary>
+/// <summary>Connect apps. Until tafs cloud's list is read, nothing is listed (or the iPad's sample); Connect stays dimmed.</summary>
 public sealed partial class ConnectAppsPage : Page
 {
     readonly ConnectColumnsView columns = new();
 
-    /// <summary>Not listed? Ask Coach.</summary>
     public static event Action? AskCoachChosen;
 
     public ConnectAppsPage() => InitializeComponent();
@@ -118,7 +114,6 @@ public sealed partial class ConnectAppsPage : Page
         return rows;
     }
 
-    /// <summary>Both panels are as wide: the table's widths follow the page's.</summary>
     void OnPanelSized(object sender, SizeChangedEventArgs e)
     {
         var border = (Border)sender;
