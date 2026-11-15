@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The team's MSIX (docs/install.md). Unsigned until the signing certificate is decided: the publisher carries Windows'
-  marker for an unsigned package (OID 2.25.311729368913984317654407730594956997722), so it installs with
-  Add-AppxPackage -AllowUnsigned and nothing else. It is built only with -p:TafsMsix=true; every other build stays unpackaged.
+  The MSIX (docs/install.md), kept for the day it's signed: until then the publisher carries Windows' marker for an
+  unsigned package (OID 2.25.311729368913984317654407730594956997722), and Windows installs no unsigned package that
+  holds an app (0x80073D2B). The team runs the zip meanwhile. It is built only with -p:TafsMsix=true; every other build
+  stays unpackaged.
 -->
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"

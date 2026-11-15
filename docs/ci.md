@@ -90,8 +90,10 @@ they only need the portable core; jobs that need Windows (the app build, the TPM
 separate job that runs only when its paths change. NuGet packages are cached: every run restores,
 only main saves.
 
-## The team's MSIX
+## The team's download, and the MSIX
 
-The `msix` job builds the unsigned MSIX for x64 and ARM64 (`docs/install.md`), on Windows. It runs on every push to
-main, on demand, and on a PR that changes the app. Each run keeps `tafs-msix-x64` and `tafs-msix-ARM64` as artifacts.
-Its version is `0.1.<run number>.0`, stamped into the manifest before the build, so each build installs over the last.
+Both run on Windows, on every push to main, on demand, and on a PR that changes the app (`docs/install.md`):
+- **`zip`:** the unpackaged app, self-contained, for x64 and ARM64, kept as `tafs-windows-x64` and `tafs-windows-ARM64`.
+  The x64 build must open its sign-in screen and save it, or the job fails.
+- **`msix`:** the MSIX for x64 and ARM64, kept as `tafs-msix-x64` and `tafs-msix-ARM64`, for the day it's signed. Its
+  version is `0.1.<run number>.0`, stamped into the manifest before the build.
