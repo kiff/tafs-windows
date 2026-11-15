@@ -133,7 +133,17 @@ public sealed partial class SignInPage : Page
             if (SignInScreen.After(result.Status) is { } next)
                 Show(next, next == SignInStep.CouldNotFinish ? SignInScreen.Why(App.Words, result) : null);
             else
-                SignedIn?.Invoke(result.Session!);
+            {
+                var s = result.Session!;
+                // Kept across launches; a session it replaces is signed out.
+                await App.Sessions.KeepAsync(KeptSession.Of(DeviceSignIn.Api, s.AccessToken, s.Tenant, s.Subject, null, s.Mode,
+                    s.ExpiresIn, DateTimeOffset.UtcNow, TpmKey.DeviceKeyName));
+                SignedIn?.Invoke(s);
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or CryptographicException && code is not null)
+        {
+            Show(SignInStep.CouldNotFinish, SessionStore.Why(e)); // the session store refused
         }
         catch (HttpRequestException)
         {

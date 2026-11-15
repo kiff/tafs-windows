@@ -49,6 +49,7 @@ the `pairing` part.
 - **The code:** the browser opens on the link, the code is shown to check, and Open KIFF to approve opens it again.
 - **The terms line** links tafs's Terms and Privacy policy (`kiff.dev/tafs/terms`, `/tafs/privacy`), as on the iPad.
 - **Signed in:**
-  - the window opens the Overview with the view-only notice, because the PC can't approve until it's paired or has its own passkey;
-  - **the session is kept in memory only, for now:** storing it in Windows' credential store is the next step for this screen.
+  - the window opens the Overview, with the view-only notice when `approval_mode` says view (or says nothing it knows);
+  - **the session is kept** across launches, sealed for this Windows user ([the session](session.md)). A session it replaces is signed out at KIFF.
+- **The link opened** is https on one of KIFF's own hosts, exactly: `kiff.dev`, `app.kiff.dev` or the API's.
 - **Tests:** checks that create state never run against KIFF's production API. They run against a local or CI KIFF.

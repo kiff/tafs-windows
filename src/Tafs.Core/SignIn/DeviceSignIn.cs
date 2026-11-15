@@ -13,7 +13,9 @@ public sealed record SignInCode(
 }
 
 /// <summary>The session KIFF hands over once, when the person approves in the browser. Its token is never printed.</summary>
-public sealed record SignedInSession(string AccessToken, string Tenant, string Subject, TimeSpan ExpiresIn)
+/// <param name="Mode">From approval_mode: unknown or missing is View.</param>
+public sealed record SignedInSession(string AccessToken, string Tenant, string Subject, TimeSpan ExpiresIn,
+    ApprovalMode Mode = ApprovalMode.View)
 {
     public override string ToString() => $"SignedInSession {{ Tenant = {Tenant}, AccessToken = (hidden) }}";
 }
@@ -83,17 +85,17 @@ public static class DeviceSignIn
     }
 
     /// <summary>
-    /// An https link on KIFF's own domain: the API's host without its first label (kiff.dev for
-    /// api.kiff.dev), or a host under it (KIFF's sign-in page is on app.kiff.dev). So a wrong base URL or a
-    /// tampered answer never opens a page somewhere else.
+    /// An https link on one of KIFF's own hosts, exactly: its domain (kiff.dev for api.kiff.dev), the sign-in
+    /// page's app.kiff.dev, or the API's own host. No other subdomain, so a wrong base URL, a tampered answer or
+    /// content served under kiff.dev never opens a page somewhere else.
     /// </summary>
     public static bool IsKiffLink(Uri link, Uri api)
     {
         var dot = api.Host.IndexOf('.');
         var domain = dot > 0 && api.Host.IndexOf('.', dot + 1) > 0 ? api.Host[(dot + 1)..] : api.Host;
+        string[] hosts = [domain, "app." + domain, api.Host];
         return link.IsAbsoluteUri && link.Scheme == Uri.UriSchemeHttps && link.UserInfo.Length == 0 && link.IsDefaultPort
-            && (link.Host.Equals(domain, StringComparison.OrdinalIgnoreCase)
-                || link.Host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase));
+            && hosts.Contains(link.Host, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>Why KIFF refused a start, as its status and error code only (invalid_device_name, say).</summary>
@@ -130,7 +132,8 @@ public static class DeviceSignIn
                     r.GetProperty("access_token").GetString()!,
                     r.GetProperty("tenant").GetString()!,
                     r.GetProperty("subject").GetString()!,
-                    TimeSpan.FromSeconds(r.GetProperty("expires_in").GetInt64())));
+                    TimeSpan.FromSeconds(r.GetProperty("expires_in").GetInt64()),
+                    KeptSession.ModeOf(r.TryGetProperty("approval_mode", out var m) ? m.GetString() : null)));
 
             var error = r.TryGetProperty("error", out var e) ? e.GetString() : null;
             return (status, error) switch

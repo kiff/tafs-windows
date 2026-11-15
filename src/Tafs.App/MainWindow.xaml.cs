@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using Tafs.Core.Calendar;
 using Tafs.Core.Connections;
 using Tafs.Core.Home;
+using Tafs.Core.Kiff;
 using Tafs.Core.NeedsYou;
 using Tafs.Core.Record;
 using Tafs.Core.Pairing;
@@ -75,16 +76,16 @@ public sealed partial class MainWindow : Window
         ViewOnly.Title = notice.Title;
         ViewOnly.Message = notice.Lead;
         AddThisDevice.Content = notice.Add;
-        ViewOnly.IsOpen = viewOnly;
+        // A kept session says how this PC approves: the notice shows exactly when it's view.
+        ViewOnly.IsOpen = viewOnly || (screenshot is null && App.Sessions.Kept() is { Mode: ApprovalMode.View });
 
         SignInPage.PairInsteadChosen += OpenPairing;
         NeedsYouPage.AddThisDeviceChosen += OpenPairing;
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
         OverviewPage.NeedsYouChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
-        SignInPage.SignedIn += _ =>
+        SignInPage.SignedIn += session =>
         {
-            // Kept in memory for now. Until this PC is paired (or has its own passkey), it reads and doesn't approve.
-            ViewOnly.IsOpen = true;
+            ViewOnly.IsOpen = session.Mode == ApprovalMode.View;
             Nav.SelectedItem = BrandItem;
         };
 
