@@ -39,6 +39,15 @@ public static class KiffSigning
     public static string SignatureHeaderV1(DateTimeOffset signedAt, byte[] derSignature) =>
         $"t={Time(signedAt)},v1={Convert.ToBase64String(derSignature)}";
 
+    /// <summary>
+    /// kiff.request.v1 at a <c>signed_at</c> kept as written: <see cref="SigningTime.Next"/>'s, with its milliseconds, so two
+    /// requests in the same second never sign the same time (the iPad's <c>SigningTime</c>, used verbatim).
+    /// </summary>
+    public static byte[] RequestV1(string tenant, string method, string pathAndQuery, byte[] body, string signedAt) =>
+        Message("kiff.request.v1", tenant, method.ToUpperInvariant(), pathAndQuery, Sha256Hex(body), signedAt);
+
+    public static string SignatureHeaderV1(string signedAt, byte[] derSignature) => $"t={signedAt},v1={Convert.ToBase64String(derSignature)}";
+
     public static string Base64Url(byte[] bytes) =>
         Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
