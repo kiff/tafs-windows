@@ -39,7 +39,9 @@
     <Content Include="Assets\mascot.png" CopyToOutputDirectory="PreserveNewest" />
     <!-- The package's logos, made from the mascot. -->
     <Content Include="Assets\Square150x150Logo.png;Assets\Square44x44Logo.png;Assets\StoreLogo.png;Assets\Wide310x150Logo.png" />
-    <Content Include="..\..\shared\app\strings\**\*.json" Link="Strings\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The words: languages.json and each language's folder. The shared repository's own bookkeeping isn't shipped. -->
+    <Content Include="..\..\shared\app\strings\**\*.json" Exclude="..\..\shared\app\strings\*_kept.json;..\..\shared\app\strings\same_as_english.json"
+             Link="Strings\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <Target Name="NeedsTheWords" BeforeTargets="Build" Condition="!Exists('..\..\shared\app\strings\languages.json')">
     <Error Text="The words aren't here. Run: dotnet run --project tools/Tafs.Ci -- sync" />

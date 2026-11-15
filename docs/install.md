@@ -8,8 +8,11 @@ signed. Everyone else waits for the signed package.
 
 - **What it is:** the app as it builds, unpackaged and self-contained. .NET and the Windows App SDK come inside it, so
   nothing else needs installing. There's one for x64 and one for ARM64 (about 165 MB unzipped).
-- **Getting it:** CI's `zip` job builds it on every push to main, on a PR that changes the app, and on demand (Actions ›
-  CI › Run workflow). Each run keeps `tafs-windows-x64` and `tafs-windows-ARM64`; each downloads as a zip.
+- **Getting it, only from main:** Actions › CI, filtered to branch `main`, from a run whose `test` and `app` jobs passed
+  (the nightly run, a push to main, or Run workflow on main). Each such run keeps `tafs-windows-x64` and
+  `tafs-windows-ARM64`, each a zip, stamped with the run's version (`0.1.<run number>.0`) and its commit.
+- **Never run anything from a PR's run.** A PR that changes the app only checks that it publishes and starts; it keeps no
+  download. A PR from a fork runs its own code.
 - **Running it:**
   1. Before unzipping, open the zip's Properties and tick **Unblock**, if Windows shows it. Otherwise Windows may stop
      the app at first with "Windows protected your PC": choose More info › Run anyway. The app isn't signed yet.
