@@ -16,10 +16,11 @@ public sealed record ActivityFilter(string Id, string Title);
 
 /// <summary>
 /// A taf's Activity, as tafs cloud's <c>GET /v1/tafs/{id}/activity</c> answers it (contracts/taf-activity.json): its days,
-/// the filters with the one applied, the words under the last line, and the revision sent back as If-None-Match.
+/// the filters with the one applied, the words under the last line, the revision sent back as If-None-Match, and the cursor
+/// of the next page when there's one.
 /// </summary>
 public sealed record ActivityPage(IReadOnlyList<ActivityGroup> Groups, IReadOnlyList<ActivityFilter> Filters, string Filter,
-    string? EndWords, string? Revision);
+    string? EndWords, string? Revision, string? NextCursor = null);
 
 /// <summary>A taf's Activity tab: read from tafs cloud, or the iPad's sample (the reference set's taf.png).</summary>
 public static class TafActivity
@@ -38,7 +39,8 @@ public static class TafActivity
             .Select(f => Lenient.Text(f, "id") is { } id && Lenient.Text(f, "title") is { } title ? new ActivityFilter(id, title) : null)
             .OfType<ActivityFilter>()
             .ToList();
-        return new ActivityPage(groups, filters, Lenient.Text(answer, "filter") ?? "all", Lenient.Text(answer, "end_words"), Lenient.Text(answer, "revision"));
+        return new ActivityPage(groups, filters, Lenient.Text(answer, "filter") ?? "all", Lenient.Text(answer, "end_words"), Lenient.Text(answer, "revision"),
+            Lenient.Text(answer, "next_cursor"));
     }
 
     static ActivityLine? Line(JsonElement e) =>

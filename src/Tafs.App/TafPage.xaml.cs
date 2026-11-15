@@ -12,8 +12,10 @@ namespace Tafs.App;
 /// What a taf's page opens with: its head, its Card bar (none without a Card), its Activity for a filter, its Setup (none
 /// yet from tafs cloud), and the tab it opens on. tafs cloud's comes in its own change; until then, the iPad's sample.
 /// </summary>
+/// A taf tafs cloud runs has its id there and the read its Activity comes through.
 public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, ActivityPage> Activity, SetupOpening? Setup = null,
-    TafTab OpensOn = TafTab.Activity, IReadOnlyList<TafCard>? Cards = null, string IssuedBy = "");
+    TafTab OpensOn = TafTab.Activity, IReadOnlyList<TafCard>? Cards = null, string IssuedBy = "", string? CloudId = null,
+    Func<string, Task<CloudRead>>? Read = null);
 
 /// <summary>The sample's Setup, as taf-setup.png: its job and the notes it keeps.</summary>
 public sealed record SetupOpening(string Job, IReadOnlyList<MemoryNote> Notes);
@@ -39,6 +41,8 @@ public sealed partial class TafPage : Page
 {
     TafOpening? opening;
     string filter = "all";
+    /// <summary>tafs cloud's Activity, one set of pages a filter, as the iPad keeps them by taf and filter.</summary>
+    readonly Dictionary<string, ActivityPages> cloudPages = [];
     TafTab tab;
     List<MemoryNote> notes = [];
     bool paused;
@@ -72,7 +76,35 @@ public sealed partial class TafPage : Page
         }
         ShowState();
         ShowTab();
+        ActivityTryAgain.Content = App.Words.Get("common.try_again");
         Show();
+        _ = LoadActivityAsync();
+    }
+
+    ActivityPages CloudPages() => cloudPages.TryGetValue(filter, out var p) ? p : cloudPages[filter] = new();
+
+    /// <summary>
+    /// The filter's newest page, or with <paramref name="more"/> its next, drawn as the read starts and once it's in, as the
+    /// iPad's <c>loadActivityPage</c> for the filter chosen. A sample taf has none to read.
+    /// </summary>
+    async Task LoadActivityAsync(bool more = false)
+    {
+        if (opening is not { CloudId: { } id, Read: { } read }) return;
+        var pages = CloudPages();
+        var loading = pages.LoadAsync(id, filter, read, more);
+        Show();
+        await loading;
+        Show();
+    }
+
+    /// <summary>Try again: the next page when some are in, else the newest, as the iPad's.</summary>
+    void OnActivityTryAgain(object sender, RoutedEventArgs e) => _ = LoadActivityAsync(more: CloudPages().Pages.Count > 0);
+
+    /// <summary>The next page is read once its ring comes into view, as the iPad's <c>.task</c> on its ProgressView.</summary>
+    void OnActivityLoadingSeen(FrameworkElement sender, EffectiveViewportChangedEventArgs e)
+    {
+        var inView = e.EffectiveViewport.Height > 0 && e.BringIntoViewDistanceY <= 0;
+        if (inView && opening?.CloudId is not null && CloudPages().End(App.Words).Kind == ActivityEndKind.More) _ = LoadActivityAsync(more: true);
     }
 
     /// <summary>
@@ -437,6 +469,11 @@ public sealed partial class TafPage : Page
     {
         if (opening is null) return;
         var w = App.Words;
+        if (opening.CloudId is not null)
+        {
+            ShowCloud();
+            return;
+        }
         var page = opening.Activity(filter);
         FilterChips.Children.Clear();
         foreach (var f in page.Filters) FilterChips.Children.Add(Chip(f, f.Id == page.Filter));
@@ -448,13 +485,35 @@ public sealed partial class TafPage : Page
         EndWords.Visibility = page.EndWords is null ? Visibility.Collapsed : Visibility.Visible;
     }
 
+    /// <summary>
+    /// tafs cloud's Activity, as the iPad's: the first page's filters, every page's days, then what ends them: why a read
+    /// failed with Try again, the next page's ring, a read going, tafs cloud's end words, or "Nothing here.".
+    /// </summary>
+    void ShowCloud()
+    {
+        var pages = CloudPages();
+        FilterChips.Children.Clear();
+        foreach (var f in pages.Filters) FilterChips.Children.Add(Chip(f, f.Id == filter));
+        Days.ItemsSource = pages.Groups.Select(g => new TafDayView(g.Title, g.Lines.Select(TafLineView.Of).ToList())).ToList();
+        Empty.Visibility = Visibility.Collapsed;
+        var end = pages.End(App.Words);
+        EndWords.Text = end.Words ?? "";
+        EndWords.Visibility = end.Kind is ActivityEndKind.EndWords or ActivityEndKind.NothingHere ? Visibility.Visible : Visibility.Collapsed;
+        var ring = end.Kind is ActivityEndKind.Loading or ActivityEndKind.More;
+        ActivityLoading.IsActive = ring;
+        ActivityLoading.Visibility = ring ? Visibility.Visible : Visibility.Collapsed;
+        ActivityError.Text = end.Words ?? "";
+        ActivityFailed.Visibility = end.Kind == ActivityEndKind.Error ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     /// <summary>A filter chip, as the Record's: 13, in a capsule; the chosen one inverts.</summary>
     Button Chip(ActivityFilter f, bool chosen)
     {
         var chip = new Button { Content = f.Title, FontSize = 13, Style = Look(chosen ? "TafsChipChosen" : "TafsChip") };
         AutomationProperties.SetName(chip, f.Title);
         if (chosen) AutomationProperties.SetItemStatus(chip, "selected");
-        chip.Click += (_, _) => { filter = f.Id; Show(); };
+        // A cloud taf reads the filter's newest page each time it's chosen, as the iPad's .task on the filter.
+        chip.Click += (_, _) => { filter = f.Id; Show(); _ = LoadActivityAsync(); };
         return chip;
     }
 

@@ -34,6 +34,8 @@ public sealed partial class MainWindow : Window
     IReadOnlyList<OverviewRow> overviewRows;
     /// <summary>Home's answer from tafs cloud, for a taf's page; none until it's read.</summary>
     HomeAnswer? home;
+    /// <summary>How this window reads tafs cloud (as the session, or the contracts for a screenshot); none until Home is read.</summary>
+    Func<string, Task<CloudRead>>? cloudRead;
     readonly bool sample;
     readonly UsageReads usage;
     readonly ConnectAppsList? connectApps;
@@ -149,7 +151,12 @@ public sealed partial class MainWindow : Window
         else Nav.SelectedItem = BrandItem;
         if (screenshot is not null) Root.Loaded += async (_, _) => await SaveAndQuitAsync(screenshot);
         // From files, every read is done before the window first draws, so the screenshot has them.
-        if (homeFile is not null) _ = ReadHomeAsync(path => Task.FromResult(ContractRead(w, homeFile, path)));
+        if (homeFile is not null)
+        {
+            _ = ReadHomeAsync(path => Task.FromResult(ContractRead(w, homeFile, path)));
+            // The first taf's page, its Activity from taf-activity.json beside the Home contract.
+            if (page == "taf" && home?.Tafs.FirstOrDefault() is { } first) OpenBeside(typeof(TafPage), OpenTaf(w, first.Id));
+        }
         else if (screenshot is null && !sample && App.Sessions.Kept() is { } session)
             Root.Loaded += async (_, _) => await ReadHomeAsync(path => CloudReadAsync(session.AccessToken, path));
     }
@@ -163,6 +170,7 @@ public sealed partial class MainWindow : Window
     {
         var w = App.Words;
         if ((await read(HomeList.Path)).Answer is not { } answer) return;
+        cloudRead = read;
         ShowHome(HomeList.Read(w, answer, TimeZoneInfo.Local));
         var listed = home!;
         var reports = await Task.WhenAll(listed.Tafs.Select(t => TafRuns.LoadReportAsync(w, t.Id, read)));
@@ -192,12 +200,14 @@ public sealed partial class MainWindow : Window
 
     /// <summary>
     /// For screenshots, tafs cloud's answers from the contracts beside <paramref name="homeFile"/>: Home's from it, a taf's
-    /// runs from taf-runs.json and a run's report from taf-run-report.json. With no such file, it reads as not reached.
+    /// runs from taf-runs.json, a run's report from taf-run-report.json and its Activity from taf-activity.json. With no such
+    /// file, it reads as not reached.
     /// </summary>
     static CloudRead ContractRead(Tafs.Core.Words.WordBook w, string homeFile, string path)
     {
         var file = path == HomeList.Path ? homeFile
-            : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!, path.EndsWith("/runs") ? "taf-runs.json" : "taf-run-report.json");
+            : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!,
+                path.Contains("/activity?") ? "taf-activity.json" : path.EndsWith("/runs") ? "taf-runs.json" : "taf-run-report.json");
         return File.Exists(file) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(file)) : CloudRead.Unreached(w);
     }
 
@@ -363,7 +373,7 @@ public sealed partial class MainWindow : Window
     TafOpening OpenTaf(Tafs.Core.Words.WordBook w, string key) =>
         home?.Tafs.FirstOrDefault(t => t.Id == key) is { } taf
             ? new(TafScreen.Head(w, taf.Name, taf.Colour, taf.StateKey), taf.Cards.FirstOrDefault()?.Bar(w, taf.Cards.Count),
-                filter => new ActivityPage([], [], filter, null, null))
+                filter => new ActivityPage([], [], filter, null, null), CloudId: taf.Id, Read: cloudRead)
             : SampleTaf(w, key, TafTab.Activity);
 
     /// <summary>
