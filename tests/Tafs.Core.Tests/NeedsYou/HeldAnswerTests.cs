@@ -110,15 +110,21 @@ public class HeldAnswerTests
         public (int, string) Answer = (200, "{}");
         public Exception? PasskeyThrows;
         public bool Current = true;
+        public ApprovalMode Mode = ApprovalMode.Passkey;
+        public string? PasskeyId = "AQI";
+        public StepConfirmed Confirmed = StepConfirmed.Yes;
+        public string? Prompt;
         public readonly List<string> Calls = [];
         public byte[]? Signed;
         public string? Posted;
 
         public Task<HeldAnswers.Answered> Answer_(HeldAnswer answer, HeldCall? call = null) => HeldAnswers.AnswerAsync(En, call ?? Call(), answer, "t_1",
+            Mode, PasskeyId,
+            prompt => { Calls.Add("confirm"); Prompt = prompt; return Task.FromResult(Confirmed); },
             message => { Calls.Add("passkey"); Signed = message; return PasskeyThrows is { } e ? Task.FromException<JsonObject>(e) : Task.FromResult(new JsonObject { ["credential_id"] = "Y3I" }); },
             message => { Calls.Add("device key"); Signed = message; return Task.FromResult("MEU="); },
             (path, body) => { Calls.Add("POST " + path); Posted = Encoding.UTF8.GetString(body); return Task.FromResult(Answer); },
-            () => At, () => Current);
+            () => { Calls.Add("time"); return At; }, () => Current);
     }
 
     /// <summary>Approving takes the passkey and refusing the device key, each over its own kiff.answer.v1, then KIFF takes it.</summary>
@@ -127,18 +133,18 @@ public class HeldAnswerTests
     {
         var approve = new Kiff();
         Assert.True((await approve.Answer_(new HeldAnswer.ApproveOnce())).Taken);
-        Assert.Equal(["passkey", "POST /v1/me/card-exceptions/ce_1/approve-once"], approve.Calls);
+        Assert.Equal(["time", "passkey", "POST /v1/me/card-exceptions/ce_1/approve-once"], approve.Calls);
         Assert.Equal(HeldAnswers.Message("t_1", "ce_1", new HeldAnswer.ApproveOnce(), 3, At), approve.Signed);
         Assert.Equal("""{"signature":{"signed_at":"2026-11-15T21:00:00.000Z","passkey":{"credential_id":"Y3I"}}}""", approve.Posted);
 
         var refuse = new Kiff();
         Assert.True((await refuse.Answer_(new HeldAnswer.NextStep("return first"))).Taken);
-        Assert.Equal(["device key", "POST /v1/me/card-exceptions/ce_1/reject"], refuse.Calls);
+        Assert.Equal(["confirm", "time", "device key", "POST /v1/me/card-exceptions/ce_1/reject"], refuse.Calls);
         Assert.Equal("""{"next_step":"return first","signature":{"signed_at":"2026-11-15T21:00:00.000Z","value":"MEU="}}""", refuse.Posted);
 
         var room = new Kiff();
         await room.Answer_(new HeldAnswer.ExtraRoom());
-        Assert.Equal(["passkey", "POST /v1/me/card-exceptions/ce_1/change-card"], room.Calls);
+        Assert.Equal(["time", "passkey", "POST /v1/me/card-exceptions/ce_1/change-card"], room.Calls);
     }
 
     /// <summary>Closed is cancelled, refused is not confirmed: nothing is sent and the call stays.</summary>
@@ -152,6 +158,94 @@ public class HeldAnswerTests
         Assert.Equal(new HeldAnswers.Answered(false, "Not sent: it wasn't confirmed."), await refused.Answer_(new HeldAnswer.ExtraRoom()));
         Assert.Null(closed.Posted);
         Assert.Null(refused.Posted);
+    }
+
+    /// <summary>
+    /// Coach's hold of a version to install isn't approved once: it's installed from its card, as the iPad's answer refuses it.
+    /// Nothing is confirmed, signed or sent.
+    /// </summary>
+    [Fact]
+    public async Task Coach_s_install_hold_isn_t_approved_once()
+    {
+        var kiff = new Kiff();
+        var install = Call() with { Install = new VersionInstall("taf_refunds", 3) };
+        Assert.Equal(new HeldAnswers.Answered(false, En.Get("needs_you.install_from_card")), await kiff.Answer_(new HeldAnswer.ApproveOnce(), install));
+        Assert.Empty(kiff.Calls);
+        // Refusing it is still an answer.
+        Assert.True((await new Kiff().Answer_(new HeldAnswer.Refuse(), install)).Taken);
+    }
+
+    /// <summary>KIFF's install hold, read as the iPad's install(of:coach:): Coach's agent, version_install, a taf and n above 0.</summary>
+    [Theory]
+    [InlineData("setup", "version_install", "taf_refunds", "3", true)]
+    [InlineData("refunds-1", "version_install", "taf_refunds", "3", false)]
+    [InlineData("setup", "create_refund", "taf_refunds", "3", false)]
+    [InlineData("setup", "version_install", "", "3", false)]
+    [InlineData("setup", "version_install", "taf_refunds", "0", false)]
+    [InlineData("setup", "version_install", "taf_refunds", "x", false)]
+    public void An_install_hold_is_Coach_s_version_install(string subject, string action, string taf, string n, bool install)
+    {
+        var hold = KiffHeld.Read(JsonDocument.Parse($$"""
+            {"exceptions":[{"id":"ce_1","subject":"{{subject}}","action":"{{action}}","entity_id":"e","status":"held","breaches":[],
+              "arguments":{"taf":"{{taf}}","n":"{{n}}"},"created_at":"2026-11-15T21:00:00Z","expires_at":"2026-11-15T21:10:00Z"}]}
+            """).RootElement)![0];
+        Assert.Equal(install, KiffHeld.InstallOf(hold) is not null);
+    }
+
+    /// <summary>
+    /// A session that doesn't approve with this PC's passkey never grants, whatever the card shows: refused before the time,
+    /// any prompt or any send. Refusing is still its to do.
+    /// </summary>
+    [Theory]
+    [InlineData(ApprovalMode.Key, "AQI")]
+    [InlineData(ApprovalMode.View, "AQI")]
+    [InlineData(ApprovalMode.Passkey, null)]
+    public async Task Only_a_passkey_session_grants(ApprovalMode mode, string? passkeyId)
+    {
+        foreach (var grant in new HeldAnswer[] { new HeldAnswer.ApproveOnce(), new HeldAnswer.ExtraRoom() })
+        {
+            var kiff = new Kiff { Mode = mode, PasskeyId = passkeyId };
+            Assert.Equal(new HeldAnswers.Answered(false, En.Get("needs_you.answer_in_kiff")), await kiff.Answer_(grant));
+            Assert.Empty(kiff.Calls);
+        }
+        Assert.True((await new Kiff { Mode = mode, PasskeyId = passkeyId }.Answer_(new HeldAnswer.Refuse())).Taken);
+    }
+
+    /// <summary>
+    /// Refusing asks for the person first with the iPad's prompt, then takes the time, then the device key signs, then it's
+    /// sent; closed or not confirmed, nothing is signed.
+    /// </summary>
+    [Fact]
+    public async Task A_refusal_is_confirmed_before_the_device_key_signs()
+    {
+        var refuse = new Kiff();
+        Assert.True((await refuse.Answer_(new HeldAnswer.Refuse())).Taken);
+        Assert.Equal(["confirm", "time", "device key", "POST /v1/me/card-exceptions/ce_1/reject"], refuse.Calls);
+        Assert.Equal("Answer Refund a payment", refuse.Prompt);
+
+        var closed = new Kiff { Confirmed = StepConfirmed.Cancelled };
+        Assert.Equal(new HeldAnswers.Answered(false, En.Get("approval.cancelled_nothing_approved_request_kept")), await closed.Answer_(new HeldAnswer.NextStep("return first")));
+        var unconfirmed = new Kiff { Confirmed = StepConfirmed.Failed };
+        Assert.Equal(new HeldAnswers.Answered(false, En.Get("common.not_sent_unconfirmed")), await unconfirmed.Answer_(new HeldAnswer.Refuse()));
+        Assert.Equal(["confirm"], closed.Calls);
+        Assert.Equal(["confirm"], unconfirmed.Calls);
+
+        // Approving asks no separate confirmation: the passkey's Windows Hello is it.
+        var approve = new Kiff();
+        await approve.Answer_(new HeldAnswer.ApproveOnce());
+        Assert.Equal(["time", "passkey", "POST /v1/me/card-exceptions/ce_1/approve-once"], approve.Calls);
+    }
+
+    /// <summary>The iPad's vectors, verbatim (KIFFAnswerTests.swift): reject with a next step, approve-once, change-card, and a note's hash.</summary>
+    [Fact]
+    public void The_iPad_s_answer_vectors()
+    {
+        string M(HeldAnswer a, string at, string? note = null) => Encoding.UTF8.GetString(HeldAnswers.Message("t1", "ce_1", a, 2, at, note));
+        Assert.Equal("kiff.answer.v1\nt1\nce_1\nreject\nreturn first\n\n2\n2026-10-14T10:45:00Z", M(new HeldAnswer.NextStep("return first"), "2026-10-14T10:45:00Z"));
+        Assert.Equal("kiff.answer.v1\nt1\nce_1\napprove-once\n\n\n2\n2026-10-14T10:45:00Z", M(new HeldAnswer.ApproveOnce(), "2026-10-14T10:45:00Z"));
+        Assert.Equal("kiff.answer.v1\nt1\nce_1\nchange-card\n\n\n2\n2026-10-14T10:45:00Z", M(new HeldAnswer.ExtraRoom(), "2026-10-14T10:45:00Z"));
+        Assert.Equal("kiff.answer.v1\nt1\nce_1\nreject\nreturn_first\n2b951386ddf8c195c3f5603c65de2156acb7f9f2a13638581448711e019dc654\n2\n2026-10-14T12:00:00Z",
+            M(new HeldAnswer.NextStep("return_first"), "2026-10-14T12:00:00Z", "Ask for photos."));
     }
 
     /// <summary>KIFF's refusal in the app's words, with its lasting code; no hold version answers in KIFF; a sign-out drops it.</summary>
