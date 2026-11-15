@@ -80,6 +80,24 @@ leaves the TPM.
 - Windows Hello's prompt itself needs a person. It's checked by hand on a PC with Windows Hello: make a
   passkey, then assert with it. It's never run on CI.
 
+## A taf's Cards before they're confirmed (`KiffDrafts`)
+
+What a draft would issue, read from KIFF as the session (`GET /v1/me/agent-drafts/{id}`), as the iPad's
+`KIFFClient.draft`, `AgentDraft` and `DraftCard`. It's drawn on Coach's approval cards in their own change; nothing
+here confirms anything.
+
+- **Read as strictly as the iPad's decoder:** its id, agent, status and version are required; each Card, grant, cap
+  and total in its shape, or the draft isn't shown. A claim secret is checked for its shape and never kept.
+- **The lines the person reads** (`DraftCard.Lines`):
+  - KIFF's own lines, when it sends them;
+  - otherwise each action by its title ("Refund a payment: up to €100 each"), then the totals in KIFF's window
+    ("€1,000 in total a day", "20 calls a day"); an amount's unit is KIFF's, or it reads "(no currency)";
+  - on a Card that asks past its limits: "; more asks you first", ", then it asks you", and a count of 0 is
+    "Each call asks you first";
+  - two grants that read alike, on one Card or two, each add their action in words.
+- **The Card's name:** the name the draft was submitted with ("Refunds assistant's Card"), never its agent id; else
+  "The taf's Card".
+
 ## What a Windows passkey never does
 
 Any program on the computer can ask Windows for a kiff.dev assertion, and Windows' prompt doesn't show
