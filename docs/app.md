@@ -44,4 +44,4 @@ The app speaks the first of the person's Windows languages that tafs ships (`App
 | `--sample` | show the iPad's two sample held calls in Needs you |
 | `--screenshot out.png` | save the window (1280×800) as a PNG and quit |
 
-CI's `app` job builds the app on Windows when `src/Tafs.App/**` changes, and nightly. It saves sign-in, the Overview, the view-only notice, the pairing screen and Needs you (with the samples) in en, fr and pt, light and dark, as the `screenshots` artifact of the run. The job fails if any of the 30 is missing: a crash at launch, or a word missing at the pin, stops the app before it saves.
+CI's `app` job builds the app on Windows when `src/Tafs.App/**` changes, and nightly. It saves sign-in, the Overview and Needs you (with the samples), the view-only notice and the pairing screen in en, fr and pt, light and dark, as the `screenshots` artifact of the run. The job fails if any of the 30 is missing: a crash at launch, or a word missing at the pin, stops the app before it saves.

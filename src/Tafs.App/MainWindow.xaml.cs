@@ -48,6 +48,7 @@ public sealed partial class MainWindow : Window
             if (item.Screen == Screen.NeedsYou) ShowCount(row, w, item.Title);
             Nav.MenuItems.Insert(at++, row);
         }
+        AddHeldCalls(w);
         YourTafs.Content = Sidebar.Eyebrow(w, "home.your_tafs");
         // No tafs list yet: it comes from tafs cloud in its own change.
         NoTafs.Content = Sidebar.NoTafs(w);
@@ -104,12 +105,56 @@ public sealed partial class MainWindow : Window
         row.Content = line;
     }
 
+    /// <summary>
+    /// NEEDS YOU above YOUR TAFS, as on the iPad: each held call on one row, an amber dot, "Taf: what it asks", and
+    /// "reason · answer by 00:27" under it. A row opens Needs you. With none, the section isn't there.
+    /// </summary>
+    void AddHeldCalls(Tafs.Core.Words.WordBook w)
+    {
+        if (held.Count == 0) return;
+        var at = Nav.MenuItems.IndexOf(YourTafs);
+        Nav.MenuItems.Insert(at++, new NavigationViewItemHeader
+        {
+            Content = Sidebar.Eyebrow(w, "needs_you.title"),
+            Style = (Style)Application.Current.Resources["TafsSidebarHeaderAmber"],
+        });
+        foreach (var call in held)
+        {
+            var (title, line) = NeedsYouScreen.SidebarRow(w, call, TimeZoneInfo.Local);
+            var lines = new StackPanel { Spacing = 2 };
+            lines.Children.Add(new TextBlock { Text = title, FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
+            lines.Children.Add(new TextBlock { Text = line, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Normal, TextTrimming = TextTrimming.CharacterEllipsis,
+                Style = (Style)Application.Current.Resources["TafsSoftText"] });
+            // An 8-point amber dot in the icons' column, and the words where the rows' names start.
+            var content = new Grid { ColumnSpacing = 10 };
+            content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
+            content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            content.Children.Add(new Microsoft.UI.Xaml.Shapes.Ellipse
+            {
+                Width = 8, Height = 8, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
+                Fill = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TafsAmber"],
+            });
+            Grid.SetColumn(lines, 1);
+            content.Children.Add(lines);
+            var row = new NavigationViewItem
+            {
+                Content = content,
+                Tag = call,
+                Style = (Style)Application.Current.Resources["TafsSidebarItem"],
+                HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                MinHeight = 52,
+            };
+            AutomationProperties.SetName(row, $"{title}. {line}");
+            Nav.MenuItems.Insert(at++, row);
+        }
+    }
+
     void OnSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is not NavigationViewItem item) return;
         ShowAccountChosen(false);
-        if (item == BrandItem) Pages.Navigate(typeof(OverviewPage));
-        else if (item.Tag is Screen.NeedsYou) Pages.Navigate(typeof(NeedsYouPage), held);
+        if (item == BrandItem) Pages.Navigate(typeof(OverviewPage), held);
+        else if (item.Tag is Screen.NeedsYou or HeldCall) Pages.Navigate(typeof(NeedsYouPage), held);
         else Pages.Navigate(typeof(ComingPage), item.Content);
     }
 

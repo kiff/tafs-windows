@@ -106,6 +106,23 @@
     </Setter>
   </Style>
 
+  <!-- NEEDS YOU's label, in the amber, as the iPad's Eyebrow(color: Theme.amber). -->
+  <Style x:Key="TafsSidebarHeaderAmber" TargetType="NavigationViewItemHeader">
+    <Setter Property="IsTabStop" Value="False" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="NavigationViewItemHeader">
+          <TextBlock Margin="16,18,12,6" Text="{TemplateBinding Content}" Style="{StaticResource TafsEyebrow}" Foreground="{StaticResource TafsAmber}" />
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Secondary words that follow the theme from code: the soft colour. -->
+  <Style x:Key="TafsSoftText" TargetType="TextBlock">
+    <Setter Property="Foreground" Value="{ThemeResource TafsSoft}" />
+  </Style>
+
   <!-- A line under a section's label, such as Your tafs with none yet: 13, dim. -->
   <Style x:Key="TafsSidebarLine" TargetType="NavigationViewItemHeader">
     <Setter Property="IsTabStop" Value="False" />

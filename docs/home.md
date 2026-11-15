@@ -12,6 +12,10 @@ From the top:
   beside them.
 - **The app's screens**, in the iPad's order: Needs you, Record, Calendar, Plan & usage, Connect apps.
   Calendar is one of them, so the Overview draws no calendar button (the owner's 14 Nov iPad fix).
+- **NEEDS YOU**, when calls are held: its label in the amber, then each call on one row, an 8-point
+  amber dot, "Deploys: Run migration…" (14 semibold) and "Schema migrations: always asks you · answer by
+  00:27" (12, soft), each cut short with an ellipsis. A row opens Needs you. With nothing held, the
+  section isn't there.
 - **Your tafs**: its label is the iPad's eyebrow (monospaced, 12, tracked, in capitals by the
   language's own rules). With no tafs yet, the line under it is tafs cloud's when it sends one,
   otherwise "Connect an app to set up your first taf." (or, for someone who can't use Coach, where
@@ -36,6 +40,9 @@ Today across the tafs, one line each, each line opening its taf:
 - four equal columns (TAF, NOW, CARD, LAST RESULT), headed at 11 bold, with a line between rows. They
   sit on the ground, not in a card;
 - "Each line opens the taf." under the table;
+- **NEEDS YOU** above the table when calls are held: the amber label, then one raised row per call
+  (corners of 12), an amber dot, "Deploys · Run migration…" in 14 semibold and "answer by 00:27" at its
+  end. Times are this PC's, 24-hour, as the iPad shows them;
 - up to 980 wide with its padding of 24, from the leading edge.
 
 The tafs list comes from tafs cloud in its own change. Until then it shows "No tafs yet." under the
@@ -44,8 +51,8 @@ headings.
 ## Not yet
 
 - **+ New**, above Coach on the iPad, comes with Coach: on Windows it would have nothing to open yet.
-- **Needs you's count** on its row, the held calls above Your tafs, and the tafs themselves come with
-  tafs cloud's list.
+- **The held calls and the tafs** come from KIFF and tafs cloud in their own changes. Until then
+  `--sample` shows the iPad's two sample calls in the sidebar, on the Overview and in Needs you.
 - **Coach's sparkle**: the iPad's Coach button has a sparkle (sparkles while Coach drives). Segoe
   Fluent Icons has no sparkle, so it's the closest it has, a star (U+E734).
 - **The rounded type**: the iPad's titles use its rounded system face. Windows has none, so they are

@@ -69,6 +69,17 @@ public class NeedsYouScreenTests
     }
 
     [Fact]
+    public void In_the_sidebar_and_on_the_Overview_a_held_call_is_one_line_and_its_time()
+    {
+        var call = NeedsYouScreen.Sample(En, Now)[0] with { ExpiresAt = new DateTimeOffset(2026, 11, 15, 0, 27, 0, TimeSpan.Zero) };
+        Assert.Equal(("Deploys: Run migration 0042_orders_index", "Schema migrations: always asks you · answer by 00:27"),
+            NeedsYouScreen.SidebarRow(En, call, TimeZoneInfo.Utc));
+        Assert.Equal(("Deploys · Run migration 0042_orders_index", "answer by 00:27"), NeedsYouScreen.OverviewRow(En, call, TimeZoneInfo.Utc));
+        var paris = TimeZoneInfo.CreateCustomTimeZone("Paris", TimeSpan.FromHours(1), "Paris", "Paris");
+        Assert.Equal("answer by 01:27", NeedsYouScreen.AnswerBy(En, call, paris));
+    }
+
+    [Fact]
     public void Until_this_PC_approves_the_answers_are_words_and_the_way_to_add_it()
     {
         var gate = NeedsYouScreen.Gate(En);
@@ -123,7 +134,8 @@ public class NeedsYouScreenTests
         var empty = NeedsYouScreen.Empty(w);
         var all = cards.SelectMany(l => new[] { l.Holder, l.Left, l.Summary, l.Reason, l.Footer, l.Amount ?? "x", l.Context ?? "x" })
             .Concat(calls.SelectMany(c => c.NextSteps))
-            .Concat([NeedsYouScreen.Title(w), empty.Lead, empty.Hint, NeedsYouScreen.Gate(w).Lead]);
+            .Concat([NeedsYouScreen.Title(w), empty.Lead, empty.Hint, NeedsYouScreen.Gate(w).Lead])
+            .Concat(calls.SelectMany(c => new[] { NeedsYouScreen.SidebarRow(w, c, TimeZoneInfo.Utc).Line, NeedsYouScreen.OverviewRow(w, c, TimeZoneInfo.Utc).AnswerBy }));
         Assert.All(all, line => { Assert.False(string.IsNullOrWhiteSpace(line)); Assert.DoesNotContain("{", line); });
     }
 }
