@@ -41,7 +41,46 @@ public class PlanqueEnrolmentTests
             return Task.FromResult(Mint);
         }
 
-        public Task<EnrolResult> Run() => PlanqueEnrolment.EnrolAsync(En, DeviceKey, Post, MintKey);
+        /// <summary>Signed out after this many sends (planque's asks and the mint, counted together); none, never.</summary>
+        public int? SignOutAfter { get; init; }
+
+        bool Current() => SignOutAfter is not { } n || Enrolments.Count + Mints < n;
+
+        public Task<EnrolResult> Run() => PlanqueEnrolment.EnrolAsync(En, DeviceKey, Post, MintKey, Current);
+    }
+
+    /// <summary>
+    /// A sign-out between the sends stops there, as the iPad's enrolPlanque checks accountGeneration after each: after
+    /// planque's first ask, no key is minted; after the mint, none is enrolled; after the enrolment, it's still cancelled.
+    /// </summary>
+    [Fact]
+    public async Task A_sign_out_between_the_sends_mints_and_enrols_nothing_more()
+    {
+        const string needsKey = """{"error": "needs_key", "code": "needs_key"}""";
+        var afterAsk = new Stubs((409, needsKey), (201, "{}")) { SignOutAfter = 1 };
+        Assert.Equal(EnrolOutcome.Cancelled, (await afterAsk.Run()).Outcome);
+        Assert.Equal((1, 0), (afterAsk.Enrolments.Count, afterAsk.Mints));
+
+        var afterMint = new Stubs((409, needsKey), (201, "{}")) { SignOutAfter = 2 };
+        Assert.Equal(EnrolOutcome.Cancelled, (await afterMint.Run()).Outcome);
+        Assert.Equal((1, 1), (afterMint.Enrolments.Count, afterMint.Mints));
+
+        var afterEnrol = new Stubs((409, needsKey), (201, "{}")) { SignOutAfter = 3 };
+        Assert.Equal(EnrolOutcome.Cancelled, (await afterEnrol.Run()).Outcome);
+        Assert.Equal((2, 1), (afterEnrol.Enrolments.Count, afterEnrol.Mints));
+
+        // Signed in throughout: enrolled.
+        Assert.Equal(EnrolOutcome.Enrolled, (await new Stubs((409, needsKey), (201, "{}")).Run()).Outcome);
+    }
+
+    /// <summary>KIFF's refusal of the mint is read as KIFF's: its error, else "KIFF answered 500", and a 401 as signed out.</summary>
+    [Fact]
+    public async Task KIFF_s_refusal_of_the_mint_is_read_as_KIFF_s()
+    {
+        const string needsKey = """{"error": "needs_key", "code": "needs_key"}""";
+        Assert.Contains("no keys today", (await new Stubs((409, needsKey)) { Mint = (500, """{"error": "no keys today", "words": "not KIFF's"}""") }.Run()).Why);
+        Assert.Contains(En.Get("error.kiff_answered", ("status", "500")), (await new Stubs((409, needsKey)) { Mint = (500, "") }.Run()).Why);
+        Assert.Contains(En.Get("error.signed_out"), (await new Stubs((409, needsKey)) { Mint = (401, "") }.Run()).Why);
     }
 
     /// <summary>The iPad's testAKeptEnrolmentMintsNoConnectorKey: planque keeps the key it holds, and nothing is minted.</summary>
