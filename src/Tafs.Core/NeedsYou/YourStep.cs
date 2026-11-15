@@ -145,7 +145,9 @@ public static class YourSteps
 
     static string Other(WordBook w, string why) => w.Get("needs_you.refused.other", ("why", why));
 
-    /// <summary>KIFF's reasons a person may not answer, in words (the iPad's <c>refusalWords</c>).</summary>
+    /// <summary>KIFF's reasons a person may not answer, in words (the iPad's <c>refusalWords</c>); null for any other code.</summary>
+    public static string? RefusalWords(WordBook w, string code) => Reason(w, code);
+
     static string? Reason(WordBook w, string? code) => code switch
     {
         "self_review" => w.Get("needs_you.refused.self_review"),
