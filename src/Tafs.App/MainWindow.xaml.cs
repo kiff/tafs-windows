@@ -36,6 +36,11 @@ public sealed partial class MainWindow : Window
     HomeAnswer? home;
     /// <summary>How this window reads tafs cloud (as the session, or the contracts for a screenshot); none until Home is read.</summary>
     Func<string, Task<CloudRead>>? cloudRead;
+    /// <summary>The same read with planque's proof, and the proof for a taf's Setup: the session's, none for a screenshot.</summary>
+    Func<string, string?, Task<CloudRead>>? cloudReadWithProof;
+    Func<Task<string?>>? setupProof;
+    /// <summary>This device's id in KIFF, as the iPad's <c>deviceID</c>: read from KIFF before the first proof, and kept once found.</summary>
+    string? deviceId;
     readonly bool sample;
     readonly UsageReads usage;
     readonly ConnectAppsList? connectApps;
@@ -122,7 +127,8 @@ public sealed partial class MainWindow : Window
         AccountPage.SignInChosen += OpenSignIn;
         AccountPage.AlertsChosen += () => OpenBeside(typeof(ComingPage), w.Get("settings.alerts"));
         AccountPage.AddThisDeviceChosen += OpenPairing;
-        AccountPage.SignedOut += () => { ViewOnly.IsOpen = false; OpenSignIn(); };
+        // As the iPad clears its deviceID on sign-out: the next session reads its own.
+        AccountPage.SignedOut += () => { ViewOnly.IsOpen = false; deviceId = null; OpenSignIn(); };
         // Leaving the sample: the app starts again without it, as the iPad's Clear the sample leaves it.
         AccountPage.ClearSampleChosen += () => Microsoft.Windows.AppLifecycle.AppInstance.Restart(
             string.Join(' ', Environment.GetCommandLineArgs().Skip(1).Where(a => a != "--sample")));
@@ -159,7 +165,11 @@ public sealed partial class MainWindow : Window
                 OpenBeside(typeof(TafPage), OpenTaf(w, first.Id, page == "taf-setup" ? TafTab.Setup : TafTab.Activity));
         }
         else if (screenshot is null && !sample && App.Sessions.Kept() is { } session)
+        {
+            cloudReadWithProof = (path, proof) => CloudReadAsync(session.AccessToken, path, proof);
+            setupProof = () => SetupProofAsync(session);
             Root.Loaded += async (_, _) => await ReadHomeAsync(path => CloudReadAsync(session.AccessToken, path));
+        }
     }
 
     /// <summary>
@@ -183,12 +193,16 @@ public sealed partial class MainWindow : Window
     /// A read from tafs cloud as the session: its answer on a 2xx, else why not in the person's words, as the iPad's
     /// <c>TafsCloud.send</c>. Bodies are never logged.
     /// </summary>
-    static async Task<CloudRead> CloudReadAsync(string bearer, string path)
+    static async Task<CloudRead> CloudReadAsync(string bearer, string path, string? proof = null) =>
+        await ReadAsync(new Uri(HomeList.Api, path), bearer, proof);
+
+    /// <summary>A read as the session, from tafs cloud or KIFF, answered as <see cref="CloudRead"/>.</summary>
+    static async Task<CloudRead> ReadAsync(Uri url, string bearer, string? proof = null)
     {
         var w = App.Words;
         int status;
         string body;
-        try { (status, body) = await KiffHttp.GetAsync(new Uri(HomeList.Api, path), bearer, w.Language); }
+        try { (status, body) = await KiffHttp.GetAsync(url, bearer, w.Language, deviceSignature: proof); }
         catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
         if (status is < 200 or > 299) return CloudRead.Refused(w, status, body);
         try
@@ -197,6 +211,22 @@ public sealed partial class MainWindow : Window
             return CloudRead.Of(json.RootElement.Clone());
         }
         catch (System.Text.Json.JsonException) { return CloudRead.Refused(w, status, ""); }
+    }
+
+    /// <summary>
+    /// planque's signed read of the grants for a taf's Setup, as the iPad's <c>grantsReadProof</c>: signed with the TPM key
+    /// the session is bound to, which asks no one, and this device's id in KIFF, read from KIFF's <c>GET /v1/me/devices</c>
+    /// as the iPad's <c>deviceLoader</c>. None when the key isn't there or anything fails: Setup then reads without it.
+    /// </summary>
+    async Task<string?> SetupProofAsync(KeptSession session)
+    {
+        // Open only: a key gone with a sign-out throws, and Setup reads without the proof.
+        using var key = TpmKey.Open(session.KeyName);
+        return await PlanqueProof.GrantsReadAsync(session.Tenant, deviceId, async () =>
+        {
+            var devices = await ReadAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, PlanqueProof.DevicesPath), session.AccessToken);
+            return deviceId = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
+        }, key, () => SigningTime.Next(DateTimeOffset.UtcNow));
     }
 
     /// <summary>
@@ -376,7 +406,7 @@ public sealed partial class MainWindow : Window
         home?.Tafs.FirstOrDefault(t => t.Id == key) is { } taf
             ? new(TafScreen.Head(w, taf.Name, taf.Colour, taf.StateKey), taf.Cards.FirstOrDefault()?.Bar(w, taf.Cards.Count),
                 filter => new ActivityPage([], [], filter, null, null), new SetupOpening(taf.Job, []), opensOn,
-                CloudId: taf.Id, Read: cloudRead)
+                CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof)
             : SampleTaf(w, key, TafTab.Activity);
 
     /// <summary>

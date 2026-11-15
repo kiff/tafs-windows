@@ -41,12 +41,10 @@ Activity):
 
 **Its Setup from tafs cloud** (`SetupRead`, ported from `AppModel.loadTafSetup`; drawn as `TafDetailView.setup`,
 `ConnectedToolsRing` and `MemorySummaryPanel`): `GET /v1/tafs/{id}/setup`, read as the page opens and on Try again.
-- **Without planque's proof for now.** The iPad adds its signed grants read (`Planque-Device-Signature`) when it can sign
-  it (`try?`), and reads without it otherwise; its proof, signed with this PC's TPM device key, comes in its own change.
-  Without it, tafs cloud says so where the connections would be ("Connect this phone to read its connected apps").
-  **Until the proof lands, every real taf's Setup shows no app on its ring and that line,** whose Try again can't clear
-  it, and no Connect again (which comes from a connection to sign in again). On the iPad that's only when signing fails.
-  The line's "phone" is tafs cloud's word.
+- **With planque's proof,** as the iPad: its signed grants read (`Planque-Device-Signature`), signed with the session's
+  TPM key, so tafs cloud can read its connected apps ([keys](keys.md#planques-proof-for-a-tafs-setup)). When it can't be
+  signed, Setup reads without it, as the iPad's `try?`, and tafs cloud says so where the connections would be ("Connect
+  this phone to read its connected apps", its word "phone"): no app on the ring, and no Connect again.
 - **In the iPad's order:** the Card-unit exceptions (title, words, history); the job (Home's `job_summary`, else "Works
   under 2 KIFF Cards."); the connected apps; what it remembers ("3 notes" and the latest, two lines at most).
 - **The connected apps:** why they couldn't be read, in red, with Try again; a ring while it's read; then the ring, 280

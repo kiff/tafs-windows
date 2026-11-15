@@ -29,12 +29,16 @@ public sealed class SetupRead
     public string? Error { get; private set; }
 
     /// <summary>
-    /// <c>GET /v1/tafs/{id}/setup</c>, as the iPad's <c>loadTafSetup</c>. The iPad adds planque's signed grants read when it
-    /// can sign it (<c>try?</c>), and reads without it otherwise; this reads without it, its proof coming in its own change.
+    /// <c>GET /v1/tafs/{id}/setup</c>, as the iPad's <c>loadTafSetup</c>: with planque's signed grants read
+    /// (<c>Planque-Device-Signature</c>) when <paramref name="proof"/> gives one, and without it when it gives none or fails,
+    /// as the iPad's <c>try?</c>. <paramref name="read"/> takes the path and the proof, none when there's none.
     /// </summary>
-    public async Task LoadAsync(string taf, Func<string, Task<CloudRead>> read)
+    public async Task LoadAsync(string taf, Func<string, string?, Task<CloudRead>> read, Func<Task<string?>>? proof = null)
     {
-        var answer = await read(TafSetup.Path(taf));
+        string? signature = null;
+        try { signature = proof is null ? null : await proof(); }
+        catch (Exception e) when (e is not OperationCanceledException) { }
+        var answer = await read(TafSetup.Path(taf), signature);
         if (answer.Answer is { } json)
         {
             Page = TafSetup.Read(json);
