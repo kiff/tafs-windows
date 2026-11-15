@@ -71,6 +71,31 @@ and `Grant`), read before anything is approved:
   repeated id, or bytes listing another number of grants, fails the read: one request's digest never vouches for
   another's. (The iPad looks its entry up by id.)
 
+## Setting planque up (`PlanqueEnrolment`)
+
+Once per account, this device is enrolled with planque, which keeps the vendor sign-ins so they never reach this PC,
+tafs cloud, the agent or KIFF. Ported from the iPad's `setUpPlanque` and `enrolPlanque`, with iOS #1106 (planque#248):
+
+1. **Asked first with no key:** `POST /v1/accounts/{tenant}/enrolment` on planque with `{device_key}` (this device's SPKI
+   DER, base64), signed `Planque-Device-Signature` (`PlanqueProof.SignAsync`, for exactly that method, path and body).
+   A 2xx with `kept: true` means planque still holds a connector key KIFF takes: **done, and nothing is minted.** A
+   device can't revoke a connector key, so a new one would only be left live in KIFF.
+2. **Only when planque needs one** (`409` with `needs_key`, and nothing else): **one** key is minted,
+   `POST /v1/keys` on KIFF with `{"label":"planque","roles":["connector"]}`, signed as a setup call
+   (`KIFF-Device-Signature`, `kiff.request.v1`, by the session's device key, which asks no one). It connects tools and
+   does nothing else, and it's held only until it's handed to planque in a second enrolment, `{device_key,
+   connector_key}`. It's never kept on this PC.
+3. **Anything else stops, and mints nothing** (not reached, a 400, a 5xx, a replayed signature, a changed enrolment, a
+   2xx that didn't keep its key): "Connecting apps isn't set up. …" with why, and the next try asks again. A key is never left
+   live in KIFF that no one can revoke.
+4. **What else stops it:** KIFF's 403 on the mint says only an admin can connect apps; planque's 409 on the second
+   enrolment, with no code, says another device connects them; with a code, or anything else, it says why.
+
+This change is the flow and its signatures only. Who may set planque up, and behind what, comes with its wiring:
+a passkey session behind a Windows Hello assertion over `tafs.planque.v1|{tenant}` (`GateMessage`), a key session with
+no prompt, like its other setup calls, and a view session never. It's held from merging until it has run once against a
+real account.
+
 The approval key isn't here. On Windows it's a Windows Hello passkey (see [approvals](approvals.md)).
 
 ## Tests

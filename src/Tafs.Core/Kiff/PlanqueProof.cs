@@ -55,14 +55,23 @@ public static class PlanqueProof
     /// in KIFF, loaded when it isn't known. None with no account or no device, as the iPad's <c>notSigning</c> and
     /// <c>noDevice</c>; a signature that fails is the caller's to treat as none, as the iPad's <c>try?</c>.
     /// </summary>
-    public static async Task<string?> GrantsReadAsync(string? tenant, string? device, Func<Task<string?>> loadDevice, IKiffSigner key,
-        Func<string> signedAt, CancellationToken cancel = default)
+    public static Task<string?> GrantsReadAsync(string? tenant, string? device, Func<Task<string?>> loadDevice, IKiffSigner key,
+        Func<string> signedAt, CancellationToken cancel = default) =>
+        SignAsync(tenant, device, loadDevice, key, signedAt, "GET", tenant is null ? "" : GrantsPath(tenant), [], cancel);
+
+    /// <summary>
+    /// <c>Planque-Device-Signature</c> for any planque request, as the iPad's <c>PlanqueClient.send</c> signs one: the time,
+    /// the device key's signature over planque's <c>device.Message</c> for exactly this method, path and body, and this
+    /// device's id in KIFF. None with no account or no device: planque takes no signature without the device's id.
+    /// </summary>
+    public static async Task<string?> SignAsync(string? tenant, string? device, Func<Task<string?>> loadDevice, IKiffSigner key,
+        Func<string> signedAt, string method, string uri, byte[] body, CancellationToken cancel = default)
     {
         if (tenant is null) return null;
         device ??= await loadDevice();
         if (device is null) return null;
         var at = signedAt();
-        var signature = await key.SignDerAsync(Message(Api, tenant, "GET", GrantsPath(tenant), [], at), cancel);
+        var signature = await key.SignDerAsync(Message(Api, tenant, method, uri, body, at), cancel);
         return $"t={at},v1={Convert.ToBase64String(signature)},d={device}";
     }
 
