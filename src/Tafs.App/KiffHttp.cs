@@ -12,7 +12,14 @@ static class KiffHttp
 {
     static readonly HttpClient Client = new() { BaseAddress = DeviceSignIn.Api, Timeout = TimeSpan.FromSeconds(20) };
 
-    static KiffHttp() => Client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("tafs-windows", "0.1"));
+    /// <summary>For a card's answer, which can take tafs cloud a while: 70 seconds, as the iPad's <c>sendData</c>.</summary>
+    static readonly HttpClient Patient = new() { Timeout = TimeSpan.FromSeconds(70) };
+
+    static KiffHttp()
+    {
+        Client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("tafs-windows", "0.1"));
+        Patient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("tafs-windows", "0.1"));
+    }
 
     /// <exception cref="HttpRequestException">KIFF wasn't reached.</exception>
     /// <param name="bearer">The session's token, for a call as that session.</param>
@@ -41,11 +48,24 @@ static class KiffHttp
         return await SendAsync(request, cancel);
     }
 
-    static async Task<(int Status, string Body)> SendAsync(HttpRequestMessage request, CancellationToken cancel)
+    /// <summary>A JSON POST as the session to tafs cloud (a card's answer), in the app's language, as a read is.</summary>
+    /// <exception cref="HttpRequestException">It wasn't reached, or isn't a host the session's token may go to.</exception>
+    public static async Task<(int Status, string Body)> PostAsync(Uri url, byte[] body, string bearer, string language, CancellationToken cancel = default)
+    {
+        if (!Tafs.Core.Kiff.KeptSessions.MaySendTo(url, DeviceSignIn.Api)) throw new HttpRequestException("not a host the session goes to");
+        using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = new ByteArrayContent(body) };
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        return await SendAsync(request, cancel, Patient);
+    }
+
+    static async Task<(int Status, string Body)> SendAsync(HttpRequestMessage request, CancellationToken cancel, HttpClient? client = null)
     {
         try
         {
-            using var answer = await Client.SendAsync(request, cancel);
+            using var answer = await (client ?? Client).SendAsync(request, cancel);
             return ((int)answer.StatusCode, await answer.Content.ReadAsStringAsync(cancel));
         }
         catch (TaskCanceledException) when (!cancel.IsCancellationRequested)

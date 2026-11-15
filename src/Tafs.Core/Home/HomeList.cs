@@ -11,7 +11,7 @@ namespace Tafs.Core.Home;
 /// many of its calls wait, and when it last changed.
 /// </summary>
 public sealed record HomeTaf(string Id, string Name, int Colour, string State, string Now, string? Attention,
-    IReadOnlyList<TafCard> Cards, int Waiting, DateTimeOffset? LastRun, DateTimeOffset? LastChange, string Job = "")
+    IReadOnlyList<TafCard> Cards, int Waiting, DateTimeOffset? LastRun, DateTimeOffset? LastChange, string Job = "", string? Agent = null)
 {
     /// <summary>The state its page's head says: tafs cloud's word, Ready for an idle taf, Stopped for one it doesn't know.</summary>
     public string StateKey => State switch
@@ -49,7 +49,7 @@ public static class HomeList
             Lenient.Field(t, "card") is { } card ? TafCards.Read(w, card) : [],
             Lenient.Int(t, "waiting") ?? 0, Lenient.At(t, "last_run"), Lenient.At(t, "last_change"),
             // Its job as Coach said it, else as the iPad's: an agent tafs doesn't run is described by its Cards.
-            Lenient.Text(t, "job_summary") ?? w.Count("taf.works_under_cards", (Lenient.Field(t, "card") is { } c ? Lenient.Array(c, "ids").Count() : 0)));
+            Lenient.Text(t, "job_summary") ?? w.Count("taf.works_under_cards", (Lenient.Field(t, "card") is { } c ? Lenient.Array(c, "ids").Count() : 0)), Lenient.Text(t, "kiff_agent"));
     }
 
     /// <summary>What it's doing, as the iPad says it: tafs cloud's "Next run Fri 12:30" while it works on a schedule.</summary>
