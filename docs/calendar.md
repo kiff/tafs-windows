@@ -22,12 +22,8 @@ The iPad's Calendar (`CalendarView`, `CalendarMath`), on Windows, as the referen
 - **Month:** six weeks under the weekdays; other months' days dim, the selected one on amber at 18%,
   today ringed. Then the selected day's list.
 
-Weeks start on Monday. Dates are days on the Gregorian calendar; nothing is converted between zones.
-
-## Where the work comes from
-
-The tafs' scheduled work comes from tafs cloud (`GET /v1/calendar`) in its own change. Until then
-every day says it has nothing scheduled, and nothing shows as reading.
+Weeks start on Monday, on the Gregorian calendar. The tafs' scheduled work comes from tafs cloud
+(`GET /v1/calendar`) in its own change: until then every day has nothing scheduled.
 
 ## Not yet
 
