@@ -78,6 +78,8 @@ public sealed partial class ConnectAppsPage : Page
         Discover.ItemsSource = Rows(discover, header: yours.Count == 0);
         YoursTitle.Visibility = YoursPanel.Visibility = Seen(yours.Count > 0);
         DiscoverTitle.Visibility = DiscoverPanel.Visibility = Seen(discover.Count > 0);
+        MakeOneText.Text = w.Get("connect.apps_connect_taf_make_one");
+        MakeOne.Visibility = Seen(ConnectAppsScreen.SaysMakeATaf(discover.Count));
         AskCoachPanel.Visibility = Seen(list?.ByKey == true);
     }
 

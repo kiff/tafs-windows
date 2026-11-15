@@ -59,12 +59,18 @@
 
       <TextBlock x:Name="DiscoverTitle" Style="{StaticResource TafsListHead}" />
       <Border x:Name="DiscoverPanel" Style="{StaticResource TafsListPanel}" SizeChanged="OnPanelSized">
-        <ItemsControl x:Name="Discover" ItemTemplate="{StaticResource Row}" />
+        <StackPanel>
+          <!-- Over Discover only: why Connect waits ("Make one first"), 13 in the dim colour. -->
+          <Border x:Name="MakeOne" Style="{StaticResource TafsHourLine}" BorderThickness="0,0,0,1" Padding="0,14">
+            <TextBlock x:Name="MakeOneText" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsDim}" />
+          </Border>
+          <ItemsControl x:Name="Discover" ItemTemplate="{StaticResource Row}" />
+        </StackPanel>
       </Border>
 
       <Border x:Name="AskCoachPanel" Style="{StaticResource TafsListPanel}" Margin="0,10,0,0">
         <Button x:Name="AskCoach" Click="OnAskCoach" Background="Transparent" BorderThickness="0" Padding="0,14"
-                HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" FontSize="16" Foreground="{ThemeResource TafsAmberText}" />
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" FontSize="16" Foreground="{StaticResource TafsAmber}" />
       </Border>
     </StackPanel>
   </ScrollViewer>

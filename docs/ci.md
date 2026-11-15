@@ -51,9 +51,12 @@ fails (`Every_part_named_on_a_test_is_declared`), so a typo can't hide a test.
   `global.json`, the solution, `.github/`), or code under `src/`, `tests/` or `tools/` that no part
   owns. A new folder therefore errs on the side of running too much until it is added to
   `ci/parts.json`.
-- Docs, images and the pin file touch no part of their own.
+- Docs and images touch no part of their own. **The pin file runs every part**, as above.
 
 The `plan` job works this out with `Tafs.Ci parts --base <ref>`, then `test` runs one job per part.
+
+The `app` job runs `Tafs.Ci xaml-keys` before it builds: a key given twice in one of the app's resource dictionaries
+fails it with the file and the key. WinUI's XAML compiler stops on one with no message at all.
 
 ### Running one part alone
 

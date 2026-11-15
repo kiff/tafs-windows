@@ -17,7 +17,7 @@
         </StackPanel>
         <!-- The date, on a raised pill, as the iPad's date picker. -->
         <CalendarDatePicker x:Name="Picker" HorizontalAlignment="Right" DateChanged="OnPicked" FirstDayOfWeek="Monday"
-                            Background="{ThemeResource TafsRaised}" BorderThickness="0" CornerRadius="18" MinHeight="40" FontSize="15">
+                            Background="{ThemeResource TafsRaised}" BorderThickness="0" CornerRadius="18" MinHeight="40" FontSize="17" Loaded="OnPickerLoaded">
           <CalendarDatePicker.Resources>
             <StaticResource x:Key="CalendarDatePickerBackgroundPointerOver" ResourceKey="TafsRaised" />
             <StaticResource x:Key="CalendarDatePickerTextForeground" ResourceKey="TafsInk" />
@@ -26,7 +26,7 @@
       </Grid>
 
       <!-- Day / Week / Month: the iPad's segmented control. -->
-      <Border Background="{ThemeResource TafsRaised}" CornerRadius="9" Padding="2">
+      <Border Style="{StaticResource TafsSegmentTrack}">
         <Grid x:Name="Modes" ColumnSpacing="2" />
       </Border>
 
@@ -36,7 +36,7 @@
       <Grid x:Name="WeekStrip" ColumnSpacing="6" />
 
       <!-- Day: the hours, opened at 08:00. No "nothing scheduled" before tafs cloud's calendar is read. -->
-      <ScrollViewer x:Name="HoursScroll" Height="520">
+      <ScrollViewer x:Name="HoursScroll" Height="520" VerticalScrollBarVisibility="Hidden">
         <StackPanel x:Name="Hours" />
       </ScrollViewer>
 

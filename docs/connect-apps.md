@@ -18,11 +18,14 @@ order and words. The core is `ConnectAppsScreen`; the app's `ConnectAppsPage` on
     own apps only, joined with CLDR's "and" list for the language (`Lists.And`, as the iPad's ListFormatter).
   - **At the end:** a ✓, or Connect / Sign in again as wide as its words.
   - `needs_setup` shows tafs cloud's `words` and no button.
-- **Not listed? Ask Coach** shows with `by_key`. **Reading:** an app with no `entry` is left out, never the list.
+- **"Apps connect for a taf. Make one first"** heads Discover, in 13 dim, while no taf can have an app (this PC reads
+  no tafs yet), as the iPad says it (`SaysMakeATaf`). It's why Connect is dimmed.
+- **Not listed? Ask Coach** shows with `by_key`, in the accent. The sample sends no `used_by`, as the iPad's
+  (the reference set's `connect-apps.png`). **Reading:** an app with no `entry` is left out, never the list.
 
 **Not yet:**
 - **tafs cloud's list.** Until it's read, the page shows only its title, never an empty catalog; `--sample` shows the
   iPad's. The read brings the search, More apps (`next_cursor`) and the logos.
 - **Connecting.** Connect is dimmed, as the iPad's is with nothing to connect for. To come: the taf to connect for, the
-  approval sheet, the vendor's sign-in, and "Make one first", which waits on the tafs list.
+  approval sheet, the vendor's sign-in.
 - **A connected app's detail** (what it can do, which tafs use it, Disconnect), with its chevron.

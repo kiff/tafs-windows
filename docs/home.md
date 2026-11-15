@@ -23,11 +23,12 @@ From the top:
 - **Coach and Account at the foot**, always in sight:
   - Coach is the ink button (light in dark, with the dark ground's colour on it), 44 high, corners
     of 14.
-  - Account sits under it, with the account's name once it's known. Its icon turns amber while
-    Account is open.
+  - Account sits under it, with the account's name once it's known. Its icon is a person in a circle in the soft
+    colour, as the iPad's `person.crop.circle`; while Account is open, the circle is filled amber.
 
 The chosen row is a rounded fill of the ink, as the iPad's list draws it: no side marker. Rows are 15
-semibold in the ink. The pane is the iPad's raised colour, flush with the screen beside it.
+semibold in the ink, 52 apart, with their symbols at 20 in the ink. Plan & usage's symbol is bars, as the iPad's
+`chart.bar`; Connect apps' is Windows' Connect (two linked devices), the nearest to the iPad's linked app boxes. The pane is the iPad's raised colour, flush with the screen beside it.
 
 The pane is 300 wide and never folds (`PaneDisplayMode="Left"`), so the section labels have their own
 small template: WinUI's header draws its text in a fixed style.
