@@ -217,6 +217,9 @@ public class PairingTests
         Assert.Equal(ClaimStatus.Paired, r.Status);
         Assert.Equal("secret-token", r.Session!.AccessToken);
         Assert.Equal(TimeSpan.FromDays(90), r.Session.ExpiresIn);
+        Assert.Equal(Tafs.Core.Kiff.ApprovalMode.View, r.Session.Mode); // no approval_mode: view
+        Assert.Equal(Tafs.Core.Kiff.ApprovalMode.Passkey, PairingClaim.Read(200,
+            """{"access_token":"a","expires_in":60,"tenant":"t","subject":"s","device_id":"d","approval_mode":"passkey"}""").Session!.Mode);
         Assert.DoesNotContain("secret-token", r.Session.ToString());
         Assert.DoesNotContain("secret-token", r.ToString());
     }

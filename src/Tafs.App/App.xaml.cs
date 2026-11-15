@@ -18,6 +18,9 @@ public partial class App : Application
     /// <summary>The words in the person's language, read from the pinned files beside the app.</summary>
     public static WordBook Words { get; private set; } = null!;
 
+    /// <summary>The window Windows Hello opens over.</summary>
+    public static IntPtr WindowHandle { get; private set; }
+
     /// <summary>This PC's kept session.</summary>
     internal static SessionStore Sessions { get; } = new();
 
@@ -39,6 +42,7 @@ public partial class App : Application
 
         window = new MainWindow(Option("--screenshot"), Option("--theme"), Option("--page"), options.Contains("--view-only"),
             options.Contains("--sample"));
+        WindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(window);
         window.Activate();
     }
 }
