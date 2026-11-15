@@ -57,10 +57,10 @@ page, and Narrator reads it as one:
 - **TAF:** the avatar (30, corners of 9) and the name in 15 semibold;
 - **NOW:** "Waiting for you · Run migration 0042_orders_index" while a call of its waits, else what it did last;
 - **CARD:** its Card's figure and words, "9 calls left today of 10", "€23,760 left this week of €25,000";
-- **LAST RESULT:** in the soft colour, two lines at most (`TafRuns.LastResult`, as the iPad's `lastResult`). It shows
-  the first line of its last run's report, its Markdown dropped. A report carries no error, so for a run that stopped
-  with no answer it shows why, from the runs list. Otherwise it shows when it last ran, else "Nothing yet". A taf
-  tafs cloud doesn't run, as the sample's, shows "–".
+- **LAST RESULT:** in the soft colour, two lines at most (`TafRuns.LastResult`, ported from `OverviewView.lastResult` in
+  ShareViews.swift). It shows the first line of its latest run's report, its Markdown dropped, else that run's error.
+  Otherwise it shows when it last ran (Home's `last_run`), else "Nothing yet". A taf tafs cloud doesn't run, as the
+  sample's, shows "–".
 
 `--sample` shows the iPad's five tafs, as overview.png: Deploys and Bill pay first, since a call of each waits, then
 Refunds, Chargebacks and Access. Without it, and with no tafs from tafs cloud, it shows "No tafs yet." under the
@@ -85,20 +85,26 @@ read as the iPad's `KIFFMapping.taf`:
 - **The headline** ("0 tafs working.") is read as tafs cloud counts it, never counted here: a taf whose work needs looking
   at is neither working nor paused. The iPad's Overview draws none, so neither does this one yet.
 
-An answer that can't be read, or isn't a 200, leaves the Overview as it was. A screenshot never reads tafs cloud;
-`--home shared/contracts/home.json` reads the contract instead (CI's `overview-home`).
+**Its latest run** (`TafRuns.LoadReportAsync`, ported from `AppModel.loadReport`): once Home is read, each taf's runs,
+`GET /v1/tafs/{id}/runs` (`contracts/taf-runs.json`), then the report of the newest run that started,
+`GET /v1/tafs/{id}/runs/{session}` (`taf-run-report.json`, `-running`, `-terminated`), all tafs at once. The Overview is
+then drawn again with them.
+- With no run that started, it keeps the first run's time and error.
+- Runs or a report that can't be read say "Its runs couldn't be loaded." and why (`CloudRead`, as the iPad's
+  `CloudError`): tafs cloud's `words`, else its `error`, else "tafs cloud answered 503".
+- Unreached, the iPad shows the system's words; Windows has none for the person, so it's "It didn't reach the server.
+  Try again once you're online."
 
-**tafs cloud's runs** (`TafRuns`): `GET /v1/tafs/{id}/runs` (`contracts/taf-runs.json`) and one run's report,
-`GET /v1/tafs/{id}/runs/{session}` (`taf-run-report.json`, `-running`, `-terminated`). The Overview reads the report of
-the newest run that started. What can't be read reads as none.
+An answer that can't be read, or isn't a 200, leaves the Overview as it was. A screenshot never reads tafs cloud.
+`--home shared/contracts/home.json` reads the contracts instead: Home's from that file, and each taf's runs and report
+from `taf-runs.json` and `taf-run-report.json` beside it (CI's `overview-home`).
 
 ## Not yet
 
 - **+ New**, above Coach on the iPad, comes with Coach: on Windows it would have nothing to open yet.
 - **Where a held call opens.** On the iPad, a held call opens its taf's page, from the sidebar and from
   the Overview, with the call at its top. Here both open Needs you, since a taf's page doesn't draw its held calls yet.
-- **The held calls** come from KIFF in their own change, and **Last result** from each taf's runs and their reports.
-  Until then `--sample` shows the iPad's two sample calls, and a taf from tafs cloud shows "–".
+- **The held calls** come from KIFF in their own change. Until then `--sample` shows the iPad's two sample calls.
 - **A taf from tafs cloud's Activity, Setup and Card tabs** come with their reads; its Card tab also needs who issued it.
 - **Reading Home again:** it's read once, at launch. An expired session (401) isn't told apart yet.
 - **The line's colour** for what went wrong: the iPad's is amber, red when it's failing; here it's the soft colour.

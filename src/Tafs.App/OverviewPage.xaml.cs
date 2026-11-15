@@ -61,6 +61,9 @@ public sealed partial class OverviewPage : Page
     internal void ShowRows(IReadOnlyList<OverviewRow> rows)
     {
         Empty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        // Drawn again when tafs cloud answers: the lines under the headings go first.
+        foreach (var old in Table.Children.OfType<FrameworkElement>().Where(c => Grid.GetRow(c) >= 2).ToList()) Table.Children.Remove(old);
+        while (Table.RowDefinitions.Count > 2) Table.RowDefinitions.RemoveAt(2);
         var w = App.Words;
         foreach (var row in rows)
         {

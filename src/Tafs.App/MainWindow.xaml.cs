@@ -148,27 +148,57 @@ public sealed partial class MainWindow : Window
             OpenBeside(typeof(TafPage), SampleTaf(w, page switch { "taf-setup" => TafTab.Setup, "taf-card" => TafTab.Card, _ => TafTab.Activity }));
         else Nav.SelectedItem = BrandItem;
         if (screenshot is not null) Root.Loaded += async (_, _) => await SaveAndQuitAsync(screenshot);
-        if (homeFile is not null) ShowHome(HomeList.Read(w, Tafs.Core.Contracts.ContractFile.Answer(homeFile), TimeZoneInfo.Local));
-        else if (screenshot is null && !sample && App.Sessions.Kept() is { } session) Root.Loaded += async (_, _) => await ReadHomeAsync(session.AccessToken);
+        // From files, every read is done before the window first draws, so the screenshot has them.
+        if (homeFile is not null) _ = ReadHomeAsync(path => Task.FromResult(ContractRead(w, homeFile, path)));
+        else if (screenshot is null && !sample && App.Sessions.Kept() is { } session)
+            Root.Loaded += async (_, _) => await ReadHomeAsync(path => CloudReadAsync(session.AccessToken, path));
     }
 
     /// <summary>
-    /// Home's list from tafs cloud, as the session, once the window is up: the Overview's lines and Your tafs. An answer
-    /// that can't be read leaves them as they were ("No tafs yet."). A screenshot never reads it.
+    /// Home's list, once the window is up: the Overview's lines and Your tafs, then each taf's Last result from its runs.
+    /// An answer that can't be read leaves what it would fill as it was ("No tafs yet.", "–"). A screenshot never reads
+    /// tafs cloud.
     /// </summary>
-    async Task ReadHomeAsync(string bearer)
+    async Task ReadHomeAsync(Func<string, Task<CloudRead>> read)
     {
         var w = App.Words;
-        HomeAnswer read;
+        if ((await read(HomeList.Path)).Answer is not { } answer) return;
+        ShowHome(HomeList.Read(w, answer, TimeZoneInfo.Local));
+        var listed = home!;
+        var reports = await Task.WhenAll(listed.Tafs.Select(t => TafRuns.LoadReportAsync(w, t.Id, read)));
+        overviewRows = HomeList.Rows(w, listed, TimeZoneInfo.Local, listed.Tafs.Select((t, i) => (t.Id, Report: reports[i])).ToDictionary(r => r.Id, r => r.Report));
+        if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows);
+    }
+
+    /// <summary>
+    /// A read from tafs cloud as the session: its answer on a 2xx, else why not in the person's words, as the iPad's
+    /// <c>TafsCloud.send</c>. Bodies are never logged.
+    /// </summary>
+    static async Task<CloudRead> CloudReadAsync(string bearer, string path)
+    {
+        var w = App.Words;
+        int status;
+        string body;
+        try { (status, body) = await KiffHttp.GetAsync(new Uri(HomeList.Api, path), bearer, w.Language); }
+        catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
+        if (status is < 200 or > 299) return CloudRead.Refused(w, status, body);
         try
         {
-            var (status, body) = await KiffHttp.GetAsync(new Uri(HomeList.Api, HomeList.Path), bearer, w.Language);
-            if (status != 200) return;
             using var json = System.Text.Json.JsonDocument.Parse(body);
-            read = HomeList.Read(w, json.RootElement, TimeZoneInfo.Local);
+            return CloudRead.Of(json.RootElement.Clone());
         }
-        catch (Exception e) when (e is System.Net.Http.HttpRequestException or System.Text.Json.JsonException) { return; }
-        ShowHome(read);
+        catch (System.Text.Json.JsonException) { return CloudRead.Refused(w, status, ""); }
+    }
+
+    /// <summary>
+    /// For screenshots, tafs cloud's answers from the contracts beside <paramref name="homeFile"/>: Home's from it, a taf's
+    /// runs from taf-runs.json and a run's report from taf-run-report.json. With no such file, it reads as not reached.
+    /// </summary>
+    static CloudRead ContractRead(Tafs.Core.Words.WordBook w, string homeFile, string path)
+    {
+        var file = path == HomeList.Path ? homeFile
+            : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!, path.EndsWith("/runs") ? "taf-runs.json" : "taf-run-report.json");
+        return File.Exists(file) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(file)) : CloudRead.Unreached(w);
     }
 
     /// <summary>Home's answer on the Overview and under Your tafs, and for a taf's page.</summary>
@@ -176,7 +206,7 @@ public sealed partial class MainWindow : Window
     {
         var w = App.Words;
         home = read;
-        overviewRows = HomeList.Rows(w, home);
+        overviewRows = HomeList.Rows(w, home, TimeZoneInfo.Local);
         var yours = HomeList.YourTafs(w, home, DateTimeOffset.UtcNow);
         AddYourTafs(yours);
         // As the iPad's sidebar: the line for no tafs only with none at all, and with tafs but none relevant now, no Your

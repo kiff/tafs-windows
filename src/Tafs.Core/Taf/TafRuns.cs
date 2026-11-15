@@ -28,22 +28,50 @@ public static class TafRuns
             ? new RunReport(session, Lenient.Text(r, "status") ?? "", Lenient.Text(r, "text") ?? "", Lenient.Text(r, "counted"))
             : null;
 
+    public static string RunsPath(string taf) => $"/v1/tafs/{Uri.EscapeDataString(taf)}/runs";
+
+    public static string ReportPath(string taf, string session) => $"{RunsPath(taf)}/{Uri.EscapeDataString(session)}";
+
+    /// <summary>
+    /// A taf's latest run, as the iPad's <c>AppModel.loadReport</c>, read through <paramref name="read"/>: its runs, then the
+    /// report of the newest that started. With none started, the first run's time and error. Runs or a report that can't be
+    /// read say so, "Its runs couldn't be loaded." and why.
+    /// </summary>
+    public static async Task<LatestRun> LoadReportAsync(WordBook w, string taf, Func<string, Task<CloudRead>> read)
+    {
+        var listed = await read(RunsPath(taf));
+        if (listed.Answer is not { } answer) return NotLoaded(w, listed);
+        var runs = Read(answer);
+        if (Latest(runs) is not { Session: { } session } latest) return new(At: runs.FirstOrDefault()?.At, Error: runs.FirstOrDefault()?.Error);
+        var reported = await read(ReportPath(taf, session));
+        if (reported.Answer is not { } r) return NotLoaded(w, reported);
+        var report = ReadReport(r);
+        return new(session, latest.At, report?.Status, report?.Text ?? "");
+    }
+
+    static LatestRun NotLoaded(WordBook w, CloudRead failed) => new(Error: w.Get("report.runs_not_loaded", ("why", failed.Why ?? "")));
+
     /// <summary>The run whose report the Overview reads: the newest one that started (has a session).</summary>
     public static TafRun? Latest(IReadOnlyList<TafRun> runs) => runs.FirstOrDefault(r => r.Session is not null);
 
     /// <summary>
-    /// The Overview's Last result, as the iPad's lastResult: the first line of the last run's report (its Markdown's
-    /// <c>**</c> and <c>#</c> dropped); a report carries no error, so for a run that stopped with no answer, why, from the runs
-    /// list; else when it last ran; else "Nothing yet". A taf tafs cloud doesn't run (the sample's) shows "–".
+    /// The Overview's Last result, as the iPad's <c>OverviewView.lastResult</c> (ShareViews.swift): the first line of its latest
+    /// run's report (its Markdown's <c>**</c> and <c>#</c> dropped), else that run's error; else when it last ran, from Home's
+    /// <c>last_run</c>; else "Nothing yet". Before its report is read, <paramref name="report"/> is none.
     /// </summary>
-    public static string LastResult(WordBook w, IReadOnlyList<TafRun>? runs, RunReport? report, TimeZoneInfo zone)
+    public static string LastResult(WordBook w, LatestRun? report, DateTimeOffset? lastRun, TimeZoneInfo zone)
     {
-        if (runs is null) return "–";
-        var first = report?.Text.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0);
-        if (first is not null) return first.Replace("**", "").Replace("#", "").Trim();
-        var run = (report is null ? null : runs.FirstOrDefault(r => r.Session == report.Session)) ?? runs.FirstOrDefault();
-        if (run?.Error is { Length: > 0 } error) return error;
-        if (run?.At is { } at) return w.Get("people.last_ran", ("time", TimeZoneInfo.ConvertTime(at, zone).ToString("HH:mm", CultureInfo.InvariantCulture)));
-        return w.Get("overview.nothing_yet");
+        if (report is not null)
+        {
+            var first = report.Text.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0);
+            if (first is not null) return first.Replace("**", "").Replace("#", "").Trim();
+            if (report.Error is { } error) return error;
+        }
+        return lastRun is { } at
+            ? w.Get("people.last_ran", ("time", TimeZoneInfo.ConvertTime(at, zone).ToString("HH:mm", CultureInfo.InvariantCulture)))
+            : w.Get("overview.nothing_yet");
     }
 }
+
+/// <summary>A taf's latest run as the iPad's <c>AppModel.RunReport</c> keeps it: its session, time, status, report and error.</summary>
+public sealed record LatestRun(string? Session = null, DateTimeOffset? At = null, string? Status = null, string Text = "", string? Error = null);
