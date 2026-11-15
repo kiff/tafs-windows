@@ -79,8 +79,6 @@ the newest by update's `GET /v1/tafs/{id}/conversation/{session}` (the whole thr
   (they mark approval cards).
 - **After an answer:** the iPad follows the run's stream as it writes; here the thread is read again, until the stream is
   ported. The AI-data consent's screen isn't ported, so a refusal for it leaves the card as it was, with no line.
-- **Signing in again in the same window:** Coach's reads and answers are wired at launch, as Home's are, so after a
-  sign-out Coach reads nothing until the app starts again with the new session.
 - **A drive's end** (what Coach did in the app, `DriveRecap`), placed in the thread on the iPad: with drives.
 - **Writing to Coach:** the composer, sending, the stream, Stop, unsent and queued messages, steering, reading again.
 - **Starting Coach:** Start stays off until it's wired.

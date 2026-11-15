@@ -121,9 +121,14 @@ public sealed partial class MainWindow : Window
         {
             ViewOnly.IsOpen = session.Mode == ApprovalMode.View;
             Nav.SelectedItem = BrandItem;
+            UseSession(session.AccessToken);
         };
-        // Paired with a key in the TPM: this PC approves, with its own passkey or the account's. Kept in memory for now.
-        PairingPage.Paired += session => ViewOnly.IsOpen = session.Mode == ApprovalMode.View;
+        // Paired with a key in the TPM: this PC approves, with its own passkey or the account's.
+        PairingPage.Paired += session =>
+        {
+            ViewOnly.IsOpen = session.Mode == ApprovalMode.View;
+            UseSession(session.AccessToken);
+        };
         this.screenshot = screenshot;
 
         AccountPage.ThemeChosen += chosen =>
@@ -181,9 +186,7 @@ public sealed partial class MainWindow : Window
         else if (screenshot is null && !sample && App.Sessions.Kept() is { } session)
         {
             // Coach's thread comes through the same read, as the session; a screenshot never reads it.
-            CoachMode.Read = path => CloudReadAsync(session.AccessToken, path);
-            Root.Loaded += async (_, _) => await ReadHomeAsync(path => CloudReadAsync(session.AccessToken, path));
-            _ = AllowCoachAsync(session.AccessToken);
+            Root.Loaded += (_, _) => UseSession(session.AccessToken);
         }
     }
 
@@ -195,11 +198,14 @@ public sealed partial class MainWindow : Window
     async Task ReadHomeAsync(Func<string, Task<CloudRead>> read)
     {
         var w = App.Words;
-        if ((await read(HomeList.Path)).Answer is not { } answer) return;
+        var reading = sessions;
+        // Answered after another session began: it's the last session's, so it's dropped, as the iPad's accountGeneration.
+        if ((await read(HomeList.Path)).Answer is not { } answer || reading != sessions) return;
         cloudRead = read;
         ShowHome(HomeList.Read(w, answer, TimeZoneInfo.Local));
         var listed = home!;
         var reports = await Task.WhenAll(listed.Tafs.Select(t => TafRuns.LoadReportAsync(w, t.Id, read)));
+        if (reading != sessions) return;
         overviewRows = HomeList.Rows(w, listed, TimeZoneInfo.Local, listed.Tafs.Select((t, i) => (t.Id, Report: reports[i])).ToDictionary(r => r.Id, r => r.Report));
         if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows);
     }
@@ -216,6 +222,26 @@ public sealed partial class MainWindow : Window
         try { (status, body) = await KiffHttp.GetAsync(new Uri(HomeList.Api, path), bearer, w.Language); }
         catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
         return Answered(w, status, body);
+    }
+
+    /// <summary>Which session Home and Coach read as: each sign-in moves it on, so a read that lands after it is dropped.</summary>
+    int sessions;
+
+    /// <summary>
+    /// As the iPad's <c>AppModel.useSession</c>, at launch with a kept session and after each sign-in or pairing: Home and
+    /// Coach read (and Coach answers) as this session from now on. What the last one read goes first: Home's list, the
+    /// pages' read, Coach's thread and whether it may answer.
+    /// </summary>
+    void UseSession(string bearer)
+    {
+        sessions++;
+        cloudRead = null;
+        ShowHome(new HomeAnswer([], null));
+        CoachMode.Answer = null;
+        CoachMode.Forget();
+        CoachMode.Read = path => CloudReadAsync(bearer, path);
+        _ = ReadHomeAsync(path => CloudReadAsync(bearer, path));
+        _ = AllowCoachAsync(bearer);
     }
 
     /// <summary>
