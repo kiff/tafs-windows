@@ -1,12 +1,13 @@
 # A taf's page
 
-A taf's page is the iPad's `TafDetailView`, as in the reference set's `taf.png`. It opens on the Activity. The core is
-`Tafs.Core.Taf` (`TafScreen` and `TafActivity`), and the window shows it as `TafPage`.
+A taf's page is the iPad's `TafDetailView`, as in the reference set's `taf.png` and `taf-setup.png`. It opens on the
+Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`), and the window shows it as `TafPage`.
 
 - **The head:** the avatar (34, corners of 10, the name's first letter in white on the taf's colour), the name in 20
   bold, and its state's chip ("Working"), green on the same green at 15%.
 - **The tabs:** Chat, Activity, Card and Setup, in the iPad's order, on the system grey track (`taf.section.*`, named
-  "View"). Only Activity is built. The other three are shown, so the page has the iPad's shape, and are off.
+  "View"). Activity and Setup are built. Chat and the Card are shown, so the page has the iPad's shape, and are off.
+  The Card bar is above the Activity, not Setup.
 - **The Card bar:** a small Card in the taf's colour with the Card's mark, its Card's figure and words ("€1,960 left
   today of €2,000"), and under it the Card's name, its environment when it isn't production, and "· 3 Cards" when the
   taf holds more than one (`TafCard.Bar`).
@@ -23,8 +24,26 @@ A taf's page is the iPad's `TafDetailView`, as in the reference set's `taf.png`.
   id or title is left out.
 - The filters are tafs cloud's. The app sends the chosen one back.
 
+**Setup**, as `taf-setup.png`:
+- **The job,** under "THE JOB".
+- **Starts when and Results go to:** shown, off until their screens are built.
+- **What it remembers:**
+  - each note with its line under it, its file's path as words and its time ("customers · regulars · 02:57");
+  - Forget, which asks first, as the iPad does ("Forget this note?"), since it can't be undone;
+  - the footnote on what notes do.
+- **Pause and Resume,** the state chip turning from "Working" to the soft "Paused".
+
+**tafs cloud's Setup:** `TafSetup.Read` reads `GET /v1/tafs/{id}/setup` (`contracts/taf-setup.json`,
+`taf-setup-connected.json` and `taf-setup-reconnect.json`), as the iPad's `SetupView`.
+- It reads the connections, with their status words, actions and limits, and their week with its Activity query. When
+  the connections couldn't be read, it reads why (`connections_error`).
+- It also reads the workflow and its steps, the memory and versions in short, the Card-unit exceptions waiting, and the
+  taf's own Connect again.
+- What can't be read is left out, never the page with it. A Connect again without its connection, title or words reads
+  as none, as the iPad's `usable`.
+
 **The sample:**
-- `--page taf --sample` opens Refunds, as the reference set does.
+- `--page taf --sample` opens Refunds, as the reference set does; `--page taf-setup --sample` opens it on Setup.
 - Its Activity is Refunds' own lines of the sample Record: the credit on #2290, the refund of #4471, and its start.
 - The iPad's filters narrow them: Done keeps done and approved; Held, held; Refused, refused, not done and revoked.
 - Its Card is €2,000 a day, €40 of it used today.
@@ -50,9 +69,11 @@ rules and totals.
 - **Reading it from tafs cloud:** the next pages, Try again, and the revision as If-None-Match. The server's ETag is
   the quoted form of `revision`. Its days are titled as sent, in 12 semibold, not in the sample's capitals.
 - **Opening a taf from the sidebar's Your tafs and the Overview,** once they list the tafs.
-- **The other tabs,** each in its own change: Setup (from `taf-setup.json`, `taf-setup-connected.json` and
-  `taf-setup-reconnect.json`), the Card, and Chat.
+- **The other tabs,** each in its own change: the Card, and Chat.
+- **Setup from tafs cloud:** drawing what `TafSetup.Read` reads. That means the connected apps and their sheets, the
+  Card-unit exceptions (whose change Coach asks to sign), Connect again, the memory's See all, Improve in Coach, and
+  Remove. Forget and Pause also need to reach tafs cloud; for now they change the sample's page only.
 - **The Card tab:** the stack of Cards, every rule's lines, and Revoke. The Card bar's chevron opens it, so the chevron
-  comes with it. Also a Card's extra room, its pending use, and how KIFF counts each tool.
+  comes with it. Also a Card's totals for each item, and how KIFF counts each tool.
 - **The rest:** the head's second line (the version and Share); held calls, Card-unit exceptions, its work and its runs
   at the top of the Activity; a line's receipt and its next step.

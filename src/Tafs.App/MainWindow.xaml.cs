@@ -36,7 +36,7 @@ public sealed partial class MainWindow : Window
     /// <summary>The view the Calendar opens on: Week; Day or Month for `--page calendar` or `calendar-month`.</summary>
     CalendarMode calendarOpensOn = CalendarMode.Week;
 
-    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you", "record", "calendar" (Day), "calendar-week", "calendar-month", "usage", "connect-apps", "account", "coach", or "taf" (the sample's Refunds, with --sample). Otherwise the Overview.</param>
+    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you", "record", "calendar" (Day), "calendar-week", "calendar-month", "usage", "connect-apps", "account", "coach", or "taf" / "taf-setup" (the sample's Refunds on its Activity or Setup, with --sample). Otherwise the Overview.</param>
     /// <param name="viewOnly">The session can't approve yet: show the View only notice above every screen.</param>
     /// <param name="sample">Show the iPad's sample held calls and Record: for screenshots.</param>
     public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false)
@@ -128,7 +128,7 @@ public sealed partial class MainWindow : Window
         else if (page == "connect-apps") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
         else if (page == "record") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
         else if (page == "needs-you") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
-        else if (page == "taf" && sample) OpenBeside(typeof(TafPage), SampleTaf(w));
+        else if (page is "taf" or "taf-setup" && sample) OpenBeside(typeof(TafPage), SampleTaf(w, page == "taf-setup" ? TafTab.Setup : TafTab.Activity));
         else Nav.SelectedItem = BrandItem;
         if (screenshot is not null) Root.Loaded += async (_, _) => await SaveAndQuitAsync(screenshot);
     }
@@ -230,12 +230,13 @@ public sealed partial class MainWindow : Window
         AccountIconChosen.Visibility = chosen ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>The taf the reference set opens: the sample's Refunds, on its Activity.</summary>
-    static TafOpening SampleTaf(Tafs.Core.Words.WordBook w)
+    /// <summary>The taf the reference set opens: the sample's Refunds, on its Activity (taf.png) or its Setup (taf-setup.png).</summary>
+    static TafOpening SampleTaf(Tafs.Core.Words.WordBook w, TafTab opensOn)
     {
         var now = DateTimeOffset.UtcNow;
         return new(TafScreen.SampleHead(w), TafScreen.SampleCard(w),
-            filter => TafActivity.Sample(w, TafScreen.SampleTaf(w), filter, now, TimeZoneInfo.Local));
+            filter => TafActivity.Sample(w, TafScreen.SampleTaf(w), filter, now, TimeZoneInfo.Local),
+            new SetupOpening(TafSetup.SampleJob(w), TafSetup.SampleNotes(w, now)), opensOn);
     }
 
     /// <summary>A screen that isn't a sidebar row: no row stays chosen while it's open.</summary>

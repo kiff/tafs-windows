@@ -1,11 +1,11 @@
-<!-- A taf's page (the iPad's TafDetailView), as the reference set's taf.png: its avatar, name and state, the tabs, the Card
-     bar, and its Activity by day. Chat, the Card and Setup come in their own changes. -->
+<!-- A taf's page (the iPad's TafDetailView), as the reference set's taf.png and taf-setup.png: its avatar, name and state,
+     the tabs, the Card bar, its Activity by day, and its Setup. Chat and the Card come in their own changes. -->
 <Page x:Class="Tafs.App.TafPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:local="using:Tafs.App"
       Background="{ThemeResource TafsBackground}">
-  <Grid Padding="24,16,24,0" RowSpacing="12">
+  <Grid Padding="24,16,24,0">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
@@ -26,20 +26,24 @@
       </Border>
       <TextBlock x:Name="NameText" Grid.Column="1" FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis"
                  VerticalAlignment="Center" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
-      <!-- Working: green on the same green at 15%, in a capsule. -->
-      <Grid Grid.Column="2" VerticalAlignment="Center">
+      <!-- Working: green on the same green at 15%, in a capsule; Paused, the soft colour the same way. -->
+      <Grid x:Name="WorkingChip" Grid.Column="2" VerticalAlignment="Center">
         <Border Background="{ThemeResource TafsOk}" Opacity="0.15" CornerRadius="11" />
         <TextBlock x:Name="StateText" FontSize="12" FontWeight="Medium" Margin="10,4" Foreground="{ThemeResource TafsOk}" />
+      </Grid>
+      <Grid x:Name="PausedChip" Grid.Column="2" VerticalAlignment="Center" Visibility="Collapsed">
+        <Border Background="{ThemeResource TafsSoft}" Opacity="0.15" CornerRadius="11" />
+        <TextBlock x:Name="PausedText" FontSize="12" FontWeight="Medium" Margin="10,4" Foreground="{ThemeResource TafsSoft}" />
       </Grid>
     </Grid>
 
     <!-- Chat, Activity, Card, Setup on the system grey track. -->
-    <Border Grid.Row="1" Style="{StaticResource TafsSegmentTrack}">
+    <Border Grid.Row="1" Margin="0,12,0,0" Style="{StaticResource TafsSegmentTrack}">
       <Grid x:Name="Tabs" ColumnSpacing="2" />
     </Border>
 
     <!-- The Card bar: a small Card in the taf's colour with the Card's mark, what's left of its limit, and its name. -->
-    <Border x:Name="CardBar" Grid.Row="2" Background="{ThemeResource TafsPanel}" BorderBrush="{ThemeResource TafsLine}"
+    <Border x:Name="CardBar" Grid.Row="2" Margin="0,12,0,0" Background="{ThemeResource TafsPanel}" BorderBrush="{ThemeResource TafsLine}"
             BorderThickness="1" CornerRadius="14" Padding="14,9">
       <Grid ColumnSpacing="12">
         <Grid.ColumnDefinitions>
@@ -57,8 +61,12 @@
       </Grid>
     </Border>
 
-    <ScrollViewer Grid.Row="3">
-      <StackPanel Spacing="10" Padding="0,4,0,24">
+    <!-- 12 apart, as margins: a row that's collapsed (the Card bar on Setup) takes no room. -->
+    <ScrollViewer Grid.Row="3" Margin="0,12,0,0">
+      <Grid Padding="0,4,0,24">
+      <!-- Setup: built in code from the taf's job, notes and state. -->
+      <StackPanel x:Name="SetupPane" Spacing="16" Visibility="Collapsed" />
+      <StackPanel x:Name="ActivityPane" Spacing="10">
         <StackPanel x:Name="FilterChips" Orientation="Horizontal" Spacing="6" />
         <TextBlock x:Name="Empty" FontSize="14" Foreground="{ThemeResource TafsDim}" Margin="0,8,0,0" Visibility="Collapsed" />
         <ItemsControl x:Name="Days">
@@ -115,6 +123,7 @@
         <!-- tafs cloud's words under the last line: "Nothing older in this view". -->
         <TextBlock x:Name="EndWords" FontSize="14" Foreground="{ThemeResource TafsDim}" Visibility="Collapsed" />
       </StackPanel>
+      </Grid>
     </ScrollViewer>
   </Grid>
 </Page>
