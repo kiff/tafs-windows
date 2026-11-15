@@ -44,6 +44,12 @@ the newest by update's `GET /v1/tafs/{id}/conversation/{session}` (the whole thr
   "Something else…", which opens a field for the person's own words; a multi question takes several. Send answers (the brand
   button) once every question is answered; Chat about this puts the card away ("You're talking these questions through…",
   Show them again). Answered, it's one line, "Your answers · Test mode · Weekdays", and the answer's bubble is folded in.
+- **A notice** (as `SetupComponentView.notice`): its title at 14 in its tone's colour (error the red, warning the amber,
+  success the green, else soft), its words in the ink, on that colour at 10%.
+- **The plan** (as `SetupPlan`), pinned above the thread, never in it: "PLAN · 1 OF 4" and the step it's at with its mark
+  (`StepMark`: a tick on the green, a cross on the red, a ring in the amber at work, a faint ring to do). A tap opens every
+  step, the active one in bold, a skipped one struck through, those to come dimmed; another folds it. Narrator reads a
+  mark's status as tafs cloud words it ("done"), as the iPad's does.
 - **Sending** (`AnswerAsync`, as `AppModel.answer`): `POST /v1/tafs/{id}/components/{card}/answer` with
   `{"answer": {…}, "session": …}`, only to the exact hosts, the card busy meanwhile. Sent, the thread is read again; a 409
   (the card doesn't wait any more) reads it again too; refused for want of the AI-data consent (`ai_consent_required`), the
@@ -54,7 +60,7 @@ the newest by update's `GET /v1/tafs/{id}/conversation/{session}` (the whole thr
 **Not yet:**
 - **Coach's words as Markdown:** they show as written until `MarkdownText` is ported.
 - **A Coach with an empty thread:** the iPad shows `starts` ("Ask anything"); here the intro stays until writing is ported.
-- **Coach's other cards** (notices, results, confirms, approvals, sign-ins), and the conversation read's proof and `?can=`
+- **Coach's other cards** (results, confirms, approvals, sign-ins), and the conversation read's proof and `?can=`
   (they mark approval cards).
 - **After an answer:** the iPad follows the run's stream as it writes; here the thread is read again, until the stream is
   ported. The AI-data consent's screen isn't ported, so a refusal for it leaves the card as it was, with no line.

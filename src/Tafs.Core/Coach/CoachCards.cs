@@ -18,7 +18,8 @@ public sealed record CardQuestion(string Id, string Text, IReadOnlyList<CardChoi
 /// and whether its run waits on it. A card grants nothing.
 /// </summary>
 public sealed record CoachCard(string Kind, string Id, string? Title = null, string? Text = null, string? Tone = null,
-    IReadOnlyList<CardChoice>? Options = null, IReadOnlyList<CardQuestion>? Questions = null, string? Waits = null)
+    IReadOnlyList<CardChoice>? Options = null, IReadOnlyList<CardQuestion>? Questions = null, string? Waits = null,
+    IReadOnlyList<PlanStep>? Steps = null)
 {
     public static readonly string[] Kinds = ["steps", "notice", "confirm", "questions", "approval", "sign_in", "result", "knob", "drive"];
 }
@@ -28,6 +29,14 @@ public sealed record CoachCard(string Kind, string Id, string? Title = null, str
 /// doesn't wait any more (409, read again); refused for want of the AI-data consent (the card stays as chosen); or not reached.
 /// </summary>
 public enum CardSent { Sent, ReadAgain, Consent, NotReached }
+
+/// <summary>One step of Coach's plan, as the iPad's <c>SetupComponent.Step</c>: its words, and pending, active, done, failed or skipped.</summary>
+public sealed record PlanStep(string Label, string Status)
+{
+    /// <summary>The step the plan is at, as the iPad's <c>SetupPlan.current</c>: the active one, else the first not yet done, else the last.</summary>
+    public static PlanStep? Current(IReadOnlyList<PlanStep> steps) =>
+        steps.FirstOrDefault(s => s.Status == "active") ?? steps.FirstOrDefault(s => s.Status is "pending" or "failed") ?? steps.LastOrDefault();
+}
 
 /// <summary>A card's answer as kiff/agents recorded it (the iPad's <c>CardAnswer</c>): its state, its words, and when.</summary>
 public sealed record CardAnswer(string State, string Words, DateTimeOffset? At);
@@ -69,11 +78,21 @@ public sealed record ShownCard(DateTimeOffset FirstAt, string Session, string Ru
                 questions.Add(new CardQuestion(qid, text, options, Lenient.Bool(q, "multi"), Lenient.Text(q, "note")));
             }
         }
+        List<PlanStep>? steps = null;
+        if (Lenient.Field(c, "steps") is { ValueKind: JsonValueKind.Array } ss)
+        {
+            steps = [];
+            foreach (var s in ss.EnumerateArray())
+            {
+                if (Lenient.Text(s, "label") is not { } label || Lenient.Text(s, "status") is not { } status) return null;
+                steps.Add(new PlanStep(label, status));
+            }
+        }
         var optionsField = Lenient.Field(c, "options");
         var choices = optionsField is null ? null : Choices(optionsField, withDescription: false);
         if (optionsField is not null && choices is null) return null;
         return new CoachCard(kind, id, Lenient.Text(c, "title"), Lenient.Text(c, "text"), Lenient.Text(c, "tone"), choices, questions,
-            Lenient.Text(c, "waits"));
+            Lenient.Text(c, "waits"), steps);
     }
 
     static List<CardChoice>? Choices(JsonElement? field, bool withDescription)

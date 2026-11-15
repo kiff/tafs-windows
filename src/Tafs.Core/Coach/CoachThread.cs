@@ -45,6 +45,9 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
 {
     public IReadOnlyList<ShownCard> Shown => Cards ?? [];
 
+    /// <summary>The plan, shown pinned above the thread rather than in it, as the iPad's <c>SetupThread.plan</c>.</summary>
+    public ShownCard? Plan => Shown.LastOrDefault(c => c.Card.Kind == "steps");
+
     /// <summary>
     /// The thread from tafs cloud's answer, as the iPad's <c>setupThread(decoding:)</c>: a message without its time, sender,
     /// text or session fails the whole read, as the iPad's decoder does; a line it can't read is left out.

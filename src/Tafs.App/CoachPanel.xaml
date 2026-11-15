@@ -74,9 +74,17 @@
                      Foreground="{ThemeResource TafsDim}" />
         </Grid>
         <!-- Coach's thread, once it has one: drawn in code, as the iPad's SetupChatView.thread. -->
-        <ScrollViewer x:Name="ThreadView" Grid.Row="1" Grid.Column="1" Visibility="Collapsed" Padding="0,0,16,16">
-          <StackPanel x:Name="ThreadItems" Spacing="12" />
-        </ScrollViewer>
+        <Grid x:Name="ThreadView" Grid.Row="1" Grid.Column="1" Visibility="Collapsed">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <!-- The plan, pinned above the thread, as the iPad's SetupPlan. -->
+          <Border x:Name="PlanHost" Margin="0,8,16,8" Visibility="Collapsed" />
+          <ScrollViewer Grid.Row="1" Padding="0,0,16,16">
+            <StackPanel x:Name="ThreadItems" Spacing="12" />
+          </ScrollViewer>
+        </Grid>
       </Grid>
     </Grid>
   </Grid>

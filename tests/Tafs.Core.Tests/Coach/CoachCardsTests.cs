@@ -177,4 +177,31 @@ public class CoachCardsTests
         Assert.Equal(CardSent.NotReached, CoachChat.Sent(CloudRead.Refused(En, 500, "")));
         Assert.Equal(CardSent.NotReached, CoachChat.Sent(CloudRead.Unreached(En)));
     }
+
+    /// <summary>As the iPad's SetupThread.plan: the latest plan, pinned above the thread, never in it; a step it can't read fails it.</summary>
+    [Fact]
+    public void The_plan_is_pinned_above_the_thread_with_its_steps()
+    {
+        const string first = """{"type": "steps", "id": "p", "steps": [{"label": "Connect Stripe", "status": "active"}]}""";
+        const string later = """{"type": "steps", "id": "p2", "title": "Refunds", "steps": [{"label": "Connect Stripe", "status": "done"}, {"label": "Draft the Card", "status": "pending"}]}""";
+        var thread = Thread(Shown(first) + "," + Shown(later, "2026-11-15T09:00:20Z") + "," + Shown(Questions));
+
+        Assert.Equal("p2", thread.Plan!.Card.Id);
+        Assert.Equal(new[] { new PlanStep("Connect Stripe", "done"), new PlanStep("Draft the Card", "pending") }, thread.Plan.Card.Steps);
+        Assert.DoesNotContain(thread.Items, i => i.Card?.Card.Kind == "steps");
+        var broken = Thread(Shown("""{"type": "steps", "id": "p", "steps": [{"label": "Connect Stripe"}]}"""));
+        Assert.Null(broken.Plan);
+    }
+
+    /// <summary>As the iPad's SetupPlan.current: the active step, else the first not done, else the last.</summary>
+    [Fact]
+    public void The_plan_is_at_its_active_step_else_the_first_not_done()
+    {
+        PlanStep Step(string status) => new(status, status);
+
+        Assert.Equal("active", PlanStep.Current([Step("done"), Step("pending"), Step("active")])!.Status);
+        Assert.Equal("failed", PlanStep.Current([Step("done"), Step("failed"), Step("pending")])!.Status);
+        Assert.Equal("skipped", PlanStep.Current([Step("done"), Step("skipped")])!.Status);
+        Assert.Null(PlanStep.Current([]));
+    }
 }
