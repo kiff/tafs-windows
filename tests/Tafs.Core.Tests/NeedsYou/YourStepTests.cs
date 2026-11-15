@@ -147,7 +147,7 @@ public class YourStepTests
             prompt => { Prompt = prompt; Calls.Add("confirm"); if (SignOutAfterConfirm) Current = false; return Task.FromResult(Confirmed); },
             message => { Signed = message; Calls.Add("sign"); return Task.FromResult("MEU="); },
             (path, body) => { Posted = Encoding.UTF8.GetString(body); Calls.Add("POST " + path); return Task.FromResult(Answer); },
-            () => "2026-11-11T17:00:00.000Z", () => Current);
+            () => { Calls.Add("time"); return "2026-11-11T17:00:00.000Z"; }, () => Current);
     }
 
     /// <summary>Read, confirmed in tafs cloud's words, signed over kiff.handoff.v1 at KIFF's version, then posted.</summary>
@@ -156,7 +156,8 @@ public class YourStepTests
     {
         var kiff = new Kiff();
         Assert.Equal((StepAnswered.Answered, null), await kiff.Answer_(Home(Step())![0], done: true));
-        Assert.Equal(["GET /v1/me/handoffs/ho_1", "confirm", "sign", "POST /v1/me/handoffs/ho_1/answer"], kiff.Calls);
+        // signed_at is taken once Windows Hello answered, not before it.
+        Assert.Equal(["GET /v1/me/handoffs/ho_1", "confirm", "time", "sign", "POST /v1/me/handoffs/ho_1/answer"], kiff.Calls);
         Assert.Equal("Done · Approve the transfer of €1,200 to Acme", kiff.Prompt);
         Assert.Equal(YourSteps.Message("t_1", "ho_1", "done", 2, "2026-11-11T17:00:00.000Z"), kiff.Signed);
         Assert.Equal("""{"answer":"done","signature":{"signed_at":"2026-11-11T17:00:00.000Z","value":"MEU="}}""", kiff.Posted);
