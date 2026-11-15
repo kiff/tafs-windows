@@ -58,6 +58,7 @@ public sealed partial class CoachPanel : UserControl
         answered.Clear();
         notes.Clear();
         cards.Clear();
+        homeAsked.Clear();
         ThreadItems.Children.Clear();
         IntroError.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Collapsed;
@@ -146,6 +147,8 @@ public sealed partial class CoachPanel : UserControl
         var w = App.Words;
         ThreadItems.Children.Clear();
         ShowPlan(thread.Plan);
+        // Asked once the thread is drawn: Home's read can answer at once, and it draws the thread again.
+        if (Tafs is { } tafs && thread.ReadHomeFor(tafs().Select(t => t.Agent), homeAsked)) DispatcherQueue.TryEnqueue(() => HomeWanted?.Invoke());
         var items = thread.Drawn(Kinds);
         for (var i = 0; i < items.Count; i++)
         {
@@ -156,6 +159,7 @@ public sealed partial class CoachPanel : UserControl
             {
                 if (shown.Card.Kind == "questions") ThreadItems.Children.Add(QuestionsCard(thread, shown));
                 else if (shown.Card.Kind == "notice") ThreadItems.Children.Add(Notice(shown.Card));
+                else if (shown.Card.Kind == "result") ThreadItems.Children.Add(Result(thread, shown));
                 continue;
             }
             var m = items[i].Message!;
@@ -222,6 +226,105 @@ public sealed partial class CoachPanel : UserControl
         }
         words.Children.Add(Words(c.Text ?? "", 14, "TafsInkText"));
         return new Border { Child = words, Padding = new Thickness(12), CornerRadius = new CornerRadius(14), Background = Faint(tone, 0.10) };
+    }
+
+    /// <summary>The account's tafs, as Home last listed them: a result card names and opens the taf it handed over.</summary>
+    public Func<IReadOnlyList<Tafs.Core.Home.HomeTaf>>? Tafs { get; set; }
+
+    /// <summary>A result card's Open: the taf's page, by its tafs cloud id; Coach closes, as the iPad's beside the sidebar.</summary>
+    public event Action<string>? TafChosen;
+
+    /// <summary>A result card's Choose a plan: Plan &amp; usage, where a plan is chosen, as the iPad's <c>usageRequested</c>.</summary>
+    public event Action? PlanChosen;
+
+    /// <summary>A hand-over set up whose taf isn't on Home's list yet: the window reads Home again, once for each card.</summary>
+    public event Action? HomeWanted;
+
+    /// <summary>The result cards Home was read again for.</summary>
+    readonly HashSet<string> homeAsked = [];
+
+    /// <summary>
+    /// A result, as the iPad's <c>SetupComponentView.result</c>: a new taf's hand-over, or an improvement's when it names the
+    /// taf it improves. Both on the panel with a green edge, their eyebrow in the green, Coach's words at 15.
+    /// </summary>
+    Border Result(CoachThread thread, ShownCard shown)
+    {
+        var c = shown.Card;
+        var w = App.Words;
+        var tafs = Tafs?.Invoke() ?? [];
+        var panel = new StackPanel { Spacing = 12 };
+        TextBlock Line(string text, double size, string style)
+        {
+            var line = Words(text, size, style);
+            panel.Children.Add(line);
+            return line;
+        }
+        Button Wide(string text, string style)
+        {
+            var button = new Button { Content = text, Style = (Style)Application.Current.Resources[style], HorizontalAlignment = HorizontalAlignment.Stretch };
+            panel.Children.Add(button);
+            return button;
+        }
+        void Eyebrow(string text) => panel.Children.Add(new TextBlock { Text = text.ToUpper(new System.Globalization.CultureInfo(w.Language)),
+            Style = (Style)Application.Current.Resources["TafsEyebrow"], Foreground = Brush("TafsOk"), TextWrapping = TextWrapping.Wrap });
+        if (c.Taf?.Improves is { } improves)
+        {
+            // The taf it improves, as the iPad's improvedTaf: by its tafs cloud id, else as an agent, else the card's agent.
+            var improved = tafs.FirstOrDefault(t => t.Id == improves) ?? tafs.FirstOrDefault(t => t.Agent == improves) ?? tafs.FirstOrDefault(t => t.Agent == c.Taf.Agent);
+            var name = improved?.Name ?? c.Taf.Name;
+            Eyebrow(w.Get("coach.result.new_version", ("taf", c.Taf.Name)));
+            Line(c.Text ?? "", 15, "TafsInkText");
+            if (c.Taf.Note is { Length: > 0 } note) Line(note, 13, "TafsSoftText");
+            var (state, version, why) = thread.Improvement(shown.Ref);
+            switch (state)
+            {
+                // Its Versions aren't ported yet: the line the iPad shows when it can't open them.
+                case ImprovementState.Made:
+                    Line(w.Get("coach.result.version_made", ("version", version.ToString())), 13, "TafsDimText");
+                    break;
+                case ImprovementState.Failed:
+                    Line(CoachChat.NotImproved(w, name, why!), 13, "TafsNoText");
+                    Line(w.Get("coach.coach_knows"), 13, "TafsDimText");
+                    break;
+                default:
+                    var preparing = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                    preparing.Children.Add(new ProgressRing { IsActive = true, Width = 16, Height = 16, Foreground = Brush("TafsSoft") });
+                    preparing.Children.Add(new TextBlock { Text = w.Get("coach.result.preparing") });
+                    var off = Wide("", "TafsPrimaryOff");
+                    off.Content = preparing;
+                    off.IsEnabled = false;
+                    break;
+            }
+        }
+        else
+        {
+            // The name the taf got once started: tafs cloud gives a taken name the first free "Rae 2", so Coach's may be another taf's.
+            var listed = c.Taf is { } t ? tafs.FirstOrDefault(x => x.Agent == t.Agent) : null;
+            var name = listed?.Name ?? c.Taf?.Name ?? "";
+            var open = listed is not null && listed.Name != c.Taf?.Name ? w.Get("coach.result.open", ("taf", name)) : c.Yes ?? w.Get("coach.result.see_it", ("taf", name));
+            Eyebrow(w.Get("coach.result.set_up", ("taf", name)));
+            Line(c.Text ?? "", 15, "TafsInkText");
+            if (c.Tools is { Count: > 0 } tools) Line(string.Join(" · ", tools.Select(CoachChat.ToolWords)), 13, "TafsSoftText");
+            var (state, why) = thread.HandOver(shown.Ref, listed is not null);
+            if (state == HandOverState.SetUp)
+            {
+                if (thread.PlanNeeded(shown.Ref) is { } words)
+                {
+                    // Made with no plan, so nothing runs yet: tafs cloud's words, then where a plan is chosen.
+                    Line(words, 14, "TafsAmberWords").FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+                    Wide(w.Get("usage.choose_plan"), "TafsOutlineButton").Click += (_, _) => PlanChosen?.Invoke();
+                }
+                if (listed is not null) Wide(open, "TafsPrimary").Click += (_, _) => TafChosen?.Invoke(listed.Id);
+                else Line(w.Get("coach.setting_up", ("name", name)), 13, "TafsDimText");
+            }
+            else if (state == HandOverState.Failed)
+            {
+                Line(CoachChat.NotSetUp(w, name, why!), 13, "TafsNoText");
+                Line(w.Get("coach.coach_knows"), 13, "TafsDimText");
+            }
+            else Line(w.Get("coach.setting_up", ("name", name)), 13, "TafsDimText");
+        }
+        return new Border { Style = (Style)Application.Current.Resources["TafsCard"], BorderBrush = Brush("TafsOk"), Child = panel };
     }
 
     /// <summary>The plan pinned above the thread is folded to its step in progress until opened, so the chat comes first.</summary>
@@ -327,7 +430,7 @@ public sealed partial class CoachPanel : UserControl
     }
 
     /// <summary>The kinds of card drawn so far: the others come in their own changes, their answers in bubbles until then.</summary>
-    static readonly string[] Kinds = ["questions", "notice"];
+    static readonly string[] Kinds = ["questions", "notice", "result"];
 
     QuestionsCardView QuestionsCard(CoachThread thread, ShownCard shown)
     {
@@ -359,7 +462,8 @@ public sealed partial class CoachPanel : UserControl
         else Redraw();
     }
 
-    void Redraw()
+    /// <summary>The thread drawn again: after an answer, and when Home's list changes, so a result card finds its taf.</summary>
+    public void Redraw()
     {
         if (thread is not null) ShowThread(thread);
     }

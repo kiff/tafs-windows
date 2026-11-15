@@ -106,7 +106,8 @@ from `taf-runs.json` and `taf-run-report.json` beside it (CI's `overview-home`).
   the Overview, with the call at its top. Here both open Needs you, since a taf's page doesn't draw its held calls yet.
 - **The held calls** come from KIFF in their own change. Until then `--sample` shows the iPad's two sample calls.
 - **A taf from tafs cloud's Activity, Setup and Card tabs** come with their reads; its Card tab also needs who issued it.
-- **Reading Home again:** it's read once, at launch. An expired session (401) isn't told apart yet.
+- **Reading Home again:** it's read at launch and after each sign-in or pairing (`UseSession`, as the iPad's
+  `useSession`, which first empties the list and drops a read the last session started), and not otherwise. An expired session (401) isn't told apart yet.
 - **The line's colour** for what went wrong: the iPad's is amber, red when it's failing; here it's the soft colour.
 - **Who uses a taf,** under its name on the Overview ("Support · 3 people"), for whoever manages it.
 - **Coach's sparkle**: the iPad's Coach button has a sparkle (sparkles while Coach drives). Segoe

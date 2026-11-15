@@ -140,6 +140,41 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
     public string CardRef(string id) => CardFor(id)?.Ref ?? "#" + id;
 
     /// <summary>
+    /// Where a new taf's hand-over stands, as the iPad's <c>handOver(_:listed:)</c>, by the card's ref: set up (tafs cloud
+    /// answered its taf, or it's on the list already), why it wasn't (Coach hands it over again), or still setting up.
+    /// </summary>
+    public (HandOverState State, string? Why) HandOver(string cardRef, bool listed)
+    {
+        var outcome = Shown.FirstOrDefault(c => c.Ref == cardRef)?.Answer?.Outcome;
+        if (outcome?.Failed is { } why) return (HandOverState.Failed, why);
+        return (outcome?.TafId is not null || listed ? HandOverState.SetUp : HandOverState.SettingUp, null);
+    }
+
+    /// <summary>
+    /// Whether Home's list should be read again for a hand-over, as the iPad's "the list is being read again for it": a
+    /// result tafs cloud set up (its taf's id answered) whose taf isn't listed yet. Once per card: its ref goes into
+    /// <paramref name="asked"/>, so a list that still lacks it isn't read again and again.
+    /// </summary>
+    public bool ReadHomeFor(IEnumerable<string?> listedAgents, ISet<string> asked)
+    {
+        var listed = listedAgents.OfType<string>().ToHashSet();
+        var wanting = Shown.Where(c => c.Card is { Kind: "result", Taf: { Improves: null } t } && !listed.Contains(t.Agent)
+            && HandOver(c.Ref, listed: false).State == HandOverState.SetUp).Select(c => c.Ref).Where(asked.Add).ToList();
+        return wanting.Count > 0;
+    }
+
+    /// <summary>tafs cloud's words when the taf was made with no plan, so no run started, as the iPad's <c>planNeeded</c>.</summary>
+    public string? PlanNeeded(string cardRef) => Shown.FirstOrDefault(c => c.Ref == cardRef)?.Answer?.Outcome?.PlanNeeded;
+
+    /// <summary>What became of an improvement, as the iPad's <c>improvement</c>: the version made, why none was, or still preparing.</summary>
+    public (ImprovementState State, int Version, string? Why) Improvement(string cardRef)
+    {
+        var outcome = Shown.FirstOrDefault(c => c.Ref == cardRef)?.Answer?.Outcome;
+        if (outcome?.Failed is { } why) return (ImprovementState.Failed, 0, why);
+        return outcome?.Version is { } n ? (ImprovementState.Made, n, null) : (ImprovementState.Preparing, 0, null);
+    }
+
+    /// <summary>
     /// The person's latest answer to a card, as the iPad's <c>answer(to:)</c>: the one kiff/agents recorded on it, else one
     /// sent as a message since the card first appeared.
     /// </summary>
@@ -152,6 +187,10 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
             .Select(m => CardReply.Parse(m.Text)).FirstOrDefault(r => r?.Id == id);
     }
 }
+
+public enum HandOverState { SetUp, Failed, SettingUp }
+
+public enum ImprovementState { Made, Failed, Preparing }
 
 /// <summary>Coach's thread read and drawn, as the iPad's <c>loadSetupThread</c>, <c>SetupChatView.thread</c> and <c>WorkLog</c>.</summary>
 public static class CoachChat
@@ -238,6 +277,26 @@ public static class CoachChat
         var body = new JsonObject { ["answer"] = value, ["session"] = card.Session };
         return ($"/v1/tafs/{CloudRead.PathPart(coach)}/components/{CloudRead.PathPart(card.Card.Id)}/answer",
             System.Text.Encoding.UTF8.GetBytes(body.ToJsonString()));
+    }
+
+    /// <summary>"Refunds wasn't set up: why.", as the iPad's <c>notSetUp</c>: the why without its end's dots and spaces.</summary>
+    public static string NotSetUp(WordBook w, string name, string why) => w.Get("coach.not_set_up", ("name", name), ("why", why.Trim('.', ' ')));
+
+    /// <summary>"Refunds' new version wasn't made: why.", as the iPad's <c>SetupThread.notImproved</c>.</summary>
+    public static string NotImproved(WordBook w, string name, string why) => w.Get("coach.not_improved", ("owner", name), ("why", why.Trim('.', ' ')));
+
+    /// <summary>
+    /// A tool's name in words, as the iPad's <c>KIFFMapping.toolWords</c>: the part after its server and dots, without a
+    /// generated prefix ("k3f9a2_"), its underscores and dashes as spaces: "list_requests_k3f9" reads "list requests k3f9".
+    /// </summary>
+    public static string ToolWords(string tool)
+    {
+        // As Swift's split, empty parts are dropped; with none left, the tool's own name.
+        var name = tool.Split("__")[^1].Split('.', StringSplitOptions.RemoveEmptyEntries) is { Length: > 0 } parts ? parts[^1] : tool;
+        if (System.Text.RegularExpressions.Regex.Match(name, "^(?=[a-z]*[0-9])[a-z0-9]{6,}_") is { Success: true } m && m.Length < name.Length)
+            name = name[m.Length..];
+        var words = string.Join(' ', name.Split(['_', '-'], StringSplitOptions.RemoveEmptyEntries));
+        return words.Length == 0 ? tool : words;
     }
 
     /// <summary>
