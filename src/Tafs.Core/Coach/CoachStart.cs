@@ -17,25 +17,26 @@ public sealed record StartResult(StartOutcome Outcome, string? Why = null, strin
 }
 
 /// <summary>
-/// What Start sends, and how, given by the app and faked in tests. <see cref="SignDraft"/> signs Setup's draft: with the
-/// device key for a key session, which asks no one, or with this PC's passkey for a passkey session, which is its one
-/// Windows Hello. <see cref="Confirm"/> asks Windows Hello over a message. Each send throws
-/// <see cref="HttpRequestException"/> when not reached.
+/// What Start sends, and how, given by the app and faked in tests. <see cref="SignDraft"/> signs Setup's draft with this PC's
+/// passkey, which is its one Windows Hello. <see cref="Confirm"/> asks Windows Hello over a message. Each send throws
+/// <see cref="HttpRequestException"/> when not reached. <see cref="SignedAt"/> is <see cref="SigningTime.Next"/>'s time, kept as
+/// written. <see cref="Current"/> says whether the session Start began in is still signed in.
 /// </summary>
 public sealed record StartCalls(
     Func<Task<CloudRead>> ReadSetup,
     Func<byte[], byte[], Task> Confirm,
-    Func<byte[], DateTimeOffset, Task<(string Header, string Value)>> SignDraft,
+    Func<byte[], string, Task<(string Header, string Value)>> SignDraft,
     Func<Task<EnrolResult>> Enrol,
     Func<byte[], (string Header, string Value), Task<(int Status, string Body)>> SubmitDraft,
     Func<byte[], Task<CloudRead>> Claim,
-    Func<DateTimeOffset> Now);
+    Func<string> SignedAt,
+    Func<bool> Current);
 
 /// <summary>
 /// Starting Coach, as the iPad's <c>AppModel.startSetup</c> from Start (<c>SetupChatView.introBefore</c>): planque first, as
 /// its <c>setUpPlanque</c>, then Setup from a draft with no tools, whose key tafs cloud claims, so the key never reaches this
-/// PC. Behind one Windows Hello for a passkey session, as the iPad's one Face ID; none for a key session, as its other
-/// setup calls; never for a view session.
+/// PC. Behind one Windows Hello, as the iPad's one Face ID: only a passkey session that knows its passkey starts Coach. A key
+/// session's device key asks no one, so it never gives the authority Start gives; a view session can't approve.
 /// </summary>
 public static class CoachStart
 {
@@ -56,25 +57,35 @@ public static class CoachStart
         JsonSerializer.SerializeToUtf8Bytes(new { draft_id = draftId, claim_secret = claimSecret });
 
     /// <summary>
-    /// Setup's draft signed as an approval: <c>KIFF-Device-Signature</c> by the device key for a key session (this PC's one
-    /// key), or <c>KIFF-Passkey-Assertion</c> by this PC's passkey for a passkey session, which shows Windows Hello. Each over
-    /// exactly <paramref name="body"/> at <paramref name="signedAt"/>, which is what's sent.
+    /// Setup's draft signed as an approval, as the iPad's under its biometric Face ID: <c>KIFF-Passkey-Assertion</c> by this
+    /// PC's passkey, which shows Windows Hello, over exactly <paramref name="body"/> at <paramref name="signedAt"/>, which is
+    /// what's sent. Anything but a passkey session that knows its passkey fails closed: nothing is signed.
     /// </summary>
-    public static async Task<(string Header, string Value)> SignDraftAsync(KeptSession session, IKiffSigner key, PasskeyApprover? passkey,
-        byte[] body, DateTimeOffset signedAt, CancellationToken cancel = default)
+    public static async Task<(string Header, string Value)> SignDraftAsync(KeptSession session, PasskeyApprover? passkey,
+        byte[] body, string signedAt, CancellationToken cancel = default)
     {
-        if (session.Mode == ApprovalMode.Passkey)
-        {
-            if (passkey is null) throw new PasskeyRefusedException("this session doesn't know its passkey");
-            return (PasskeyApprover.HeaderName, await passkey.ApproveAsync(session.Tenant, "POST", DraftPath, body, signedAt, cancel));
-        }
-        var message = KiffSigning.RequestV1(session.Tenant, "POST", DraftPath, body, signedAt);
-        return ("KIFF-Device-Signature", KiffSigning.SignatureHeaderV1(signedAt, await key.SignDerAsync(message, cancel)));
+        if (session.Mode != ApprovalMode.Passkey || passkey is null) throw new PasskeyRefusedException("only this PC's passkey signs the draft");
+        return (PasskeyApprover.HeaderName, await passkey.ApproveAsync(session.Tenant, "POST", DraftPath, body, signedAt, cancel));
     }
 
-    /// <summary>Whether this session may start Coach at all: a view session can't approve, nor a passkey session that doesn't know its passkey.</summary>
-    public static bool MayStart(KeptSession session) =>
-        session.Mode == ApprovalMode.Key || (session.Mode == ApprovalMode.Passkey && session.PasskeyId is not null);
+    /// <summary>Whether this session may start Coach at all: only a passkey session that knows its passkey.</summary>
+    public static bool MayStart(KeptSession session) => session.Mode == ApprovalMode.Passkey && session.PasskeyId is not null;
+
+    /// <summary>
+    /// KIFF's refusal as the iPad's <c>KIFFClient.send</c> reads it: a 401 is signed out of KIFF; otherwise KIFF's <c>error</c>,
+    /// else "KIFF answered {status}". Never tafs cloud's reading.
+    /// </summary>
+    public static string KiffRefused(WordBook w, int status, string body)
+    {
+        if (status == 401) return w.Get("error.signed_out");
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            if (Lenient.Text(doc.RootElement, "error") is { Length: > 0 } error) return error;
+        }
+        catch (JsonException) { }
+        return w.Get("error.kiff_answered", ("status", status.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+    }
 
     /// <summary>
     /// Starts Coach, in the iPad's order: planque first unless it's ready, then, with no Coach yet, Setup's draft and tafs
@@ -98,23 +109,31 @@ public static class CoachStart
         if (coach is null)
         {
             draft = DraftBody();
-            try { signature = await calls.SignDraft(draft, calls.Now()); }
-            catch (OperationCanceledException) { return new(StartOutcome.Cancelled); }
-            catch (PasskeyRefusedException e) { return Failed(w, e.Message); }
+            // A Windows Hello closed or not verified stops quietly, as the iPad's failed Face ID: nothing is sent.
+            try { signature = await calls.SignDraft(draft, calls.SignedAt()); }
+            catch (Exception e) when (e is OperationCanceledException or PasskeyRefusedException) { return new(StartOutcome.Cancelled); }
         }
         else if (await PlanqueEnrolment.GateAsync(w, session, calls.Confirm, Message(session.Tenant)) is { } stopped)
         {
             return stopped.Outcome == EnrolOutcome.Cancelled ? new(StartOutcome.Cancelled) : new(StartOutcome.Failed, stopped.Why);
         }
+        // Signed out meanwhile: nothing more is sent, as the iPad's accountGeneration checks after each await.
+        if (!calls.Current()) return new(StartOutcome.Cancelled);
 
-        if (!planqueReady && await calls.Enrol() is { Ready: false } enrol) return new(StartOutcome.Failed, enrol.Why);
+        if (!planqueReady)
+        {
+            var enrol = await calls.Enrol();
+            if (!calls.Current()) return new(StartOutcome.Cancelled);
+            if (!enrol.Ready) return new(StartOutcome.Failed, enrol.Why);
+        }
         if (coach is not null) return new(StartOutcome.Started, Coach: coach);
 
         int status;
         string body;
         try { (status, body) = await calls.SubmitDraft(draft!, signature); }
         catch (HttpRequestException) { return Failed(w, CloudRead.Unreached(w).Why); }
-        if (status is < 200 or > 299) return Failed(w, CloudRead.Refused(w, status, body).Why);
+        if (!calls.Current()) return new(StartOutcome.Cancelled);
+        if (status is < 200 or > 299) return Failed(w, KiffRefused(w, status, body));
         if (Drafted(body) is not { } made) return new(StartOutcome.Failed, w.Get("kiff.kiff_did_not_answer_expected"));
         var claimed = await calls.Claim(ClaimBody(made.Id, made.Secret));
         if (claimed.Answer is not { } c) return Failed(w, claimed.Why);

@@ -96,6 +96,30 @@ public sealed class PasskeyApprover(IPasskeyAuthenticator authenticator, byte[] 
         if (Refusal(AuthenticatorData.Parse(assertion.AuthenticatorData)) is { } refusal) throw new PasskeyRefusedException(refusal);
     }
 
+    /// <summary>
+    /// Signs the request with a fresh assertion at a <c>signed_at</c> kept as written (<see cref="Kiff.SigningTime.Next"/>'s,
+    /// with its milliseconds), the same in the message and the header's <c>t=</c>, and returns the header's value.
+    /// </summary>
+    public async Task<string> ApproveAsync(
+        string tenant, string method, string pathAndQuery, byte[] body, string signedAt, CancellationToken cancel = default)
+    {
+        if (!enabled) throw new PasskeyRefusedException("passkey approvals are off on Windows until KIFF accepts this computer's own passkey");
+
+        var clientData = ClientDataJson(KiffSigning.RequestV1(tenant, method, pathAndQuery, body, signedAt));
+        var assertion = await authenticator.GetAssertionAsync(RpId, credentialId, clientData, cancel);
+        var refusal = Refusal(AuthenticatorData.Parse(assertion.AuthenticatorData));
+        if (refusal is not null) throw new PasskeyRefusedException(refusal);
+
+        var json = JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, string>
+        {
+            ["credential_id"] = KiffSigning.Base64Url(credentialId),
+            ["client_data_json"] = KiffSigning.Base64Url(clientData),
+            ["authenticator_data"] = KiffSigning.Base64Url(assertion.AuthenticatorData),
+            ["signature"] = KiffSigning.Base64Url(assertion.SignatureDer),
+        });
+        return $"t={signedAt},a={KiffSigning.Base64Url(json)}";
+    }
+
     /// <summary>Signs the request with a fresh assertion and returns the header's value.</summary>
     public async Task<string> ApproveAsync(
         string tenant, string method, string pathAndQuery, byte[] body, DateTimeOffset signedAt, CancellationToken cancel = default)
