@@ -22,8 +22,10 @@ From the top:
   - Account sits under it, with the account's name once it's known. Its icon turns amber while
     Account is open.
 
-The chosen row is a rounded fill of the ink, as the iPad's list draws it: no side marker. Rows are 15
-semibold in the ink. The pane is the iPad's raised colour, flush with the screen beside it.
+Rows are 15 regular in the ink, and the open screen's row is semibold, with no fill and no side marker.
+That's the owner's iPad as it looks (the PM's call, 15 Nov: the iPad as the owner sees it wins over a
+reading of its code, and the macOS app draws it the same). Pointing at a row, or pressing it, still
+shades it a little, as Windows does. The pane is the iPad's raised colour, flush with the screen beside it.
 
 The pane is 300 wide and never folds (`PaneDisplayMode="Left"`), so the section labels have their own
 small template: WinUI's header draws its text in a fixed style.
@@ -43,7 +45,8 @@ headings.
 
 ## Not yet
 
-- **+ New**, above Coach on the iPad, comes with Coach: on Windows it would have nothing to open yet.
+- **Start a new taf**, the brand's gradient button above Coach on the iPad, comes with Coach: on Windows
+  it would have nothing to open yet.
 - **Needs you's count** on its row, the held calls above Your tafs, and the tafs themselves come with
   tafs cloud's list.
 - **Coach's sparkle**: the iPad's Coach button has a sparkle (sparkles while Coach drives). Segoe

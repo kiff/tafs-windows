@@ -19,10 +19,11 @@
       <SolidColorBrush x:Key="TafsOnFill" Color="#FFFFFF" />
       <!-- The taf's own words on a held call: the soft colour at 8%. -->
       <SolidColorBrush x:Key="TafsSoftWash" Color="#144F4A5E" />
-      <!-- The sidebar's chosen row: a rounded fill of the ink, as the iPad's list draws it, not a side bar. -->
-      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#1F1B1726" />
-      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#291B1726" />
-      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#331B1726" />
+      <!-- The sidebar's chosen row has no fill, as on the owner's iPad: it's only heavier (MainWindow). Pointing at
+           a row, or pressing it, still shades it a little, as Windows does. -->
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="Transparent" />
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#0F1B1726" />
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#1A1B1726" />
       <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="#0F1B1726" />
       <SolidColorBrush x:Key="NavigationViewItemBackgroundPressed" Color="#1A1B1726" />
       <SolidColorBrush x:Key="NavigationViewItemForeground" Color="#1B1726" />
@@ -54,9 +55,9 @@
       <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#141311" />
       <SolidColorBrush x:Key="TafsOnFill" Color="#141311" />
       <SolidColorBrush x:Key="TafsSoftWash" Color="#14A8A49C" />
-      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#24F2EFE9" />
-      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#2EF2EFE9" />
-      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#38F2EFE9" />
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="Transparent" />
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#12F2EFE9" />
+      <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#1CF2EFE9" />
       <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="#12F2EFE9" />
       <SolidColorBrush x:Key="NavigationViewItemBackgroundPressed" Color="#1CF2EFE9" />
       <SolidColorBrush x:Key="NavigationViewItemForeground" Color="#F2EFE9" />
@@ -137,10 +138,10 @@
     <Setter Property="Foreground" Value="{ThemeResource TafsSoft}" />
   </Style>
 
-  <!-- The sidebar's rows: 15 semibold, as the iPad's items, on a rounded fill when chosen. -->
+  <!-- The sidebar's rows: 15 regular, as on the owner's iPad; the open one semibold, with no fill (MainWindow). -->
   <Style x:Key="TafsSidebarItem" TargetType="NavigationViewItem">
     <Setter Property="FontSize" Value="15" />
-    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontWeight" Value="Normal" />
     <Setter Property="CornerRadius" Value="10" />
     <Setter Property="MinHeight" Value="40" />
   </Style>
