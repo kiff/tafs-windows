@@ -120,6 +120,19 @@ public class TafCardTests
         Assert.Null((rule with { BaseLimit = null }).RoomWords(En));
     }
 
+    /// <summary>Room without KIFF's own limit: the total has it folded in, so neither the figure nor the rule shows a total.</summary>
+    [Fact]
+    public void Room_without_the_Card_s_own_limit_never_shows_a_summed_total()
+    {
+        var rule = Refunds with { PerWindow = KiffAmount.Euros(2_030), ExtraRoom = KiffAmount.Euros(30) };
+        Assert.Null(rule.OwnTotal);
+        Assert.Equal("up to €150 each; more asks you first", rule.Summary(En));
+        var total = new CardTotal(KiffAmount.Euros(2_030), KiffAmount.Euros(480), Day, Extra: KiffAmount.Euros(30));
+        Assert.Null(new TafCard("c", "Refunds", [rule], total).Hero(En));
+        Assert.Equal(("180", "calls left today of 200"),
+            new TafCard("c", "Refunds", [rule], total, new CallsTotal(200, 20, Day)).Hero(En));
+    }
+
     [Theory]
     [InlineData("en", "EUR", "€2,000")]
     [InlineData("en", "USD", "$2,000")]
@@ -136,12 +149,42 @@ public class TafCardTests
     public void A_count_is_written_plain_as_on_the_iPad() =>
         Assert.Equal(("1000", "calls left today of 1000"), new TafCard("r", "Reads", [], Calls: new CallsTotal(1000, 0, Day)).Hero(En));
 
+    /// <summary>The iPad's TafCardFace.spoken: figure first, then name, facts, issuer, and its end as it is.</summary>
+    [Fact]
+    public void Narrator_reads_a_Card_figure_first_and_its_end_as_it_is()
+    {
+        var card = TafScreen.SampleCards(En)[0];
+        Assert.Equal("€1,520 left today of €2,000. Refunds · Stripe. up to €150 each; more asks you first. 2 tools. Issued by You. No end date.",
+            card.Spoken(En, "You", revoked: false));
+        var ends = new DateTimeOffset(2026, 12, 31, 12, 0, 0, TimeSpan.Zero);
+        Assert.EndsWith("Until 31 Dec 2026.", (card with { Expires = ends }).Spoken(En, "You", false));
+        Assert.EndsWith("Ended 31 Dec 2026.", (card with { Expires = ends, Active = false }).Spoken(En, "You", false));
+        Assert.EndsWith("Ended.", (card with { Active = false }).Spoken(En, "You", false));
+        Assert.EndsWith("Revoked.", (card with { Expires = ends }).Spoken(En, "You", revoked: true));
+        Assert.Equal("Refunds · Stripe test, TEST. No actions yet. Issued by You. No end date.",
+            new TafCard("t", "Refunds · Stripe test", [], Environment: "test", Live: false).Spoken(En, "You", false));
+    }
+
     [Fact]
     public void A_window_it_doesnt_know_reads_as_sent_and_tafs_cloud_s_words_come_first()
     {
         Assert.Equal(new CardWindow("fortnight", "fortnight", "fortnight"), CardWindow.Of(En, "fortnight"));
         Assert.Equal("in any hour", CardWindow.Of(En, "rolling_1h").SumLabel(En));
         Assert.Equal("this sprint", CardWindow.Of(En, "rolling_1h", now: "this sprint").Current);
+    }
+
+    /// <summary>The reference set's taf-card.png: the live Card in front, then Read Stripe and the test copy.</summary>
+    [Fact]
+    public void The_sample_s_Cards_are_the_reference_s()
+    {
+        var cards = TafScreen.SampleCards(En);
+        Assert.Equal(new[] { "Refunds · Stripe", "Read Stripe", "Refunds · Stripe test" }, cards.Select(c => c.Title));
+        Assert.Equal(("€1,520", "left today of €2,000"), cards[0].Hero(En));
+        Assert.Equal(new[] { "up to €150 each; more asks you first", "2 tools" }, cards[0].Facts(En));
+        Assert.Equal(new[] { "Refunds", "Credits" }, cards[0].Rules.Select(r => r.Label));
+        Assert.Equal("up to €100 each; more asks you first · €1,000 in total a day, then it asks you", cards[0].Rules[1].Summary(En));
+        Assert.Equal(("180", "calls left today of 200"), cards[1].Hero(En));
+        Assert.Equal(("TEST", false), (cards[2].EnvironmentLabel, cards[2].Live));
     }
 
     [Theory]
@@ -151,6 +194,7 @@ public class TafCardTests
         var w = WordBook.Load(SharedFiles.Strings, language);
         var card = TafScreen.SampleOwnCard(w);
         Assert.All(card.Rules, r => Assert.DoesNotContain("{", r.Summary(w)));
+        Assert.All(TafScreen.SampleCards(w), c => Assert.DoesNotContain("{", string.Join(" ", c.Facts(w)) + c.Hero(w)));
         Assert.DoesNotContain("{", card.Bar(w, 3).Hero + card.Bar(w, 3).Under);
         Assert.All(card.Facts(w), f => Assert.DoesNotContain("{", f));
     }

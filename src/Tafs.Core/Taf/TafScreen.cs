@@ -53,6 +53,23 @@ public static class TafScreen
         ], new CardTotal(KiffAmount.Euros(2_000), KiffAmount.Euros(40), day));
     }
 
+    /// <summary>
+    /// The Cards the reference set's taf-card.png shows for Refunds, as KIFF would list them: a live one with its money
+    /// total (€480 of €2,000 used today), a read-only one with its calls (20 of 200), and a copy scoped to Stripe's test mode.
+    /// </summary>
+    public static IReadOnlyList<TafCard> SampleCards(WordBook w)
+    {
+        var day = CardWindow.Of(w, "calendar_day");
+        var refunds = new TafCard("sample-refunds", w.Get("sample.card.refunds_stripe"), SampleOwnCard(w).Rules.Take(2).ToList(),
+            new CardTotal(KiffAmount.Euros(2_000), KiffAmount.Euros(480), day));
+        var reads = new TafCard("sample-reads", w.Get("sample.card.read_stripe"),
+        [
+            new("list_charges", w.Get("sample.list_charges"), day, CountPerWindow: 200),
+            new("get_charge", w.Get("sample.look_up_charge"), day),
+        ], Calls: new CallsTotal(200, 20, day));
+        return [refunds, reads, refunds with { Id = "sample-test", Title = w.Get("sample.refunds_stripe_test"), Environment = "test", Live = false }];
+    }
+
     /// <summary>The sample's Card bar above its Activity, as taf.png: "€1,960 left today of €2,000", from its one Card.</summary>
     public static CardBarLine SampleCard(WordBook w) => SampleOwnCard(w).Bar(w, 1);
 }

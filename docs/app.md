@@ -32,7 +32,7 @@ Built so far:
 - Connect apps, as on the iPad ([connect apps](connect-apps.md));
 - Account, as on the iPad ([account](account.md));
 - Coach mode, as on the iPad ([coach](coach.md));
-- a taf's page, on its Activity and Setup, as on the iPad ([a taf's page](taf.md)).
+- a taf's page, on its Activity, Card and Setup, as on the iPad ([a taf's page](taf.md)).
 
 Signing in is the only screen that reaches KIFF so far. Other screens show only their title until they're built, in the order of the desktop spec. 
 
@@ -46,9 +46,9 @@ The app speaks the first of the person's Windows languages that tafs ships (`App
 | :- | :- |
 | `--lang fr` | speak a shipped language |
 | `--theme light` or `dark` | force the appearance |
-| `--page pair`, `sign-in`, `needs-you`, `record`, `calendar`, `calendar-week`, `calendar-month`, `usage`, `connect-apps`, `account`, `coach`, `taf` or `taf-setup` | open Add this Windows PC, Sign in with KIFF, Needs you, the Record, Calendar in Day, Week or Month, Plan & usage, Connect apps, Account, Coach mode over the Overview, or the sample's Refunds on its Activity or Setup (`taf`, `taf-setup`, with `--sample`) |
+| `--page pair`, `sign-in`, `needs-you`, `record`, `calendar`, `calendar-week`, `calendar-month`, `usage`, `connect-apps`, `account`, `coach`, `taf`, `taf-setup` or `taf-card` | open Add this Windows PC, Sign in with KIFF, Needs you, the Record, Calendar in Day, Week or Month, Plan & usage, Connect apps, Account, Coach mode over the Overview, or the sample's Refunds on its Activity, Setup or Card (`taf`, `taf-setup`, `taf-card`, with `--sample`) |
 | `--view-only` | show the session as view-only |
 | `--sample` | show the iPad's sample held calls, Record, Plan & usage and Connect apps |
 | `--screenshot out.png` | save the window (1280×800) as a PNG and quit |
 
-CI's `app` job builds the app on Windows when `src/Tafs.App/**` changes, and nightly. It saves sign-in, the Overview, Needs you, the Record, Plan & usage, Connect apps, Account and a taf's Activity and Setup (with the samples), Coach mode, Calendar in Day and Week, the view-only notice and the pairing screen in en, fr and pt, light and dark, as the `screenshots` artifact of the run. The job fails if any of the 84 is missing: a crash at launch, or a word missing at the pin, stops the app before it saves.
+CI's `app` job builds the app on Windows when `src/Tafs.App/**` changes, and nightly. It saves sign-in, the Overview, Needs you, the Record, Plan & usage, Connect apps, Account and a taf's Activity, Setup and Card (with the samples), Coach mode, Calendar in Day and Week, the view-only notice and the pairing screen in en, fr and pt, light and dark, as the `screenshots` artifact of the run. The job fails if any of the 90 is missing: a crash at launch, or a word missing at the pin, stops the app before it saves.

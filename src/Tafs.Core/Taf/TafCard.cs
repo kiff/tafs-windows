@@ -15,8 +15,11 @@ public sealed record CardRule(string Action, string Label, CardWindow Window, Ki
     KiffAmount? PerWindow = null, int? CountPerWindow = null, bool Never = false, bool AlwaysAsk = false, Outside Outside = Outside.Hold,
     KiffAmount? ExtraRoom = null, KiffAmount? BaseLimit = null, DateTimeOffset? RoomEnds = null)
 {
-    /// <summary>The Card's own total for its window: KIFF's, without the extra room in it.</summary>
-    public KiffAmount? OwnTotal => ExtraRoom is not null ? BaseLimit ?? PerWindow : PerWindow;
+    /// <summary>
+    /// The Card's own total for its window: KIFF's, without the extra room in it. With room but no own limit from KIFF,
+    /// it's unknown: <c>per_window</c> has the room folded in, so it's never shown as the Card's own.
+    /// </summary>
+    public KiffAmount? OwnTotal => ExtraRoom is null ? PerWindow : BaseLimit;
 
     /// <summary>"+€30 extra room today", or "+€30 extra room until 00:00", when KIFF says there's some.</summary>
     public string? RoomWords(WordBook w, TimeZoneInfo? zone = null, DateTimeOffset? now = null) =>
@@ -71,7 +74,8 @@ public sealed record TafCard(string Id, string Title, IReadOnlyList<CardRule> Ru
     /// </summary>
     public (string Figure, string Words)? Hero(WordBook w, TimeZoneInfo? zone = null, DateTimeOffset? now = null)
     {
-        if (Total is { } t)
+        // With room but no own limit from KIFF, its limit has the room folded in: no money figure, never a summed one.
+        if (Total is { } t && (t.Extra is null || t.Base is not null))
         {
             var note = t.Limit.Unit is null ? w.Get("card.hero.no_currency_suffix") : "";
             if (t.Used is { } used && used.SameKind(t.Limit))
@@ -129,6 +133,26 @@ public sealed record TafCard(string Id, string Title, IReadOnlyList<CardRule> Ru
         if (EnvironmentLabel is not null) under.Add(Culture(w).TextInfo.ToTitleCase(Environment.ToLowerInvariant()));
         if (cards > 1) under.Add(w.Count("card.count", cards));
         return new(hero is { } h ? $"{h.Figure} {h.Words}" : Title, string.Join(" · ", under));
+    }
+
+    /// <summary>
+    /// The Card as Narrator reads it, as the iPad's TafCardFace.spoken: what's left first, then its name and environment,
+    /// its facts ("No actions yet" with none), who issued it, and its end: Revoked; Ended, on its date when it has one; Until
+    /// its date; or No end date.
+    /// </summary>
+    public string Spoken(WordBook w, string issuedBy, bool revoked)
+    {
+        var parts = new List<string>();
+        if (Hero(w) is { } hero) parts.Add($"{hero.Figure} {hero.Words}");
+        parts.Add(string.Join(", ", new[] { Title, EnvironmentLabel }.OfType<string>()));
+        parts.AddRange(Facts(w));
+        if (Rules.Count == 0) parts.Add(w.Get("card.no_actions"));
+        parts.Add(w.Get("card.issued_by_named", ("who", issuedBy)));
+        var end = Expires is { } at ? at.ToString("d MMM yyyy", Culture(w)) : null;
+        parts.Add(revoked ? w.Get("card.revoked")
+            : !Active ? end is null ? w.Get("card.ended") : w.Get("card.ended_on", ("date", end))
+            : end is null ? w.Get("card.no_end_date") : w.Get("card.until_date", ("date", end)));
+        return string.Join(". ", parts.Select(p => p.Trim())) + ".";
     }
 
     /// <summary>When something ends, as the iPad's endsWords: the time alone today, its date too on a later day.</summary>
