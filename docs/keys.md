@@ -33,6 +33,20 @@ without access control, that signs it: this key's counterpart. It asks no one, a
 - **Without it,** with no key, no account, no device, or a signature that fails, Setup reads without it, as the iPad's
   `try?`.
 
+## Canonical JSON for planque's digests
+
+A grant's digest is the SHA-256 of what it covers in RFC 8785's canonical form (`Jcs`, ported from the iPad's `JCS`), so
+the app can recompute it from the request it shows and approve exactly that request. It's used by the read of planque's
+grants, in its own change.
+
+- **Read here, not by System.Text.Json,** so each number keeps its literal and an integer is told from a fraction, as
+  planque's Go does. A repeated key's last value wins, as in Go; anything that isn't JSON (a trailing comma, a lone
+  surrogate, a control character in a string) is refused.
+- **Written as RFC 8785 says:** keys by UTF-16 code units, numbers as ECMAScript prints them, strings with only the
+  escapes they need.
+- **An integer beyond 2^53 - 1 is refused,** as planque and KIFF refuse it: 2^53 and 2^53 + 1 would hash the same.
+- **Tested** with planque's own `jcs_test.go` cases and the iPad's grant vector, which was made with planque's Go code.
+
 The approval key isn't here. On Windows it's a Windows Hello passkey (see [approvals](approvals.md)).
 
 ## Tests
