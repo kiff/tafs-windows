@@ -1,4 +1,6 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Tafs.Core.Taf;
 using Tafs.Core.Words;
 
@@ -16,9 +18,36 @@ public sealed record CardQuestion(string Id, string Text, IReadOnlyList<CardChoi
 /// and whether its run waits on it. A card grants nothing.
 /// </summary>
 public sealed record CoachCard(string Kind, string Id, string? Title = null, string? Text = null, string? Tone = null,
-    IReadOnlyList<CardChoice>? Options = null, IReadOnlyList<CardQuestion>? Questions = null, string? Waits = null)
+    IReadOnlyList<CardChoice>? Options = null, IReadOnlyList<CardQuestion>? Questions = null, string? Waits = null,
+    IReadOnlyList<PlanStep>? Steps = null, CardTaf? Taf = null, IReadOnlyList<string>? Tools = null, string? Yes = null)
 {
     public static readonly string[] Kinds = ["steps", "notice", "confirm", "questions", "approval", "sign_in", "result", "knob", "drive"];
+}
+
+/// <summary>
+/// What sending a card's answer came to, as the iPad's <c>answer(_:_:)</c>: sent (the thread is read again); a card that
+/// doesn't wait any more (409, read again); refused for want of the AI-data consent (the card stays as chosen); or not reached.
+/// </summary>
+public enum CardSent { Sent, ReadAgain, Consent, NotReached }
+
+/// <summary>
+/// The taf a result card hands over, as the iPad's <c>SetupComponent.Taf</c>: its KIFF agent and name; for an improvement,
+/// the tafs cloud id of the taf it's the next version of (<paramref name="Improves"/>), and what changed.
+/// </summary>
+public sealed record CardTaf(string Agent, string Name, string? Improves = null, string? Note = null);
+
+/// <summary>
+/// What tafs cloud made of a result it answered itself, as the iPad's <c>CardAnswer.Outcome</c>, each part read on its own:
+/// the taf it set up, the version it made, why it made neither, or its words when no plan lets the taf run.
+/// </summary>
+public sealed record CardOutcome(string? TafId, int? Version, string? Failed, string? PlanNeeded);
+
+/// <summary>One step of Coach's plan, as the iPad's <c>SetupComponent.Step</c>: its words, and pending, active, done, failed or skipped.</summary>
+public sealed record PlanStep(string Label, string Status)
+{
+    /// <summary>The step the plan is at, as the iPad's <c>SetupPlan.current</c>: the active one, else the first not yet done, else the last.</summary>
+    public static PlanStep? Current(IReadOnlyList<PlanStep> steps) =>
+        steps.FirstOrDefault(s => s.Status == "active") ?? steps.FirstOrDefault(s => s.Status is "pending" or "failed") ?? steps.LastOrDefault();
 }
 
 /// <summary>
@@ -43,7 +72,7 @@ static class Shape
 }
 
 /// <summary>A card's answer as kiff/agents recorded it (the iPad's <c>CardAnswer</c>): its state, its words, and when.</summary>
-public sealed record CardAnswer(string State, string Words, DateTimeOffset? At);
+public sealed record CardAnswer(string State, string Words, DateTimeOffset? At, CardOutcome? Outcome = null);
 
 /// <summary>
 /// A card as the thread holds it (the iPad's <c>ShownComponent</c>): where it first appeared, its latest version, and its
@@ -72,7 +101,17 @@ public sealed record ShownCard(DateTimeOffset FirstAt, string Session, string Ru
     {
         if (field is not { ValueKind: JsonValueKind.Object } a || !Shape.Optional(a, "state", Shape.Text) || !Shape.Optional(a, "words", Shape.Text)
             || !Shape.Optional(a, "by", Shape.Text)) return null;
-        return new CardAnswer(Lenient.Text(a, "state") ?? "answered", Lenient.Text(a, "words") ?? "", Lenient.At(a, "at"));
+        return new CardAnswer(Lenient.Text(a, "state") ?? "answered", Lenient.Text(a, "words") ?? "", Lenient.At(a, "at"), Outcome(Lenient.Field(a, "outcome")));
+    }
+
+    /// <summary>The outcome as the iPad reads it with <c>try?</c>, part by part: one part of another shape is none, never the rest.</summary>
+    static CardOutcome? Outcome(JsonElement? field)
+    {
+        if (field is not { ValueKind: JsonValueKind.Object } o) return null;
+        var planNeeded = Lenient.Field(o, "plan_needed") is { ValueKind: JsonValueKind.Object } p && Lenient.Text(p, "words")?.Trim() is { Length: > 0 } words
+            ? words : null;
+        return new CardOutcome(Lenient.Text(o, "taf_id"), Lenient.Field(o, "version") is { } v && Shape.Int(v) ? (int)v.GetDouble() : null,
+            Lenient.Text(o, "failed"), planNeeded);
     }
 
     /// <summary>
@@ -95,8 +134,15 @@ public sealed record ShownCard(DateTimeOffset FirstAt, string Session, string Ru
                 Lenient.Bool(q, "multi"), Lenient.Text(q, "note"))).ToList()
             : null;
         var options = Lenient.Field(c, "options") is { ValueKind: JsonValueKind.Array } os ? Choices(os) : null;
+        var steps = Lenient.Field(c, "steps") is { ValueKind: JsonValueKind.Array } ss
+            ? ss.EnumerateArray().Select(x => new PlanStep(Lenient.Text(x, "label")!, Lenient.Text(x, "status")!)).ToList()
+            : null;
         return new CoachCard(c.GetProperty("type").GetString()!, c.GetProperty("id").GetString()!, Lenient.Text(c, "title"), Lenient.Text(c, "text"),
-            Lenient.Text(c, "tone"), options, questions, Lenient.Text(c, "waits"));
+            Lenient.Text(c, "tone"), options, questions, Lenient.Text(c, "waits"), steps,
+            Lenient.Field(c, "taf") is { ValueKind: JsonValueKind.Object } t
+                ? new CardTaf(Lenient.Text(t, "agent")!, Lenient.Text(t, "name")!, Lenient.Text(t, "improves"), Lenient.Text(t, "note")) : null,
+            Lenient.Field(c, "tools") is { ValueKind: JsonValueKind.Array } tools ? tools.EnumerateArray().Select(x => x.GetString()!).ToList() : null,
+            Lenient.Text(c, "yes"));
     }
 
     // The shapes inside a card, as the iPad declares them: Step, Option, Question with its Choice, Taf, Connection.
@@ -182,10 +228,26 @@ public abstract record QuestionAnswer
 
 /// <summary>
 /// A questions card's answers, as the iPad's <c>QuestionAnswers</c>: <c>{"&lt;question&gt;": {"value": …} | {"values": […]} |
-/// {"own": "…"}}</c>, read back in the person's words.
+/// {"own": "…"}}</c>, its keys sorted, so the same answers send the same words; and read back in the person's words.
 /// </summary>
 public static class QuestionAnswers
 {
+    static readonly JsonSerializerOptions Plain = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
+    public static string Encode(IReadOnlyDictionary<string, QuestionAnswer> answers)
+    {
+        var o = new JsonObject();
+        foreach (var (id, a) in answers.OrderBy(a => a.Key, StringComparer.Ordinal))
+            o[id] = a switch
+            {
+                QuestionAnswer.Choice c => new JsonObject { ["value"] = c.Value },
+                QuestionAnswer.Choices cs => new JsonObject { ["values"] = new JsonArray(cs.Values.Select(v => (JsonNode)JsonValue.Create(v)!).ToArray()) },
+                QuestionAnswer.Own own => new JsonObject { ["own"] = own.Text },
+                _ => new JsonObject(),
+            };
+        return o.ToJsonString(Plain);
+    }
+
     public static Dictionary<string, QuestionAnswer>? Decode(string text)
     {
         JsonElement root;
@@ -221,5 +283,56 @@ public static class QuestionAnswers
             _ => "",
         }).ToList();
         return parts.Count == 0 ? null : string.Join(" · ", parts);
+    }
+}
+
+/// <summary>
+/// What's been picked on a questions card so far, as the iPad's <c>QuestionSelection</c>: a question's answer is one of its
+/// choices (several, on a multi question) or the person's own words, never both. Opening "Something else…" clears the picks;
+/// picking a choice closes the own field.
+/// </summary>
+public sealed class QuestionSelection
+{
+    readonly Dictionary<string, HashSet<string>> picked = [];
+    readonly Dictionary<string, string> own = [];
+    readonly HashSet<string> ownOpen = [];
+
+    public bool IsPicked(CardQuestion q, string value) => picked.TryGetValue(q.Id, out var set) && set.Contains(value);
+    public bool OwnOpen(CardQuestion q) => ownOpen.Contains(q.Id);
+    public string OwnText(CardQuestion q) => own.GetValueOrDefault(q.Id, "");
+    public void SetOwn(CardQuestion q, string text) => own[q.Id] = text;
+
+    public void ToggleOwn(CardQuestion q)
+    {
+        if (!ownOpen.Remove(q.Id))
+        {
+            ownOpen.Add(q.Id);
+            picked[q.Id] = [];
+        }
+    }
+
+    public void Pick(CardQuestion q, string value)
+    {
+        if (q.Multi)
+        {
+            var set = picked.GetValueOrDefault(q.Id) ?? [];
+            if (!set.Remove(value)) set.Add(value);
+            picked[q.Id] = set;
+        }
+        else picked[q.Id] = [value];
+        ownOpen.Remove(q.Id);
+    }
+
+    /// <summary>The question's answer, if it has one: its own words when that field is open and not blank, else its choices in Coach's order.</summary>
+    public QuestionAnswer? Answer(CardQuestion q)
+    {
+        if (ownOpen.Contains(q.Id))
+        {
+            var words = OwnText(q).Trim();
+            return words.Length == 0 ? null : new QuestionAnswer.Own(words);
+        }
+        var chosen = q.Options.Select(o => o.Value).Where(v => IsPicked(q, v)).ToList();
+        if (chosen.Count == 0) return null;
+        return q.Multi ? new QuestionAnswer.Choices(chosen) : new QuestionAnswer.Choice(chosen[0]);
     }
 }

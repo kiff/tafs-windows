@@ -324,6 +324,40 @@
     <Setter Property="FontSize" Value="16" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
+  <!-- The iPad's primary button: the brand gradient, white, 16 semibold, 54 high, corners of 16. -->
+  <Style x:Key="TafsPrimary" TargetType="Button" BasedOn="{StaticResource TafsPrimaryOff}">
+    <Setter Property="Background" Value="{StaticResource TafsBrand}" />
+    <Setter Property="Foreground" Value="White" />
+  </Style>
+  <!-- A questions card's choice (the iPad's): 15, padded 16 by 10, at least 44 high, corners of 22; its colours set in code. -->
+  <Style x:Key="TafsChoice" TargetType="ToggleButton">
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="22" />
+    <Setter Property="Padding" Value="16,10" />
+    <Setter Property="MinHeight" Value="44" />
+    <Setter Property="HorizontalContentAlignment" Value="Left" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="UseSystemFocusVisuals" Value="True" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ToggleButton">
+          <Border x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"
+                  Padding="{TemplateBinding Padding}" MinHeight="{TemplateBinding MinHeight}">
+            <VisualStateManager.VisualStateGroups>
+              <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal" />
+                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.85" /></VisualState.Setters></VisualState>
+                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.7" /></VisualState.Setters></VisualState>
+              </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+          </Border>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
   <!-- A toolbar's buttons, grouped on a pill, as iPadOS draws a bar's items. -->
   <Style x:Key="TafsToolPill" TargetType="Border">
     <Setter Property="Background" Value="{ThemeResource TafsPanel}" />
