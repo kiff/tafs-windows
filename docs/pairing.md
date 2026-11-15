@@ -55,7 +55,7 @@ this against KIFF's worked example (§2.4), down to verifying its signature.
 
 | Step | Shows |
 | :- | :- |
-| Waiting | the QR, the steps on the phone (its own menu names: Account, Devices, Add a computer), the check code, "Waiting for your phone…" |
+| Waiting | the QR, the steps on the phone (its own menu names, from the shared words: Account, Devices, Add a device), the check code, "Waiting for your phone…" |
 | Expired | "This code expired." and Show a new code |
 | Failed | why, as KIFF's status only (`KIFF answered 403`), and Show a new code |
 | Added | added; or, with no approval key, that approvals go through the phone or a passkey |
