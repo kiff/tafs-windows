@@ -78,10 +78,14 @@ public static class People
         return people.Where(p => p.Active).OrderBy(p => p.Label.ToLowerInvariant(), StringComparer.Ordinal).ToList();
     }
 
-    /// <summary>The account as the person knows it, from <c>GET /v1/me</c>: its name (else its slug) and their email.</summary>
+    /// <summary>
+    /// The account as the person knows it, from <c>GET /v1/me</c>, read as strictly as the iPad's <c>KIFFClient.Account</c>
+    /// (<see cref="Coach.CoachAccess.IsAccount"/>): its name (else its slug) and their email. None when it doesn't decode, and
+    /// then there's no account line, as on the iPad.
+    /// </summary>
     public static (string Name, string? Email)? Account(JsonElement? me)
     {
-        if (me is not { ValueKind: JsonValueKind.Object } a || Text(a, "tenant_slug") is not { } slug) return null;
+        if (me is not { ValueKind: JsonValueKind.Object } a || !Coach.CoachAccess.IsAccount(a) || Text(a, "tenant_slug") is not { } slug) return null;
         var display = a.TryGetProperty("tenant_display_name", out var d) && d.ValueKind == JsonValueKind.String ? d.GetString() : null;
         var email = a.TryGetProperty("email", out var e) && e.ValueKind == JsonValueKind.String ? e.GetString() : null;
         return (string.IsNullOrEmpty(display) ? slug : display, email);
