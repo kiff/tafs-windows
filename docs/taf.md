@@ -49,7 +49,8 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
 - Its Card is €2,000 a day, €40 of it used today.
 
 **The Card tab**, as `taf-card.png`:
-- **The stack:** its Cards as in a wallet. The front one is whole, and each one behind shows a 28 band of its top edge,
+- **The stack:** its Cards as in a wallet. The front one is whole, and each one behind shows a 28 band of its top edge
+  (the iPad's is 26; 2 more keeps a band's name whole in Segoe),
   a shade darker the further back, with the furthest on top. A tap brings one to the front, and Narrator reads the
   front one figure first.
 - **A Card's face:** 300 wide, a payment card's shape, corners of 18, in white on the taf's colour (a test Card in
@@ -90,7 +91,11 @@ rules and totals.
 - **Setup from tafs cloud:** drawing what `TafSetup.Read` reads. That means the connected apps and their sheets, the
   Card-unit exceptions (whose change Coach asks to sign), Connect again, the memory's See all, Improve in Coach, and
   Remove. Forget and Pause also need to reach tafs cloud; for now they change the sample's page only.
-- **Revoking at KIFF,** signed; a Card's pending use and unit words drawn, its totals for each item, and how KIFF counts
+- **The real Revoke:** `POST /v1/me/mandates/{id}/revoke` for each of its Cards, shown only to whoever KIFF says manages
+  the taf, and Stopped only once KIFF has revoked them all (`card.revoke_failed` otherwise). How it's signed, and
+  whether a view-only session may send it, is settled in its own PR with the security review. Today's Revoke reaches
+  nothing: the Card tab is only the sample's.
+- A Card's pending use and unit words drawn, its totals for each item, and how KIFF counts
   each tool.
 - **The rest:** the head's second line (the version and Share); held calls, Card-unit exceptions, its work and its runs
   at the top of the Activity; a line's receipt and its next step.

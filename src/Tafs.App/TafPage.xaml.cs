@@ -67,6 +67,7 @@ public sealed partial class TafPage : Page
             SmallCard.Background = colour;
             (CardHero.Text, CardUnder.Text) = (card.Hero, card.Under);
             AutomationProperties.SetName(CardBar, $"{card.Hero}, {card.Under}");
+            AutomationProperties.SetHelpText(CardBar, App.Words.Get("taf.shows_cards"));
         }
         ShowTab();
         Show();
@@ -204,7 +205,10 @@ public sealed partial class TafPage : Page
         StoppedChip.Visibility = revoked ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>A Card behind the front one shows this much of its top edge, as in a wallet.</summary>
+    /// <summary>
+    /// A Card behind the front one shows this much of its top edge, as in a wallet: 2 more than the iPad's 26, so its
+    /// 12 mono name isn't cut at its foot in Segoe's line height.
+    /// </summary>
     const double Edge = 28;
 
     /// <summary>
@@ -226,7 +230,7 @@ public sealed partial class TafPage : Page
             var depth = ordered.Count - 1 - i;
             var face = new Button { Style = Look("TafsBox"), Margin = new Thickness(0, i * Edge, 0, 0), VerticalAlignment = VerticalAlignment.Top,
                 Content = Face(card, depth) };
-            AutomationProperties.SetName(face, depth == 0 ? Spoken(card) : w.Get("taf.show_card", ("title", card.Title)));
+            AutomationProperties.SetName(face, depth == 0 ? card.Spoken(w, opening.IssuedBy, revoked) : w.Get("taf.show_card", ("title", card.Title)));
             face.Click += (_, _) => { front = card.Id; ShowCards(); };
             stack.Children.Add(face);
         }
@@ -305,7 +309,10 @@ public sealed partial class TafPage : Page
         inside.Children.Add(middle);
 
         var facts = new StackPanel { Spacing = 2 };
-        foreach (var fact in card.Facts(w)) facts.Children.Add(Text(fact, 11, 0.92, mono: true));
+        // A long fact shrinks to fit before anything is cut, as the iPad's minimumScaleFactor.
+        foreach (var fact in card.Facts(w))
+            facts.Children.Add(new Viewbox { Stretch = Microsoft.UI.Xaml.Media.Stretch.Uniform, StretchDirection = StretchDirection.DownOnly,
+                HorizontalAlignment = HorizontalAlignment.Left, Child = Text(fact, 11, 0.92, mono: true) });
         if (card.Rules.Count == 0) facts.Children.Add(Text(w.Get("card.no_actions_short"), 12, mono: true));
         Grid.SetRow(facts, 2);
         inside.Children.Add(facts);
@@ -338,28 +345,16 @@ public sealed partial class TafPage : Page
         var shade = depth <= 0 ? 0 : Math.Min(0.12 + 0.08 * (depth - 1), 0.32);
         if (shade > 0) layers.Children.Add(new Border { Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb((byte)(shade * 255), 0, 0, 0)) });
 
-        var fill = card.Live ? RecordLineView.Colour(opening!.Head.Colour)
-            : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0xFF, 0x73, 0x6D, 0x7F));
+        // A Card scoped to another environment in the theme's dim, as the iPad's Theme.dim.
+        var fill = card.Live ? RecordLineView.Colour(opening!.Head.Colour) : new Microsoft.UI.Xaml.Media.SolidColorBrush(ThemeColour("TafsDim"));
         if (revoked || !card.Active) fill.Opacity = 0.4;
         return new Border { Width = CardWidth, Height = Math.Round(CardWidth * 54 / 85.6), CornerRadius = new CornerRadius(18), Background = fill, Child = layers };
     }
 
-    /// <summary>The Card as Narrator reads it, its figure first, as the iPad's: what's left, its name, its facts, who issued it, until when.</summary>
-    string Spoken(TafCard card)
-    {
-        var w = App.Words;
-        var parts = new List<string>();
-        if (card.Hero(w) is { } hero) parts.Add($"{hero.Figure} {hero.Words}");
-        parts.Add(string.Join(", ", new[] { card.Title, card.EnvironmentLabel }.OfType<string>()));
-        parts.AddRange(card.Facts(w));
-        parts.Add(w.Get("card.issued_by_named", ("who", opening?.IssuedBy ?? "")));
-        parts.Add(w.Get(revoked ? "card.revoked" : "card.no_end_date"));
-        return string.Join(". ", parts.Select(p => p.Trim())) + ".";
-    }
-
     /// <summary>
-    /// Revoke asks first, as the iPad's ("Revoke Refunds' Card?"): no new action goes through. The sample's taf stops on this
-    /// page: its chip says Stopped and its Cards fade. Revoking at KIFF, signed, comes with tafs cloud.
+    /// Revoke asks first, as the iPad's ("Revoke Refunds' Card?"), with Cancel the default. It reaches nothing yet: the Card
+    /// tab is only the sample's, and on this page the sample's taf stops (its chip says Stopped, its Cards fade). The real
+    /// Revoke comes in its own change.
     /// </summary>
     async Task RevokeAsync()
     {
@@ -378,6 +373,20 @@ public sealed partial class TafPage : Page
         revoked = true;
         ShowState();
         ShowCards();
+    }
+
+    /// <summary>
+    /// A theme colour in this page's theme. Theme.xaml's dictionaries are merged into the app's, so they're looked for
+    /// there, not in the app's own (empty) theme dictionaries. A colour code looks up never follows the window's theme.
+    /// </summary>
+    Windows.UI.Color ThemeColour(string key)
+    {
+        var theme = ActualTheme == ElementTheme.Dark ? "Dark" : "Light";
+        foreach (var merged in Application.Current.Resources.MergedDictionaries.Prepend(Application.Current.Resources))
+            if (merged.ThemeDictionaries.TryGetValue(theme, out var found) && found is ResourceDictionary d
+                && d.TryGetValue(key, out var brush) && brush is Microsoft.UI.Xaml.Media.SolidColorBrush b)
+                return b.Color;
+        return Microsoft.UI.Colors.Gray;
     }
 
     TextBlock Eyebrow(string key) => new() { Text = Sidebar.Eyebrow(App.Words, key), Style = Look("TafsEyebrow") };

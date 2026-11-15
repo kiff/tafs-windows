@@ -149,6 +149,22 @@ public class TafCardTests
     public void A_count_is_written_plain_as_on_the_iPad() =>
         Assert.Equal(("1000", "calls left today of 1000"), new TafCard("r", "Reads", [], Calls: new CallsTotal(1000, 0, Day)).Hero(En));
 
+    /// <summary>The iPad's TafCardFace.spoken: figure first, then name, facts, issuer, and its end as it is.</summary>
+    [Fact]
+    public void Narrator_reads_a_Card_figure_first_and_its_end_as_it_is()
+    {
+        var card = TafScreen.SampleCards(En)[0];
+        Assert.Equal("€1,520 left today of €2,000. Refunds · Stripe. up to €150 each; more asks you first. 2 tools. Issued by You. No end date.",
+            card.Spoken(En, "You", revoked: false));
+        var ends = new DateTimeOffset(2026, 12, 31, 12, 0, 0, TimeSpan.Zero);
+        Assert.EndsWith("Until 31 Dec 2026.", (card with { Expires = ends }).Spoken(En, "You", false));
+        Assert.EndsWith("Ended 31 Dec 2026.", (card with { Expires = ends, Active = false }).Spoken(En, "You", false));
+        Assert.EndsWith("Ended.", (card with { Active = false }).Spoken(En, "You", false));
+        Assert.EndsWith("Revoked.", (card with { Expires = ends }).Spoken(En, "You", revoked: true));
+        Assert.Equal("Refunds · Stripe test, TEST. No actions yet. Issued by You. No end date.",
+            new TafCard("t", "Refunds · Stripe test", [], Environment: "test", Live: false).Spoken(En, "You", false));
+    }
+
     [Fact]
     public void A_window_it_doesnt_know_reads_as_sent_and_tafs_cloud_s_words_come_first()
     {
