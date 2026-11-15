@@ -195,6 +195,9 @@ public sealed partial class MainWindow : Window
             // The first taf's page, its Activity from taf-activity.json beside the Home contract.
             if (page is "taf" or "taf-setup" && home?.Tafs.FirstOrDefault() is { } first)
                 OpenBeside(typeof(TafPage), OpenTaf(w, first.Id, page == "taf-setup" ? TafTab.Setup : TafTab.Activity));
+            // Connect apps from connect-apps.json beside the Home contract, as tafs cloud's list.
+            if (page == "connect-apps")
+                Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(null, (path, _) => Task.FromResult(ContractRead(w, homeFile, path)), null));
         }
         else if (screenshot is null && !sample && App.Sessions.Kept() is { } session)
         {
@@ -366,14 +369,15 @@ public sealed partial class MainWindow : Window
     /// <summary>
     /// For screenshots, tafs cloud's answers from the contracts beside <paramref name="homeFile"/>: Home's from it, a taf's
     /// runs from taf-runs.json, a run's report from taf-run-report.json, its Activity from taf-activity.json and its Setup from
-    /// taf-setup.json; Coach's from setup-coach.json, coach-chats.json and coach-conversation.json. With no such file, it reads
-    /// as not reached.
+    /// taf-setup.json; Coach's from setup-coach.json, coach-chats.json and coach-conversation.json; Connect apps' from
+    /// connect-apps.json. With no such file, it reads as not reached.
     /// </summary>
     static CloudRead ContractRead(Tafs.Core.Words.WordBook w, string homeFile, string path)
     {
         var file = path == HomeList.Path ? homeFile
             : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!,
-                path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "setup-coach.json"
+                path.StartsWith(ConnectAppsScreen.ListPath, StringComparison.Ordinal) ? "connect-apps.json"
+                : path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "setup-coach.json"
                 : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json"
                 : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
         return File.Exists(file) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(file)) : CloudRead.Unreached(w);
@@ -511,7 +515,7 @@ public sealed partial class MainWindow : Window
         else if (item.Tag is Screen.NeedsYou or HeldCall) Pages.Navigate(typeof(NeedsYouPage), held);
         else if (item.Tag is Screen.Record) Pages.Navigate(typeof(RecordPage), record);
         else if (item.Tag is Screen.Usage) Pages.Navigate(typeof(UsagePage), usage);
-        else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), connectApps);
+        else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof));
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
         else if (item.Tag is TafRow taf) Pages.Navigate(typeof(TafPage), OpenTaf(App.Words, taf.Key));
         else Pages.Navigate(typeof(ComingPage), item.Content);

@@ -20,13 +20,21 @@
         <TextBlock Grid.Column="2" Text="{x:Bind HeadWhose}" Visibility="{x:Bind IsHeader}" Style="{StaticResource TafsColumnHead}" />
         <TextBlock Grid.Column="3" Text="{x:Bind HeadStatus}" Visibility="{x:Bind IsHeader}" Style="{StaticResource TafsColumnHead}" />
 
-        <StackPanel Spacing="1" VerticalAlignment="Center" Visibility="{x:Bind IsApp}">
-          <TextBlock Text="{x:Bind Name}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                     Visibility="{x:Bind NameInk}" Foreground="{ThemeResource TafsInk}" />
-          <TextBlock Text="{x:Bind Name}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                     Visibility="{x:Bind NameSoft}" Foreground="{ThemeResource TafsSoft}" />
-          <TextBlock Text="{x:Bind Subtitle}" FontSize="13" TextWrapping="Wrap" MaxLines="2" Foreground="{ThemeResource TafsSoft}" />
-        </StackPanel>
+        <!-- The logo from tafs cloud only, 24 across, beside the name (the iPad's AsyncImage); none shows no gap. -->
+        <Grid ColumnSpacing="10" VerticalAlignment="Center" Visibility="{x:Bind IsApp}">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Image Source="{x:Bind Logo}" Width="24" Height="24" Visibility="{x:Bind HasLogo}" AutomationProperties.AccessibilityView="Raw" />
+          <StackPanel Grid.Column="1" Spacing="1">
+            <TextBlock Text="{x:Bind Name}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                       Visibility="{x:Bind NameInk}" Foreground="{ThemeResource TafsInk}" />
+            <TextBlock Text="{x:Bind Name}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                       Visibility="{x:Bind NameSoft}" Foreground="{ThemeResource TafsSoft}" />
+            <TextBlock Text="{x:Bind Subtitle}" FontSize="13" TextWrapping="Wrap" MaxLines="2" Foreground="{ThemeResource TafsSoft}" />
+          </StackPanel>
+        </Grid>
         <TextBlock Grid.Column="1" Text="{x:Bind How}" FontSize="14" VerticalAlignment="Center" Foreground="{ThemeResource TafsSoft}" />
         <TextBlock Grid.Column="2" Text="{x:Bind Whose}" FontSize="14" VerticalAlignment="Center" Foreground="{ThemeResource TafsSoft}" />
         <Grid Grid.Column="3" ColumnSpacing="4" VerticalAlignment="Center" Visibility="{x:Bind IsApp}">
@@ -52,6 +60,10 @@
   <ScrollViewer>
     <StackPanel Padding="24" Spacing="10" MaxWidth="1100" HorizontalAlignment="Stretch">
       <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
+      <!-- Searched as the person types, as the iPad's .searchable; only with tafs cloud's list. -->
+      <TextBox x:Name="Search" Visibility="Collapsed" TextChanged="OnSearch" MaxWidth="420" HorizontalAlignment="Left" Width="420" />
+      <TextBlock x:Name="Problem" Visibility="Collapsed" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" />
+      <ProgressRing x:Name="Reading" Visibility="Collapsed" IsActive="True" Width="24" Height="24" HorizontalAlignment="Center" Margin="0,24" />
 
       <TextBlock x:Name="YoursTitle" Style="{StaticResource TafsListHead}" />
       <Border x:Name="YoursPanel" Style="{StaticResource TafsListPanel}" SizeChanged="OnPanelSized">
@@ -67,6 +79,12 @@
           </Border>
           <ItemsControl x:Name="Discover" ItemTemplate="{StaticResource Row}" />
         </StackPanel>
+      </Border>
+
+      <!-- More apps: tafs cloud's next page, as the iPad's list button ("Loading…" meanwhile). -->
+      <Border x:Name="MorePanel" Style="{StaticResource TafsListPanel}" Margin="0,10,0,0" Visibility="Collapsed">
+        <Button x:Name="More" Click="OnMore" Background="Transparent" BorderThickness="0" Padding="0,14"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" FontSize="16" Foreground="{StaticResource TafsAmber}" />
       </Border>
 
       <Border x:Name="AskCoachPanel" Style="{StaticResource TafsListPanel}" Margin="0,10,0,0">
