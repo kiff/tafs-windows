@@ -69,6 +69,16 @@
                     </StackPanel>
                   </Border>
 
+                  <!-- What it's on, as KIFF keeps the call, folded under Details as the iPad's: ids aren't words for the card's face. -->
+                  <Expander Visibility="{x:Bind local:HeldCallView.Seen(DetailsText)}" HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left" Padding="0">
+                    <Expander.Header>
+                      <TextBlock Text="{x:Bind DetailsHeading}" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource TafsCoach}" />
+                    </Expander.Header>
+                    <TextBlock Text="{x:Bind DetailsText}" FontSize="12" FontFamily="Cascadia Mono, Consolas" TextWrapping="Wrap"
+                               IsTextSelectionEnabled="True" Foreground="{ThemeResource TafsSoft}" />
+                  </Expander>
+
                   <TextBlock Text="{x:Bind Lines.Footer, Mode=OneWay}" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
 
                   <!-- The answers: until this PC approves, why it can't and the way to add it, not buttons that can't work. -->

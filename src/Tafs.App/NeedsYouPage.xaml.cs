@@ -23,7 +23,13 @@ public sealed class HeldCallView : INotifyPropertyChanged
         Avatar = new SolidColorBrush(ColorHelper.FromArgb(0xFF, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb));
         var gate = NeedsYouScreen.Gate(words);
         (GateLead, GateAdd) = (gate.Lead, gate.Add);
+        DetailsHeading = words.Get("common.details");
+        DetailsText = string.Join(Environment.NewLine, call.Details);
     }
+
+    /// <summary>What it's on, one line an argument, under Details; empty for a call KIFF kept no arguments for.</summary>
+    public string DetailsHeading { get; }
+    public string DetailsText { get; }
 
     public HeldCall Call { get; }
     public Brush Avatar { get; }
