@@ -36,12 +36,15 @@ static class KiffHttp
     /// words its lines in it.
     /// </summary>
     /// <exception cref="HttpRequestException">It wasn't reached, or isn't a host the session's token may go to.</exception>
-    public static async Task<(int Status, string Body)> GetAsync(Uri url, string bearer, string language, CancellationToken cancel = default)
+    /// <param name="deviceSignature">planque's signed read of the grants, forwarded by tafs cloud with a taf's Setup.</param>
+    public static async Task<(int Status, string Body)> GetAsync(Uri url, string bearer, string language, CancellationToken cancel = default,
+        string? deviceSignature = null)
     {
         if (!Tafs.Core.Kiff.KeptSessions.MaySendTo(url, DeviceSignIn.Api)) throw new HttpRequestException("not a host the session goes to");
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
         request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
+        if (deviceSignature is not null) request.Headers.Add("Planque-Device-Signature", deviceSignature);
         return await SendAsync(request, cancel);
     }
 
