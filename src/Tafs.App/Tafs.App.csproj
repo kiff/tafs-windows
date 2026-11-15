@@ -24,6 +24,8 @@
   </ItemGroup>
   <!-- The words, at the pin, beside the app: never copied into the repository. -->
   <ItemGroup>
+    <!-- The mascot, from the iPad's asset catalog (ios/Shared/Mascot.xcassets), at 160 px. -->
+    <Content Include="Assets\mascot.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\shared\app\strings\**\*.json" Link="Strings\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <Target Name="NeedsTheWords" BeforeTargets="Build" Condition="!Exists('..\..\shared\app\strings\languages.json')">
