@@ -1,5 +1,4 @@
 using System.Globalization;
-using Tafs.Core.NeedsYou;
 using Tafs.Core.Words;
 
 namespace Tafs.Core.Taf;
@@ -40,11 +39,20 @@ public static class TafScreen
     public static string SampleTaf(WordBook w) => w.Get("sample.refunds.name");
 
     /// <summary>
-    /// The sample's Card bar, as the iPad's sample shows it: €40 used today of €2,000 a day, so "€1,960 left today of
-    /// €2,000". Only the sample's: a Card's own bar takes KIFF's total (its amounts' units and scales, and a use KIFF
-    /// couldn't read), as the iPad's TafCard.hero, and comes with the Card.
+    /// The sample's own Card, as the iPad's sample keeps it for Refunds: refunds up to €150 each and €2,000 a day, credits
+    /// up to €100 each and €1,000 a day (past them it asks), never a payout; €40 used today.
     /// </summary>
-    public static CardBarLine SampleCard(WordBook w) =>
-        new($"{NeedsYouScreen.Euros(w, 1_960)} " + w.Get("card.hero.left_of",
-            ("window", w.Get("card.window.today")), ("limit", NeedsYouScreen.Euros(w, 2_000))), SampleTaf(w));
+    public static TafCard SampleOwnCard(WordBook w)
+    {
+        var day = CardWindow.Of(w, "calendar_day");
+        return new TafCard("sample-own", SampleTaf(w),
+        [
+            new("refund", w.Get("sample.refunds.rule.refunds"), day, KiffAmount.Euros(150), KiffAmount.Euros(2_000)),
+            new("credit", w.Get("sample.refunds.rule.credits"), day, KiffAmount.Euros(100), KiffAmount.Euros(1_000)),
+            new("payout", w.Get("sample.refunds.rule.payouts"), day, Never: true, Outside: Outside.Refuse),
+        ], new CardTotal(KiffAmount.Euros(2_000), KiffAmount.Euros(40), day));
+    }
+
+    /// <summary>The sample's Card bar above its Activity, as taf.png: "€1,960 left today of €2,000", from its one Card.</summary>
+    public static CardBarLine SampleCard(WordBook w) => SampleOwnCard(w).Bar(w, 1);
 }
