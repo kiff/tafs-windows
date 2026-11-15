@@ -97,12 +97,19 @@ public sealed class PasskeyApprover(IPasskeyAuthenticator authenticator, byte[] 
     }
 
     /// <summary>Signs the request with a fresh assertion and returns the header's value.</summary>
-    public async Task<string> ApproveAsync(
-        string tenant, string method, string pathAndQuery, byte[] body, DateTimeOffset signedAt, CancellationToken cancel = default)
+    public Task<string> ApproveAsync(
+        string tenant, string method, string pathAndQuery, byte[] body, DateTimeOffset signedAt, CancellationToken cancel = default) =>
+        AssertAsync(KiffSigning.RequestV1(tenant, method, pathAndQuery, body, signedAt), signedAt, cancel);
+
+    /// <summary>
+    /// One fresh assertion over <paramref name="message"/> (its challenge base64url(sha256(message))), as the header's
+    /// <c>t=…,a=…</c>: a request's <c>kiff.request.v1</c>, or two requests' <c>kiff.requests.v1</c>, whose headers each add
+    /// <c>with=sha256:…</c>.
+    /// </summary>
+    public async Task<string> AssertAsync(byte[] message, DateTimeOffset signedAt, CancellationToken cancel = default)
     {
         if (!enabled) throw new PasskeyRefusedException("passkey approvals are off on Windows until KIFF accepts this computer's own passkey");
 
-        var message = KiffSigning.RequestV1(tenant, method, pathAndQuery, body, signedAt);
         var clientData = ClientDataJson(message);
         var assertion = await authenticator.GetAssertionAsync(RpId, credentialId, clientData, cancel);
         var refusal = Refusal(AuthenticatorData.Parse(assertion.AuthenticatorData));

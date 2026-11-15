@@ -81,8 +81,10 @@ Ported from the iPad's `AppModel.startSetup`, which its Start calls (`SetupChatV
   - A refused batch says why, and the draft isn't sent.
 - **The draft alone** (every tool already connected): tafs cloud's draft in place of Setup's, signed and sent as Setup's
   is, so a passkey session's one Windows Hello is its assertion.
-- **A passkey session can't sign the pair.** `v3` is one approval-key signature, and a passkey's assertion can't be one.
-  Start asks and sends nothing, and turns off.
+- **A passkey session signs the pair with its one Windows Hello:** one assertion whose challenge is base64url(sha256) of
+  the same sorted `kiff.requests.v1` message, sent as `KIFF-Passkey-Assertion: t=…,a=…,with=sha256:…` on each request,
+  with the other's hash. KIFF's API takes it; until KIFF's gateway does too, the batch is refused, Start says why, and
+  the draft isn't sent.
 - **Not for Windows:** the iPad's separate approval key (`registerApprovalKey`, `approvalKeyUnheld`). A Windows session
   signs with one key.
 
@@ -166,7 +168,6 @@ work, where the iPad's decoder fails the thread.
 - **Writing to Coach:** the composer, sending, the stream, Stop, unsent and queued messages, steering, reading again.
 - **Starting Coach, the rest of `startSetup`:**
   - the tools step for a first start without tafs cloud's words (`CoachToolsStep`), and its Not now;
-  - a passkey session's pair, if KIFF takes a passkey for `kiff.requests.v1`;
   - KIFF's alerts (`keepKIFFAlerts`);
   - the tools step (`loadCoachTools`);
   - keeping planque's enrolment across launches (the iPad's Keychain `planqueTenant`). Here it's asked again after each

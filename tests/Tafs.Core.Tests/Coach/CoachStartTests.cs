@@ -57,7 +57,7 @@ public class CoachStartTests
             {
                 Calls.Add($"sign together {connect.Id} {draft.Id}");
                 if (Hello is { } h) await h();
-                return ($"batch at {KiffSigning.Time(at)}", $"draft at {KiffSigning.Time(at)}");
+                return ("KIFF-Device-Signature", $"batch at {KiffSigning.Time(at)}", $"draft at {KiffSigning.Time(at)}");
             },
             () => { Calls.Add("enrol"); return Task.FromResult(Enrolled); },
             (body, signature) => { Calls.Add("batch"); (BatchSent, BatchSignature) = (body, signature); return Task.FromResult(Batch); },
@@ -204,15 +204,19 @@ public class CoachStartTests
     }
 
     /// <summary>
-    /// What isn't signed: the pair by a passkey session (one approval-key signature), and a first start Start's screen doesn't
-    /// draw (no words: the iPad's tools step, not on this PC yet). Nothing is asked or sent.
+    /// A passkey session signs the pair too, with its one Windows Hello; closing it sends nothing. A first start Start's screen
+    /// doesn't draw (no words: the iPad's tools step, not on this PC yet) asks and sends nothing.
     /// </summary>
     [Fact]
-    public async Task A_first_start_this_PC_can_t_sign_asks_and_sends_nothing()
+    public async Task A_passkey_session_signs_the_pair_and_an_undrawn_start_sends_nothing()
     {
         var stubs = new Stubs { Setup = CloudRead.Of(Contract("setup-start.json")) };
-        Assert.Equal(new StartResult(StartOutcome.FirstStart), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
-        Assert.Equal(["read"], stubs.Calls);
+        Assert.True((await stubs.Run(Session(ApprovalMode.Passkey, "AQI"))).Started);
+        Assert.Equal(["read", "sign together connect draft", "enrol", "batch", "draft", "claim"], stubs.Calls);
+
+        stubs = new Stubs { Setup = CloudRead.Of(Contract("setup-start.json")), Hello = () => throw new OperationCanceledException() };
+        Assert.Equal(new StartResult(StartOutcome.Cancelled), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
+        Assert.Equal(["read", "sign together connect draft"], stubs.Calls);
 
         var json = Node(Contract("setup-start.json"));
         json["start"]!.AsObject().Remove("words");
@@ -266,7 +270,8 @@ public class CoachStartTests
     {
         using var key = new TestSigner();
         var first = FirstStart.Read(Contract("setup-start.json"))!;
-        var (batch, draft) = await RequestsTogether.SignAsync(key, "t_01", first.Connect!, first.Draft!, At);
+        var (header, batch, draft) = await RequestsTogether.SignAsync(key, "t_01", first.Connect!, first.Draft!, At);
+        Assert.Equal("KIFF-Device-Signature", header);
 
         var batchHash = RequestsTogether.Hash(KiffSigning.RequestV1("t_01", "POST", "/v1/connections/batch", first.Connect!.Body, At));
         var draftHash = RequestsTogether.Hash(KiffSigning.RequestV1("t_01", "POST", "/v1/me/agent-drafts", first.Draft!.Body, At));
@@ -281,6 +286,17 @@ public class CoachStartTests
         Assert.Equal(message, RequestsTogether.Message("t_01", At, draftHash, batchHash));
         Assert.True(TestSigner.Verify(key.PublicKeyDer, message, Convert.FromBase64String(signature)));
         Assert.Equal(64, batchHash.Length);
+
+        // A passkey session: one assertion, its challenge base64url(sha256) of the same message, each header with the other's hash.
+        var hello = new Hello(key);
+        (header, batch, draft) = await RequestsTogether.SignAsync(new PasskeyApprover(hello, [1, 2], true), "t_01", first.Connect!, first.Draft!, At);
+        Assert.Equal("KIFF-Passkey-Assertion", header);
+        Assert.StartsWith("t=2026-11-15T18:00:00Z,a=", batch);
+        Assert.EndsWith($",with=sha256:{draftHash}", batch);
+        Assert.EndsWith($",with=sha256:{batchHash}", draft);
+        Assert.Equal(batch.Split(",with=")[0], draft.Split(",with=")[0]);
+        using var client = JsonDocument.Parse(hello.ClientData!);
+        Assert.Equal(PasskeyApprover.Challenge(message), client.RootElement.GetProperty("challenge").GetString());
     }
 
     /// <summary>

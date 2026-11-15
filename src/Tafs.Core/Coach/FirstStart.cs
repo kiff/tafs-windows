@@ -126,14 +126,31 @@ public static class RequestsTogether
 
     /// <summary>
     /// The batch's and the draft's headers, as the iPad's <c>sendTogether</c>: each request's <c>kiff.request.v1</c> message
-    /// (the batch's on the gateway's path), one signature by <paramref name="key"/> over both hashes.
+    /// (the batch's on the gateway's path), one signature by <paramref name="key"/> over both hashes, in
+    /// <c>KIFF-Device-Signature</c>.
     /// </summary>
-    public static async Task<(string Batch, string Draft)> SignAsync(IKiffSigner key, string tenant, StartRequest connect, StartRequest draft,
-        DateTimeOffset signedAt, CancellationToken cancel = default)
+    public static async Task<(string Header, string Batch, string Draft)> SignAsync(IKiffSigner key, string tenant, StartRequest connect,
+        StartRequest draft, DateTimeOffset signedAt, CancellationToken cancel = default)
     {
-        var batch = Hash(KiffSigning.RequestV1(tenant, connect.Method, connect.Path, connect.Body, signedAt));
-        var cards = Hash(KiffSigning.RequestV1(tenant, draft.Method, draft.Path, draft.Body, signedAt));
+        var (batch, cards) = Hashes(tenant, connect, draft, signedAt);
         var signature = await key.SignDerAsync(Message(tenant, signedAt, batch, cards), cancel);
-        return (Header(signedAt, signature, cards), Header(signedAt, signature, batch));
+        return ("KIFF-Device-Signature", Header(signedAt, signature, cards), Header(signedAt, signature, batch));
     }
+
+    /// <summary>
+    /// The same pair signed by this PC's passkey, for a passkey session: one Windows Hello, its assertion's challenge
+    /// base64url(sha256) of the same message, in <c>KIFF-Passkey-Assertion: t=…,a=…,with=sha256:…</c>, each header with the
+    /// other request's hash.
+    /// </summary>
+    public static async Task<(string Header, string Batch, string Draft)> SignAsync(Approvals.PasskeyApprover passkey, string tenant,
+        StartRequest connect, StartRequest draft, DateTimeOffset signedAt, CancellationToken cancel = default)
+    {
+        var (batch, cards) = Hashes(tenant, connect, draft, signedAt);
+        var assertion = await passkey.AssertAsync(Message(tenant, signedAt, batch, cards), signedAt, cancel);
+        return (Approvals.PasskeyApprover.HeaderName, $"{assertion},with=sha256:{cards}", $"{assertion},with=sha256:{batch}");
+    }
+
+    static (string Batch, string Cards) Hashes(string tenant, StartRequest connect, StartRequest draft, DateTimeOffset signedAt) =>
+        (Hash(KiffSigning.RequestV1(tenant, connect.Method, connect.Path, connect.Body, signedAt)),
+         Hash(KiffSigning.RequestV1(tenant, draft.Method, draft.Path, draft.Body, signedAt)));
 }

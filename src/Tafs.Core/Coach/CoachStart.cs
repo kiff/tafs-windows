@@ -19,7 +19,7 @@ public sealed record StartResult(StartOutcome Outcome, string? Why = null, strin
 /// <summary>
 /// What Start sends, and how, given by the app and faked in tests. <see cref="SignDraft"/> signs a draft: with the
 /// device key for a key session, which asks no one, or with this PC's passkey for a passkey session, which is its one
-/// Windows Hello. <see cref="SignTogether"/> signs tafs cloud's pair once with the device key (<see cref="RequestsTogether"/>);
+/// Windows Hello. <see cref="SignTogether"/> signs tafs cloud's pair once, the same way (<see cref="RequestsTogether"/>);
 /// <see cref="SendBatch"/> sends its batch to KIFF's gateway. <see cref="Confirm"/> asks Windows Hello over a message.
 /// Each send throws <see cref="HttpRequestException"/> when not reached.
 /// </summary>
@@ -27,7 +27,7 @@ public sealed record StartCalls(
     Func<Task<CloudRead>> ReadSetup,
     Func<byte[], byte[], Task> Confirm,
     Func<byte[], DateTimeOffset, Task<(string Header, string Value)>> SignDraft,
-    Func<StartRequest, StartRequest, DateTimeOffset, Task<(string Batch, string Draft)>> SignTogether,
+    Func<StartRequest, StartRequest, DateTimeOffset, Task<(string Header, string Batch, string Draft)>> SignTogether,
     Func<Task<EnrolResult>> Enrol,
     Func<byte[], (string Header, string Value), Task<(int Status, string Body)>> SendBatch,
     Func<byte[], (string Header, string Value), Task<(int Status, string Body)>> SubmitDraft,
@@ -93,9 +93,8 @@ public static class CoachStart
     /// asserting Setup's draft itself, built in full first (as the iPad's prepared requests), or, with Coach already there,
     /// over <see cref="Message"/>. <c>/v1/setup</c> is read before it, so nothing is asked for what won't be sent.
     /// With tafs cloud's first start (<see cref="FirstStart"/>, as the iPad's <c>startCoachTogether</c>), its draft goes in
-    /// place of Setup's: alone, signed as Setup's is; or with the tools batch, both signed once by the device key
-    /// (<c>kiff.requests.v1</c>), the batch first and the draft once the batch answered. A passkey session can't sign the
-    /// pair (<see cref="StartOutcome.FirstStart"/>): nothing is asked or sent.
+    /// place of Setup's: alone, signed as Setup's is; or with the tools batch, both signed once (<c>kiff.requests.v1</c>: the
+    /// device key, or a passkey session's one Windows Hello), the batch first and the draft once the batch answered.
     /// </summary>
     public static async Task<StartResult> StartAsync(WordBook w, KeptSession session, bool planqueReady, StartCalls calls)
     {
@@ -106,12 +105,12 @@ public static class CoachStart
         if (coach is not null && planqueReady) return new(StartOutcome.Started, Coach: coach);
         var first = coach is null && FirstStart.Read(setup) is { Startable: true } f ? f : null;
         // Signed only as Start's own screen draws it (its words, Coach's Cards in KIFF's): the tools step that shows them
-        // otherwise isn't on this PC yet. And kiff.requests.v1 is one approval-key signature: a passkey's assertion can't be it.
-        if (first is { OneScreen: false } || (first is { Together: true } && session.Mode != ApprovalMode.Key)) return new(StartOutcome.FirstStart);
+        // otherwise isn't on this PC yet.
+        if (first is { OneScreen: false }) return new(StartOutcome.FirstStart);
 
         byte[]? draft = null;
         (string Header, string Value) signature = default;
-        (string Batch, string Draft)? together = null;
+        (string Header, string Batch, string Draft)? together = null;
         if (coach is null)
         {
             draft = first?.Draft!.Body ?? DraftBody();
@@ -136,10 +135,10 @@ public static class CoachStart
         if (together is { } pair)
         {
             // The batch first; the draft only once it answered, as the iPad's sendTogether.
-            try { (status, body) = await calls.SendBatch(first!.Connect!.Body, (DeviceSignature, pair.Batch)); }
+            try { (status, body) = await calls.SendBatch(first!.Connect!.Body, (pair.Header, pair.Batch)); }
             catch (HttpRequestException) { return Failed(w, CloudRead.Unreached(w).Why); }
             if (status is < 200 or > 299) return Failed(w, CloudRead.Refused(w, status, body).Why);
-            signature = (DeviceSignature, pair.Draft);
+            signature = (pair.Header, pair.Draft);
         }
         try { (status, body) = await calls.SubmitDraft(draft!, signature); }
         catch (HttpRequestException) { return Failed(w, CloudRead.Unreached(w).Why); }
@@ -151,8 +150,6 @@ public static class CoachStart
             ? new(StartOutcome.Started, Coach: started)
             : Failed(w, w.Get("error.ours"));
     }
-
-    const string DeviceSignature = "KIFF-Device-Signature";
 
     static StartResult Failed(WordBook w, string? why) => new(StartOutcome.Failed, w.Get("coach.couldnt_start", ("why", why ?? "")));
 

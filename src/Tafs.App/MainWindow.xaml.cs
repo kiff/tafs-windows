@@ -343,7 +343,9 @@ public sealed partial class MainWindow : Window
             ReadSetup: () => CloudReadAsync(bearer, Tafs.Core.Coach.CoachStart.SetupPath),
             Confirm: (credential, message) => new PasskeyApprover(hello, credential, Features.WindowsPasskeyApprovals).ConfirmAsync(message),
             SignDraft: (body, at) => Tafs.Core.Coach.CoachStart.SignDraftAsync(session, key, passkey, body, at),
-            SignTogether: (connect, draft, at) => Tafs.Core.Coach.RequestsTogether.SignAsync(key, session.Tenant, connect, draft, at),
+            SignTogether: (connect, draft, at) => passkey is not null && session.Mode == ApprovalMode.Passkey
+                ? Tafs.Core.Coach.RequestsTogether.SignAsync(passkey, session.Tenant, connect, draft, at)
+                : Tafs.Core.Coach.RequestsTogether.SignAsync(key, session.Tenant, connect, draft, at),
             Enrol: () => PlanqueEnrolment.EnrolAsync(w, key.PublicKeyDer,
                 async body =>
                 {
