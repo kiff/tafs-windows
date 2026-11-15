@@ -60,9 +60,13 @@ public sealed partial class NeedsYouPage : Page
     /// <summary>Add this Windows PC, from a card's answers.</summary>
     public static event Action? AddThisDeviceChosen;
 
+    /// <summary>Done (true) or Skip on a step.</summary>
+    public static event Action<YourStep, bool>? StepAnswerChosen;
+
     readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromSeconds(1) };
     IReadOnlyList<HeldCallView> views = [];
     IReadOnlyList<Unproven> unproven = [];
+    IReadOnlyList<YourStep> steps = [];
 
     public NeedsYouPage()
     {
@@ -94,7 +98,68 @@ public sealed partial class NeedsYouPage : Page
     void OnAddThisDevice(object sender, RoutedEventArgs e) => AddThisDeviceChosen?.Invoke();
 
     /// <summary>Nothing waiting only with no held call and no call to say about, as the iPad's.</summary>
-    void ShowEmpty() => Empty.Visibility = views.Count == 0 && unproven.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    void ShowEmpty() => Empty.Visibility = views.Count == 0 && unproven.Count == 0 && steps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Why the last answer didn't go through, at the top in red, as the iPad's <c>lastError</c>; none hides it.</summary>
+    internal void ShowError(string? why)
+    {
+        Error.Text = why ?? "";
+        Error.Visibility = why is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    /// <summary>
+    /// Your step, each on its card, as the iPad's <c>YourStepCard</c>, every word tafs cloud's: its title as the eyebrow; the
+    /// taf's name, 14 semibold; what, 16 semibold; why, 14 soft; the vendor's page as an outlined button only when tafs cloud
+    /// vouched for its link, with its host under it, 12 mono dim; Done and Skip only when this PC can answer, off while
+    /// answering.
+    /// </summary>
+    internal void ShowSteps(IReadOnlyList<YourStep> listed, bool canAnswer, IReadOnlySet<string> answering)
+    {
+        steps = listed;
+        Steps.Children.Clear();
+        foreach (var step in listed)
+        {
+            var lines = new StackPanel { Spacing = 10 };
+            if (step.Said.Title.Length > 0) lines.Children.Add(new TextBlock { Text = step.Said.Title, Style = (Style)Application.Current.Resources["TafsEyebrow"] });
+            if (step.TafName is { Length: > 0 } name) lines.Children.Add(Line(name, 14, "TafsInkText", semibold: true));
+            lines.Children.Add(Line(step.What, 16, "TafsInkText", semibold: true));
+            if (step.Why.Length > 0) lines.Children.Add(Line(step.Why, 14, "TafsSoftText"));
+            if (YourSteps.OpenLink(step) is { } link)
+            {
+                var open = new Button
+                {
+                    Style = (Style)Application.Current.Resources["TafsOutlineButton"],
+                    Content = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal, Spacing = 6,
+                        Children = { new FontIcon { Glyph = "\uE8A7", FontSize = 14 }, new TextBlock { Text = link.Words } },
+                    },
+                };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(open, link.Words);
+                open.Click += (_, _) => _ = Windows.System.Launcher.LaunchUriAsync(link.Url);
+                // Where it really goes, as tafs cloud read the link.
+                var host = new TextBlock { Text = link.Host, FontSize = 12, FontFamily = new FontFamily("Cascadia Mono, Consolas"), Style = (Style)Application.Current.Resources["TafsDimText"] };
+                lines.Children.Add(new StackPanel { Spacing = 4, Children = { open, host } });
+            }
+            if (canAnswer)
+            {
+                var busy = answering.Contains(step.Handoff);
+                var done = new Button { Content = step.Said.Done, Style = (Style)Application.Current.Resources["AccentButtonStyle"], IsEnabled = !busy };
+                var skip = new Button { Content = step.Said.Skip, Style = (Style)Application.Current.Resources["TafsOutlineButton"], IsEnabled = !busy };
+                done.Click += (_, _) => StepAnswerChosen?.Invoke(step, true);
+                skip.Click += (_, _) => StepAnswerChosen?.Invoke(step, false);
+                lines.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { done, skip } });
+            }
+            var card = new Border
+            {
+                Background = ThemeBrush("TafsPanel"), BorderBrush = (Brush)Application.Current.Resources["TafsAmberEdge"],
+                BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18), Padding = new Thickness(16), Child = lines,
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(card, "yourStep." + step.Handoff);
+            Steps.Children.Add(card);
+        }
+        ShowEmpty();
+    }
 
     /// <summary>
     /// "Did this happen?", each call on its card, as the iPad's <c>DidThisHappenCard</c>: on the panel with the amber edge, its
