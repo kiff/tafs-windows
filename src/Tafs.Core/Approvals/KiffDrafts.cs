@@ -103,7 +103,8 @@ public static class KiffDrafts
 
     /// <summary>
     /// A draft, read as strictly as the iPad's decoder: its id, agent, status and version are required; each Card, grant, cap
-    /// and total in its shape, and one it can't read fails the draft. Fields KIFF adds later are no matter.
+    /// and total in its shape, and one it can't read fails the draft; so does a scale past <see cref="KiffAmount.MaxScale"/>.
+    /// Fields KIFF adds later are no matter.
     /// </summary>
     public static AgentDraft? Read(JsonElement d)
     {
@@ -139,14 +140,20 @@ public static class KiffDrafts
     static bool IsGrant(JsonElement g) =>
         Shape.Required(g, "action", Shape.Text) && Shape.Optional(g, "title", Shape.Text)
         && Shape.Optional(g, "per_action_max", v => Shape.List(v, c => Shape.Required(c, "quantity", Shape.Text) && Shape.Required(c, "max", Shape.Int)
-            && Shape.Optional(c, "unit", Shape.Text) && Shape.Optional(c, "scale", Shape.Int)))
+            && Shape.Optional(c, "unit", Shape.Text) && Shape.Optional(c, "scale", IsScale)))
         && Shape.Optional(g, "resources", r => Shape.Required(r, "parameter", Shape.Text) && Shape.Optional(r, "values", v => Shape.List(v, Shape.Text)))
         && Shape.Optional(g, "entity_states", v => Shape.List(v, Shape.Text)) && Shape.Optional(g, "next_steps", v => Shape.List(v, Shape.Text));
 
     static bool IsTotal(JsonElement a) =>
         Shape.Required(a, "quantity", Shape.Text) && Shape.Required(a, "limit", Shape.Int) && Shape.Required(a, "window", Shape.Text)
-        && Shape.Optional(a, "unit", Shape.Text) && Shape.Optional(a, "scale", Shape.Int)
+        && Shape.Optional(a, "unit", Shape.Text) && Shape.Optional(a, "scale", IsScale)
         && Shape.Optional(a, "measure", Shape.Text) && Shape.Optional(a, "per", Shape.Text);
+
+    /// <summary>
+    /// A scale an amount can be written with (<see cref="KiffAmount.MaxScale"/>): a draft with one past it isn't shown, so a
+    /// Card is never confirmed with an amount the person couldn't read.
+    /// </summary>
+    static bool IsScale(JsonElement s) => Shape.Int(s) && s.GetDouble() <= KiffAmount.MaxScale;
 
     static DraftCard Card(JsonElement c)
     {

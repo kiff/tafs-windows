@@ -88,6 +88,8 @@ here confirms anything.
 
 - **Read as strictly as the iPad's decoder:** its id, agent, status and version are required; each Card, grant, cap
   and total in its shape, or the draft isn't shown. A claim secret is checked for its shape and never kept.
+- **A scale past 18** on a cap or a total (`KiffAmount.MaxScale`), where the figure would overflow: the draft isn't
+  shown, so a Card is never confirmed with an amount the person couldn't read, and it never crashes.
 - **The lines the person reads** (`DraftCard.Lines`):
   - KIFF's own lines, when it sends them;
   - otherwise each action by its title ("Refund a payment: up to €100 each"), then the totals in KIFF's window

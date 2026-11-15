@@ -74,6 +74,24 @@ public class KiffDraftsTests
         Assert.Equal([["Write Stripe API data · create refund repg", "list"], ["write stripe api data · update customer"]], d.CardLines(En));
     }
 
+    /// <summary>
+    /// A scale past 18 would overflow the figure: a draft with one, on a cap or a total, isn't shown, never a crash; up to 18
+    /// is written. The Card tab's amounts, made the same way, read "–".
+    /// </summary>
+    [Theory]
+    [InlineData(19)]
+    [InlineData(29)]
+    [InlineData(64)]
+    public void A_scale_past_18_is_never_written(int scale)
+    {
+        string Cap(int s) => $$"""{"grants": [{"action": "a", "per_action_max": [{"quantity": "sum(amount)", "max": 5, "unit": "EUR", "scale": {{s}}}]}]}""";
+        string Total(int s) => $$"""{"aggregates": [{"quantity": "sum(amount)", "limit": 5, "window": "calendar_day", "unit": "EUR", "scale": {{s}}}]}""";
+        Assert.Null(Read($$"""{"id": "d", "agent_id": "a", "status": "draft", "version": "v", "cards": [{{Cap(scale)}}]}"""));
+        Assert.Null(Read($$"""{"id": "d", "agent_id": "a", "status": "draft", "version": "v", "cards": [{{Total(scale)}}]}"""));
+        Assert.Equal(["a: up to €0.000000000000000005 each"], Draft(Cap(18)).CardLines(En)[0]);
+        Assert.Equal("–", new Tafs.Core.Taf.KiffAmount(5, "EUR", scale).Figure(En));
+    }
+
     /// <summary>As the iPad's cardTitle: the name it was submitted with, never its agent id.</summary>
     [Fact]
     public void The_Card_is_named_after_its_taf()
