@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Tafs.Core.Calendar;
+using Tafs.Core.Connections;
 using Tafs.Core.Home;
 using Tafs.Core.Kiff;
 using Tafs.Core.NeedsYou;
@@ -27,18 +28,21 @@ public sealed partial class MainWindow : Window
 
     /// <summary>The Record's lines: from tafs cloud and KIFF in their own change; until then none, or the iPad's sample.</summary>
     readonly IReadOnlyList<RecordEntry> record;
+    readonly bool sample;
     readonly UsageReads usage;
+    readonly ConnectAppsList? connectApps;
 
     /// <summary>The view the Calendar opens on: Week; Day or Month for `--page calendar` or `calendar-month`.</summary>
     CalendarMode calendarOpensOn = CalendarMode.Week;
 
-    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you", "record", "calendar" (Day), "calendar-week" or "calendar-month", "usage", "coach". Otherwise the Overview.</param>
+    /// <param name="page">A screen to open first: "pair" for Add this computer, "sign-in", "needs-you", "record", "calendar" (Day), "calendar-week", "calendar-month", "usage", "connect-apps", "account" or "coach". Otherwise the Overview.</param>
     /// <param name="viewOnly">The session can't approve yet: show the View only notice above every screen.</param>
     /// <param name="sample">Show the iPad's sample held calls and Record: for screenshots.</param>
     public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false)
     {
         InitializeComponent();
         if (theme is "light" or "dark") Root.RequestedTheme = theme == "light" ? ElementTheme.Light : ElementTheme.Dark;
+        this.sample = sample;
         var w = App.Words;
         Title = w.Get("app.name");
         AppWindow.Resize(LaptopSize);
@@ -48,6 +52,7 @@ public sealed partial class MainWindow : Window
         held = sample ? NeedsYouScreen.Sample(w, DateTimeOffset.UtcNow) : [];
         record = sample ? RecordScreen.Sample(w, DateTimeOffset.UtcNow) : [];
         usage = sample ? new(UsageScreen.SampleBalance(w), UsageScreen.SampleCredits(w), UsageScreen.SampleCredits(w, previous: true)) : new(null, null, null);
+        connectApps = sample ? ConnectAppsScreen.Sample() : null;
         var at = Nav.MenuItems.IndexOf(BrandItem) + 1;
         foreach (var item in Sidebar.Screens(w))
         {
@@ -55,7 +60,7 @@ public sealed partial class MainWindow : Window
             {
                 Content = item.Title,
                 Tag = item.Screen,
-                Icon = new FontIcon { Glyph = item.Glyph },
+                Icon = new FontIcon { Glyph = item.Glyph, Style = (Style)Application.Current.Resources["TafsSidebarIcon"] },
                 Style = (Style)Application.Current.Resources["TafsSidebarItem"],
             };
             if (item.Screen == Screen.NeedsYou) ShowCount(row, w, item.Title);
@@ -81,14 +86,28 @@ public sealed partial class MainWindow : Window
 
         SignInPage.PairInsteadChosen += OpenPairing;
         NeedsYouPage.AddThisDeviceChosen += OpenPairing;
+        ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
         OverviewPage.NeedsYouChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         SignInPage.SignedIn += session =>
         {
             ViewOnly.IsOpen = session.Mode == ApprovalMode.View;
             Nav.SelectedItem = BrandItem;
         };
+        // Paired with a key in the TPM: this PC approves, with its own passkey or the account's. Kept in memory for now.
+        PairingPage.Paired += session => ViewOnly.IsOpen = session.Mode == ApprovalMode.View;
+        this.screenshot = screenshot;
+
+        AccountPage.ThemeChosen += chosen => Root.RequestedTheme = chosen;
+        AccountPage.SignInChosen += OpenSignIn;
+        AccountPage.AlertsChosen += () => OpenBeside(typeof(ComingPage), w.Get("settings.alerts"));
+        AccountPage.AddThisDeviceChosen += OpenPairing;
+        AccountPage.SignedOut += () => { ViewOnly.IsOpen = false; OpenSignIn(); };
+        // Leaving the sample: the app starts again without it, as the iPad's Clear the sample leaves it.
+        AccountPage.ClearSampleChosen += () => Microsoft.Windows.AppLifecycle.AppInstance.Restart(
+            string.Join(' ', Environment.GetCommandLineArgs().Skip(1).Where(a => a != "--sample")));
 
         if (page == "pair") OpenPairing();
+        else if (page == "account") OnAccount(this, new RoutedEventArgs());
         else if (page == "sign-in") OpenSignIn();
         else if (page is "calendar" or "calendar-week" or "calendar-month")
         {
@@ -103,6 +122,7 @@ public sealed partial class MainWindow : Window
             Nav.SelectedItem = BrandItem;
             CoachMode.Open();
         }
+        else if (page == "connect-apps") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
         else if (page == "record") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
         else if (page == "needs-you") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         else Nav.SelectedItem = BrandItem;
@@ -185,6 +205,7 @@ public sealed partial class MainWindow : Window
         else if (item.Tag is Screen.NeedsYou or HeldCall) Pages.Navigate(typeof(NeedsYouPage), held);
         else if (item.Tag is Screen.Record) Pages.Navigate(typeof(RecordPage), record);
         else if (item.Tag is Screen.Usage) Pages.Navigate(typeof(UsagePage), usage);
+        else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), connectApps);
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
         else Pages.Navigate(typeof(ComingPage), item.Content);
     }
@@ -196,7 +217,7 @@ public sealed partial class MainWindow : Window
     /// <summary>Account, at the very foot: it opens beside the sidebar, and its icon shows it's open.</summary>
     void OnAccount(object sender, RoutedEventArgs e)
     {
-        OpenBeside(typeof(ComingPage), AccountTitle.Text);
+        OpenBeside(typeof(AccountPage), new AccountOpening(sample, Root.RequestedTheme));
         ShowAccountChosen(true);
     }
 
@@ -217,7 +238,10 @@ public sealed partial class MainWindow : Window
     void OnAddThisDevice(object sender, RoutedEventArgs e) => OpenPairing();
 
     /// <summary>Add this computer with your phone. It isn't a sidebar item: it opens from the notice, and from sign-in.</summary>
-    void OpenPairing() => OpenBeside(typeof(PairingPage));
+    /// For a screenshot, it stays offline: no TPM key, no Windows Hello, no claim.
+    void OpenPairing() => OpenBeside(typeof(PairingPage), screenshot is not null);
+
+    readonly string? screenshot;
 
     /// <summary>Sign in with KIFF: the first screen of a PC with no session.</summary>
     void OpenSignIn() => OpenBeside(typeof(SignInPage));

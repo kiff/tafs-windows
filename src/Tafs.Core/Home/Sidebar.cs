@@ -25,8 +25,8 @@ public static class Sidebar
         new(Screen.NeedsYou, w.Get("needs_you.title"), ""),   // a bell
         new(Screen.Record, w.Get("record.title"), ""),        // a bulleted list
         new(Screen.Calendar, w.Get("calendar.heading"), ""),
-        new(Screen.Usage, w.Get("usage.title"), ""),          // a chart
-        new(Screen.ConnectApps, w.Get("connect.apps.title"), ""),
+        new(Screen.Usage, w.Get("usage.title"), ""),          // bars, as the iPad's chart.bar
+        new(Screen.ConnectApps, w.Get("connect.apps.title"), ""), // two linked devices, Windows' Connect, for the iPad's linked app boxes
     ];
 
     /// <summary>

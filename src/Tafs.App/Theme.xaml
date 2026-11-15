@@ -14,6 +14,8 @@
       <!-- Coach's wash (the iPad's Theme.coachWash), and the dim at 22% (a primary button that's off). -->
       <SolidColorBrush x:Key="TafsCoachWash" Color="#EEF3FF" />
       <SolidColorBrush x:Key="TafsDimFaint" Color="#38736D7F" />
+      <!-- A segmented control's track: the system grey, #767680 at 12% (24% in dark), as the iPad's. -->
+      <SolidColorBrush x:Key="TafsSegmentGrey" Color="#1F767680" />
       <SolidColorBrush x:Key="TafsCoach" Color="#2A64F5" />
       <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="#F3ECDF" />
       <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#F3ECDF" />
@@ -60,6 +62,7 @@
       <SolidColorBrush x:Key="TafsAmberText" Color="#F0A45A" />
       <SolidColorBrush x:Key="TafsCoachWash" Color="#1A2033" />
       <SolidColorBrush x:Key="TafsDimFaint" Color="#3896918A" />
+      <SolidColorBrush x:Key="TafsSegmentGrey" Color="#3D767680" />
       <SolidColorBrush x:Key="TafsCoach" Color="#7FA2FF" />
       <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="#2A2824" />
       <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="#2A2824" />
@@ -167,6 +170,28 @@
     <Setter Property="Padding" Value="18,8" />
   </Style>
 
+  <!-- A list's section label, as the iPad's grouped list heads a section (the reference set's account.png): 17 semibold,
+       as written, dim, lined up with the rows' words. -->
+  <Style x:Key="TafsListHead" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="17" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Margin" Value="20,10,0,0" />
+    <Setter Property="Foreground" Value="{ThemeResource TafsDim}" />
+  </Style>
+  <!-- A grouped list's section, and its table's column names (12 semibold, dim). -->
+  <Style x:Key="TafsListPanel" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource TafsPanel}" />
+    <Setter Property="CornerRadius" Value="26" />
+    <Setter Property="Padding" Value="20,0" />
+  </Style>
+  <Style x:Key="TafsColumnHead" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    <Setter Property="Foreground" Value="{ThemeResource TafsDim}" />
+  </Style>
+
   <!-- A count at a sidebar row's end (Needs you's): 15 regular in the soft colour, as the iPad's list badge. -->
   <Style x:Key="TafsSidebarCount" TargetType="TextBlock">
     <Setter Property="FontSize" Value="15" />
@@ -226,6 +251,13 @@
   </Style>
 
   <!-- Words that follow the theme from code. -->
+  <Style x:Key="TafsAccentText" TargetType="TextBlock"><Setter Property="Foreground" Value="{StaticResource TafsAmber}" /></Style>
+  <!-- A segmented control's track (Day / Week / Month, Last / This period, Theme): the system grey, corners of 9. -->
+  <Style x:Key="TafsSegmentTrack" TargetType="Border">
+    <Setter Property="Background" Value="{ThemeResource TafsSegmentGrey}" />
+    <Setter Property="CornerRadius" Value="9" />
+    <Setter Property="Padding" Value="2" />
+  </Style>
   <Style x:Key="TafsNoText" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsNo}" /></Style>
   <Style x:Key="TafsAmberWords" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsAmberText}" /></Style>
   <!-- The iPad's Panel: the panel colour, corners of 18, a line around (amber or red at 50% for a warning or a wait), 16 in. -->
@@ -352,11 +384,16 @@
   </Style>
   <Style x:Key="TafsHourLine" TargetType="Border"><Setter Property="BorderBrush" Value="{ThemeResource TafsLine}" /></Style>
 
-  <!-- The sidebar's rows: 15 semibold, as the iPad's items, on a rounded fill when chosen. -->
+  <!-- The sidebar's rows: 15 semibold, 52 apart, as the iPad's items, on a rounded fill when chosen. -->
   <Style x:Key="TafsSidebarItem" TargetType="NavigationViewItem">
     <Setter Property="FontSize" Value="15" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="CornerRadius" Value="10" />
-    <Setter Property="MinHeight" Value="40" />
+    <Setter Property="MinHeight" Value="52" />
+  </Style>
+  <!-- A row's symbol: about 20, in the ink, as the iPad's beside its 15 semibold words. -->
+  <Style x:Key="TafsSidebarIcon" TargetType="FontIcon">
+    <Setter Property="FontSize" Value="20" />
+    <Setter Property="Foreground" Value="{ThemeResource TafsInk}" />
   </Style>
 </ResourceDictionary>

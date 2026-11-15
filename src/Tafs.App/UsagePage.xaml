@@ -29,7 +29,7 @@
       <Border x:Name="CreditsPanel" Style="{StaticResource TafsCard}">
         <StackPanel Spacing="12">
           <TextBlock x:Name="CreditsTitle" Style="{StaticResource TafsEyebrow}" />
-          <Border Background="{ThemeResource TafsRaised}" CornerRadius="9" Padding="2">
+          <Border Style="{StaticResource TafsSegmentTrack}">
             <Grid ColumnSpacing="2">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition />

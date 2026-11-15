@@ -1,0 +1,12 @@
+<!-- Account (the iPad's SettingsView, as in the reference set's account.png): Your account, Alerts, Theme, Language,
+     How it works, Legal, About and Account actions, each a section of the grouped list. Built in code from the rows. -->
+<Page x:Class="Tafs.App.AccountPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{ThemeResource TafsBackground}">
+  <ScrollViewer>
+    <StackPanel x:Name="Sections" Padding="24" Spacing="10" MaxWidth="1100" HorizontalAlignment="Stretch">
+      <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
+    </StackPanel>
+  </ScrollViewer>
+</Page>

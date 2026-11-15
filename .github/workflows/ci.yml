@@ -96,6 +96,8 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Words and contracts at the pin
         run: dotnet run --project tools/Tafs.Ci -- sync
+      - name: No key twice in a resource dictionary
+        run: dotnet run --project tools/Tafs.Ci -- xaml-keys
       - name: Build
         run: dotnet build src/Tafs.App -c Release -p:Platform=x64
       # Each screen in en, fr and pt, light and dark. The job fails if any is missing: a crash at launch
@@ -105,7 +107,7 @@ jobs:
           exe=src/Tafs.App/bin/x64/Release/net8.0-windows10.0.19041.0/Tafs.App.exe
           mkdir -p screenshots
           missing=0
-          for screen in sign-in overview view-only pair needs-you record calendar calendar-week usage coach; do
+          for screen in sign-in overview view-only pair needs-you record calendar calendar-week usage connect-apps account coach; do
             case $screen in
               sign-in) opts=(--page sign-in) ;;
               overview) opts=(--sample) ;;
@@ -113,9 +115,11 @@ jobs:
               pair) opts=(--page pair) ;;
               needs-you) opts=(--page needs-you --sample) ;;
               record) opts=(--page record --sample) ;;
-              calendar) opts=(--page calendar) ;;
-              calendar-week) opts=(--page calendar-week) ;;
+              calendar) opts=(--page calendar --sample) ;;
+              calendar-week) opts=(--page calendar-week --sample) ;;
               usage) opts=(--page usage --sample) ;;
+              connect-apps) opts=(--page connect-apps --sample) ;;
+              account) opts=(--page account --sample) ;;
               coach) opts=(--page coach --sample) ;;
             esac
             for lang in en fr pt; do for theme in light dark; do

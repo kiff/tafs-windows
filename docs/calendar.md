@@ -10,7 +10,10 @@ iPad. `Tafs.Core.Calendar` (`CalendarScreen`, the `calendar` part) says and coun
   or years when the week crosses them), "November 2026".
 - **Today,** a pill sized to its word, 15 medium with a line around; at today, quieter and inert.
 - **The arrows** step a day, a week or a month (to the month's last day when it has fewer).
-- **The date** on a raised pill, written by Windows' formatter for the language, the month in full.
+- **The date** on a raised pill, 17, with no glyph, as the iPad's compact DatePicker: written by Windows' formatter
+  for the language, the month short ("Nov 15, 2026", "15 nov. 2026").
+- **Day / Week / Month** on the system grey track (#767680 at 12%, 24% in dark), as the iPad's segmented control.
+  Day's hours scroll with no second scrollbar.
 - **Day / Week / Month,** the iPad's segmented control, the chosen segment lighter. It opens on Week.
 - **The strip:** Week's seven days, or Day's six weeks scrolled to the selected week. Days are 66 high,
   corners of 12; the selected one amber with white words, today ringed in amber.
