@@ -149,6 +149,8 @@ public sealed partial class MainWindow : Window
                 if (!HoldToast.Reads(since, now) && home is { } listed && kiffRead is not null) _ = ReadHeldAsync(listed, sessions);
             }
         };
+        // F5 on Needs you: Home and KIFF's held calls read again, as the iPad's pull-to-refresh.
+        NeedsYouPage.RefreshChosen += () => { if (cloudRead is { } read) _ = ReadHomeAsync(read); };
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
         // Focus goes back to the sidebar's Coach when Coach mode has gone.
         CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
@@ -303,6 +305,10 @@ public sealed partial class MainWindow : Window
     async Task ReadHeldAsync(HomeAnswer listed, int reading)
     {
         if (kiffRead is not { } read || sampleHeld) return;
+        // Who answers, and who manages Cards, as the iPad's mayAnswerHolds and canManageCards: KIFF's capabilities on /v1/me.
+        var capabilities = Tafs.Core.Coach.CoachAccess.Capabilities((await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer);
+        if (reading != sessions) return;
+        NeedsYouPage.Capabilities = (capabilities?.Contains("holds.answer") ?? true, capabilities?.Contains("cards.manage") ?? true);
         var answer = (await read(KiffHeld.Path)).Answer;
         if (reading != sessions || answer is not { } json || KiffHeld.Read(json) is not { } holds) return;
         var tafs = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => (g.First().Name, g.First().Colour));
@@ -390,6 +396,7 @@ public sealed partial class MainWindow : Window
     void ForgetSession()
     {
         sessions++;
+        NeedsYouPage.Capabilities = (true, true);
         cloudRead = null;
         cloudReadWithProof = null;
         setupProof = null;
@@ -609,7 +616,7 @@ public sealed partial class MainWindow : Window
     {
         foreach (var old in heldRows) Nav.MenuItems.Remove(old);
         heldRows.Clear();
-        if (held.Count == 0) return;
+        if (!held.Any(c => c.Listed)) return;
         var at = Nav.MenuItems.IndexOf(YourTafs);
         var header = new NavigationViewItemHeader
         {
@@ -618,7 +625,7 @@ public sealed partial class MainWindow : Window
         };
         heldRows.Add(header);
         Nav.MenuItems.Insert(at++, header);
-        foreach (var call in held)
+        foreach (var call in held.Where(c => c.Listed))
         {
             var (title, line) = NeedsYouScreen.SidebarRow(w, call, TimeZoneInfo.Local);
             var lines = new StackPanel { Spacing = 2 };
