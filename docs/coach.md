@@ -79,8 +79,8 @@ Ported from the iPad's `AppModel.startSetup`, which its Start calls (`SetupChatV
   isn't on this PC yet. Here it asks and sends nothing, and Start turns off.
 - **The pair** (`kiff.requests.v1`): the iPad signs it only with its approval key under a biometric Face ID, and this
   PC's only such key is its passkey. Its header is KIFF's passkey form for two requests under one approval,
-  `KIFF-Passkey-Assertion: t=…,a=…,with=sha256:…` (KIFF's client spec §2.3 and §2.6; its API's `parsePasskeyHeader` and
-  `VerifyRequestPasskey`), which KIFF's API and gateway both take. `PasskeyPairContractTests` checks each header the way
+  `KIFF-Passkey-Assertion: t=…,a=…,with=sha256:…`: the pair's `v3` header (`docs/secure-connection.md`) in its passkey
+  form, its challenge base64url(sha256) of the same `kiff.requests.v1`, which KIFF's API and gateway both take. `PasskeyPairContractTests` checks each header the way
   KIFF does. How it goes:
   - Both requests are built in full, with one `signed_at` (`SigningTime.Next`'s, milliseconds kept as written), before
     anything is sent. Each body is exactly the bytes tafs cloud wrote (`GetRawText`).
@@ -163,6 +163,24 @@ work, where the iPad's decoder fails the thread.
   card stays as chosen; anything else says "Your answer didn't reach Setup. Tap it again." under the card.
 - `--home` with `--page coach` reads tafs cloud's contracts beside the Home file: `setup-coach.json`, `coach-chats.json`
   and `coach-conversation.json`. CI saves Coach's thread that way (`coach-home`), and `CoachContractTests` read them.
+
+## Reporting an answer (`AnswerReport`, `ReportAnswerDialog`)
+
+Ported from the iPad's `ReportAnswerSheet` and `reportable`, `AppModel.canReport`/`reportAnswer`/`ReportOutcome` and
+`TafsCloud.ReportReason`/`reportAnswer` (kiff/tafs#421, Google Play's rule for content an AI generates). tafs-macos #77 is
+a second reference.
+- **Which answers:** Coach's, with words, not a run's start, with tafs cloud's id, for a KIFF account. Right-click (or
+  the menu key) on one gives **Report this answer**, with its flag. Copy stays on Ctrl+C.
+- **The dialog:** "What's wrong with it?" with Offensive, Harmful, Wrong and Other; the note ("Add a note (optional)"),
+  with the red line past 1,000 characters (as a person counts them); the footer, that a person at KIFF reads it.
+  Send is off with no reason, while sending, or past the limit.
+- **The request:** `POST /v1/tafs/{coach}/messages/{id}/report` with `reason`, the note trimmed (left out when blank)
+  and the answer's `session`.
+- **What it comes to:** `{"report": {"id", "at", "new"}}`: new says "Thanks. Someone at KIFF will read your report.",
+  else that it was reported already, each with Done. Not sent, it stays open with "Not sent:" and tafs cloud's `words`,
+  or that the answer isn't on tafs cloud any more (404), or "It didn't reach KIFF. Try again.", never tafs cloud's codes.
+  One answered after the person signed out says "You signed out."
+- **Not yet:** a taf's and a trial's answers, whose chats aren't on Windows yet.
 
 **Not yet:**
 - **Coach's words as Markdown:** they show as written until `MarkdownText` is ported.

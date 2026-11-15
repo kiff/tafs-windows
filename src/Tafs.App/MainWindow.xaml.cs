@@ -604,6 +604,9 @@ public sealed partial class MainWindow : Window
         CoachMode.StartCoach = Tafs.Core.Coach.CoachStart.MayStart(session) ? () => StartCoachAsync(session) : null;
         // Signed in but can't approve: the iPad's gate line where Start would be.
         CoachMode.StartGate = !Tafs.Core.Coach.CoachStart.MayStart(session);
+        // Reporting one of Coach's answers, as the iPad's reportAnswer: one answered after another session began is none.
+        var reporting = sessions;
+        CoachMode.Report = async (path, body) => await CloudSendAsync(bearer, path, body) is var r && reporting == sessions ? r : null;
         _ = ReadHomeAsync(path => CloudReadAsync(bearer, path));
         _ = AllowCoachAsync(bearer);
     }
@@ -646,6 +649,7 @@ public sealed partial class MainWindow : Window
         CoachMode.StartCoach = null;
         CoachMode.StartGate = false;
         planqueReady = false;
+        CoachMode.Report = null;
         CoachMode.Grants = null;
         CoachMode.Drafts = null;
         CoachMode.Forget();
@@ -665,9 +669,10 @@ public sealed partial class MainWindow : Window
         var bearer = session.AccessToken;
         var gen = sessions;
         try { return await StartCoachWithKeyAsync(session, bearer, gen); }
-        catch (System.Security.Cryptography.CryptographicException e)
+        catch (Exception e) when (e is System.Security.Cryptography.CryptographicException or FormatException)
         {
-            // The TPM key gone or refusing, as the iPad's catch covers every error: "Couldn't start." and why.
+            // The TPM key gone or refusing, or a kept passkey id that can't be read, as the iPad's catch covers every error:
+            // "Couldn't start." and why.
             return new(Tafs.Core.Coach.StartOutcome.Failed, w.Get("coach.couldnt_start", ("why", SessionStore.Why(e))));
         }
     }
@@ -701,7 +706,9 @@ public sealed partial class MainWindow : Window
                     var signature = await PlanqueEnrolment.MintSignatureAsync(key, session.Tenant, SigningTime.Next(DateTimeOffset.UtcNow));
                     return await KiffHttp.PostAsync(new Uri(kiff, PlanqueEnrolment.KeysPath), PlanqueEnrolment.MintBody(), bearer, w.Language,
                         signature: ("KIFF-Device-Signature", signature));
-                }),
+                },
+                // Signed out between planque's ask, KIFF's mint and the enrolment: nothing more is sent.
+                () => gen == sessions),
             SendBatch: (body, signature) => KiffHttp.GatewayPostAsync(new Uri(Tafs.Core.Coach.CoachStart.Gateway, "/v1/connections/batch"), body,
                 bearer, w.Language, signature),
             SubmitDraft: (body, signature) => KiffHttp.PostAsync(new Uri(kiff, Tafs.Core.Coach.CoachStart.DraftPath), body, bearer, w.Language,

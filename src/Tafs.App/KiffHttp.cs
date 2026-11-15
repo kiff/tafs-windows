@@ -93,6 +93,7 @@ static class KiffHttp
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
         request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         request.Headers.Add(signature.Header, signature.Value);
         return await SendAsync(request, cancel, Patient);
     }

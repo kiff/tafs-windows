@@ -10,7 +10,7 @@ namespace Tafs.Core.Tests.Coach;
 
 /// <summary>
 /// The pair's two <c>KIFF-Passkey-Assertion</c> headers, checked the way KIFF checks each request (its API's
-/// <c>parsePasskeyHeader</c> and <c>VerifyRequestPasskey</c>; its client spec §2.3 and §2.6): <c>t=</c> first, then <c>a=</c>
+/// the passkey form of the pair's <c>v3</c> header): <c>t=</c> first, then <c>a=</c>
 /// and <c>with=sha256:</c> with 64 lowercase hex, no other part; the request's own <c>kiff.request.v1</c> rebuilt from its
 /// method, path, body and <c>t</c>; a <c>with</c> that isn't its own hash; and the one assertion's challenge
 /// base64url(sha256) of <c>kiff.requests.v1</c> over both hashes, sorted.
@@ -51,7 +51,7 @@ public class PasskeyPairContractTests
         return Encoding.UTF8.GetBytes(string.Join("\n", "kiff.requests.v1", Tenant, at, a, b));
     }
 
-    /// <summary>KIFF's VerifyRequestPasskey for one request, given its header; returns the assertion's <c>a=</c>.</summary>
+    /// <summary>KIFF's check of one request, given its header, done step by step; returns the assertion's <c>a=</c>.</summary>
     static string Verify(TestSigner key, StartRequest request, string header)
     {
         var parts = header.Split(',');
@@ -87,7 +87,7 @@ public class PasskeyPairContractTests
     {
         using var key = new TestSigner();
         var auth = new FakeAuthenticator(key);
-        var connect = Request("connect", "/v1/me/mcp/tools/batch", gateway: true, """{"tools":[{"name":"tafs_state"}]}""");
+        var connect = Request("connect", "/v1/connections/batch", gateway: true, """{"tools":[{"name":"tafs_state"}]}""");
         var draft = Request("draft", "/v1/me/agent-drafts", gateway: false, """{"agent_id":"coach","label":"Coach"}""");
 
         var (header, batch, cards) = await RequestsTogether.SignAsync(new PasskeyApprover(auth, CredentialId, true), Tenant, connect, draft, At);
