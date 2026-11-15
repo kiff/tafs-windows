@@ -8,7 +8,7 @@
   <Page.Resources>
     <DataTemplate x:Key="Row" x:DataType="local:ConnectRowView">
       <!-- A line above every row but the first, as the iPad's list draws them. -->
-      <Grid MinHeight="52" Padding="0,8" ColumnSpacing="12" BorderBrush="{ThemeResource TafsLine}" BorderThickness="{x:Bind Divider}">
+      <Grid MinHeight="{x:Bind MinHeight}" Padding="0,8" ColumnSpacing="12" BorderBrush="{ThemeResource TafsLine}" BorderThickness="{x:Bind Divider}">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="{x:Bind Columns.App, Mode=OneWay}" />
           <ColumnDefinition Width="{x:Bind Columns.How, Mode=OneWay}" />
@@ -23,7 +23,9 @@
 
         <StackPanel Spacing="1" VerticalAlignment="Center" Visibility="{x:Bind IsApp}">
           <TextBlock Text="{x:Bind Name}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                     Foreground="{ThemeResource TafsInk}" />
+                     Visibility="{x:Bind NameInk}" Foreground="{ThemeResource TafsInk}" />
+          <TextBlock Text="{x:Bind Name}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                     Visibility="{x:Bind NameSoft}" Foreground="{ThemeResource TafsSoft}" />
           <TextBlock Text="{x:Bind Subtitle}" FontSize="13" TextWrapping="Wrap" MaxLines="2" Foreground="{ThemeResource TafsSoft}" />
         </StackPanel>
         <TextBlock Grid.Column="1" Text="{x:Bind How}" FontSize="14" VerticalAlignment="Center" Foreground="{ThemeResource TafsSoft}" />
@@ -36,8 +38,8 @@
           <StackPanel Spacing="2" VerticalAlignment="Center">
             <TextBlock Text="{x:Bind Status}" FontSize="14" FontWeight="SemiBold" Visibility="{x:Bind IsConnected}" Foreground="{ThemeResource TafsOk}" />
             <TextBlock Text="{x:Bind Status}" FontSize="14" FontWeight="SemiBold" Visibility="{x:Bind IsReconnect}" Foreground="{ThemeResource TafsAmberText}" />
-            <TextBlock Text="{x:Bind UsedBy}" FontSize="12" TextWrapping="Wrap" MaxLines="2" Foreground="{ThemeResource TafsDim}" />
-            <TextBlock Text="{x:Bind Setup}" FontSize="13" TextWrapping="Wrap" MaxLines="2" Foreground="{ThemeResource TafsSoft}" />
+            <TextBlock Text="{x:Bind UsedBy}" Visibility="{x:Bind HasUsedBy}" FontSize="12" TextWrapping="Wrap" MaxLines="2" Foreground="{ThemeResource TafsDim}" />
+            <TextBlock Text="{x:Bind Setup}" Visibility="{x:Bind HasSetup}" FontSize="13" TextWrapping="Wrap" MaxLines="2" Foreground="{ThemeResource TafsSoft}" />
           </StackPanel>
           <FontIcon Grid.Column="1" Glyph="&#xE73E;" FontSize="16" Visibility="{x:Bind IsConnected}" Foreground="{ThemeResource TafsOk}"
                     AutomationProperties.Name="{x:Bind Status}" />

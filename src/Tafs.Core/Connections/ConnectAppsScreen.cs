@@ -93,6 +93,9 @@ public static class ConnectAppsScreen
             app.NeedsSetup ? app.SetupWords ?? "" : null);
     }
 
+    /// <summary>An app tafs cloud hasn't set up for anyone has its name in the soft colour; the others in the ink.</summary>
+    public static bool NameIsSoft(ConnectApp app) => app.NeedsSetup;
+
     /// <summary>The button at a row's end: none to set up, a ✓ when connected, else Connect or Sign in again.</summary>
     public static string? Button(WordBook w, ConnectApp app) =>
         app.NeedsSetup || app.Connected ? null : w.Get(app.NeedsReconnect ? "connect.sign_in_again" : "connect.apps.connect");

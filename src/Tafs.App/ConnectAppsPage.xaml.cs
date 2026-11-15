@@ -31,9 +31,24 @@ public sealed class ConnectRowView
     public Thickness Divider { get; init; }
     public Visibility IsHeader { get; init; } = Visibility.Collapsed;
     public Visibility IsApp { get; init; } = Visibility.Visible;
-    public string HeadApp { get; init; } = "", HeadHow { get; init; } = "", HeadWhose { get; init; } = "", HeadStatus { get; init; } = "";
-    public string Name { get; init; } = "", Subtitle { get; init; } = "", How { get; init; } = "", Whose { get; init; } = "";
-    public string Status { get; init; } = "", UsedBy { get; init; } = "", Setup { get; init; } = "", Button { get; init; } = "";
+    public string HeadApp { get; init; } = "";
+    public string HeadHow { get; init; } = "";
+    public string HeadWhose { get; init; } = "";
+    public string HeadStatus { get; init; } = "";
+    public string Name { get; init; } = "";
+    public string Subtitle { get; init; } = "";
+    public string How { get; init; } = "";
+    public string Whose { get; init; } = "";
+    public string Status { get; init; } = "";
+    public string UsedBy { get; init; } = "";
+    public string Setup { get; init; } = "";
+    public string Button { get; init; } = "";
+    /// <summary>An app that needs setting up has its name in the soft colour, as on the iPad.</summary>
+    public Visibility NameInk { get; init; } = Visibility.Visible;
+    public Visibility NameSoft { get; init; } = Visibility.Collapsed;
+    public Visibility HasUsedBy { get; init; } = Visibility.Collapsed;
+    public Visibility HasSetup { get; init; } = Visibility.Collapsed;
+    public double MinHeight { get; init; } = 52;
     public Visibility IsConnected { get; init; } = Visibility.Collapsed;
     public Visibility IsReconnect { get; init; } = Visibility.Collapsed;
     public Visibility HasButton { get; init; } = Visibility.Collapsed;
@@ -56,8 +71,8 @@ public sealed partial class ConnectAppsPage : Page
     {
         var w = App.Words;
         Heading.Text = w.Get("connect.apps.title");
-        YoursTitle.Text = w.Get("connect.apps.yours").ToUpper(new System.Globalization.CultureInfo(w.Language));
-        DiscoverTitle.Text = w.Get("connect.apps.discover").ToUpper(new System.Globalization.CultureInfo(w.Language));
+        YoursTitle.Text = w.Get("connect.apps.yours");
+        DiscoverTitle.Text = w.Get("connect.apps.discover");
         AskCoach.Content = w.Get("connect.apps.not_listed");
 
         var list = e.Parameter as ConnectAppsList;
@@ -79,7 +94,7 @@ public sealed partial class ConnectAppsPage : Page
         if (header && apps.Count > 0)
             rows.Add(new ConnectRowView
             {
-                Columns = columns, IsHeader = Visibility.Visible, IsApp = Visibility.Collapsed,
+                Columns = columns, IsHeader = Visibility.Visible, IsApp = Visibility.Collapsed, MinHeight = 0,
                 HeadApp = w.Get("connect.apps.column_app"), HeadHow = w.Get("connect.apps.column_how"),
                 HeadWhose = w.Get("connect.apps.column_whose"), HeadStatus = w.Get("connect.apps.column_status"),
             });
@@ -93,9 +108,10 @@ public sealed partial class ConnectAppsPage : Page
                 Divider = new Thickness(0, rows.Count > 0 ? 1 : 0, 0, 0),
                 Name = app.DisplayName, Subtitle = app.Subtitle ?? "",
                 How = said.How, Whose = said.Whose ?? "",
-                Status = said.Setup is null ? said.Status ?? "" : "", Setup = said.Setup ?? "",
+                Status = said.Setup is null ? said.Status ?? "" : "", Setup = said.Setup ?? "", HasSetup = Seen(!string.IsNullOrEmpty(said.Setup)),
+                NameInk = Seen(!ConnectAppsScreen.NameIsSoft(app)), NameSoft = Seen(ConnectAppsScreen.NameIsSoft(app)),
                 IsConnected = Seen(app.Connected && said.Setup is null), IsReconnect = Seen(app.NeedsReconnect && said.Setup is null),
-                UsedBy = said.Setup is null ? said.UsedBy ?? "" : "",
+                UsedBy = said.Setup is null ? said.UsedBy ?? "" : "", HasUsedBy = Seen(said.Setup is null && said.UsedBy is not null),
                 Button = button ?? "", HasButton = Seen(button is not null),
             });
         }

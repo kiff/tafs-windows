@@ -160,17 +160,19 @@
     <Setter Property="Padding" Value="18,8" />
   </Style>
 
-  <!-- A list's section label, as the iPad's grouped list heads a section: 13, in capitals, dim. -->
+  <!-- A list's section label, as the iPad's grouped list heads a section (the reference set's account.png): 17 semibold,
+       as written, dim, lined up with the rows' words. -->
   <Style x:Key="TafsListHead" TargetType="TextBlock">
-    <Setter Property="FontSize" Value="13" />
-    <Setter Property="Margin" Value="16,14,0,0" />
+    <Setter Property="FontSize" Value="17" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Margin" Value="20,10,0,0" />
     <Setter Property="Foreground" Value="{ThemeResource TafsDim}" />
   </Style>
   <!-- A grouped list's section, and its table's column names (12 semibold, dim). -->
   <Style x:Key="TafsListPanel" TargetType="Border">
     <Setter Property="Background" Value="{ThemeResource TafsPanel}" />
-    <Setter Property="CornerRadius" Value="12" />
-    <Setter Property="Padding" Value="16,0" />
+    <Setter Property="CornerRadius" Value="26" />
+    <Setter Property="Padding" Value="20,0" />
   </Style>
   <Style x:Key="TafsColumnHead" TargetType="TextBlock">
     <Setter Property="FontSize" Value="12" />

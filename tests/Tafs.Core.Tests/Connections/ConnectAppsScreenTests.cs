@@ -58,6 +58,8 @@ public class ConnectAppsScreenTests
         Assert.Equal("Sign in again", ConnectAppsScreen.Button(En, x));
         Assert.Equal("Not set up yet", ConnectAppsScreen.Row(En, y).Setup);
         Assert.Null(ConnectAppsScreen.Button(En, y));
+        Assert.True(ConnectAppsScreen.NameIsSoft(y)); // the name in the soft colour, as on the iPad
+        Assert.False(ConnectAppsScreen.NameIsSoft(x));
         Assert.True(z.Yours);
         Assert.False(y.Yours);
         // Used by, only for the person's own.
