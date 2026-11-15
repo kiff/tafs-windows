@@ -86,4 +86,16 @@ public class HaltTests
         Assert.Null(CoachAccess.Manage(J("""{"agents":{"rae":{"use":true,"oversee":true,"manage":"yes"}}}""")));
         Assert.Null(CoachAccess.Manage(null));
     }
+
+    /// <summary>A revoked taf has no Halt row, as the iPad's taf.state != .revoked: tafs cloud's "stopped", or a state it doesn't know.</summary>
+    [Theory]
+    [InlineData("stopped", false)]
+    [InlineData("revoked", false)]
+    [InlineData("something new", false)]
+    [InlineData("working", true)]
+    [InlineData("idle", true)]
+    [InlineData("halted", true)]
+    [InlineData("paused", true)]
+    public void A_revoked_taf_has_no_halt_row(string state, bool row) =>
+        Assert.Equal(row, Halt.HasRow(new Tafs.Core.Home.HomeTaf("t", "Refunds", 0, state, "", null, [], 0, null, null, Agent: "ag")));
 }

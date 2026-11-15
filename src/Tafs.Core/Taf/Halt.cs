@@ -83,4 +83,10 @@ public sealed record Halt(HaltState State, DateTimeOffset? HaltedAt, bool Runtim
 
     /// <summary>Whether the person manages the account's Cards (the iPad's <c>managesCards</c>): <c>cards.manage</c>, or when KIFF doesn't say.</summary>
     public static bool ManagesCards(IReadOnlyList<string>? capabilities) => capabilities?.Contains("cards.manage") ?? true;
+
+    /// <summary>
+    /// Whether a taf's page has its Halt row: not for a revoked taf, as the iPad's <c>taf.state != .revoked</c>
+    /// (TafDetailView.swift), which is every state tafs cloud sends that it doesn't know, <c>"stopped"</c> among them.
+    /// </summary>
+    public static bool HasRow(Home.HomeTaf taf) => taf.StateKey != "stopped";
 }

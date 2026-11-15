@@ -121,11 +121,14 @@ rules and totals.
 reference:
 - **Who sees it:**
   - **A taf's halt** is a row on its Card tab, after its rules and before Revoke, as the iPad's `card(_:)`. It shows only
-    for whoever manages the taf, as KIFF says (`GET /v1/me/access`, the iPad's `manages`), and nothing shows until that's
-    read. It never shows once the taf is revoked. A tafs cloud taf's Card tab opens for that row even before its Cards
+    for whoever manages the taf, as KIFF says (`GET /v1/me/access`, the iPad's `manages`, read again with each read of
+    Home's list, as its `refreshAccess`, and kept as it was when it can't be read), and nothing shows until that's read.
+    It never shows for a revoked taf, as the iPad's `taf.state != .revoked`: tafs cloud's `stopped`, or any state it
+    doesn't know (`Halt.HasRow`), nor once it's revoked on its page. A tafs cloud taf's Card tab opens for that row even before its Cards
     are drawn here.
   - **Every taf's halt** is a row in the sidebar, under the screens, as the iPad's `haltAllRow`. It shows to someone who
-    manages the account's Cards (`cards.manage`, or when KIFF doesn't say, from `GET /v1/me`), while a taf runs, and
+    manages the account's Cards (`cards.manage`, or when KIFF doesn't say, from `GET /v1/me`, read with each read of Home's
+    list, every taf's halt then read too, whatever order KIFF's reads land in), while a taf runs, and
     whenever the account is halted or halting, tafs or not (`showsAccountHalt`). Its second line, in red, is its state
     once it isn't running.
   - The access and capabilities are read with each session, and kept as they were when a read fails.

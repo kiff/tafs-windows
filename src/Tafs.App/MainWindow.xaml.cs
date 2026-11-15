@@ -230,6 +230,9 @@ public sealed partial class MainWindow : Window
         cloudRead = read;
         ShowHome(HomeList.Read(w, answer, TimeZoneInfo.Local));
         ShowHaltAll();
+        // Who manages each taf and the account's capabilities, read with the list as the iPad's refreshAccess, then every
+        // taf's halt, now that tafs cloud can be read: whatever order KIFF's reads land in.
+        if (App.Sessions.Kept()?.AccessToken is { } bearer) _ = AllowCoachAsync(bearer);
         var listed = home!;
         _ = ReadRecordAsync(listed, reading);
         var reports = await Task.WhenAll(listed.Tafs.Select(t => TafRuns.LoadReportAsync(w, t.Id, read)));
@@ -689,11 +692,11 @@ public sealed partial class MainWindow : Window
 
     /// <summary>
     /// A taf's halt row, only for whoever manages it as KIFF says (the iPad's <c>manages</c>): nothing until that's read.
-    /// The Card tab leaves it out once the taf is revoked.
+    /// None for a revoked taf, as the iPad's (tafs cloud's "stopped", or any state it doesn't know), nor once it's revoked here.
     /// </summary>
     TafHalt? HaltFor(HomeTaf taf)
     {
-        if (taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is not { } read || haltSend is null) return null;
+        if (!Halt.HasRow(taf) || taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is not { } read || haltSend is null) return null;
         return new(async () => (await read(Halt.Path(taf.Id))).Answer is { } a && Halt.Read(a) is { } h ? h : Halt.Running,
             () => OpenHalt(taf.Id, taf.Name));
     }
