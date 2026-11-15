@@ -31,7 +31,7 @@ public sealed record HomeAnswer(IReadOnlyList<HomeTaf> Tafs, string? Headline);
 /// </summary>
 public static class HomeList
 {
-    public static readonly Uri Api = new("https://cloud.tafs.kiff.dev");
+    public static readonly Uri Api = Kiff.KeptSessions.TafsCloud;
     public const string Path = "/v1/home";
 
     /// <summary>The tafs in tafs cloud's order; one without an id or a name is left out.</summary>

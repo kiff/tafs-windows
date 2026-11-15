@@ -8,6 +8,21 @@ public class KeptSessionTests
     static readonly Uri Api = new("https://api.kiff.dev");
     static readonly DateTimeOffset Now = new(2026, 11, 15, 3, 0, 0, TimeSpan.Zero);
 
+    /// <summary>The token goes to KIFF's API and tafs cloud only, exactly: never another subdomain, port, scheme or user.</summary>
+    [Theory]
+    [InlineData("https://api.kiff.dev/v1/me", true)]
+    [InlineData("https://cloud.tafs.kiff.dev/v1/home", true)]
+    [InlineData("https://CLOUD.tafs.kiff.dev/v1/home", true)]
+    [InlineData("http://cloud.tafs.kiff.dev/v1/home", false)]
+    [InlineData("https://cloud.tafs.kiff.dev:8443/v1/home", false)]
+    [InlineData("https://someone@cloud.tafs.kiff.dev/v1/home", false)]
+    [InlineData("https://tafs.kiff.dev/v1/home", false)]
+    [InlineData("https://docs.kiff.dev/v1/home", false)]
+    [InlineData("https://kiff.dev/v1/home", false)]
+    [InlineData("https://cloud.tafs.kiff.dev.example.com/v1/home", false)]
+    public void The_token_goes_only_to_KIFF_s_API_and_tafs_cloud(string url, bool may) =>
+        Assert.Equal(may, KeptSessions.MaySendTo(new Uri(url), Api));
+
     /// <summary>The store as bytes on disk: a new instance over the same bytes is a relaunch.</summary>
     sealed class FakeStore(byte[]? bytes = null) : ISessionStore
     {

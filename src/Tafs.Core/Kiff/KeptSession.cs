@@ -45,6 +45,18 @@ public static class KeptSessions
     /// <summary>The path a session signs itself out with (bearer only, as the phones do).</summary>
     public const string LogoutPath = "/v1/auth/device/logout";
 
+    /// <summary>tafs cloud, which asks KIFF who the session is: the one host besides KIFF's API that gets its token.</summary>
+    public static readonly Uri TafsCloud = new("https://cloud.tafs.kiff.dev");
+
+    /// <summary>
+    /// Whether the session's token may go to <paramref name="url"/>: https, on exactly KIFF's API host or tafs cloud's, on
+    /// the default port, with no user in it. No other subdomain, so a wrong base URL or a link from an answer never
+    /// carries the token elsewhere.
+    /// </summary>
+    public static bool MaySendTo(Uri url, Uri api) =>
+        url.IsAbsoluteUri && url.Scheme == Uri.UriSchemeHttps && url.UserInfo.Length == 0 && url.IsDefaultPort
+        && new[] { api.Host, TafsCloud.Host }.Contains(url.Host, StringComparer.OrdinalIgnoreCase);
+
     public static byte[] Write(KeptSession s) => JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, object?>
     {
         ["host"] = s.Host, ["access_token"] = s.AccessToken, ["tenant"] = s.Tenant, ["subject"] = s.Subject,
