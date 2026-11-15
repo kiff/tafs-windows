@@ -2,7 +2,8 @@
      the Overview; the app's screens; Your tafs; Coach and Account at the foot. The chosen screen opens beside it. -->
 <Window x:Class="Tafs.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:Tafs.App">
   <Grid x:Name="Root" Background="{ThemeResource TafsBackground}">
     <NavigationView x:Name="Nav"
                     PaneDisplayMode="Left"
@@ -87,5 +88,7 @@
         <Frame x:Name="Pages" Grid.Row="1" />
       </Grid>
     </NavigationView>
+    <!-- Coach mode: over everything, the sidebar too, as on the iPad. -->
+    <local:CoachPanel x:Name="CoachMode" Visibility="Collapsed" />
   </Grid>
 </Window>

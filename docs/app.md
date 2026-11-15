@@ -30,7 +30,8 @@ Built so far:
 - Calendar, Day, Week and Month, as on the iPad ([calendar](calendar.md));
 - Plan & usage, as on the iPad ([plan & usage](usage.md));
 - Connect apps, as on the iPad ([connect apps](connect-apps.md));
-- Account, as on the iPad ([account](account.md)).
+- Account, as on the iPad ([account](account.md));
+- Coach mode, as on the iPad ([coach](coach.md)).
 
 Signing in is the only screen that reaches KIFF so far. Other screens show only their title until they're built, in the order of the desktop spec. 
 
@@ -44,9 +45,9 @@ The app speaks the first of the person's Windows languages that tafs ships (`App
 | :- | :- |
 | `--lang fr` | speak a shipped language |
 | `--theme light` or `dark` | force the appearance |
-| `--page pair`, `sign-in`, `needs-you`, `record`, `calendar`, `calendar-week`, `calendar-month`, `usage`, `connect-apps` or `account` | open Add this Windows PC, Sign in with KIFF, Needs you, the Record, Calendar in Day, Week or Month, Plan & usage, Connect apps, or Account |
+| `--page pair`, `sign-in`, `needs-you`, `record`, `calendar`, `calendar-week`, `calendar-month`, `usage`, `connect-apps`, `account` or `coach` | open Add this Windows PC, Sign in with KIFF, Needs you, the Record, Calendar in Day, Week or Month, Plan & usage, Connect apps, Account, or Coach mode over the Overview |
 | `--view-only` | show the session as view-only |
 | `--sample` | show the iPad's sample held calls, Record, Plan & usage and Connect apps |
 | `--screenshot out.png` | save the window (1280×800) as a PNG and quit |
 
-CI's `app` job builds the app on Windows when `src/Tafs.App/**` changes, and nightly. It saves sign-in, the Overview, Needs you, the Record, Plan & usage, Connect apps and Account (with the samples), Calendar in Day and Week, the view-only notice and the pairing screen in en, fr and pt, light and dark, as the `screenshots` artifact of the run. The job fails if any of the 66 is missing: a crash at launch, or a word missing at the pin, stops the app before it saves.
+CI's `app` job builds the app on Windows when `src/Tafs.App/**` changes, and nightly. It saves sign-in, the Overview, Needs you, the Record, Plan & usage, Connect apps and Account (with the samples), Coach mode, Calendar in Day and Week, the view-only notice and the pairing screen in en, fr and pt, light and dark, as the `screenshots` artifact of the run. The job fails if any of the 72 is missing: a crash at launch, or a word missing at the pin, stops the app before it saves.
