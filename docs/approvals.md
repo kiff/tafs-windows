@@ -13,6 +13,10 @@ and KIFF takes P-256 only.
 - a Windows sign-in asks for a passkey-only session (`"approval": "passkey"`), and KIFF refuses a Windows start with neither approval key nor that flag;
 - a passkey session approves only with `KIFF-Passkey-Assertion`.
 
+**Where this PC asks less than the iPad:** Windows Hello takes the PC's PIN as well as a face or a fingerprint, where the
+iPad's approvals that grant (`grants: true`) take biometrics only. Windows' platform passkey has no biometrics-only mode;
+the PIN is Windows Hello's own fallback, bound to this PC's TPM.
+
 The Windows WebAuthn calls are built (`WindowsHello`, below). A session paired with this PC's passkey keeps its credential
 id (`KeptSession.PasskeyId`). Two things assert with it: starting Coach, which signs Setup's draft with it (`coach.md`),
 and setting planque up. Until approving is wired, this PC asserts with it for nothing else, so its approvals go to the

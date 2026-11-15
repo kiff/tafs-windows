@@ -92,6 +92,8 @@ public sealed class PasskeyApprover(IPasskeyAuthenticator authenticator, byte[] 
     /// </summary>
     public async Task ConfirmAsync(byte[] message, CancellationToken cancel = default)
     {
+        // Off, nothing asks for Windows Hello: as ApproveAsync.
+        if (!enabled) throw new PasskeyRefusedException("passkey approvals are off on Windows until KIFF accepts this computer's own passkey");
         var assertion = await authenticator.GetAssertionAsync(RpId, credentialId, ClientDataJson(message), cancel);
         if (Refusal(AuthenticatorData.Parse(assertion.AuthenticatorData)) is { } refusal) throw new PasskeyRefusedException(refusal);
     }
