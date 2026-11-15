@@ -38,6 +38,18 @@ static class KiffHttp
         return await SendAsync(request, cancel);
     }
 
+    /// <summary>A JSON POST as the session to tafs cloud (a card's answer), in the app's language, as a read is.</summary>
+    /// <exception cref="HttpRequestException">It wasn't reached, or isn't a host the session's token may go to.</exception>
+    public static async Task<(int Status, string Body)> PostAsync(Uri url, byte[] body, string bearer, string language, CancellationToken cancel = default)
+    {
+        if (!Tafs.Core.Kiff.KeptSessions.MaySendTo(url, DeviceSignIn.Api)) throw new HttpRequestException("not a host the session goes to");
+        using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = new ByteArrayContent(body) };
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
+        return await SendAsync(request, cancel);
+    }
+
     static async Task<(int Status, string Body)> SendAsync(HttpRequestMessage request, CancellationToken cancel)
     {
         try

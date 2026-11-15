@@ -31,6 +31,16 @@ public sealed partial class CoachPanel : UserControl
 
     Func<string, Task<CloudRead>>? read;
 
+    /// <summary>How the panel sends a card's answer to tafs cloud (path and body), as the session; none for a screenshot.</summary>
+    public Func<string, byte[], Task<CloudRead>>? Answer { get; set; }
+
+    /// <summary>Coach's id, its thread as last read, and each card's state here, as the iPad's model keeps them.</summary>
+    string? coach;
+    CoachThread? thread;
+    readonly HashSet<string> answered = [];
+    readonly Dictionary<string, string> notes = [];
+    readonly Dictionary<string, QuestionsCardState> cards = [];
+
     public CoachPanel()
     {
         InitializeComponent();
@@ -83,11 +93,13 @@ public sealed partial class CoachPanel : UserControl
     async Task LoadThreadAsync()
     {
         if (read is not { } reader) return;
-        var (thread, error) = await CoachChat.LoadAsync(App.Words, reader);
+        var (loaded, error, id) = await CoachChat.LoadAsync(App.Words, reader);
         IntroError.Text = error ?? "";
         IntroError.Visibility = error is null ? Visibility.Collapsed : Visibility.Visible;
-        if (thread is null || thread.Drawn().Count == 0) return;
-        ShowThread(thread);
+        coach = id;
+        if (loaded is null || loaded.Drawn(Kinds).Count == 0) return;
+        thread = loaded;
+        ShowThread(loaded);
         Intro.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Visible;
     }
@@ -101,13 +113,18 @@ public sealed partial class CoachPanel : UserControl
     {
         var w = App.Words;
         ThreadItems.Children.Clear();
-        // No card is drawn yet: each kind comes in its own change, and until then its answer reads in a bubble.
-        var items = thread.Drawn();
+        var items = thread.Drawn(Kinds);
         for (var i = 0; i < items.Count; i++)
         {
-            var m = items[i].Message!;
             if (CoachChat.GapTime(w, items, i, DateTimeOffset.Now, TimeZoneInfo.Local) is { } gap)
                 ThreadItems.Children.Add(Words(gap, 12, "TafsDimText", HorizontalAlignment.Center));
+            // A card, as the iPad's SetupComponentView: the questions card in this change; the other kinds come in their own.
+            if (items[i].Card is { } shown)
+            {
+                if (shown.Card.Kind == "questions") ThreadItems.Children.Add(QuestionsCard(thread, shown));
+                continue;
+            }
+            var m = items[i].Message!;
             // As the iPad's ChatBubble: a run's start is a line, inside either branch, so its work and answered line still show.
             if (m.From == ChatFrom.Owner)
             {
@@ -152,6 +169,39 @@ public sealed partial class CoachPanel : UserControl
         }
         foreach (var line in thread.Lines.Where(l => !l.Away))
             ThreadItems.Children.Add(Words($"↳ {line.Taf}: {line.Said}", 13, "TafsSoftText"));
+    }
+
+    /// <summary>The kinds of card drawn so far: the others come in their own changes, their answers in bubbles until then.</summary>
+    static readonly string[] Kinds = ["questions"];
+
+    QuestionsCardView QuestionsCard(CoachThread thread, ShownCard shown)
+    {
+        if (!cards.TryGetValue(shown.Ref, out var state)) cards[shown.Ref] = state = new QuestionsCardState();
+        return new QuestionsCardView(shown, thread.AnswerTo(shown.Card.Id), state, answered.Contains(shown.Ref), notes.GetValueOrDefault(shown.Card.Id),
+            text => _ = AnswerAsync(shown, text), Brush);
+    }
+
+    /// <summary>
+    /// A card's answer, as the iPad's <c>answer(_:_:)</c>: sent as data, the card busy meanwhile. Sent, the thread is read
+    /// again (the iPad then follows the run's stream, which comes with writing to Coach); a card that doesn't wait any more
+    /// (409) is read again; refused for want of the AI-data consent, the card stays as chosen; else it says it didn't reach.
+    /// </summary>
+    async Task AnswerAsync(ShownCard shown, string text)
+    {
+        if (Answer is not { } post || coach is null || CoachChat.AnswerRequest(coach, shown, text) is not { } request) return;
+        answered.Add(shown.Ref);
+        notes.Remove(shown.Card.Id);
+        Redraw();
+        var sent = CoachChat.Sent(await post(request.Path, request.Body));
+        if (sent != CardSent.Sent) answered.Remove(shown.Ref);
+        if (sent == CardSent.NotReached) notes[shown.Card.Id] = App.Words.Get("coach.answer_did_not_reach_setup");
+        if (sent is CardSent.Sent or CardSent.ReadAgain) await LoadThreadAsync();
+        else Redraw();
+    }
+
+    void Redraw()
+    {
+        if (thread is not null) ShowThread(thread);
     }
 
     /// <summary>A run's start, as the iPad's kickoff line: "Run started 09:00 · …", centred, two lines at most.</summary>
@@ -220,7 +270,7 @@ public sealed partial class CoachPanel : UserControl
         return (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources[key];
     }
 
-    static TextBlock Words(string text, double size, string style, HorizontalAlignment align = HorizontalAlignment.Left) =>
+    internal static TextBlock Words(string text, double size, string style, HorizontalAlignment align = HorizontalAlignment.Left) =>
         new() { Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, HorizontalAlignment = align,
             TextAlignment = align == HorizontalAlignment.Center ? TextAlignment.Center : TextAlignment.Left,
             Style = (Style)Application.Current.Resources[style] };

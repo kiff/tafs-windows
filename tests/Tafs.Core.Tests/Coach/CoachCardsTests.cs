@@ -1,5 +1,7 @@
+using System.Text;
 using System.Text.Json;
 using Tafs.Core.Coach;
+using Tafs.Core.Taf;
 using Tafs.Core.Tests.Strings;
 using Tafs.Core.Words;
 
@@ -7,12 +9,14 @@ namespace Tafs.Core.Tests.Coach;
 
 /// <summary>
 /// Coach's cards in its thread, and a questions card's answers, as the iPad's SetupComponent, fold, items, answer(to:),
-/// and QuestionAnswers.words. As for the thread, the answers are shaped as the iPad's decoders read them.
+/// QuestionAnswers and QuestionSelection. As for the thread, the answers are shaped as the iPad's decoders read them.
 /// </summary>
 [Part("coach")]
 public class CoachCardsTests
 {
     static readonly WordBook En = WordBook.Load(SharedFiles.Strings, "en");
+
+    static JsonElement Json(string text) => JsonDocument.Parse(text).RootElement;
 
     const string Questions = """
         {"type": "questions", "id": "q1", "title": "A few things first", "text": "Before Rae starts:", "waits": "owner",
@@ -109,13 +113,68 @@ public class CoachCardsTests
         Assert.Null(expired.AnswerTo("q1"));
     }
 
-    /// <summary>As the iPad's QuestionAnswers.words: the card's order, its labels, the person's own words as theirs.</summary>
+    /// <summary>As the iPad's QuestionSelection: one choice, several on a multi question, or the person's own words, never both.</summary>
     [Fact]
-    public void Answers_read_back_in_the_person_s_words()
+    public void A_question_s_answer_is_its_choices_or_the_person_s_own_words()
     {
-        const string text = """{"days":{"values":["mon"]},"mode":{"own":"300 €/day"}}""";
+        var card = Assert.Single(Thread(Shown(Questions)).Shown).Card;
+        var (mode, days) = (card.Questions![0], card.Questions[1]);
+        var pick = new QuestionSelection();
+
+        pick.Pick(mode, "live");
+        pick.Pick(mode, "test");
+        pick.Pick(days, "tue");
+        pick.Pick(days, "mon");
+        Assert.Equal(new QuestionAnswer.Choice("test"), pick.Answer(mode));
+        Assert.Equal(new[] { "mon", "tue" }, ((QuestionAnswer.Choices)pick.Answer(days)!).Values);
+
+        pick.ToggleOwn(mode);
+        Assert.Null(pick.Answer(mode));
+        pick.SetOwn(mode, "  300 € on weekdays ");
+        Assert.Equal(new QuestionAnswer.Own("300 € on weekdays"), pick.Answer(mode));
+        pick.Pick(mode, "live");
+        Assert.Equal(new QuestionAnswer.Choice("live"), pick.Answer(mode));
+    }
+
+    /// <summary>As the iPad's encode: keys sorted, slashes and accents as they are, so the same answers send the same words.</summary>
+    [Fact]
+    public void Answers_encode_with_their_keys_sorted_and_read_back_in_the_person_s_words()
+    {
+        var text = QuestionAnswers.Encode(new Dictionary<string, QuestionAnswer>
+        {
+            ["mode"] = new QuestionAnswer.Own("300 €/day"),
+            ["days"] = new QuestionAnswer.Choices(["mon"]),
+        });
+
+        Assert.Equal("""{"days":{"values":["mon"]},"mode":{"own":"300 €/day"}}""", text);
         Assert.Equal("Monday · " + En.Get("coach.answer.in_your_words", ("text", "300 €/day")),
             QuestionAnswers.Words(En, text, [new CardQuestion("days", "?", [new CardChoice("mon", "Monday")]), new CardQuestion("mode", "?", [])]));
         Assert.Null(QuestionAnswers.Words(En, "not json", []));
+    }
+
+    /// <summary>As the iPad's answerCard: the card's answers as data, with the conversation it's in, to its own path.</summary>
+    [Fact]
+    public void A_questions_card_s_answer_goes_as_data_to_its_card()
+    {
+        var shown = Assert.Single(Thread(Shown(Questions)).Shown);
+
+        var (path, body) = CoachChat.AnswerRequest("taf-coach", shown, """{"mode":{"value":"test"}}""")!.Value;
+
+        Assert.Equal("/v1/tafs/taf-coach/components/q1/answer", path);
+        Assert.Equal("""{"answer":{"mode":{"value":"test"}},"session":"s1"}""", Encoding.UTF8.GetString(body));
+        Assert.Null(CoachChat.AnswerRequest("taf-coach", shown, "not answers"));
+    }
+
+    /// <summary>As the iPad's answer(_:_:): sent, read again on a 409, the consent's code kept apart, anything else not reached.</summary>
+    [Fact]
+    public void What_sending_an_answer_comes_to()
+    {
+        Assert.Equal(CardSent.Sent, CoachChat.Sent(CloudRead.Of(Json("""{"run": "r", "session": "s"}"""))));
+        Assert.Equal(CardSent.ReadAgain, CoachChat.Sent(CloudRead.Refused(En, 409, """{"code": "ai_consent_required"}""")));
+        var consent = CloudRead.Refused(En, 403, """{"code": "ai_consent_required", "words": "Allow it first."}""");
+        Assert.Equal(("ai_consent_required", "Allow it first."), (consent.Code, consent.Why));
+        Assert.Equal(CardSent.Consent, CoachChat.Sent(consent));
+        Assert.Equal(CardSent.NotReached, CoachChat.Sent(CloudRead.Refused(En, 500, "")));
+        Assert.Equal(CardSent.NotReached, CoachChat.Sent(CloudRead.Unreached(En)));
     }
 }

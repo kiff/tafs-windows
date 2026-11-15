@@ -162,6 +162,7 @@ public sealed partial class MainWindow : Window
         {
             // Coach's thread comes through the same read, as the session; a screenshot never reads it.
             CoachMode.Read = path => CloudReadAsync(session.AccessToken, path);
+            CoachMode.Answer = (path, body) => CloudSendAsync(session.AccessToken, path, body);
             Root.Loaded += async (_, _) => await ReadHomeAsync(path => CloudReadAsync(session.AccessToken, path));
         }
     }
@@ -194,6 +195,22 @@ public sealed partial class MainWindow : Window
         string body;
         try { (status, body) = await KiffHttp.GetAsync(new Uri(HomeList.Api, path), bearer, w.Language); }
         catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
+        return Answered(w, status, body);
+    }
+
+    /// <summary>A card's answer sent to tafs cloud as the session, answered as a read is.</summary>
+    static async Task<CloudRead> CloudSendAsync(string bearer, string path, byte[] sent)
+    {
+        var w = App.Words;
+        int status;
+        string body;
+        try { (status, body) = await KiffHttp.PostAsync(new Uri(HomeList.Api, path), sent, bearer, w.Language); }
+        catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
+        return Answered(w, status, body);
+    }
+
+    static CloudRead Answered(Tafs.Core.Words.WordBook w, int status, string body)
+    {
         if (status is < 200 or > 299) return CloudRead.Refused(w, status, body);
         try
         {

@@ -37,16 +37,27 @@ the newest by update's `GET /v1/tafs/{id}/conversation/{session}` (the whole thr
   words (`WorkLog.rows`: "2 tries", failures only when nothing worked); a run's start as a centred line of two lines at
   most; then **While you were away** and the handed tasks' lines ("↳ Rae: …").
 - **Coach's cards** are read with the thread, as the iPad's `SetupThread`: one it can't read is left out; one shown again
-  replaces itself in place; a card its run waits on goes after Coach's words with it. None is drawn yet, so an answer to one
-  stays in its bubble, in the person's words: a confirm's option, a questions card's answers ("Test mode · In your words: …").
+  replaces itself in place; a card its run waits on goes after Coach's words with it. A kind not drawn yet is left out, and
+  an answer to one stays in its bubble, in the person's words ("Approve", a confirm's option).
+- **A questions card** (`QuestionsCardView`, as `QuestionsCard`): Coach's words, its title as an eyebrow ("Setup needs"
+  without one), "0 of 2 answered", each question numbered with its choices in a wrapping row (`WrapRow`, as `FlowRow`), then
+  "Something else…", which opens a field for the person's own words; a multi question takes several. Send answers (the brand
+  button) once every question is answered; Chat about this puts the card away ("You're talking these questions through…",
+  Show them again). Answered, it's one line, "Your answers · Test mode · Weekdays", and the answer's bubble is folded in.
+- **Sending** (`AnswerAsync`, as `AppModel.answer`): `POST /v1/tafs/{id}/components/{card}/answer` with
+  `{"answer": {…}, "session": …}`, only to the exact hosts, the card busy meanwhile. Sent, the thread is read again; a 409
+  (the card doesn't wait any more) reads it again too; refused for want of the AI-data consent (`ai_consent_required`), the
+  card stays as chosen; anything else says "Your answer didn't reach Setup. Tap it again." under the card.
 - `--home` with `--page coach` reads `coach-setup.json`, `coach-chats.json` and `coach-conversation.json` beside the Home
   file. tafs cloud has no contract for these reads yet; the tests use answers shaped as the iPad's decoders.
 
 **Not yet:**
 - **Coach's words as Markdown:** they show as written until `MarkdownText` is ported.
 - **A Coach with an empty thread:** the iPad shows `starts` ("Ask anything"); here the intro stays until writing is ported.
-- **Drawing Coach's cards**, each answer folded into its card, and the conversation read's proof and `?can=` (they mark
-  approval cards).
+- **Coach's other cards** (notices, results, confirms, approvals, sign-ins), and the conversation read's proof and `?can=`
+  (they mark approval cards).
+- **After an answer:** the iPad follows the run's stream as it writes; here the thread is read again, until the stream is
+  ported. The AI-data consent's screen isn't ported, so a refusal for it leaves the card as it was, with no line.
 - **Writing to Coach:** the composer, sending, the stream, Stop, unsent and queued messages, steering, reading again.
 - **Starting Coach:** Start stays off until it's wired.
   - tafs cloud's first start (its own words and the tools Coach is given, signed under one Windows Hello prompt);
