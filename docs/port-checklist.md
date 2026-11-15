@@ -18,7 +18,7 @@ ports a file updates its line here.
 | OnboardingView.swift | 63 | The welcome: what tafs is, Sign in with KIFF, Try it with sample data | The mascot, the title and lead, the three points, Sign in with KIFF (`SignInPage.xaml.cs`, `Tafs.Core/SignIn/SignInScreen.cs`) | Try it with sample data: the sample opens only with `--sample`, for screenshots |
 | SignInView.swift | 333 | `SignInView`: Sign in with KIFF. Also `SettingsView`, `PlanRow`, `AccountView`, `AccountLines` (Account) | `SignInView`: the code, Open KIFF, the link for another browser, the wait, why it failed and Sign in with KIFF again, adding this PC from the phone instead, the terms line (`SignInPage.xaml.cs`, `Tafs.Core/SignIn`). `SettingsView` as Account: Mode, View only, the Alerts row, the theme, the language and Change language, How it works, Legal, About, sign out with its question, Clear the sample (`AccountPage.xaml.cs`, `Tafs.Core/Account/AccountScreen.cs`) | `SignInView`'s Copy. The KIFF account's rows from `GET /v1/me` (KIFF account, Signed in as, `AccountLines`); People & apps; the Plan section (`PlanRow`); Coach's suggestions; the AI-data consent; the time zone; Your chats; `AccountView` (its lines, using this computer's zone, Export my chats, Delete account). The Alerts row opens a placeholder |
 | ShareViews.swift | 405 | Sharing a taf (`ShareLine`, `ShareTafSheet`), and the Overview (`OverviewView`) | `OverviewView`: the title and subtitle, NEEDS YOU's held calls, the grid with each taf's NOW, CARD and LAST RESULT (`lastResult`, each taf's report read), "Each line opens the taf.", Home from tafs cloud (`OverviewPage.xaml.cs`, `Tafs.Core/Home/Sidebar.cs`, `HomeList.cs`, `Tafs.Core/Taf/TafRuns.cs`) | Who uses each taf (`shares`); what else waits, in tafs cloud's words; a held call opening its taf's page (it opens Needs you). Sharing itself |
-| NeedsYouView.swift | 603 | Needs you: held calls, "Did this happen?", steps, Coach's waits, knocks, alerts | `NeedsYouView`'s title, held calls and empty state; `HeldCallCard`'s face, countdown, amount, what it asks, why it was held, the taf's words, and the expired state; in place of the answers, why this PC can't approve and Add this Windows PC (`NeedsYouPage.xaml.cs`, `Tafs.Core/NeedsYou/NeedsYouScreen.cs`). The held calls are the sample's | KIFF's held calls (a signed read); answering here (approve, extra room, next steps, refuse, Allow from now on, install), "someone else answers", Answer in KIFF; Coach's own hold; `DidThisHappenCard`, `AlertsCard`, `AlertsOfferSheet`, `CoachWaitingCard`, `SetAllAsideButton`; steps, Card-unit exceptions and knocks; scrolling to a call; refreshing |
+| NeedsYouView.swift | 603 | Needs you: held calls, "Did this happen?", steps, Coach's waits, knocks, alerts | `NeedsYouView`'s title, held calls and empty state; `HeldCallCard`'s face, countdown, amount, what it asks, why it was held, the taf's words, and the expired state; in place of the answers, why this PC can't approve and Add this Windows PC (`NeedsYouPage.xaml.cs`, `Tafs.Core/NeedsYou/NeedsYouScreen.cs`). The held calls are the sample's | KIFF's held calls (#68, open), with their notifications (#69, open); answering here (approve, extra room, next steps, refuse, Allow from now on, install), "someone else answers", Answer in KIFF; Coach's own hold; `DidThisHappenCard` (#76, open, its Yes and No with the approvals), `AlertsCard`, `AlertsOfferSheet`, `CoachWaitingCard`, `SetAllAsideButton`; steps (#77, open), Card-unit exceptions and knocks; scrolling to a call; refreshing |
 | AccountPreferencesView.swift | 37 | Account's theme and time zone pickers | `ThemePicker`: Light, Dark and System, kept across launches (`AccountPage.xaml.cs`, `Tafs.Core/Account/ThemeChoice.cs`) | `TimeZonePicker`: the search, the zones, choosing one, and using this computer's |
 | RecordView.swift | 689 | The Record, its rows, filters and receipts | `RecordView`'s list: the title and lead, the taf chips, the filters, the days, `RecordRow`'s dot, title, time and detail, from KIFF's activity (`RecordPage.xaml.cs`, `Tafs.Core/Record/RecordScreen.cs`, `KiffActivity.cs`). `ReceiptView`: its head, facts, steps, the receipt's facts without the checked heading, Copy receipt and mismatches (`ReceiptSheet`, #56, open) | `ReceiptView`'s signature check; search and Export receipts; reads folded into one line a day, and the day's spending; what a line acted on; tafs' own events; answers given here; "no longer waiting"; the taf chips from the account's tafs |
 | TafDetailView.swift | 1467 | A taf's page: head, tabs, Card bar, Activity, Card, Setup, panels | `header`, `StateChip`, the tabs (Chat off), `CardBar` (it opens Card); the sample's `activity(_:)` with `ActivityFilter`; `TafActivityList` for a tafs cloud taf; `setup(_:)`'s Card-unit exceptions, job, `ConnectedToolsRing`, Starts when and Results go to (off), `MemoryPanel` with Forget and Pause (the sample's), `MemorySummaryPanel`; the Card tab's `CardStack`, `WalletLayout`, `TafCardFace`, `EnvironmentPill`, `CardLines`, Revoke's question (`TafPage.xaml.cs`, `Tafs.Core/Taf`) | The Chat tab; `headerLine` (Versions, Share); the side column; held calls on Activity; on Card: the time zone lines, `eachItem`, `CountedView`, pending, unit words, `HaltRow`, Versions, Usage, Revoke's action; in Setup: `ConnectAgainPanel`, Improve in Coach, Remove, the sample's `ConnectionsPanel`; `HealthLines`, `RunsPanel`, `PromiseRow`, `WorkPanel`, `VersionsScreen`, `VersionsPanel`, `VersionCardSheet`, `DraftCardsView`, `CardFace`; a taf that's gone |
@@ -44,27 +44,27 @@ ports a file updates its line here.
 | AppEventApprovalSheet.swift | 54 | An app event's filters before signing a subscription | |
 | AttachViews.swift | 267 | Attaching photos and files in a chat | Attachment |
 | DeleteAccountView.swift | 60 | Deleting the account | |
-| DevicesView.swift | 69 | Account › Devices | |
+| DevicesView.swift | 69 | Account › Devices (#71, open) | |
 | DiscardSettingUp.swift | 35 | Discard a taf being set up | |
 | DoorsView.swift | 923 | A taf's Doors tab | DoorsModel, PlanqueClient |
 | DriveViews.swift | 73 | Coach asks to drive the app, and what it did | DriveSession |
-| ExportChatsView.swift | 82 | Export my chats | |
-| HaltScreen.swift | 176 | A halt of one taf or every taf | |
+| ExportChatsView.swift | 82 | Export my chats (#74, open) | |
+| HaltScreen.swift | 176 | A halt of one taf or every taf (#70, open) | |
 | HomeRecipes.swift | 242 | Home with no taf: the recipes | |
 | MicButton.swift | 122 | The mic in a chat's message bar | Dictation |
-| NotificationSettingsView.swift | 138 | Account › Alerts (Windows has its row only) | |
-| PeopleViews.swift | 291 | People & groups, naming a group, adding someone | |
+| NotificationSettingsView.swift | 138 | Account › Alerts (#72, open) | |
+| PeopleViews.swift | 291 | People & groups, naming a group, adding someone (#73, open, read-only) | |
 | PlanViews.swift | 268 | Buying credits and Solo, asking an admin, declining a request | Purchases |
 | RecipeGallery.swift | 135 | The jobs' gallery | |
 | RecordSearchViews.swift | 192 | The Record's search | |
-| ReportAnswerSheet.swift | 124 | Report an answer | |
+| ReportAnswerSheet.swift | 124 | Report an answer (#75, open, Coach's answers) | |
 | SetupShapePanel.swift | 130 | What Coach has made so far | SetupShape |
 | TafChatView.swift | 826 | A taf's chat | |
 | TafDialPanel.swift | 228 | The dial's requests and confirmation | KnobNavigation, DoorsModel |
 | TafKnobView.swift | 377 | The taf's remote | KnobNavigation |
 | TafSetupViews.swift | 512 | A taf's Setup: Starts when, Results go to, the pending dial | DoorsModel |
 | TrialViews.swift | 214 | Trials of a new version | |
-| YourStepCard.swift | 46 | A step a taf hands the person | |
+| YourStepCard.swift | 46 | A step a taf hands the person (#77, open) | |
 
 ## Not for Windows
 
