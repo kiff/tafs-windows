@@ -106,9 +106,6 @@ public sealed partial class MainWindow : Window
 
     void OnSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        // The open screen's row is heavier, with no fill, as on the owner's iPad; the others regular.
-        foreach (var row in Nav.MenuItems.OfType<NavigationViewItem>().Where(r => r != BrandItem))
-            row.FontWeight = ReferenceEquals(row, args.SelectedItem) ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
         if (args.SelectedItem is not NavigationViewItem item) return;
         ShowAccountChosen(false);
         if (item == BrandItem) Pages.Navigate(typeof(OverviewPage));

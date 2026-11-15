@@ -19,7 +19,7 @@ One sidebar for the whole app, as on the iPad ([the sidebar and the Overview](ho
 - Your tafs;
 - Coach and Account at the foot.
 
-The chosen screen opens beside it. The colours are the iPad's `Theme.swift`, light and dark (`Theme.xaml`), and they follow Windows' setting. The open screen's row is heavier, with no fill, as on the owner's iPad.
+The chosen screen opens beside it. The colours are the iPad's `Theme.swift`, light and dark (`Theme.xaml`), and they follow Windows' setting. The chosen row is a rounded fill, as on the iPad.
 
 Built so far:
 - [Sign in with KIFF](sign-in.md);
