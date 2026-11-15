@@ -49,7 +49,7 @@ public static class TafScreen
         [
             new("refund", w.Get("sample.refunds.rule.refunds"), day, KiffAmount.Euros(150), KiffAmount.Euros(2_000)),
             new("credit", w.Get("sample.refunds.rule.credits"), day, KiffAmount.Euros(100), KiffAmount.Euros(1_000)),
-            new("payout", w.Get("sample.refunds.rule.payouts"), day, Never: true, Holds: false),
+            new("payout", w.Get("sample.refunds.rule.payouts"), day, Never: true, Outside: Outside.Refuse),
         ], new CardTotal(KiffAmount.Euros(2_000), KiffAmount.Euros(40), day));
     }
 

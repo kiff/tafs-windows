@@ -51,14 +51,18 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
 **Cards** (`TafCard`, the iPad's `TafCard` and `CardRule`): a taf holds one KIFF Card or several, each with its own
 rules and totals.
 - **Amounts are KIFF's:** an integer with its unit and scale (`KiffAmount`), shown in the app's language. A currency
-  keeps its own symbol ("€12.50"), another unit follows the number ("1,500 credits"), and a bare number says so
-  ("30,000 (no currency)").
+  keeps its own symbol as that language writes it ("€12.50"; the code itself where the language has no region using
+  it), another unit follows the number ("1,500 credits"), and a bare number says so ("30,000 (no currency)").
+- **Extra room stays apart:** tafs cloud's limit and a rule's `per_window` include it. With `extra_room` and
+  `base_limit`, the Card's own limit and the room show apart: "left today of €2,000 + €30 extra room until 00:00",
+  "€2,000 in total a day, then it asks you · +€30 extra room today", never "of €2,030".
 - **Its figure** (`Hero`) is what's left of its money total, else of its calls. What's left shows only when the use is
   known in the limit's own unit and scale. Otherwise the limit shows alone, "€2,000 a day · use unavailable", and no
   figure is ever worked out here.
 - **A rule's limits** read as KIFF's Cards say them: "up to €150 each; more asks you first · €2,000 in total a day,
   then it asks you" when past them it asks; "≤ €150 each · €2,000 a day" when it refuses; "never", "always asks you".
-  Under its name: "Outside: held for you" or "Outside: refused".
+  Under its name: "Outside: held for you" or "Outside: refused", from KIFF's `outside` (`hold` or `refuse`).
+- **What it carries for the Card tab:** a total's pending use and why it has no currency, in KIFF's words as sent.
 - **Its facts:** its main rule and how many tools, or without a figure its first two rules and how many more.
 - **A window** is KIFF's (`calendar_day`, `rolling_24h`, `rolling_7d`, `rolling_1h`, `lifetime`). tafs cloud's words
   come first, and one this app doesn't know reads as sent, never as a day.
@@ -74,6 +78,6 @@ rules and totals.
   Card-unit exceptions (whose change Coach asks to sign), Connect again, the memory's See all, Improve in Coach, and
   Remove. Forget and Pause also need to reach tafs cloud; for now they change the sample's page only.
 - **The Card tab:** the stack of Cards, every rule's lines, and Revoke. The Card bar's chevron opens it, so the chevron
-  comes with it. Also a Card's totals for each item, and how KIFF counts each tool.
+  comes with it. Also a Card's pending use and unit words drawn, its totals for each item, and how KIFF counts each tool.
 - **The rest:** the head's second line (the version and Share); held calls, Card-unit exceptions, its work and its runs
   at the top of the Activity; a line's receipt and its next step.

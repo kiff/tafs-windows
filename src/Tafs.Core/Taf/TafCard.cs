@@ -3,38 +3,55 @@ using Tafs.Core.Words;
 
 namespace Tafs.Core.Taf;
 
+/// <summary>What happens to a call past a Card's limits, as KIFF says it (<c>outside: "hold" | "refuse"</c>).</summary>
+public enum Outside { Hold, Refuse }
+
 /// <summary>
 /// One action a Card allows, and its limits (the iPad's CardRule): up to an amount each, a total for its window, a count
-/// of calls. Past them a call is held for the person (<paramref name="Holds"/>) or refused. Never: never allowed.
+/// of calls. Past them a call is held for the person or refused. Never: never allowed. <paramref name="PerWindow"/> is
+/// KIFF's, at the ceiling it has now; with extra room, the room, the Card's own total and when the room ends come apart.
 /// </summary>
 public sealed record CardRule(string Action, string Label, CardWindow Window, KiffAmount? PerAction = null,
-    KiffAmount? PerWindow = null, int? CountPerWindow = null, bool Never = false, bool AlwaysAsk = false, bool Holds = true)
+    KiffAmount? PerWindow = null, int? CountPerWindow = null, bool Never = false, bool AlwaysAsk = false, Outside Outside = Outside.Hold,
+    KiffAmount? ExtraRoom = null, KiffAmount? BaseLimit = null, DateTimeOffset? RoomEnds = null)
 {
+    /// <summary>The Card's own total for its window: KIFF's, without the extra room in it.</summary>
+    public KiffAmount? OwnTotal => ExtraRoom is not null ? BaseLimit ?? PerWindow : PerWindow;
+
+    /// <summary>"+€30 extra room today", or "+€30 extra room until 00:00", when KIFF says there's some.</summary>
+    public string? RoomWords(WordBook w, TimeZoneInfo? zone = null, DateTimeOffset? now = null) =>
+        ExtraRoom is not { } extra || BaseLimit is null ? null
+        : RoomEnds is { } ends ? w.Get("card.extra_room_until", ("extra", extra.Formatted(w)), ("ends", TafCard.EndsWords(w, ends, zone, now)))
+        : w.Get("card.extra_room", ("extra", extra.Formatted(w)), ("window", Window.Current));
+
     /// <summary>
     /// Its limits in the words KIFF's Cards use, the same on every app: "up to €150 each; more asks you first · €2,000 in
     /// total a day, then it asks you" when past them it asks; "≤ €150 each · €2,000 a day" when it refuses.
     /// </summary>
-    public string Summary(WordBook w)
+    public string Summary(WordBook w, TimeZoneInfo? zone = null, DateTimeOffset? now = null)
     {
         if (Never) return w.Get("card.rule.never");
         if (AlwaysAsk) return w.Get("card.rule.always_asks");
         var parts = new List<string>();
-        if (Holds)
+        var room = RoomWords(w, zone, now);
+        if (Outside == Outside.Hold)
         {
             if (PerAction is { } each) parts.Add(w.Get("card.rule.up_to_each", ("amount", each.Formatted(w))));
-            if (PerWindow is { } total) parts.Add(w.Get("card.asks_you", ("formatted", total.Formatted(w)), ("sum_label", Window.SumLabel(w))));
+            if (OwnTotal is { } total) parts.Add(w.Get("card.asks_you", ("formatted", total.Formatted(w)), ("sum_label", Window.SumLabel(w))));
+            if (room is not null) parts.Add(room);
             if (CountPerWindow is { } count)
                 parts.Add(count == 0 ? w.Get("card.held.each_call_asks") : w.Count("card.rule.calls_then_asks", count, ("window", Window.Label)));
             return string.Join(" · ", parts);
         }
         if (PerAction is { } most) parts.Add(w.Get("card.rule.at_most_each", ("amount", most.Formatted(w))));
-        if (PerWindow is { } own) parts.Add($"{own.Formatted(w)} {(own.Unit is null ? Window.SumLabel(w) : Window.Label)}");
+        if (OwnTotal is { } own) parts.Add($"{own.Formatted(w)} {(own.Unit is null ? Window.SumLabel(w) : Window.Label)}");
+        if (room is not null) parts.Add(room);
         if (CountPerWindow is { } calls) parts.Add(w.Count("card.calls_window", calls, ("window", Window.Label)));
         return string.Join(" · ", parts);
     }
 
     /// <summary>Under its name: what happens past its limits, "Outside: held for you" or "Outside: refused".</summary>
-    public string Outside(WordBook w) => w.Get(Holds ? "card.outside_held" : "card.outside_refused");
+    public string OutsideWords(WordBook w) => w.Get(Outside == Outside.Hold ? "card.outside_held" : "card.outside_refused");
 }
 
 /// <summary>
@@ -52,7 +69,7 @@ public sealed record TafCard(string Id, string Title, IReadOnlyList<CardRule> Ru
     /// calls. What's left only when the use is known in the limit's own unit and scale; otherwise the limit alone, its use
     /// unavailable, never zero left or used. A bare number says so once, after the words.
     /// </summary>
-    public (string Figure, string Words)? Hero(WordBook w)
+    public (string Figure, string Words)? Hero(WordBook w, TimeZoneInfo? zone = null, DateTimeOffset? now = null)
     {
         if (Total is { } t)
         {
@@ -60,16 +77,24 @@ public sealed record TafCard(string Id, string Title, IReadOnlyList<CardRule> Ru
             if (t.Used is { } used && used.SameKind(t.Limit))
             {
                 var left = new KiffAmount(Math.Max(0, t.Limit.Minor - used.Minor), t.Limit.Unit, t.Limit.Scale);
+                // The Card's own total and the extra room apart, as KIFF says them: "of €300 + €30 extra room until 00:00".
+                if (t.Extra is { } extra && t.Base is { } own)
+                {
+                    var until = t.RoomEnds is { } ends ? w.Get("card.until_ends", ("ends", EndsWords(w, ends, zone, now))) : "";
+                    return (left.Figure(w), w.Get("card.left_extra_room", ("current", t.Window.Current), ("own", own.Figure(w)),
+                        ("extra", extra.Figure(w)), ("until", until), ("note", note)));
+                }
                 return (left.Figure(w), w.Get("card.hero.left_of_note", ("window", t.Window.Current), ("limit", t.Limit.Figure(w)), ("note", note)));
             }
             return (t.Limit.Figure(w), w.Get("card.hero.use_unavailable_note", ("label", t.Window.Label), ("note", note)));
         }
         if (Calls is { } c)
         {
-            var limit = c.Limit.ToString("N0", Culture(w));
+            // Written as the iPad writes a count: plain, ungrouped.
+            var limit = c.Limit.ToString(CultureInfo.InvariantCulture);
             if (c.Used is not { } made) return (limit, w.Get("card.hero.calls_use_unavailable", ("window", c.Window.Label)));
             var left = Math.Max(0, c.Limit - made);
-            return (left.ToString("N0", Culture(w)), w.Count("card.hero.calls_left_of", left, ("window", c.Window.Current), ("limit", limit)));
+            return (left.ToString(CultureInfo.InvariantCulture), w.Count("card.hero.calls_left_of", left, ("window", c.Window.Current), ("limit", limit)));
         }
         return null;
     }
@@ -88,7 +113,7 @@ public sealed record TafCard(string Id, string Title, IReadOnlyList<CardRule> Ru
         }
         var facts = new List<string>();
         if (Rules.FirstOrDefault(r => r.PerAction is not null) is { PerAction: { } each } rule)
-            facts.Add(w.Get(rule.Holds ? "card.rule.up_to_each" : "card.rule.at_most_each_refused_above", ("amount", each.Formatted(w))));
+            facts.Add(w.Get(rule.Outside == Outside.Hold ? "card.rule.up_to_each" : "card.rule.at_most_each_refused_above", ("amount", each.Formatted(w))));
         if (Rules.Count > 1) facts.Add(w.Count("card.tools", Rules.Count));
         return facts;
     }
@@ -104,6 +129,15 @@ public sealed record TafCard(string Id, string Title, IReadOnlyList<CardRule> Ru
         if (EnvironmentLabel is not null) under.Add(Culture(w).TextInfo.ToTitleCase(Environment.ToLowerInvariant()));
         if (cards > 1) under.Add(w.Count("card.count", cards));
         return new(hero is { } h ? $"{h.Figure} {h.Words}" : Title, string.Join(" · ", under));
+    }
+
+    /// <summary>When something ends, as the iPad's endsWords: the time alone today, its date too on a later day.</summary>
+    public static string EndsWords(WordBook w, DateTimeOffset at, TimeZoneInfo? zone = null, DateTimeOffset? now = null)
+    {
+        zone ??= TimeZoneInfo.Local;
+        var local = TimeZoneInfo.ConvertTime(at, zone);
+        var today = TimeZoneInfo.ConvertTime(now ?? DateTimeOffset.UtcNow, zone).Date;
+        return local.Date == today ? local.ToString("HH:mm", CultureInfo.InvariantCulture) : local.ToString("d MMM yyyy, HH:mm", Culture(w));
     }
 
     static CultureInfo Culture(WordBook w) => CultureInfo.GetCultureInfo(w.Language == "pt" ? "pt-PT" : w.Language);

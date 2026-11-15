@@ -36,7 +36,7 @@ public sealed record KiffAmount
         var value = Minor / (decimal)Math.Pow(10, Scale);
         var places = value == decimal.Truncate(value) ? 0 : Scale;
         if (Unit is null) return value.ToString("N" + places, culture);
-        if (Symbol(Unit) is { } symbol)
+        if (Symbol(Unit, culture) is { } symbol)
         {
             var format = (NumberFormatInfo)culture.NumberFormat.Clone();
             format.CurrencySymbol = symbol;
@@ -48,13 +48,32 @@ public sealed record KiffAmount
     /// <summary>As shown on its own: the figure, or for a bare number, saying it has none ("30,000 (no currency)").</summary>
     public string Formatted(WordBook w) => Unit is null ? w.Get("card.no_currency", ("amount", Figure(w))) : Figure(w);
 
-    static readonly ConcurrentDictionary<string, string?> Symbols = new();
+    static readonly ConcurrentDictionary<(string, string), string?> Symbols = new();
 
-    /// <summary>A currency code's own symbol ("EUR" is "€"), or none for a unit that isn't a currency.</summary>
-    static string? Symbol(string code) => Symbols.GetOrAdd(code.ToUpperInvariant(), c =>
-        CultureInfo.GetCultures(CultureTypes.SpecificCultures)
-            .Select(ci => { try { return new RegionInfo(ci.Name); } catch (ArgumentException) { return null; } })
-            .FirstOrDefault(r => r?.ISOCurrencySymbol == c)?.CurrencySymbol);
+    /// <summary>
+    /// A currency code's symbol as the app's language writes it: its own region's when that region uses the currency
+    /// ("€" in French), else another region of the same language that does ("€" in English, from Ireland), else the code
+    /// itself ("USD" in French). None for a code no region uses: then it's a unit, not a currency.
+    /// </summary>
+    static string? Symbol(string code, CultureInfo language) => Symbols.GetOrAdd((code.ToUpperInvariant(), language.TwoLetterISOLanguageName), key =>
+    {
+        var (c, lang) = key;
+        var regions = CultureInfo.GetCultures(CultureTypes.SpecificCultures)
+            .Select(ci => (Culture: ci, Region: Region(ci)))
+            .Where(x => x.Region?.ISOCurrencySymbol == c)
+            .ToList();
+        if (regions.Count == 0) return null;
+        var own = CultureInfo.CreateSpecificCulture(language.Name);
+        return regions.FirstOrDefault(x => x.Culture.Name == own.Name).Region?.CurrencySymbol
+            ?? regions.FirstOrDefault(x => x.Culture.TwoLetterISOLanguageName == lang).Region?.CurrencySymbol
+            ?? c;
+    });
+
+    static RegionInfo? Region(CultureInfo ci)
+    {
+        try { return new RegionInfo(ci.Name); }
+        catch (ArgumentException) { return null; }
+    }
 }
 
 /// <summary>
@@ -82,8 +101,18 @@ public sealed record CardWindow(string Raw, string Label, string Current)
             now ?? (Known.TryGetValue(raw, out var n) ? w.Get(n.Now) : raw));
 }
 
-/// <summary>A Card's money total for its window: its limit, and what it has used, null when KIFF couldn't read it (never zero).</summary>
-public sealed record CardTotal(KiffAmount Limit, KiffAmount? Used, CardWindow Window);
+/// <summary>
+/// A Card's money total for its window, as KIFF says it: its limit at the ceiling it has now, and what it has used (null
+/// when KIFF couldn't read it, never zero). With extra room: the room, the Card's own limit without it, and when the room
+/// ends, always shown apart, never summed into the Card's own limit. <paramref name="Pending"/> is what of its use is from
+/// calls the tool refused, and <paramref name="UnitWords"/> why it has no currency, both in KIFF's words as sent.
+/// </summary>
+public sealed record CardTotal(KiffAmount Limit, KiffAmount? Used, CardWindow Window, KiffAmount? Extra = null, KiffAmount? Base = null,
+    DateTimeOffset? RoomEnds = null, string? Pending = null, string? UnitWords = null);
 
-/// <summary>A Card's count of calls for its window: its limit, and how many it has made, null when KIFF couldn't read it.</summary>
-public sealed record CallsTotal(int Limit, int? Used, CardWindow Window);
+/// <summary>
+/// A Card's count of calls for its window: its limit, how many it has made (null when KIFF couldn't read it), and the
+/// extra room, own limit and room's end and pending use when KIFF says them, kept for the Card tab.
+/// </summary>
+public sealed record CallsTotal(int Limit, int? Used, CardWindow Window, int? Extra = null, int? Base = null, DateTimeOffset? RoomEnds = null,
+    string? Pending = null);
