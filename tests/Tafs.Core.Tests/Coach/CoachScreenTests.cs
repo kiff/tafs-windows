@@ -25,6 +25,14 @@ public class CoachScreenTests
     public void The_panel_opens_at_a_third_of_the_window(double window, double width) =>
         Assert.Equal(width, CoachScreen.PanelWidth(window), 2);
 
+    [Fact]
+    public void It_slides_in_over_the_iPads_time_and_fades_with_animations_off()
+    {
+        Assert.Equal(TimeSpan.FromSeconds(0.22), CoachScreen.MotionTime);
+        Assert.Equal(CoachMotion.Slide, CoachScreen.Motion(animationsEnabled: true));
+        Assert.Equal(CoachMotion.Fade, CoachScreen.Motion(animationsEnabled: false));
+    }
+
     [Theory]
     [MemberData(nameof(Shipped))]
     public void Every_line_is_filled_and_names_Windows_Hello_in_every_shipped_language(string language)

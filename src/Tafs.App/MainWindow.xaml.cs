@@ -87,6 +87,8 @@ public sealed partial class MainWindow : Window
         SignInPage.PairInsteadChosen += OpenPairing;
         NeedsYouPage.AddThisDeviceChosen += OpenPairing;
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
+        // Focus goes back to the sidebar's Coach when Coach mode has gone.
+        CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
         OverviewPage.NeedsYouChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         SignInPage.SignedIn += session =>
         {
@@ -120,7 +122,7 @@ public sealed partial class MainWindow : Window
         {
             // Over the Overview, which stays in view beside it.
             Nav.SelectedItem = BrandItem;
-            CoachMode.Open();
+            CoachMode.Open(animate: false);
         }
         else if (page == "connect-apps") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
         else if (page == "record") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
@@ -210,7 +212,6 @@ public sealed partial class MainWindow : Window
         else Pages.Navigate(typeof(ComingPage), item.Content);
     }
 
-    /// <summary>Coach at the sidebar's foot. Coach itself comes in its own change, in the spec's order.</summary>
     /// <summary>Coach mode slides in from the right, over what's open, which stays in view.</summary>
     void OnCoach(object sender, RoutedEventArgs e) => CoachMode.Open();
 

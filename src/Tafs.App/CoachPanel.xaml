@@ -1,5 +1,6 @@
 <!-- Coach mode (the iPad's CoachPanel): over what's open, which stays in view, a backdrop that closes it, and the panel
-     from the right, a third of the window wide, on Coach's own wash. Before Coach starts: the intro, as SetupChatView's. -->
+     from the right, a third of the window wide. The panel is on the background, as the iPad's: its bar across the top
+     and a 16-wide strip down the left holding the handle, with Coach's wash only under the intro (SetupChatView's). -->
 <UserControl x:Class="Tafs.App.CoachPanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
@@ -11,40 +12,66 @@
     <!-- The backdrop: black at 12%; a tap on it closes Coach mode. -->
     <Rectangle x:Name="Backdrop" Grid.ColumnSpan="2" Fill="#1F000000" Tapped="OnBackdrop" />
 
-    <Grid x:Name="Sheet" Grid.Column="1" Background="{ThemeResource TafsCoachWash}" Padding="24,12,24,20" RowSpacing="14">
-      <Grid.RowDefinitions>
-        <RowDefinition Height="Auto" />
-        <RowDefinition Height="*" />
-        <RowDefinition Height="Auto" />
-        <RowDefinition Height="Auto" />
-      </Grid.RowDefinitions>
-      <!-- The left edge's handle, as the iPad's: a capsule, the dim at 50%. -->
-      <Rectangle Grid.RowSpan="4" Width="5" Height="44" RadiusX="2.5" RadiusY="2.5" Margin="-18,0,0,0" HorizontalAlignment="Left"
-                 VerticalAlignment="Center" Fill="{ThemeResource TafsDim}" Opacity="0.5" />
-      <!-- Full screen and Back on a pill, and the title inline. -->
-      <Grid>
-        <Border Style="{StaticResource TafsToolPill}" HorizontalAlignment="Left">
-          <StackPanel Orientation="Horizontal">
-            <Button x:Name="FullScreen" Click="OnFull" Style="{StaticResource TafsArrow}" Width="40">
-              <FontIcon x:Name="FullIcon" Glyph="&#xE740;" FontSize="15" Foreground="{ThemeResource TafsCoach}" />
-            </Button>
-            <Button x:Name="Back" Click="OnBack" Style="{StaticResource TafsArrow}" Width="40">
-              <FontIcon Glyph="&#xE76B;" FontSize="16" Foreground="{ThemeResource TafsCoach}" />
-            </Button>
+    <!-- What slides: the panel and its shadow. -->
+    <Grid x:Name="Panel" Grid.Column="1">
+      <Grid.RenderTransform>
+        <TranslateTransform x:Name="Slide" />
+      </Grid.RenderTransform>
+      <!-- The iPad's shadow (black at 18%, radius 24, 4 to the left), as a soft edge. -->
+      <Rectangle Width="24" Margin="-24,0,0,0" HorizontalAlignment="Left" IsHitTestVisible="False">
+        <Rectangle.Fill>
+          <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+            <GradientStop Color="#00000000" Offset="0" />
+            <GradientStop Color="#2E000000" Offset="1" />
+          </LinearGradientBrush>
+        </Rectangle.Fill>
+      </Rectangle>
+
+      <Grid x:Name="Sheet" Background="{ThemeResource TafsBackground}">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="16" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <!-- The left edge's handle, in its own strip: a capsule, the dim at 50%. -->
+        <Rectangle Grid.RowSpan="2" Width="5" Height="44" RadiusX="2.5" RadiusY="2.5" HorizontalAlignment="Center"
+                   VerticalAlignment="Center" Fill="{ThemeResource TafsDim}" Opacity="0.5" />
+        <!-- The bar: Full screen and Back on a pill, and the title inline. -->
+        <Grid Grid.Column="1" Padding="0,12,16,12">
+          <Border Style="{StaticResource TafsToolPill}" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal">
+              <Button x:Name="FullScreen" Click="OnFull" Style="{StaticResource TafsArrow}" Width="40">
+                <FontIcon x:Name="FullIcon" Glyph="&#xE740;" FontSize="15" Foreground="{ThemeResource TafsCoach}" />
+              </Button>
+              <Button x:Name="Back" Click="OnBack" Style="{StaticResource TafsArrow}" Width="40">
+                <FontIcon Glyph="&#xE76B;" FontSize="16" Foreground="{ThemeResource TafsCoach}" />
+              </Button>
+            </StackPanel>
+          </Border>
+          <TextBlock x:Name="TitleText" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"
+                     Foreground="{ThemeResource TafsInk}" />
+        </Grid>
+        <!-- The intro, on Coach's wash, padded 20 as the iPad's. -->
+        <Grid Grid.Row="1" Grid.Column="1" Background="{ThemeResource TafsCoachWash}" Padding="20" RowSpacing="14">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <StackPanel Spacing="14" VerticalAlignment="Center">
+            <TextBlock x:Name="Heading" FontSize="30" FontWeight="Bold" TextWrapping="Wrap" Foreground="{ThemeResource TafsCoach}"
+                       AutomationProperties.HeadingLevel="Level1" />
+            <TextBlock x:Name="LineText" FontSize="16" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
           </StackPanel>
-        </Border>
-        <TextBlock x:Name="TitleText" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"
-                   Foreground="{ThemeResource TafsInk}" />
+          <!-- Start: dimmed, as the iPad's is with nothing to start Coach with, until starting is wired. -->
+          <Button x:Name="Start" Grid.Row="1" IsEnabled="False" Style="{StaticResource TafsPrimaryOff}" />
+          <TextBlock x:Name="Footnote" Grid.Row="2" FontSize="12" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center"
+                     Foreground="{ThemeResource TafsDim}" />
+        </Grid>
       </Grid>
-      <StackPanel Grid.Row="1" Spacing="14" VerticalAlignment="Center">
-        <TextBlock x:Name="Heading" FontSize="30" FontWeight="Bold" TextWrapping="Wrap" Foreground="{ThemeResource TafsCoach}"
-                   AutomationProperties.HeadingLevel="Level1" />
-        <TextBlock x:Name="LineText" FontSize="16" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
-      </StackPanel>
-      <!-- Start: dimmed, as the iPad's is with nothing to start Coach with, until starting is wired. -->
-      <Button x:Name="Start" Grid.Row="2" IsEnabled="False" Style="{StaticResource TafsPrimaryOff}" />
-      <TextBlock x:Name="Footnote" Grid.Row="3" FontSize="12" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center"
-                 Foreground="{ThemeResource TafsDim}" />
     </Grid>
   </Grid>
 </UserControl>
