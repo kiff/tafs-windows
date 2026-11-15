@@ -37,7 +37,9 @@ the newest by update's `GET /v1/tafs/{id}/conversation/{session}` (the whole thr
   words (`WorkLog.rows`: "2 tries", failures only when nothing worked); a run's start as a centred line of two lines at
   most; then **While you were away** and the handed tasks' lines ("↳ Rae: …").
 - **Coach's cards** are read with the thread, as the iPad's `SetupThread`: one it can't read is left out; one shown again
-  replaces itself in place; a card its run waits on goes after Coach's words with it. A kind not drawn yet is left out, and
+  replaces itself in place; a card its run waits on goes after Coach's words with it. Each field the iPad declares is read
+  with its decoder's shapes: absent or null is none, another shape leaves the card out; an answer whose state or words
+  aren't words leaves the card unanswered. A kind not drawn yet is left out, and
   an answer to one stays in its bubble, in the person's words ("Approve", a confirm's option).
 - **A questions card** (`QuestionsCardView`, as `QuestionsCard`): Coach's words, its title as an eyebrow ("Setup needs"
   without one), "0 of 2 answered", each question numbered with its choices in a wrapping row (`WrapRow`, as `FlowRow`), then
@@ -50,8 +52,12 @@ the newest by update's `GET /v1/tafs/{id}/conversation/{session}` (the whole thr
   (`StepMark`: a tick on the green, a cross on the red, a ring in the amber at work, a faint ring to do). A tap opens every
   step, the active one in bold, a skipped one struck through, those to come dimmed; another folds it. Narrator reads a
   mark's status as tafs cloud words it ("done"), as the iPad's does.
+- **Who may answer** (`CoachAccess`, as `AppModel.mayUseCoach`): KIFF's access to Setup's agent (`GET /v1/me/access`),
+  else the account's `members.manage` capability (`GET /v1/me`); nothing read is no. Without it, Send stays off.
 - **Sending** (`AnswerAsync`, as `AppModel.answer`): `POST /v1/tafs/{id}/components/{card}/answer` with
-  `{"answer": {…}, "session": …}`, only to the exact hosts, the card busy meanwhile. Sent, the thread is read again; a 409
+  `{"answer": {…}, "session": …}`, only to the exact hosts, allowing 70 seconds, for the card waiting under that id
+  (`cardRef`), every card under it busy meanwhile. Sent only when tafs cloud answers its session, run and status.
+  Signing out drops the thread, what was answered and an answer in flight. Sent, the thread is read again; a 409
   (the card doesn't wait any more) reads it again too; refused for want of the AI-data consent (`ai_consent_required`), the
   card stays as chosen; anything else says "Your answer didn't reach Setup. Tap it again." under the card.
 - `--home` with `--page coach` reads `coach-setup.json`, `coach-chats.json` and `coach-conversation.json` beside the Home
@@ -64,6 +70,9 @@ the newest by update's `GET /v1/tafs/{id}/conversation/{session}` (the whole thr
   (they mark approval cards).
 - **After an answer:** the iPad follows the run's stream as it writes; here the thread is read again, until the stream is
   ported. The AI-data consent's screen isn't ported, so a refusal for it leaves the card as it was, with no line.
+- **Signing in again in the same window:** Coach's reads and answers are wired at launch, as Home's are, so after a
+  sign-out Coach reads nothing until the app starts again with the new session.
+- **A drive's end** (what Coach did in the app, `DriveRecap`), placed in the thread on the iPad: with drives.
 - **Writing to Coach:** the composer, sending, the stream, Stop, unsent and queued messages, steering, reading again.
 - **Starting Coach:** Start stays off until it's wired.
   - tafs cloud's first start (its own words and the tools Coach is given, signed under one Windows Hello prompt);

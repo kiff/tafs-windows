@@ -28,14 +28,15 @@ sealed class QuestionsCardView : StackPanel
     readonly QuestionsCardState state;
     readonly bool busy;
     readonly string? note;
-    readonly Action<string> send;
+    readonly Action<string>? send;
     readonly Func<string, Brush> brush;
     readonly List<Action> refresh = [];
 
     /// <param name="busy">Answered here and not yet in the thread: nothing more can be picked or sent.</param>
     /// <param name="note">Why the last answer didn't reach Setup, as the iPad's <c>CardNote</c>.</param>
+    /// <param name="send">None for someone who may not use Coach, or a screenshot: Send stays off.</param>
     public QuestionsCardView(ShownCard shown, CardReply? answer, QuestionsCardState state, bool busy, string? note,
-        Action<string> send, Func<string, Brush> brush)
+        Action<string>? send, Func<string, Brush> brush)
     {
         (this.shown, this.answer, this.state, this.busy, this.note, this.send, this.brush) = (shown, answer, state, busy, note, send, brush);
         Build();
@@ -87,7 +88,7 @@ sealed class QuestionsCardView : StackPanel
         sending.Click += (_, _) => Send();
         refresh.Add(() =>
         {
-            sending.IsEnabled = Answered == Questions.Count && !busy;
+            sending.IsEnabled = Answered == Questions.Count && !busy && send is not null;
             sending.Style = Look(sending.IsEnabled ? "TafsPrimary" : "TafsPrimaryOff");
         });
         var chat = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
@@ -168,7 +169,7 @@ sealed class QuestionsCardView : StackPanel
         foreach (var q in Questions)
             if (state.Selection.Answer(q) is { } a) answers[q.Id] = a;
         if (answers.Count != Questions.Count) return;
-        send(QuestionAnswers.Encode(answers));
+        send?.Invoke(QuestionAnswers.Encode(answers));
     }
 
     /// <summary>An answered card, folded to one line, as the iPad's <c>OutcomeLine</c>: a tick in the green, its words soft, at 14.</summary>
