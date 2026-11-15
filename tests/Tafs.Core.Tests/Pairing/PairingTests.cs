@@ -1,3 +1,4 @@
+using Tafs.Core.Approvals;
 using System.Text;
 using System.Text.Json;
 using Tafs.Core.Kiff;
@@ -55,6 +56,73 @@ public class PairingTests
     }
 
     [Fact]
+    public void With_this_PC_s_own_passkey_the_QR_carries_its_credential_and_no_approval_pub()
+    {
+        using var device = new TestSigner();
+        using var passkey = new TestSigner();
+        var credential = new NewPasskey([1, 2, 3, 250], passkey.PublicKeyDer);
+        var offer = PairingOffer.Create(device.PublicKeyDer, null, "tafs", Now, Nonce, credential: credential);
+        using var qr = JsonDocument.Parse(offer.ToQrJson());
+        var r = qr.RootElement;
+        Assert.Equal("passkey", r.GetProperty("kind").GetString());
+        Assert.False(r.TryGetProperty("approval_pub", out _));
+        Assert.False(r.TryGetProperty("key_store", out _));
+        var c = r.GetProperty("credential");
+        Assert.Equal(new[] { "id", "public_key" }, c.EnumerateObject().Select(p => p.Name));
+        Assert.Equal("AQID-g", c.GetProperty("id").GetString());
+        Assert.Equal(KiffSigning.Base64Url(passkey.PublicKeyDer), c.GetProperty("public_key").GetString());
+        Assert.DoesNotContain("=", c.GetProperty("public_key").GetString());
+    }
+
+    [Fact]
+    public void The_passkey_s_pairing_challenge_is_over_the_nonce_and_the_device_key()
+    {
+        var nonce = KiffSigning.Base64Url(Nonce);
+        var expected = KiffSigning.Base64Url(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes("kiff.passkey.pair.v1\n" + nonce + "\n" + KiffSigning.Base64Url(ExampleKey))));
+        Assert.Equal(expected, PairingClaim.PasskeyChallenge(nonce, ExampleKey));
+        Assert.NotEqual(expected, PairingClaim.PasskeyChallenge(nonce, ExampleKey[..^1].Append((byte)0).ToArray()));
+    }
+
+    [Fact]
+    public async Task The_claim_carries_the_passkey_s_creation_proof_only_when_switched_on()
+    {
+        using var device = new TestSigner();
+        using var passkey = new TestSigner();
+        var made = new NewPasskey([7], passkey.PublicKeyDer) { Proof = new PasskeyCreationProof([1, 2], [3, 4]) };
+        var offer = PairingOffer.Create(device.PublicKeyDer, null, "tafs", Now, Nonce, credential: made);
+
+        using var off = JsonDocument.Parse(await PairingClaim.BodyAsync(offer, device));
+        Assert.Equal(new[] { "nonce", "pub", "proof" }, off.RootElement.EnumerateObject().Select(p => p.Name));
+        Assert.False(Features.PairingPasskeyProof, "off until KIFF takes it");
+
+        using var on = JsonDocument.Parse(await PairingClaim.BodyAsync(offer, device, withPasskeyProof: true));
+        var made2 = on.RootElement.GetProperty("credential_proof");
+        Assert.Equal(new[] { "client_data_json", "attestation_object" }, made2.EnumerateObject().Select(p => p.Name));
+        Assert.Equal("AQI", made2.GetProperty("client_data_json").GetString());
+        Assert.Equal("AwQ", made2.GetProperty("attestation_object").GetString());
+
+        // An offer with no credential, or a credential with no proof, sends none even when on.
+        var plain = PairingOffer.Create(device.PublicKeyDer, null, "tafs", Now, Nonce, credential: made with { Proof = null });
+        using var none = JsonDocument.Parse(await PairingClaim.BodyAsync(plain, device, withPasskeyProof: true));
+        Assert.False(none.RootElement.TryGetProperty("credential_proof", out _));
+    }
+
+    [Fact]
+    public void A_credential_never_comes_with_an_approval_key_a_software_key_or_the_device_key()
+    {
+        using var device = new TestSigner();
+        using var other = new TestSigner();
+        var good = new NewPasskey([1], other.PublicKeyDer);
+        Assert.Throws<ArgumentException>(() => PairingOffer.Create(device.PublicKeyDer, ExampleKey, "tafs", Now, credential: good));
+        Assert.Throws<ArgumentException>(() => PairingOffer.Create(device.PublicKeyDer, null, "tafs", Now, deviceKeyInSoftware: true, credential: good));
+        Assert.Throws<ArgumentException>(() => PairingOffer.Create(device.PublicKeyDer, null, "tafs", Now, credential: new NewPasskey([1], device.PublicKeyDer)));
+        Assert.Throws<ArgumentException>(() => PairingOffer.Create(device.PublicKeyDer, null, "tafs", Now, credential: new NewPasskey([], other.PublicKeyDer)));
+        Assert.Throws<ArgumentException>(() => PairingOffer.Create(device.PublicKeyDer, null, "tafs", Now, credential: new NewPasskey(new byte[1024], other.PublicKeyDer)));
+        Assert.Throws<ArgumentException>(() => PairingOffer.Create(device.PublicKeyDer, null, "tafs", Now, credential: new NewPasskey([1], [1, 2])));
+    }
+
+    [Fact]
     public void The_two_keys_must_differ_and_be_P256()
     {
         using var device = new TestSigner();
@@ -93,6 +161,8 @@ public class PairingTests
         var two = Convert.FromHexString("3059301306072a8648ce3d020106082a8648ce3d030107034200047cf27b188d034f7e8a52380304b51ac3c08969e277f21b35a60b48fc4766997807775510db8ed040293d9ac69f7430dbba7dade63ce982299e04b79d227873d1");
         Assert.Equal("H6SJNU", PairingOffer.Create(one, two, "tafs", Now, Nonce).CheckCode());
         Assert.Equal("LTJFF6", PairingOffer.Create(one, null, "tafs", Now, Nonce).CheckCode());
+        // §5.2: a credential's key takes approval_pub's place, so the same pair gives the same code.
+        Assert.Equal("H6SJNU", PairingOffer.Create(one, null, "tafs", Now, Nonce, credential: new NewPasskey([9], two)).CheckCode());
     }
 
     [Fact]

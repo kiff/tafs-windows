@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using Tafs.Core.Approvals;
 using Tafs.Core.Kiff;
 
 namespace Tafs.Core.Pairing;
@@ -9,7 +10,10 @@ public enum ApprovalKind
 {
     /// <summary>A Windows Hello key in the TPM: the QR carries its public half.</summary>
     Hello,
-    /// <summary>No approval key (no TPM, say): approvals go through the phone or a passkey.</summary>
+    /// <summary>
+    /// No approval key: approvals are passkey assertions. With <see cref="PairingOffer.Credential"/>, this PC's own
+    /// Windows Hello passkey, which the phone's pairing approval registers for it (§2.6, §5.1).
+    /// </summary>
     Passkey,
 }
 
@@ -22,8 +26,10 @@ public sealed class PairingOffer
     /// <summary>KIFF accepts up to 5 minutes; a little less leaves room for the clocks to differ.</summary>
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(4.5);
 
-    PairingOffer(byte[] pub, byte[]? approvalPub, string name, ApprovalKind kind, bool keyInSoftware, string nonce, DateTimeOffset expires)
+    PairingOffer(byte[] pub, byte[]? approvalPub, string name, ApprovalKind kind, bool keyInSoftware, string nonce, DateTimeOffset expires,
+        NewPasskey? credential)
     {
+        Credential = credential;
         PublicKeyDer = pub;
         ApprovalPublicKeyDer = approvalPub;
         Name = name;
@@ -37,6 +43,9 @@ public sealed class PairingOffer
     public byte[]? ApprovalPublicKeyDer { get; }
     public string Name { get; }
     public ApprovalKind Kind { get; }
+
+    /// <summary>This PC's own Windows Hello passkey, registered by the pairing: only with <see cref="ApprovalKind.Passkey"/>.</summary>
+    public NewPasskey? Credential { get; }
 
     /// <summary>
     /// The device key isn't in the TPM (a PC without one). The QR then says key_store "software", and
@@ -52,9 +61,20 @@ public sealed class PairingOffer
     /// <param name="approvalPub">The Hello key's SPKI DER, or null for <see cref="ApprovalKind.Passkey"/>.</param>
     /// <param name="name">"tafs on this Windows PC", in the person's language: 1 to 64 characters, no control characters.</param>
     /// <param name="deviceKeyInSoftware">True when the device key isn't in the TPM: only with no approval key.</param>
+    /// <param name="credential">This PC's own passkey (Windows Hello), for a passkey offer from a device key in the TPM.</param>
     public static PairingOffer Create(
-        byte[] devicePub, byte[]? approvalPub, string name, DateTimeOffset now, byte[]? nonce = null, bool deviceKeyInSoftware = false)
+        byte[] devicePub, byte[]? approvalPub, string name, DateTimeOffset now, byte[]? nonce = null, bool deviceKeyInSoftware = false,
+        NewPasskey? credential = null)
     {
+        if (credential is not null)
+        {
+            // §5.1: only with kind passkey, never with approval_pub or a software device key (that's a view device).
+            if (approvalPub is not null) throw new ArgumentException("a passkey offer carries no approval key", nameof(credential));
+            if (deviceKeyInSoftware) throw new ArgumentException("a software device key pairs as view, with no credential", nameof(credential));
+            if (credential.CredentialId.Length is < 1 or > 1023) throw new ArgumentException("the credential id is 1 to 1023 bytes", nameof(credential));
+            if (!KiffSigning.IsP256Spki(credential.PublicKeyDer)) throw new ArgumentException("the passkey must be a P-256 SPKI", nameof(credential));
+            if (credential.PublicKeyDer.AsSpan().SequenceEqual(devicePub)) throw new ArgumentException("the passkey must differ from the device key", nameof(credential));
+        }
         if (deviceKeyInSoftware && approvalPub is not null)
             throw new ArgumentException("a software device key pairs as passkey, with no approval key", nameof(approvalPub));
         if (!KiffSigning.IsP256Spki(devicePub))
@@ -70,7 +90,7 @@ public sealed class PairingOffer
         if (nonce.Length != 32) throw new ArgumentException("the nonce is 32 random bytes", nameof(nonce));
 
         var kind = approvalPub is null ? ApprovalKind.Passkey : ApprovalKind.Hello;
-        return new PairingOffer(devicePub, approvalPub, name, kind, deviceKeyInSoftware, KiffSigning.Base64Url(nonce), now + Lifetime);
+        return new PairingOffer(devicePub, approvalPub, name, kind, deviceKeyInSoftware, KiffSigning.Base64Url(nonce), now + Lifetime, credential);
     }
 
     /// <summary>The QR's text: kiff.pair.v1, keys in base64url without padding.</summary>
@@ -87,6 +107,13 @@ public sealed class PairingOffer
             w.WriteString("platform", "windows");
             w.WriteString("kind", Kind == ApprovalKind.Hello ? "hello" : "passkey");
             if (DeviceKeyInSoftware) w.WriteString("key_store", "software");
+            if (Credential is not null)
+            {
+                w.WriteStartObject("credential");
+                w.WriteString("id", KiffSigning.Base64Url(Credential.CredentialId));
+                w.WriteString("public_key", KiffSigning.Base64Url(Credential.PublicKeyDer));
+                w.WriteEndObject();
+            }
             w.WriteString("nonce", Nonce);
             w.WriteString("exp", KiffSigning.Time(Expires));
             w.WriteEndObject();
@@ -96,11 +123,13 @@ public sealed class PairingOffer
 
     /// <summary>
     /// The 6 characters both screens show before the phone asks for the fingerprint (§5.2), so a page
-    /// showing its own QR can't get the person's phone to add someone else's key.
+    /// showing its own QR can't get the person's phone to add someone else's key. With a credential, its key takes
+    /// the approval key's place, so the code covers the passkey the phone registers.
     /// </summary>
     public string CheckCode()
     {
-        var bytes = ApprovalPublicKeyDer is null ? PublicKeyDer : PublicKeyDer.Concat(ApprovalPublicKeyDer).ToArray();
+        var second = ApprovalPublicKeyDer ?? Credential?.PublicKeyDer;
+        var bytes = second is null ? PublicKeyDer : PublicKeyDer.Concat(second).ToArray();
         return Base32(SHA256.HashData(bytes))[..6];
     }
 
