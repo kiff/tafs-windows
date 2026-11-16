@@ -1,0 +1,20 @@
+{
+  "grants": [
+    {
+      "id": "grt_1",
+      "status": "connected",
+      "text": "Refunds may refund a Stripe payment.",
+      "digest": "sha256:fixture",
+      "request": {
+        "server": "https://mcp.stripe.com",
+        "agent": "refunds",
+        "tools": [
+          { "tool": "refund_payment", "title": "Refund a payment" },
+          { "tool": "read_payment", "title": "Read a payment" }
+        ]
+      },
+      "vendor": "Stripe",
+      "events": []
+    }
+  ]
+}

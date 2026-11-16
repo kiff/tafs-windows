@@ -323,12 +323,14 @@ public sealed partial class MainWindow : Window
             Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Calendar);
         }
         else if (page == "usage") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
-        else if (page is "coach" or "coach-chats")
+        else if (page is "coach" or "coach-chats" or "coach-wide")
         {
-            // Over the Overview, which stays in view beside it; with coach-chats, on Previous conversations.
+            // Over the Overview, which stays in view beside it; with coach-chats, on Previous conversations; with coach-wide,
+            // full screen, so "Taking shape" shows beside the conversation.
             Nav.SelectedItem = BrandItem;
             CoachMode.Open(animate: false);
             if (page == "coach-chats") CoachMode.ShowPreviousChats();
+            if (page == "coach-wide") CoachMode.Widen();
         }
         else if (page is "gallery" or "gallery-job" or "new-taf") galleryAsked = page;
         else if (page == "connect-apps") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
