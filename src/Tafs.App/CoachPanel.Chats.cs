@@ -75,6 +75,7 @@ public sealed partial class CoachPanel
         conversationGen++;
         (conversation, session, begun, coachSending, chatError, previousAsked, drawnOrder) = (CoachConversation.Newest, null, false, false, null, false, null);
         coachSent.Clear();
+        coachUnsent.Clear();
         coachClock.Stop();
         CoachDraft.Text = "";
         ChatsView.Visibility = Visibility.Collapsed;
@@ -115,7 +116,7 @@ public sealed partial class CoachPanel
         {
             ThreadItems.Children.Clear();
             PlanHost.Visibility = Visibility.Collapsed;
-            if (coachSent.Count == 0)
+            if (coachSent.Count == 0 && coachUnsent.Count == 0)
             {
                 var w = App.Words;
                 var empty = new StackPanel { Spacing = 8, Margin = new Thickness(4, 40, 4, 0) };
@@ -133,6 +134,10 @@ public sealed partial class CoachPanel
                 HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0),
                 Children = { ChatViews.OwnerBubble(m.Text, Brush) },
             });
+        // What tafs cloud didn't take, after it, where it was written.
+        foreach (var m in coachUnsent)
+            ThreadItems.Children.Add(ChatViews.UnsentBubble(App.Words, m, Brush, coachSending,
+                () => RetryCoachUnsent(m), () => EditCoachUnsent(m), () => DeleteCoachUnsent(m)));
         Intro.Visibility = Visibility.Collapsed;
         ChatsView.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Visible;
@@ -185,6 +190,7 @@ public sealed partial class CoachPanel
             conversationGen++;
             (conversation, session, thread, chatError, coachSending, drawnOrder) = (CoachConversation.New, null, null, null, false, null);
             coachSent.Clear();
+            coachUnsent.Clear();
             answered.Clear();
             notes.Clear();
             cards.Clear();
@@ -200,6 +206,7 @@ public sealed partial class CoachPanel
         conversationGen++;
         (conversation, session, thread, chatError, coachSending, drawnOrder) = (CoachConversation.Of(chosenSession), chosenSession, null, null, false, null);
         coachSent.Clear();
+        coachUnsent.Clear();
         ChatsView.Visibility = Visibility.Collapsed;
         ThreadItems.Children.Clear();
         ThreadView.Visibility = Visibility.Visible;
@@ -216,19 +223,28 @@ public sealed partial class CoachPanel
     /// <summary>
     /// Send, as the iPad's <c>deliverSetupOnce</c> without a stream: checked first (nothing to send says nothing; too long
     /// says so), shown at once, then sent into the conversation shown, or a new one. The conversation it went into is the
-    /// one shown from then on. Not taken, it leaves the thread, its words go back in the box, and why shows over it.
+    /// one shown from then on. Not taken, it stays in the thread as not sent, with why, Edit and Retry (<see cref="Unsent"/>).
     /// </summary>
     async void OnCoachSend(object sender, RoutedEventArgs e)
     {
-        if (coachSending || coach is not { } id || answer is not { } send) return;
-        var w = App.Words;
-        var (text, why) = TafChatSend.Check(w, CoachDraft.Text);
+        var (text, why) = TafChatSend.Check(App.Words, CoachDraft.Text);
         if (text is null)
         {
             chatError = why;
             ShowChatTools();
             return;
         }
+        if (await SendCoachAsync(text) is not null) CoachDraft.Text = "";
+    }
+
+    /// <summary>
+    /// A message to Coach: null when it wasn't tried (already sending, or no Coach to send it to); true once sent; false
+    /// when tafs cloud didn't take it, and the thread keeps it as not sent.
+    /// </summary>
+    async Task<bool?> SendCoachAsync(string text)
+    {
+        if (coachSending || coach is not { } id || answer is not { } send) return null;
+        var w = App.Words;
         var (gen, mine) = (generation, conversationGen);
         var pending = TafChatSend.Pending(text, thread?.Messages ?? [], DateTimeOffset.UtcNow);
         coachSent.Add(pending);
@@ -236,15 +252,14 @@ public sealed partial class CoachPanel
         (coachSending, chatError) = (true, null);
         ShowConversation();
         var (into, refused) = await CoachSend.SendAsync(w, id, text, conversation, send);
-        if (gen != generation || mine != conversationGen) return;
+        if (gen != generation || mine != conversationGen) return null;
         coachSending = false;
         if (refused is not null)
         {
             coachSent.Remove(pending);
-            if (CoachDraft.Text.Length == 0) CoachDraft.Text = text;
-            chatError = refused;
+            coachUnsent.Add(UnsentMessage.Of(text, refused, DateTimeOffset.UtcNow));
             ShowConversation();
-            return;
+            return false;
         }
         // The conversation it went into, a new one included (new_chat, or after a hand-over), is the one shown from now on.
         if (into != session || conversation.Fresh)
@@ -255,6 +270,35 @@ public sealed partial class CoachPanel
             if (thread is not null && into != thread.Working && thread.Messages.All(m => m.Session != into)) drawnOrder = null;
         }
         await LoadThreadAsync();
+        return true;
+    }
+
+    /// <summary>Messages tafs cloud didn't take in the conversation shown, kept after it until Retry, Edit or Delete takes them.</summary>
+    List<UnsentMessage> coachUnsent = [];
+
+    /// <summary>Retry, as the iPad's <c>retrySetup</c>: sent again once; not tried at all, it goes back in its place.</summary>
+    async void RetryCoachUnsent(UnsentMessage m)
+    {
+        if (coachSending) return;
+        (coachUnsent, var at) = Unsent.Take(coachUnsent, m.Id);
+        if (await SendCoachAsync(m.Text) is null) coachUnsent = Unsent.PutBack(coachUnsent, m, at);
+        ShowConversation();
+    }
+
+    /// <summary>Edit, as the iPad's <c>editUnsent</c>: out of the thread, its words in the box to change.</summary>
+    void EditCoachUnsent(UnsentMessage m)
+    {
+        coachUnsent = Unsent.Take(coachUnsent, m.Id).Left;
+        CoachDraft.Text = m.Text;
+        CoachDraft.Focus(FocusState.Programmatic);
+        CoachDraft.SelectionStart = CoachDraft.Text.Length;
+        ShowConversation(toEnd: false);
+    }
+
+    void DeleteCoachUnsent(UnsentMessage m)
+    {
+        coachUnsent = Unsent.Take(coachUnsent, m.Id).Left;
+        ShowConversation(toEnd: false);
     }
 
     /// <summary>Previous conversations, as the iPad's ⋯ menu: newest first, then Archived.</summary>
@@ -370,6 +414,7 @@ public sealed partial class CoachPanel
                     conversationGen++;
                     (conversation, session, thread, drawnOrder) = (CoachConversation.New, null, null, null);
                     coachSent.Clear();
+                    coachUnsent.Clear();
                 }
                 await ShowChatsAsync(archived, why);
             };

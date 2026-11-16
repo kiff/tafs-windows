@@ -114,9 +114,9 @@ public class CoachChatsTests
     {
         Assert.Equal(("s2", (string?)null), await CoachSend.SendAsync(En, "c", "Hi", CoachConversation.New,
             (_, _) => Task.FromResult(CloudRead.Of(Json("""{"session": "s2", "new_session": true}""")))));
-        Assert.Equal((null, "The message wasn't sent. Try again in a minute."), await CoachSend.SendAsync(En, "c", "Hi", CoachConversation.New,
+        Assert.Equal((null, "Try again in a minute."), await CoachSend.SendAsync(En, "c", "Hi", CoachConversation.New,
             (_, _) => Task.FromResult(CloudRead.Refused(En, 503, """{"words": "Try again in a minute."}"""))));
-        Assert.Equal((null, En.Get("chat.not_sent", ("why", En.Get("error.ours")))), await CoachSend.SendAsync(En, "c", "Hi", CoachConversation.New,
+        Assert.Equal((null, En.Get("error.ours")), await CoachSend.SendAsync(En, "c", "Hi", CoachConversation.New,
             (_, _) => Task.FromResult(CloudRead.Of(Json("""{"ok": true}""")))));
     }
 
