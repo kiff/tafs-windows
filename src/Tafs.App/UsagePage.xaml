@@ -25,6 +25,9 @@
         </StackPanel>
       </Border>
 
+      <!-- KIFF's: Raise's line, who bills the plan, the member's ask or members' requests. Drawn in code. -->
+      <StackPanel x:Name="KiffPanels" Spacing="12" />
+
       <!-- Credits: the eyebrow, Last period / This period, and the period's words. -->
       <Border x:Name="CreditsPanel" Style="{StaticResource TafsCard}">
         <StackPanel Spacing="12">

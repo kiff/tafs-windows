@@ -324,6 +324,17 @@ public sealed partial class MainWindow : Window
         if (homeFile is not null)
         {
             RecordPage.Read = path => Task.FromResult(ContractRead(App.Words, homeFile, path));
+            // Plan & usage from usage-balance.json, usage-credits.json and kiff-usage.json beside the Home file; with usage-admin,
+            // as someone who manages billing. Asking says it didn't reach; declining says nothing, as offline.
+            var usageBeside = Path.GetDirectoryName(Path.GetFullPath(homeFile))!;
+            CloudRead Beside(string name) => File.Exists(Path.Combine(usageBeside, name))
+                ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(Path.Combine(usageBeside, name))) : CloudRead.Unreached(App.Words);
+            UsagePage.Calls = new UsageCalls(
+                path => Task.FromResult(Beside(path.StartsWith("/v1/usage/balance", StringComparison.Ordinal) ? "usage-balance.json" : "usage-credits.json")),
+                _ => Task.FromResult(Beside("kiff-usage.json")),
+                (_, _) => Task.FromResult(CloudRead.Unreached(App.Words)),
+                (_, _) => Task.FromResult<string?>(null),
+                () => Task.FromResult(page == "usage-admin"));
             // The Calendar from calendar.json beside the Home file, as tafs cloud answers it.
             CalendarPage.Read = path => Task.FromResult(ContractRead(App.Words, homeFile, path));
             if (page == "record-search") RecordPage.Typed = "42";
@@ -342,7 +353,7 @@ public sealed partial class MainWindow : Window
             calendarOpensOn = page switch { "calendar" => CalendarMode.Day, "calendar-month" => CalendarMode.Month, _ => CalendarMode.Week };
             Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Calendar);
         }
-        else if (page == "usage") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
+        else if (page is "usage" or "usage-admin") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
         else if (page is "coach" or "coach-chats" or "coach-wide")
         {
             // Over the Overview, which stays in view beside it; with coach-chats, on Previous conversations; with coach-wide,
@@ -872,6 +883,27 @@ public sealed partial class MainWindow : Window
         setupProof = () => SetupProofAsync(session);
         kiffRead = path => KiffReadAsync(bearer, path);
         _ = ReadKiffAccountAsync(sessions);
+        // Plan & usage as the session: tafs cloud's balance and credits, KIFF's usage, asking and withdrawing; declining is
+        // signed (Windows Hello, then this session's TPM key), as the account's time zone; billing.manage as KIFF says.
+        var usageFor = sessions;
+        UsagePage.Calls = new UsageCalls(
+            path => CloudReadAsync(bearer, path),
+            path => KiffReadAsync(bearer, path),
+            async (path, body) =>
+            {
+                try { var (status, answer) = await KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), body, bearer, App.Words.Language); return Answered(App.Words, status, answer); }
+                catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(App.Words); }
+            },
+            (request, note) => Tafs.Core.Usage.KiffUsage.DeclineAsync(App.Words, session.Tenant, request, note, ConfirmStepAsync,
+                async message =>
+                {
+                    using var key = TpmKey.Open(session.KeyName);
+                    return await key.SignDerAsync(message);
+                },
+                (path, body, header) => KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), body, bearer, App.Words.Language,
+                    signature: ("KIFF-Device-Signature", header)),
+                () => SigningTime.Next(DateTimeOffset.UtcNow), () => usageFor == sessions),
+            async () => Tafs.Core.Coach.CoachAccess.Capabilities((await KiffReadAsync(bearer, Tafs.Core.Coach.CoachAccess.MePath)).Answer)?.Contains("billing.manage") == true);
         ReceiptSheet.Read = path => KiffBytesAsync(bearer, path);
         // The Record's search, across the person's tafs, as the session.
         RecordPage.Read = path => CloudReadAsync(bearer, path);
@@ -945,6 +977,7 @@ public sealed partial class MainWindow : Window
         ShowKiffAccount();
         ReceiptSheet.Read = null;
         RecordPage.Read = null;
+        UsagePage.Calls = null;
         CalendarPage.Read = null;
         RecordPage.ReadBytes = null;
         record = [];
@@ -1475,6 +1508,7 @@ public sealed partial class MainWindow : Window
                 : path.StartsWith("/v1/record?", StringComparison.Ordinal) ? "record-search.json"
                 : path.StartsWith(Tafs.Core.Missions.Brief.Route, StringComparison.Ordinal) ? "brief.json"
                 : path.StartsWith("/v1/calendar?", StringComparison.Ordinal) ? "calendar.json"
+                : path.Contains("/work/runs?") ? "taf-work-runs.json" : path.Contains("/requests/") ? "taf-request.json"
                 : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json" : path.EndsWith("/knob") ? "taf-knob.json" : path.EndsWith("/work") ? "taf-work.json"
                 : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
         return File.Exists(file) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(file)) : CloudRead.Unreached(w);

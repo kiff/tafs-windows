@@ -6,7 +6,7 @@ namespace Tafs.App;
 
 /// <summary>
 /// tafs for Windows. It draws what tafs cloud sends; this first shell has no network yet.
-/// Options: --lang &lt;code&gt; to speak a shipped language, --theme light|dark, --page pair|pair-why|sign-in|needs-you|record|calendar|calendar-week|calendar-month|usage|connect-apps|account|coach|coach-wide|taf|taf-starts|taf-results|taf-setup|taf-card|taf-chat to open a screen,
+/// Options: --lang &lt;code&gt; to speak a shipped language, --theme light|dark, --page pair|pair-why|sign-in|needs-you|record|calendar|calendar-week|calendar-month|usage|usage-admin|connect-apps|account|coach|coach-wide|taf|taf-starts|taf-results|taf-setup|taf-card|taf-chat to open a screen,
 /// --view-only to show the session as view-only, --sample for the iPad's sample held calls and Record, --home &lt;contract.json&gt; for Home's list from a file in place of tafs cloud, and --screenshot &lt;file.png&gt; to save the window and quit.
 /// </summary>
 public partial class App : Application

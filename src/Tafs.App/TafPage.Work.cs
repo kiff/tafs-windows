@@ -22,6 +22,7 @@ public sealed partial class TafPage
     /// <summary>Its work, read as the Activity shows, after a change, and on Try again; a failed read keeps the last.</summary>
     async Task LoadWorkAsync()
     {
+        _ = LoadRunsAsync(all: runsAll, more: false);
         if (opening is not { CloudId: { } id, Read: { } read }) return;
         var answer = await read(TafWork.Path(id));
         if (opening?.CloudId != id) return;
@@ -30,14 +31,26 @@ public sealed partial class TafPage
         ShowWork();
     }
 
-    /// <summary>The work and the runs, drawn into the top of the Activity, for a taf tafs cloud runs.</summary>
+    /// <summary>The work and the runs, drawn into the top of the Activity, for a taf tafs cloud runs; or a run's own page.</summary>
     void ShowWork()
     {
         WorkHost.Children.Clear();
         if (opening?.CloudId is null) return;
         var w = App.Words;
+        // A run's own page, in place of the Activity, with Back: what showed under it comes back as it was.
+        foreach (var other in ActivityPane.Children.OfType<FrameworkElement>().Where(e => e != WorkHost))
+        {
+            if (runOpen is not null && other.Visibility == Visibility.Visible) { hiddenForRun.Add(other); other.Visibility = Visibility.Collapsed; }
+            else if (runOpen is null && hiddenForRun.Remove(other)) other.Visibility = Visibility.Visible;
+        }
+        if (runOpen is { } run)
+        {
+            ShowRun(w, run);
+            return;
+        }
         if (work is not null || workWhy is not null) WorkHost.Children.Add(WorkPanel(w));
         WorkHost.Children.Add(RunsPanel(w));
+        if (runPages.Count > 0 || runPagesWhy is not null) WorkHost.Children.Add(KeptRunsPanel(w));
     }
 
     /// <summary>
