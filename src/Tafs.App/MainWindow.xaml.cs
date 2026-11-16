@@ -298,7 +298,7 @@ public sealed partial class MainWindow : Window
             CoachMode.Open(animate: false);
             if (page == "coach-chats") CoachMode.ShowPreviousChats();
         }
-        else if (page is "gallery" or "gallery-job") galleryAsked = page;
+        else if (page is "gallery" or "gallery-job" or "new-taf") galleryAsked = page;
         else if (page == "connect-apps") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
         else if (page == "record") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
         else if (page == "needs-you") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
@@ -822,6 +822,7 @@ public sealed partial class MainWindow : Window
         ShowHome(new HomeAnswer([], null));
         CoachMode.Read = null;
         CoachMode.Answer = null;
+        ShowNewTaf();
         (manage, capabilities, accountHalt, haltSend, cloudSend, cloudStream) = (null, null, Halt.Running, null, null, null);
         ShowHaltAll();
         CoachMode.StartCoach = null;
@@ -933,6 +934,8 @@ public sealed partial class MainWindow : Window
         mayUseCoach = Tafs.Core.Coach.CoachAccess.MayUseCoach(setup, setup is null ? capabilities : null);
         if (!mayUseCoach) return;
         CoachMode.Answer = (path, body) => CloudSendAsync(bearer, path, body);
+        // Someone who may use Coach starts tafs: Start a new taf, above Coach.
+        ShowNewTaf();
         // Approve, as the iPad's Coach cards, only for someone who may use Coach, and only a session that signs with its passkey.
         if (Tafs.Core.Coach.CoachStart.MayStart(session))
             CoachMode.Approve = (card, conversation, digest, version) => ApproveCardAsync(session, card, conversation, digest, version);

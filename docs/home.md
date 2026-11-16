@@ -148,11 +148,15 @@ The iPad's `RecipeGallerySheet`, `RecipeStrip`, `RecipeRow` and `RecipeSheet`, r
   asks first, never does; an empty zone left out), tafs cloud's line for a passed proof run and what the job reported,
   then **Try it with Coach** (`words.try`, else `labels.hand`) for someone who may use Coach. As the iPad's
   `handRecipeToCoach`, it starts a new Coach conversation with the job's `say` in the box, to edit and send; nothing is sent.
+- **Start a new taf,** above Coach at the sidebar's foot, for someone who may use Coach (the iPad's `canStartTafs`), never
+  over the sample: the gallery to create, titled "New taf", with **Say it in your own words** first (Coach in a new
+  conversation, its box empty) and each job's sheet ending on **Hand it to Coach** (`labels.hand`): a new conversation with
+  the job's words in the box. With no gallery from tafs cloud, it opens Coach in a new conversation, as the iPad's.
 - **Signed out,** the rows go.
 
 ## Not yet
 
-- **+ New's gallery** (the iPad's create mode, with "Say it in your own words"), and Home's recipes with no taf.
+- **Home's recipes with no taf** (the iPad's `HomeRecipes` on its detail pane).
 
 - **+ New**, above Coach on the iPad, comes with Coach: on Windows it would have nothing to open yet.
 - **Where a held call opens.** On the iPad, a held call opens its taf's page, from the sidebar and from

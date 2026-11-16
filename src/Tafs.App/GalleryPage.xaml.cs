@@ -13,7 +13,9 @@ namespace Tafs.App;
 /// <param name="Hand">A job's one button, for someone who may use Coach: Coach opens with the job's words. None, no button.</param>
 /// <param name="Open">A job to open on its sheet at once (one from the sidebar's strip).</param>
 /// <param name="Logos">Where a logo's path loads from: tafs cloud only. None, the app's name alone.</param>
-public sealed record GalleryOpening(Gallery Gallery, bool Browse, Action<Recipe>? Hand, string? Open = null, Uri? Logos = null);
+/// <param name="OwnWords">From Start a new taf, for someone who may use Coach: "Say it in your own words", Coach with an empty box.</param>
+public sealed record GalleryOpening(Gallery Gallery, bool Browse, Action<Recipe>? Hand, string? Open = null, Uri? Logos = null,
+    Action? OwnWords = null);
 
 /// <summary>
 /// The jobs' gallery, as the iPad's <c>RecipeGallerySheet</c> with <c>HomeRecipes</c>, <c>RecipeRow</c> and <c>RecipeSheet</c>:
@@ -45,6 +47,8 @@ public sealed partial class GalleryPage : Page
         if (opening is not { Gallery: var g } o) return;
         Heading.Text = g.Title(o.Browse);
         Body.Children.Clear();
+        // Creating, as the iPad's + New: "Say it in your own words" leads, in tafs cloud's words, where it sends them.
+        if (!o.Browse && o.OwnWords is { } own && g.Words.OwnWords.Trim().Length > 0) Body.Children.Add(OwnWordsRow(g.Words, own));
         if (g.Words.All.Trim().Length > 0) Body.Children.Add(Eyebrow(g.Words.All));
         var all = g.ByCategory;
         if (all.Count > 1)
@@ -111,6 +115,31 @@ public sealed partial class GalleryPage : Page
         AutomationProperties.SetName(row, r.Line.Length > 0 ? $"{r.Lead}. {r.Line}" : r.Lead);
         row.Click += (_, _) => _ = OpenAsync(r);
         return row;
+    }
+
+    /// <summary>"Say it in your own words" and its line, as the iPad's <c>OwnWordsRow</c>: Coach, with nothing in its box.</summary>
+    Button OwnWordsRow(GalleryWords words, Action own)
+    {
+        var lines = new StackPanel { Spacing = 4 };
+        lines.Children.Add(Words(words.OwnWords, 16, "TafsInk", semibold: true));
+        if (words.OwnWordsLine.Trim().Length > 0) lines.Children.Add(Words(words.OwnWordsLine, 14, "TafsSoft"));
+        var row = new Grid { ColumnSpacing = 12 };
+        row.ColumnDefinitions.Add(new ColumnDefinition());
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.Children.Add(lines);
+        var chevron = new FontIcon { Glyph = "\uE76C", FontSize = 13, Foreground = Look("TafsDim"), VerticalAlignment = VerticalAlignment.Center };
+        Grid.SetColumn(chevron, 1);
+        row.Children.Add(chevron);
+        var b = new Button
+        {
+            Content = row, Padding = new Thickness(16, 14, 16, 14), HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch, CornerRadius = new CornerRadius(18), BorderThickness = new Thickness(1),
+            Background = Look("TafsPanel"), BorderBrush = Look("TafsLine"),
+        };
+        AutomationProperties.SetName(b, words.OwnWords);
+        AutomationProperties.SetAutomationId(b, "gallery.own-words");
+        b.Click += (_, _) => own();
+        return b;
     }
 
     /// <summary>The apps a job uses, by name, each after its logo where tafs cloud serves one.</summary>

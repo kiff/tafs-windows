@@ -36,7 +36,8 @@ public sealed partial class MainWindow
         if (galleryAsked is { } asked && gallery is { } g)
         {
             galleryAsked = null;
-            OpenGallery(new GalleryRow(asked == "gallery-job" ? g.Recipes.FirstOrDefault()?.Id : null));
+            if (asked == "new-taf") OnNewTaf(this, new RoutedEventArgs());
+            else OpenGallery(new GalleryRow(asked == "gallery-job" ? g.Recipes.FirstOrDefault()?.Id : null));
         }
     }
 
@@ -103,6 +104,26 @@ public sealed partial class MainWindow
         if (glyph is not null) row.Icon = new FontIcon { Glyph = glyph, Style = (Style)Application.Current.Resources["TafsSidebarIcon"] };
         AutomationProperties.SetName(row, words);
         return row;
+    }
+
+    /// <summary>Start a new taf, as the iPad's <c>canStartTafs</c>: for someone who may use Coach, never over the sample.</summary>
+    void ShowNewTaf()
+    {
+        NewTafText.Text = App.Words.Get("home.start_new_taf");
+        NewTaf.Visibility = !sample && CoachMode.Answer is not null ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Start a new taf, as the iPad's <c>startNewTaf</c>: every ready-made job where tafs cloud sends the gallery, with "Say it
+    /// in your own words" first; without one, Coach in a new conversation, its box empty.
+    /// </summary>
+    void OnNewTaf(object sender, RoutedEventArgs e)
+    {
+        if (gallery is { } g)
+            Pages.Navigate(typeof(GalleryPage), new GalleryOpening(g, Browse: false,
+                Hand: CoachMode.Answer is not null ? job => CoachMode.Write(job.Say, newConversation: true) : null, Logos: HomeList.Api,
+                OwnWords: () => CoachMode.Write("", newConversation: true)));
+        else CoachMode.Write("", newConversation: true);
     }
 
     /// <summary>
