@@ -244,6 +244,12 @@ public sealed partial class MainWindow : Window
         };
         // An unsent bubble refused for a halt: Resume opens Halt's screen, the account's or the taf's.
         ChatViews.ResumeChosen += (taf, name) => OpenHalt(taf, name);
+        // A taf removed for good: Home again, and the Overview, since its page has nothing left to show.
+        TafPage.Removed += () =>
+        {
+            if (cloudRead is { } read) _ = ReadHomeAsync(read);
+            Nav.SelectedItem = BrandItem;
+        };
         // A taf being set up's row selects nothing: it opens Coach where its setup stopped, when it can.
         Nav.ItemInvoked += (_, a) => { if (a.InvokedItemContainer?.Tag is SettingUpRow row) OnSettingUpInvoked(row); };
         // A turn refused for want of the AI-data consent, from any route: its screen, wherever the person tried.
@@ -1572,7 +1578,7 @@ public sealed partial class MainWindow : Window
                 // isn't read on this PC yet, so its issuer is the iPad's for anyone else: "The account".
                 Cards: taf.Cards, IssuedBy: w.Get("card.issued_by_account"), Revoked: taf.Revoked,
                 CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof,
-                Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream,
+                Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream, Remove: RemoveFor(taf),
                 // Stop is for whoever manages the taf (cards.manage), as KIFF says, once read.
                 Manages: taf.Agent is { } agent && manage?.GetValueOrDefault(agent) == true)
             : SampleTaf(w, key, opensOn);
@@ -1586,6 +1592,40 @@ public sealed partial class MainWindow : Window
         if (!Halt.HasRow(taf) || taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is not { } read || haltSend is null) return null;
         return new(async () => (await read(Halt.Path(taf.Id))).Answer is { } a && Halt.Read(a) is { } h ? h : Halt.Running,
             () => OpenHalt(taf.Id, taf.Name));
+    }
+
+    /// <summary>
+    /// Remove for good, only for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume: a
+    /// removal is the approval key's act, never the device key's. None for anyone else, and no button.
+    /// </summary>
+    TafRemove? RemoveFor(HomeTaf taf)
+    {
+        if (taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is not { } read) return null;
+        if (App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session) || session.PasskeyId is not { } id) return null;
+        var bearer = session.AccessToken;
+        var reading = sessions;
+        return new(
+            async () => (await read(TafRemoval.PreviewPath(taf.Id))).Answer is { } a ? TafRemoval.PreviewWords(a) : null,
+            () =>
+            {
+                var windowsHello = new WindowsHello(() => App.WindowHandle);
+                var passkey = new PasskeyApprover(windowsHello, KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);
+                return TafRemoval.RemoveAsync(App.Words, taf.Id, taf.Name, taf.CardIds, taf.Revoked,
+                    async path => (PasskeyApprover.HeaderName,
+                        await passkey.ApproveAsync(session.Tenant, "DELETE", path, TafRemoval.Body(), SigningTime.Next(DateTimeOffset.UtcNow))),
+                    async path => (await KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), TafRemoval.RevokeBody(), bearer,
+                        App.Words.Language)).Status is >= 200 and <= 299,
+                    async (path, signature) =>
+                    {
+                        try
+                        {
+                            var (status, body) = await KiffHttp.DeleteAsync(new Uri(HomeList.Api, path), bearer, App.Words.Language, signature: signature);
+                            return Answered(App.Words, status, body);
+                        }
+                        catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(App.Words); }
+                    },
+                    () => reading == sessions && App.Sessions.Kept()?.AccessToken == bearer);
+            });
     }
 
     /// <summary>
