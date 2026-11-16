@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Tafs.Core.Approvals;
 using Tafs.Core.Coach;
+using Tafs.Core.Kiff;
 using Tafs.Core.Record;
 using Tafs.Core.Taf;
 using Tafs.Core.Words;
@@ -146,7 +147,8 @@ public static class HoldAllow
     /// and says nothing, as the iPad's quiet stop. Any other failure to sign (a refusal, Windows Hello or the TPM failing, an
     /// answer that can't be read) sends nothing and says why (<paramref name="why"/>), never leaving the sheet waiting.
     /// <c>Stopped</c> when another session began meanwhile: checked before Windows Hello is asked, as the iPad's
-    /// <c>confirmAllow</c> returns with no account, and after each await.
+    /// <c>confirmAllow</c> returns with no account, and after each await. KIFF's refusal is said in the app's plain words for
+    /// its status (<see cref="KiffErrors.Words"/>), as the iPad's <c>PlainError.words(status:)</c>, never KIFF's own text.
     /// </summary>
     public static async Task<(bool Done, string? Why, bool Stopped)> ConfirmAsync(WordBook w, string draft, byte[] body,
         Func<string, byte[], Task<(string Header, string Value)>> sign,
@@ -165,11 +167,10 @@ public static class HoldAllow
         }
         if (!current()) return (false, null, true);
         int status;
-        string answer;
-        try { (status, answer) = await post(path, body, signature); }
+        try { (status, _) = await post(path, body, signature); }
         catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException) { return (false, w.Get("error.offline"), !current()); }
         if (!current()) return (false, null, true);
-        if (status is < 200 or > 299) return (false, CoachStart.KiffRefused(w, status, answer), false);
+        if (status is < 200 or > 299) return (false, KiffErrors.Words(w, status), false);
         return (true, null, false);
     }
 

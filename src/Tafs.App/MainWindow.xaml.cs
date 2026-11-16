@@ -385,12 +385,12 @@ public sealed partial class MainWindow : Window
                     },
                     async path =>
                     {
-                        // KIFF's draft, its refusal read as KIFF's (a 401 is signed out), as the iPad's kiff.draft(id:).
+                        // KIFF's draft; its refusal in the app's plain words (a 401 is signed out), as the iPad's kiff.draft(id:) and PlainError.
                         try
                         {
                             var (status, answer) = await KiffHttp.GetAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), bearer, w.Language);
                             return status is >= 200 and <= 299 ? Answered(w, status, answer)
-                                : new CloudRead(null, Tafs.Core.Coach.CoachStart.KiffRefused(w, status, answer), status);
+                                : new CloudRead(null, Tafs.Core.Kiff.KiffErrors.Words(w, status), status);
                         }
                         catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException) { return CloudRead.Unreached(w); }
                     },

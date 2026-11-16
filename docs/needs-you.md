@@ -83,8 +83,9 @@ As the iPad's `HoldAllow`, `AllowSheetView` and `AppModel`'s `openAllow`, `loadA
   - A session that doesn't approve with this PC's passkey keeps the gate (why, and Add this Windows PC) where Approve would
     be.
   - Closing Windows Hello sends nothing and leaves the sheet as it was.
-- **Taken,** the sheet closes and Home and Needs you read again. **Refused,** why shows in the sheet, read as KIFF's. A
-  sign-out meanwhile closes it.
+- **Taken,** the sheet closes and Home and Needs you read again. **Refused,** why shows in the sheet in the app's plain
+  words for KIFF's status (`KiffErrors.Words`, as the iPad's `PlainError`), never KIFF's own text. A sign-out meanwhile
+  closes it.
 
 ## Your step (`YourSteps`, `YourStep`)
 

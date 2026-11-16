@@ -483,10 +483,14 @@ public class HoldAllowTests
         var stopped = await HoldAllow.ConfirmAsync(En, "dr_9", body, (_, _) => Task.FromResult(("h", "v")), Post, () => false, _ => "");
         Assert.Equal((false, null, true), stopped);
         Assert.Empty(posted);
-        // KIFF's refusal, read as KIFF's.
-        var refused = await HoldAllow.ConfirmAsync(En, "dr_9", body, (_, _) => Task.FromResult(("h", "v")),
-            (_, _, _) => Task.FromResult((409, """{"error":"version_changed"}""")), () => true, _ => "");
-        Assert.Equal((false, "version_changed", false), refused);
+        // KIFF's refusal in the app's plain words for its status, never KIFF's own error, as the iPad's PlainError.words(status:).
+        foreach (var (status, key) in new[] { (409, "error.changed"), (401, "error.signed_out"), (403, "error.not_allowed"),
+            (429, "error.busy"), (503, "error.down"), (400, "error.ours") })
+        {
+            var refused = await HoldAllow.ConfirmAsync(En, "dr_9", body, (_, _) => Task.FromResult(("h", "v")),
+                (_, _, _) => Task.FromResult((status, """{"error":"version_changed"}""")), () => true, _ => "");
+            Assert.Equal((false, En.Get(key), false), refused);
+        }
     }
 
     /// <summary>Signed out after tafs cloud's offer, KIFF's draft isn't read, as the old account.</summary>
