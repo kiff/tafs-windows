@@ -320,6 +320,21 @@ public static class CoachChat
     }
 
     /// <summary>
+    /// The thread in the order already drawn, as Android's <c>Chat.steady</c> (kiff/tafs#1233): what's shown stays where it
+    /// is, something new goes after it in the order read, and anything gone from the thread goes. With nothing drawn yet
+    /// (the first read, or another conversation), the thread as read, so a reopened conversation shows a card after Coach's
+    /// words. A card read again while Coach answers, or Coach's words joining at the end of a turn, then move nothing.
+    /// </summary>
+    public static IReadOnlyList<ThreadItem> Steady(IReadOnlyList<string>? drawn, IReadOnlyList<ThreadItem> read)
+    {
+        if (drawn is null || drawn.Count == 0) return read;
+        var byId = read.GroupBy(i => i.Id).ToDictionary(g => g.Key, g => g.First());
+        var kept = drawn.Distinct().Where(byId.ContainsKey).Select(id => byId[id]).ToList();
+        var shown = kept.Select(i => i.Id).ToHashSet();
+        return [.. kept, .. read.Where(i => shown.Add(i.Id))];
+    }
+
+    /// <summary>
     /// An owner's message in their own words, as the iPad's <c>ownerWords</c>: an answer to a card ("[approval a1] declined")
     /// reads as what they chose; a confirm's as its option's label, a questions card's as its answers, from the card.
     /// </summary>

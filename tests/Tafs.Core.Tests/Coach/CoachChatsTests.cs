@@ -120,6 +120,18 @@ public class CoachChatsTests
             (_, _) => Task.FromResult(CloudRead.Of(Json("""{"ok": true}""")))));
     }
 
+    /// <summary>As Android's Chat.steady (kiff/tafs#1233): what's drawn keeps its place, new goes after, gone goes.</summary>
+    [Fact]
+    public void A_read_again_keeps_the_order_already_drawn()
+    {
+        static ThreadItem M(string text, int minute) =>
+            new(new ChatMessage(new DateTimeOffset(2026, 11, 16, 9, minute, 0, TimeSpan.Zero), ChatFrom.Taf, false, text, "s"), null);
+        var (a, b, earlier) = (M("a", 1), M("b", 2), M("earlier", 0));
+        Assert.Equal([earlier, a, b], CoachChat.Steady(null, [earlier, a, b]));
+        Assert.Equal([a, b, earlier], CoachChat.Steady([a.Id, b.Id], [earlier, a, b]));
+        Assert.Equal([b, earlier], CoachChat.Steady([a.Id, b.Id], [earlier, b]));
+    }
+
     /// <summary>The iPad's handle: wider or narrower, full screen near the window's width, closed well past a third.</summary>
     [Fact]
     public void A_drag_of_the_edge_widens_narrows_fills_or_closes()

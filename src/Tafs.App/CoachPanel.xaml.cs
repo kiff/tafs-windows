@@ -383,7 +383,9 @@ public sealed partial class CoachPanel : UserControl
         ShowPlan(thread.Plan);
         // Asked once the thread is drawn: Home's read can answer at once, and it draws the thread again.
         if (Tafs is { } tafs && thread.ReadHomeFor(tafs().Select(t => t.Agent), homeAsked)) DispatcherQueue.TryEnqueue(() => HomeWanted?.Invoke());
-        var items = thread.Drawn(Kinds);
+        // In the order already drawn: nothing moves while Coach answers (kiff/tafs#1233).
+        var items = CoachChat.Steady(drawnOrder, thread.Drawn(Kinds));
+        drawnOrder = items.Select(i => i.Id).ToList();
         for (var i = 0; i < items.Count; i++)
         {
             if (CoachChat.GapTime(w, items, i, DateTimeOffset.Now, TimeZoneInfo.Local) is { } gap)

@@ -39,6 +39,9 @@ public sealed partial class CoachPanel
     /// <summary>The thread read again every 2 s while Coach works or a sent message waits, only while the panel is open.</summary>
     DispatcherTimer coachClock = null!;
 
+    /// <summary>The thread's items as drawn, by id, so a read again keeps their order; none for a conversation not drawn yet.</summary>
+    List<string>? drawnOrder;
+
     /// <summary>The width the person chose, kept for the next time.</summary>
     CoachWidth chosen = CoachWidth.Opening;
 
@@ -70,7 +73,7 @@ public sealed partial class CoachPanel
     void ForgetChats()
     {
         conversationGen++;
-        (conversation, session, begun, coachSending, chatError, previousAsked) = (CoachConversation.Newest, null, false, false, null, false);
+        (conversation, session, begun, coachSending, chatError, previousAsked, drawnOrder) = (CoachConversation.Newest, null, false, false, null, false, null);
         coachSent.Clear();
         coachClock.Stop();
         CoachDraft.Text = "";
@@ -152,7 +155,7 @@ public sealed partial class CoachPanel
         if (!empty)
         {
             conversationGen++;
-            (conversation, session, thread, chatError, coachSending) = (CoachConversation.New, null, null, null, false);
+            (conversation, session, thread, chatError, coachSending, drawnOrder) = (CoachConversation.New, null, null, null, false, null);
             coachSent.Clear();
             answered.Clear();
             notes.Clear();
@@ -168,7 +171,7 @@ public sealed partial class CoachPanel
     void OpenChat(string chosenSession)
     {
         conversationGen++;
-        (conversation, session, thread, chatError, coachSending) = (CoachConversation.Of(chosenSession), chosenSession, null, null, false);
+        (conversation, session, thread, chatError, coachSending, drawnOrder) = (CoachConversation.Of(chosenSession), chosenSession, null, null, false, null);
         coachSent.Clear();
         ChatsView.Visibility = Visibility.Collapsed;
         ThreadItems.Children.Clear();
@@ -221,6 +224,8 @@ public sealed partial class CoachPanel
         {
             conversationGen++;
             (conversation, session) = (CoachConversation.Of(into!), into);
+            // Another conversation: drawn as read.
+            if (thread is not null && into != thread.Working && thread.Messages.All(m => m.Session != into)) drawnOrder = null;
         }
         await LoadThreadAsync();
     }
@@ -336,7 +341,7 @@ public sealed partial class CoachPanel
                 if (why is null && !archived && row.Session == session)
                 {
                     conversationGen++;
-                    (conversation, session, thread) = (CoachConversation.New, null, null);
+                    (conversation, session, thread, drawnOrder) = (CoachConversation.New, null, null, null);
                     coachSent.Clear();
                 }
                 await ShowChatsAsync(archived, why);
