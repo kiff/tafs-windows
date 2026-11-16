@@ -12,8 +12,11 @@ namespace Tafs.Core.Home;
 /// </summary>
 public sealed record HomeTaf(string Id, string Name, int Colour, string State, string Now, string? Attention,
     IReadOnlyList<TafCard> Cards, int Waiting, DateTimeOffset? LastRun, DateTimeOffset? LastChange, string Job = "", string? Agent = null,
-    bool Revoked = false, IReadOnlyList<string>? LabelIds = null)
+    bool Revoked = false, IReadOnlyList<string>? LabelIds = null, IReadOnlyList<string>? CardIdList = null)
 {
+    /// <summary>Its Cards' ids in KIFF (<c>card.ids</c>), revoked before it's removed for good; none without.</summary>
+    public IReadOnlyList<string> CardIds => CardIdList ?? [];
+
     /// <summary>Its labels' ids, as Home sends them (<c>labels: [id]</c>); none without.</summary>
     public IReadOnlyList<string> Labels => LabelIds ?? [];
 
@@ -111,7 +114,8 @@ public static class HomeList
             Lenient.Text(t, "job_summary") ?? w.Count("taf.works_under_cards", (Lenient.Field(t, "card") is { } c ? Lenient.Array(c, "ids").Count() : 0)), Lenient.Text(t, "kiff_agent"),
             // Its Card revoked, as the iPad's card.revoked (!card.active): every Card on its page reads Revoked and fades.
             Revoked: Lenient.Field(t, "card") is { } held && Lenient.Field(held, "active") is { ValueKind: JsonValueKind.False },
-            LabelIds: LabelChips.Ids(t));
+            LabelIds: LabelChips.Ids(t),
+            CardIdList: Lenient.Field(t, "card") is { } ids ? Lenient.Array(ids, "ids").Where(i => i.ValueKind == JsonValueKind.String).Select(i => i.GetString()!).ToList() : null);
     }
 
     /// <summary>What it's doing, as the iPad says it: tafs cloud's "Next run Fri 12:30" while it works on a schedule.</summary>
