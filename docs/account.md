@@ -13,6 +13,12 @@ The sections, in the iPad's order:
   - **View only**, with Add this Windows PC, shows exactly when the kept session's `approval_mode` says view ([the session](session.md)).
 - **People & apps,** for a KIFF account: People & groups, Devices, and Connect apps, which opens the sidebar's screen.
 - **Plan:** Plan & usage, which opens its screen.
+- **Coach,** once tafs cloud's setting is read (`Suggestions`, `GET /v1/me/suggestions`): Show suggestions, a switch with
+  tafs cloud's words for what it does now. Only someone who manages the account's tafs (`cards.manage`) can change it
+  (`PUT {show}`); refused, why shows in red.
+- **Your data and the AI,** after Theme, once read (`AiConsent`, `GET /v1/me/ai-consent`), every word tafs cloud's: given,
+  its line and Withdraw in red (`DELETE`); not given, its title, which opens its screen (its lines, Allow for the version
+  read with `POST {version}`, and Not now). A change that isn't taken says why in red.
 - **Alerts:** a row that opens. The alerts themselves aren't built yet.
 - **Theme:** Light, Dark or System, the iPad's segmented control. It sets the window's theme, and it's kept for the
   next launch (`ThemeChoices`), as the iPad keeps `tafs.theme`.

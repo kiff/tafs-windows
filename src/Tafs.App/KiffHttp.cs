@@ -72,6 +72,19 @@ static class KiffHttp
         return await SendAsync(request, cancel);
     }
 
+    /// <summary>A JSON PUT as the session to tafs cloud or KIFF (a setting changed), the same hosts as a read.</summary>
+    /// <exception cref="HttpRequestException">It wasn't reached, or isn't a host the session's token may go to.</exception>
+    public static async Task<(int Status, string Body)> PutAsync(Uri url, byte[] body, string bearer, string language, CancellationToken cancel = default)
+    {
+        if (!Tafs.Core.Kiff.KeptSessions.MaySendTo(url, DeviceSignIn.Api)) throw new HttpRequestException("not a host the session goes to");
+        using var request = new HttpRequestMessage(HttpMethod.Put, url) { Content = new ByteArrayContent(body) };
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        return await SendAsync(request, cancel, Patient);
+    }
+
     /// <summary>A DELETE as the session to tafs cloud or KIFF (a halt released), in the app's language, the same hosts as a read.</summary>
     /// <exception cref="HttpRequestException">It wasn't reached, or isn't a host the session's token may go to.</exception>
     public static async Task<(int Status, string Body)> DeleteAsync(Uri url, string bearer, string language, CancellationToken cancel = default)

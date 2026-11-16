@@ -10,8 +10,10 @@ using Tafs.Core.Words;
 namespace Tafs.App;
 
 /// <summary>What Account opens with: whether the window shows the iPad's sample, the theme it's in, and tafs cloud's read as the session.</summary>
+/// <param name="Write">A write to tafs cloud as the session (method, path, body): the consent and the suggestions setting.</param>
+/// <param name="Manages">Whether this person manages the account's tafs (KIFF's <c>cards.manage</c>): who may change suggestions.</param>
 public sealed record AccountOpening(bool Sample, ElementTheme Theme, Func<string, Task<CloudRead>>? Read = null,
-    KiffAccount? Account = null);
+    KiffAccount? Account = null, Func<string, string, byte[]?, Task<CloudRead>>? Write = null, bool Manages = false);
 
 /// <summary>
 /// Account. Its rows follow where this PC stands (the sample, signed in with KIFF, or signed out). The KIFF account's name,
@@ -43,6 +45,41 @@ public sealed partial class AccountPage : Page
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         opening = e.Parameter as AccountOpening ?? opening;
+        Show();
+        _ = ReadSettingsAsync();
+    }
+
+    // The AI-data consent and Coach's suggestions, as tafs cloud has them; none until read, and then their rows show.
+    AiConsent? consent;
+    Suggestions? suggestions;
+    string? settingsWhy;
+    bool settingsBusy;
+
+    /// <summary>The consent and suggestions read as Account opens, as the iPad's <c>loadAIConsent</c> and <c>loadSuggestions</c>.</summary>
+    async Task ReadSettingsAsync()
+    {
+        if (opening.Sample || opening.Read is not { } read || App.Sessions.Kept() is null) return;
+        var mine = opening;
+        var c = await read(AiConsent.Path);
+        var s = await read(Suggestions.Path);
+        if (opening != mine) return;
+        consent = c.Answer is { } ca ? AiConsent.Read(ca) : null;
+        suggestions = s.Answer is { } sa ? Suggestions.Read(sa) : null;
+        Show();
+    }
+
+    /// <summary>A change to one of them: busy meanwhile; taken, tafs cloud's answer is drawn; not, why shows in red under it.</summary>
+    async Task ChangeAsync(string method, string path, byte[]? body, Action<System.Text.Json.JsonElement> taken)
+    {
+        if (opening.Write is not { } write || settingsBusy) return;
+        var mine = opening;
+        (settingsBusy, settingsWhy) = (true, null);
+        Show();
+        var answer = await write(method, path, body);
+        if (opening != mine) return;
+        settingsBusy = false;
+        if (answer.Answer is { } json) taken(json);
+        else settingsWhy = answer.Why ?? App.Words.Get("error.ours");
         Show();
     }
 
@@ -86,11 +123,43 @@ public sealed partial class AccountPage : Page
                 Opens(Row(w.Get("settings.devices.title"), "", chevron: true), w.Get("settings.devices.title"), () => DevicesChosen?.Invoke()),
                 Opens(Row(w.Get("connect.apps.title"), "", chevron: true), w.Get("connect.apps.title"), () => ConnectAppsChosen?.Invoke()),
             ]);
+        // What a new Coach conversation offers, as tafs cloud keeps it: its words say what the switch does now. Only someone who
+        // manages the account's tafs changes it, as the iPad's.
+        if (mode == AccountMode.Kiff && suggestions is { } shown)
+        {
+            var toggle = new ToggleSwitch { IsOn = shown.Show, IsEnabled = opening.Manages && !settingsBusy, OnContent = "", OffContent = "" };
+            AutomationProperties.SetName(toggle, w.Get("settings.show_suggestions"));
+            AutomationProperties.SetAutomationId(toggle, "show-suggestions");
+            toggle.Toggled += (_, _) => _ = ChangeAsync("PUT", Suggestions.Path, Suggestions.Body(toggle.IsOn), j => suggestions = Suggestions.Read(j) ?? suggestions);
+            var lines = new StackPanel { Spacing = 2 };
+            lines.Children.Add(new TextBlock { Text = w.Get("settings.show_suggestions"), FontSize = 15, Style = Look("TafsInkText") });
+            if (shown.Words.Length > 0) lines.Children.Add(new TextBlock { Text = shown.Words, FontSize = 13, TextWrapping = TextWrapping.Wrap, Style = Look("TafsSoftText") });
+            var row = new Grid { Padding = new Thickness(20, 12, 20, 12), ColumnDefinitions = { new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto } } };
+            row.Children.Add(lines);
+            Grid.SetColumn(toggle, 1);
+            row.Children.Add(toggle);
+            Section(w.Get("coach.title"), [row]);
+        }
         // Plan, as the iPad's: Plan & usage, opening its screen.
         if (mode == AccountMode.Kiff)
             Section(w.Get("settings.plan"), [Opens(Row(w.Get("usage.title"), "", chevron: true), w.Get("usage.title"), () => UsageChosen?.Invoke())]);
         Section(null, [Opens(Row(w.Get("settings.alerts"), "", chevron: true), w.Get("settings.alerts"), () => AlertsChosen?.Invoke())]);
         Section(w.Get("settings.theme_title"), [ThemePicker(w)]);
+        // The AI-data consent, as the iPad's AIConsentRow: given, its words and Withdraw in red; not given, its own screen. Every
+        // word is tafs cloud's.
+        if (mode == AccountMode.Kiff && consent is { Drawable: true } ai)
+        {
+            var rows = new List<UIElement>();
+            if (ai.Given)
+            {
+                rows.Add(Row(ai.Words.Given, ""));
+                if (ai.Words.Withdraw.Length > 0)
+                    rows.Add(Action(ai.Words.Withdraw, "TafsNoText", () => _ = ChangeAsync("DELETE", AiConsent.Path, null, j => consent = AiConsent.Read(j) ?? consent)));
+            }
+            else rows.Add(Action(ai.Words.Title, "TafsAmberWords", () => _ = AskConsentAsync(ai)));
+            if (settingsWhy is { } why) rows.Add(new TextBlock { Text = why, FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(20, 0, 20, 12), Style = Look("TafsNoText") });
+            Section(null, rows);
+        }
         Section(w.Get("settings.language_title"),
         [
             Row(w.Get("settings.language_title"), AccountScreen.LanguageName(w.Language)),
@@ -312,5 +381,21 @@ public sealed partial class AccountPage : Page
         await dialog.ShowAsync();
         if (!picked) return;
         if (App.ChooseLanguage(chosen) is { } why) await new ContentDialog { XamlRoot = XamlRoot, Content = why, CloseButtonText = w.Get("common.ok") }.ShowAsync();
+    }
+
+    /// <summary>The consent's screen, as the iPad's <c>AIConsentView</c>: its title and lines, Allow (for this version) and Not now.</summary>
+    async Task AskConsentAsync(AiConsent ai)
+    {
+        var lines = new StackPanel { Spacing = 10 };
+        foreach (var line in ai.Words.Lines) lines.Children.Add(new TextBlock { Text = line, TextWrapping = TextWrapping.Wrap, FontSize = 14 });
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot, Title = ai.Words.Title, Content = new ScrollViewer { Content = lines, MaxHeight = 420 },
+            PrimaryButtonText = ai.Words.Allow, CloseButtonText = ai.Words.NotNow.Length > 0 ? ai.Words.NotNow : App.Words.Get("common.cancel"),
+            DefaultButton = ContentDialogButton.Close,
+        };
+        AutomationProperties.SetAutomationId(dialog, "ai-consent");
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        await ChangeAsync("POST", AiConsent.Path, ai.AllowBody(), j => consent = AiConsent.Read(j) ?? consent);
     }
 }

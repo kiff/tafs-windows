@@ -995,6 +995,24 @@ public sealed partial class MainWindow : Window
         };
     }
 
+    /// <summary>A write to tafs cloud as the session (POST, PUT or DELETE), answered as a read is: Account's settings.</summary>
+    static async Task<CloudRead> CloudWriteAsync(string bearer, string method, string path, byte[]? body)
+    {
+        var w = App.Words;
+        var url = new Uri(HomeList.Api, path);
+        try
+        {
+            var (status, answer) = method switch
+            {
+                "PUT" => await KiffHttp.PutAsync(url, body ?? "{}"u8.ToArray(), bearer, w.Language),
+                "DELETE" => await KiffHttp.DeleteAsync(url, bearer, w.Language),
+                _ => await KiffHttp.PostAsync(url, body ?? "{}"u8.ToArray(), bearer, w.Language),
+            };
+            return Answered(w, status, answer);
+        }
+        catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
+    }
+
     /// <summary>A read from KIFF as the session, answered as tafs cloud's are.</summary>
     static async Task<CloudRead> KiffReadAsync(string bearer, string path)
     {
@@ -1336,7 +1354,9 @@ public sealed partial class MainWindow : Window
     void OnAccount(object sender, RoutedEventArgs e)
     {
         OpenBeside(typeof(AccountPage), new AccountOpening(sample, Root.RequestedTheme,
-            path => cloudRead is { } read ? read(path) : Task.FromResult(CloudRead.Unreached(App.Words)), kiffAccount));
+            path => cloudRead is { } read ? read(path) : Task.FromResult(CloudRead.Unreached(App.Words)), kiffAccount,
+            App.Sessions.Kept() is { } session ? (method, path, body) => CloudWriteAsync(session.AccessToken, method, path, body) : null,
+            Halt.ManagesCards(capabilities)));
         ShowAccountChosen(true);
     }
 
