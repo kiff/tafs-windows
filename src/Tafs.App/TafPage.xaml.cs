@@ -16,7 +16,7 @@ namespace Tafs.App;
 public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, ActivityPage> Activity, SetupOpening? Setup = null,
     TafTab OpensOn = TafTab.Activity, IReadOnlyList<TafCard>? Cards = null, string IssuedBy = "", string? CloudId = null,
     Func<string, Task<CloudRead>>? Read = null, Func<string, string?, Task<CloudRead>>? ReadWithProof = null,
-    Func<Task<string?>>? SetupProof = null, TafHalt? Halt = null);
+    Func<Task<string?>>? SetupProof = null, bool Revoked = false, TafHalt? Halt = null);
 
 /// <summary>A taf's halt row, for whoever manages the taf: how its halt is read, and what opens its screen.</summary>
 public sealed record TafHalt(Func<Task<Halt>> Read, Action Open);
@@ -71,6 +71,8 @@ public sealed partial class TafPage : Page
         PausedText.Text = App.Words.Get("taf.state.paused");
         StoppedText.Text = App.Words.Get("taf.state.stopped");
         notes = [.. opening.Setup?.Notes ?? []];
+        // A taf whose Card KIFF revoked opens revoked, as the iPad's taf.card.revoked: its Cards say Revoked and fade.
+        revoked = opening.Revoked;
         tab = Built(opening.OpensOn) ? opening.OpensOn : TafTab.Activity;
 
         if (opening.Card is { } card)
@@ -505,6 +507,8 @@ public sealed partial class TafPage : Page
         if (revoked) return;
         // Halting is a job of its own too, for whoever manages the taf: its row opens its screen (the iPad's HaltRow).
         if (opening.Halt is { } halt) CardPane.Children.Add(HaltRow(halt));
+        // Revoke reaches nothing yet, so it's the sample's only: on a real taf it would look done when KIFF revoked nothing.
+        if (opening?.CloudId is not null) return;
         var revoke = new Button { Content = w.Get("taf.revoke"), Style = Look("TafsOutlineNo"), HorizontalAlignment = HorizontalAlignment.Stretch };
         revoke.Click += async (_, _) => await RevokeAsync();
         CardPane.Children.Add(revoke);
