@@ -20,11 +20,11 @@ try {
         if (-not (Test-Path $path)) { throw "missing: $path" }
         & $signtool.FullName sign /fd SHA256 /sha1 $cert.Thumbprint /s My $path
         if ($LASTEXITCODE -ne 0) { throw "signtool failed on $name" }
-        # Untrusted by design (a throwaway root), but it must be there, by this certificate, over this file.
-        $signature = Get-AuthenticodeSignature $path
-        if ($signature.SignerCertificate.Thumbprint -ne $cert.Thumbprint) { throw "no dry-run signature on $name" }
-        Write-Host "dry run: signed $name ($($signature.Status))"
+        # It must be this certificate's own signature over this file, not one already there.
+        if ((Get-AuthenticodeSignature $path).SignerCertificate.Thumbprint -ne $cert.Thumbprint) { throw "no dry-run signature on $name" }
     }
+    # The real signing's check, on the dry run's subject: untrusted by design (a throwaway root), but by this subject exactly.
+    & (Join-Path $PSScriptRoot 'check-signatures.ps1') -Folder $Folder -Subject $cert.Subject -Files $Files -Untrusted
 }
 finally {
     Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)" -ErrorAction SilentlyContinue

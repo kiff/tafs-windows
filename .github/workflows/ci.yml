@@ -14,6 +14,11 @@ on:
         description: "A part to run alone (for example approvals), or all. Empty: the parts this branch changes."
         required: false
         default: ""
+      sign:
+        description: "Sign with KIFF's certificate, from the windows-signing environment (main only)."
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -239,18 +244,39 @@ jobs:
           path: artifacts/msix/*/*.msix
           if-no-files-found: error
 
-  # Signing (docs/install.md), from main and on demand: the app's own files, by KIFF's Azure Artifact Signing certificate.
-  # Off until the windows-signing environment has its values (rule 16): until then the same step runs as a dry run, signing
-  # a copy with a throwaway self-signed certificate (ci/sign-dry-run.ps1), so the rest is proved and Azure is a values
-  # change. The environment holds WINDOWS_SIGNING_ENDPOINT, _ACCOUNT and _PROFILE (variables) and AZURE_TENANT_ID,
-  # AZURE_CLIENT_ID and AZURE_CLIENT_SECRET (secrets); its protection rules are the owner's. Only a real signing keeps its
-  # files (tafs-windows-signed-<platform>); a dry run keeps nothing. The installer and the MSIX are signed here too once
-  # they're built for it.
-  sign:
+  # Signing's dry run (docs/install.md, rule 16), on main and on demand, with no environment: the app's own files signed
+  # with a throwaway self-signed certificate made in the run (ci/sign-dry-run.ps1), then read back by the same check the
+  # real signing uses (ci/check-signatures.ps1, its subject compared exactly). It proves the file list, signtool and the
+  # check, and keeps nothing.
+  sign-dry-run:
     needs: [zip]
     if: >-
       always() && needs.zip.result == 'success'
       && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x64, ARM64]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: tafs-windows-${{ matrix.platform }}
+          path: artifacts/zip/tafs-${{ matrix.platform }}
+      - name: Dry run
+        shell: pwsh
+        run: ./ci/sign-dry-run.ps1 -Folder "artifacts/zip/tafs-${{ matrix.platform }}"
+
+  # Signing for real (docs/install.md): only on demand from main, with "sign" ticked, so a main push never waits on the
+  # windows-signing environment's protection rules (the owner's). Azure's own action signs the app's own files with KIFF's
+  # Artifact Signing certificate; each signature must then be Valid and by WINDOWS_SIGNING_SUBJECT, the certificate's full
+  # subject, exactly. Any value missing fails the run, saying which; nothing is signed with half of them.
+  sign:
+    needs: [zip]
+    if: >-
+      always() && needs.zip.result == 'success'
+      && github.event_name == 'workflow_dispatch' && inputs.sign && github.ref == 'refs/heads/main'
     runs-on: windows-latest
     environment: windows-signing
     strategy:
@@ -261,9 +287,7 @@ jobs:
       SIGNING_ENDPOINT: ${{ vars.WINDOWS_SIGNING_ENDPOINT }}
       SIGNING_ACCOUNT: ${{ vars.WINDOWS_SIGNING_ACCOUNT }}
       SIGNING_PROFILE: ${{ vars.WINDOWS_SIGNING_PROFILE }}
-    defaults:
-      run:
-        shell: bash
+      SIGNING_SUBJECT: ${{ vars.WINDOWS_SIGNING_SUBJECT }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -271,16 +295,14 @@ jobs:
           name: tafs-windows-${{ matrix.platform }}
           path: artifacts/zip/tafs-${{ matrix.platform }}
       - name: Signing's values
-        id: values
+        shell: bash
         run: |
-          if [ -n "$SIGNING_ENDPOINT" ] && [ -n "$SIGNING_ACCOUNT" ] && [ -n "$SIGNING_PROFILE" ]; then
-            echo "real=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "real=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::windows-signing has no values yet: dry run with a throwaway certificate, nothing kept"
-          fi
+          missing=""
+          for name in SIGNING_ENDPOINT SIGNING_ACCOUNT SIGNING_PROFILE SIGNING_SUBJECT; do
+            [ -n "${!name}" ] || missing="$missing WINDOWS_$name"
+          done
+          if [ -n "$missing" ]; then echo "::error::windows-signing is missing:$missing"; exit 1; fi
       - name: Sign with KIFF's certificate
-        if: steps.values.outputs.real == 'true'
         uses: Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -297,20 +319,9 @@ jobs:
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
       - name: Each signature is KIFF's
-        if: steps.values.outputs.real == 'true'
         shell: pwsh
-        run: |
-          foreach ($name in 'Tafs.App.exe', 'Tafs.App.dll', 'Tafs.Core.dll') {
-            $s = Get-AuthenticodeSignature "artifacts/zip/tafs-${{ matrix.platform }}/$name"
-            if ($s.Status -ne 'Valid') { throw "${name}: $($s.Status)" }
-            Write-Host "$name signed by $($s.SignerCertificate.Subject)"
-          }
-      - name: Dry run
-        if: steps.values.outputs.real != 'true'
-        shell: pwsh
-        run: ./ci/sign-dry-run.ps1 -Folder "artifacts/zip/tafs-${{ matrix.platform }}"
+        run: ./ci/check-signatures.ps1 -Folder "artifacts/zip/tafs-${{ matrix.platform }}" -Subject $env:SIGNING_SUBJECT
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: steps.values.outputs.real == 'true'
         with:
           name: tafs-windows-signed-${{ matrix.platform }}
           path: artifacts/zip/tafs-${{ matrix.platform }}/

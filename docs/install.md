@@ -44,16 +44,19 @@ signed. Everyone else waits for the signed package.
 ## Signing (wired, off until Azure exists)
 
 - **What's signed:** the app's own files in each zip (`Tafs.App.exe`, `Tafs.App.dll`, `Tafs.Core.dll`), with KIFF's
-  Azure Artifact Signing certificate, SHA-256 and Microsoft's timestamp, by CI's `sign` job on main and on demand. The
-  installer and the MSIX join it once they're built for it.
-- **Its values** live in the repository's `windows-signing` environment: the variables `WINDOWS_SIGNING_ENDPOINT`,
-  `WINDOWS_SIGNING_ACCOUNT` and `WINDOWS_SIGNING_PROFILE`, and the secrets `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and
-  `AZURE_CLIENT_SECRET` (an app registration allowed to sign with that profile). Who may set them, and whether a run
-  waits for someone's approval, are the environment's protection rules: the owner's call.
-- **Until they're set,** the job runs as a dry run (`ci/sign-dry-run.ps1`): the same files are signed with a throwaway
-  self-signed certificate made in that run, and each signature is read back. It proves the file list, `signtool` and the
-  read-back, and keeps nothing. Once the values exist, the next run signs for real, checks each signature is valid, and
-  keeps `tafs-windows-signed-x64` and `tafs-windows-signed-ARM64`.
+  Azure Artifact Signing certificate, SHA-256 and Microsoft's timestamp. The installer and the MSIX join it once they're
+  built for it.
+- **For real only on demand:** Actions › CI › Run workflow on `main`, with **sign** ticked. That runs CI's `sign` job in
+  the repository's `windows-signing` environment, so a push to main never waits on the environment's protection rules,
+  which are the owner's call. Its values: the variables `WINDOWS_SIGNING_ENDPOINT`, `WINDOWS_SIGNING_ACCOUNT`,
+  `WINDOWS_SIGNING_PROFILE` and `WINDOWS_SIGNING_SUBJECT` (the certificate's full subject, as Windows shows it), and the
+  secrets `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` (an app registration allowed to sign with that
+  profile). Any value missing fails the run, naming it. After signing, each file's signature must be Valid and by exactly
+  that subject (`ci/check-signatures.ps1`), so a misconfigured profile, or another organisation's certificate, fails even
+  when it chains to a trusted root. It keeps `tafs-windows-signed-x64` and `tafs-windows-signed-ARM64`.
+- **The dry run, on every main push and on demand** (`sign-dry-run`, no environment): the same files signed with a
+  throwaway self-signed certificate made in that run (`ci/sign-dry-run.ps1`), then read back by the same check on that
+  certificate's subject (untrusted by design). It proves the file list, `signtool` and the check, and keeps nothing.
 - The action is Azure's own (`Azure/artifact-signing-action`), pinned to v2.0.0's commit.
 
 ## Not yet
