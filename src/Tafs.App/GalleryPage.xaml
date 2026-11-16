@@ -1,0 +1,21 @@
+<!-- The jobs' gallery, as the iPad's RecipeGallerySheet: tafs cloud's title, then its "All jobs" heading, a chip per
+     category to narrow them, and every job by category, each opening its sheet. Drawn in code; every word is tafs cloud's. -->
+<Page x:Class="Tafs.App.GalleryPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{ThemeResource TafsBackground}">
+  <ScrollViewer>
+    <!-- Up to 640 wide, as the iPad's sheet, from the leading edge. -->
+    <Grid Padding="24">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" MaxWidth="640" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <StackPanel x:Name="Items" Spacing="12" AutomationProperties.AutomationId="gallery">
+        <TextBlock x:Name="Heading" FontSize="30" FontWeight="Bold" TextWrapping="Wrap" Foreground="{ThemeResource TafsInk}"
+                   AutomationProperties.HeadingLevel="Level1" />
+        <StackPanel x:Name="Body" Spacing="12" />
+      </StackPanel>
+    </Grid>
+  </ScrollViewer>
+</Page>
