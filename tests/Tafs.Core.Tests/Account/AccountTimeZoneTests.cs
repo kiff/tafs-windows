@@ -2,6 +2,7 @@ using System.Text;
 using Tafs.Core.Account;
 using Tafs.Core.Kiff;
 using Tafs.Core.NeedsYou;
+using Tafs.Core.Taf;
 using Tafs.Core.Tests.Strings;
 using Tafs.Core.Words;
 
@@ -21,11 +22,14 @@ public class AccountTimeZoneTests
         public bool Current = true;
         public byte[]? Signed;
 
+        public CloudRead? Synced;
+
         public Task<(string? Zone, string? Why)> Set(string zone = "Europe/Paris") => AccountTimeZone.SetAsync(En, "t_01", zone,
             prompt => { Made.Add("confirm " + prompt); return Task.FromResult(Confirmed); },
             message => { Made.Add("sign"); Signed = message; return Task.FromResult(new byte[] { 1, 2 }); },
             header => { Made.Add("put " + header); return Task.FromResult(Answer); },
-            () => "2026-11-16T12:00:00.123Z", () => Current);
+            () => "2026-11-16T12:00:00.123Z", () => Current,
+            Synced is { } synced ? () => { Made.Add("schedules"); return Task.FromResult(synced); } : null);
     }
 
     /// <summary>Windows Hello with the iPad's prompt, then the signature over exactly the PUT, then the PUT with its header.</summary>
@@ -72,6 +76,35 @@ public class AccountTimeZoneTests
         Assert.True(new KiffAccount("t", "s", null, null, null).Offered(viewOnly: false).TimeZone);
         Assert.False(new KiffAccount("t", "s", null, null, null, ["account.settings"]).Offered(viewOnly: true).TimeZone);
         Assert.False(new KiffAccount("t", "s", null, null, null).Offered(viewOnly: true).TimeZone);
+    }
+
+    /// <summary>KIFF has it, then tafs cloud moves the tafs' schedules; not yet, the zone is still changed and why says so.</summary>
+    [Fact]
+    public async Task Then_tafs_cloud_moves_the_schedules()
+    {
+        var calls = new Calls { Synced = CloudRead.Of(System.Text.Json.JsonDocument.Parse("""{"time_zone":"Europe/Paris","updated":3}""").RootElement) };
+        Assert.Equal(("Europe/Paris", null), await calls.Set());
+        Assert.Equal("schedules", calls.Made[^1]);
+
+        var notYet = new Calls { Synced = CloudRead.Refused(En, 503, """{"words": "Try again in a minute."}""") };
+        Assert.Equal(("Europe/Paris", "The account's zone changed. Its schedules couldn't be updated yet: Try again in a minute."), await notYet.Set());
+
+        // KIFF refused: nothing for tafs cloud to move.
+        var refused = new Calls { Answer = (409, "{}"), Synced = CloudRead.Unreached(En) };
+        await refused.Set();
+        Assert.DoesNotContain("schedules", refused.Made);
+    }
+
+    [Fact]
+    public void The_list_is_tafs_cloud_s_searched_there()
+    {
+        Assert.Equal("/v1/time-zones", AccountTimeZone.ListPath("  "));
+        Assert.Equal("/v1/time-zones?q=new%20york", AccountTimeZone.ListPath("new york"));
+        var zones = AccountTimeZone.Zones(System.Text.Json.JsonDocument.Parse("""
+            {"zones":[{"id":"Europe/Paris","title":"Paris (UTC+1)"},{"id":"Asia/Tokyo"},{"title":"No id"},"x"]}
+            """).RootElement)!;
+        Assert.Equal([("Europe/Paris", "Paris (UTC+1)"), ("Asia/Tokyo", "Asia/Tokyo")], zones);
+        Assert.Null(AccountTimeZone.Zones(System.Text.Json.JsonDocument.Parse("""{"no":1}""").RootElement));
     }
 
     [Fact]

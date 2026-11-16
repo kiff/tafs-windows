@@ -124,7 +124,10 @@ public sealed partial class AccountPage : Page
             account.Add(Row(w.Get("settings.kiff_account"), kiff.Name));
             if (kiff.Slug != kiff.Name) account.Add(Row(w.Get("settings.account_id"), kiff.Slug));
             if (kiff.SignedInAs is { } email) account.Add(Row(w.Get("settings.signed_in_as"), email));
-            account.Add(Row(w.Get("settings.time_zone_title"), kiff.TimeZone ?? "UTC"));
+            // Any zone, from tafs cloud's list, for a session KIFF lets change it, as the iPad's TimePicker; else the zone alone.
+            if (offered.TimeZone && opening.SetTimeZone is { } choose && opening.Read is { } readZones)
+                account.Add(Choose(w.Get("settings.time_zone_title"), kiff.TimeZone ?? "UTC", () => _ = PickZoneAsync(choose, readZones, kiff.TimeZone ?? "UTC")));
+            else account.Add(Row(w.Get("settings.time_zone_title"), kiff.TimeZone ?? "UTC"));
             // This PC's zone, when the account's differs, as the iPad's "Use this iPad: …": one Windows Hello, then the device
             // key signs KIFF's change. Holds' deadlines, Activity, the Record and what tafs write use it.
             if (offered.TimeZone && opening.SetTimeZone is { } set && AccountTimeZone.ThisPc(TimeZoneInfo.Local) is { } here && here != (kiff.TimeZone ?? "UTC"))
@@ -340,6 +343,102 @@ public sealed partial class AccountPage : Page
     {
         Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, Style = Look(style), Margin = new Thickness(0, 14, 0, 14),
     };
+
+    /// <summary>A row that opens a choice: its label, the value, and a chevron.</summary>
+    static Button Choose(string label, string value, Action act)
+    {
+        var line = Row(label, value);
+        var chevron = new TextBlock { Text = "\uE76C", FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons"), FontSize = 13,
+            Style = Look("TafsDimText"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+        line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(chevron, 2);
+        line.Children.Add(chevron);
+        var b = new Button
+        {
+            Content = line, Style = Look("TafsBox"), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+        };
+        AutomationProperties.SetName(b, $"{label}: {value}");
+        b.Click += (_, _) => act();
+        return b;
+    }
+
+    /// <summary>
+    /// The time zone, as the iPad's <c>TimeZonePicker</c>: "Use this Windows PC: …", then tafs cloud's list, searched there as
+    /// the person types ("Find a time zone"), the account's marked. One chosen is set as this PC's is: Windows Hello, then the
+    /// device key signs KIFF's change, then tafs cloud moves the tafs' schedules.
+    /// </summary>
+    async Task PickZoneAsync(Func<string, Task<(string? Zone, string? Why)>> set, Func<string, Task<CloudRead>> read, string current)
+    {
+        var w = App.Words;
+        string? chosen = null;
+        var search = new TextBox { PlaceholderText = w.Get("settings.find_time_zone") };
+        AutomationProperties.SetName(search, w.Get("settings.find_time_zone"));
+        var list = new StackPanel { Spacing = 0 };
+        var problem = new TextBlock { FontSize = 13, TextWrapping = TextWrapping.Wrap, Style = Look("TafsNoText"), Visibility = Visibility.Collapsed };
+        var body = new StackPanel { Spacing = 10, MinWidth = 380 };
+        ContentDialog? dialog = null;
+        Button Zone(string id, string title)
+        {
+            var row = new Grid { MinHeight = 40, ColumnSpacing = 8 };
+            row.ColumnDefinitions.Add(new ColumnDefinition());
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.Children.Add(new TextBlock { Text = title, FontSize = 15, VerticalAlignment = VerticalAlignment.Center, Style = Look("TafsInkText") });
+            if (id == current)
+            {
+                var mark = new TextBlock { Text = "\uE73E", FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe Fluent Icons"), VerticalAlignment = VerticalAlignment.Center,
+                    Style = Look("TafsAccentText") };
+                Grid.SetColumn(mark, 1);
+                row.Children.Add(mark);
+            }
+            var b = new Button { Content = row, Style = Look("TafsBox"), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+            AutomationProperties.SetName(b, title);
+            if (id == current) AutomationProperties.SetItemStatus(b, "selected");
+            b.Click += (_, _) => { chosen = id; dialog?.Hide(); };
+            return b;
+        }
+        if (AccountTimeZone.ThisPc(TimeZoneInfo.Local) is { } here)
+            body.Children.Add(Action(w.Get("settings.use_device_zone", ("device", w.Get("device.windows")), ("identifier", here)), "TafsAmberWords",
+                () => { chosen = here; dialog?.Hide(); }));
+        body.Children.Add(search);
+        body.Children.Add(problem);
+        body.Children.Add(new ScrollViewer { Content = list, MaxHeight = 360 });
+        var asked = 0;
+        async Task LoadAsync(string q)
+        {
+            var mine = ++asked;
+            var answer = await read(AccountTimeZone.ListPath(q));
+            if (mine != asked) return;
+            list.Children.Clear();
+            if (answer.Answer is { } json && AccountTimeZone.Zones(json) is { } zones)
+            {
+                problem.Visibility = Visibility.Collapsed;
+                foreach (var (id, title) in zones) list.Children.Add(Zone(id, title));
+            }
+            else
+            {
+                problem.Text = w.Get("settings.time_zone.not_changed", ("why", answer.Why ?? w.Get("error.ours"))).Trim();
+                problem.Visibility = Visibility.Visible;
+            }
+        }
+        CancellationTokenSource? typing = null;
+        search.TextChanged += async (_, _) =>
+        {
+            typing?.Cancel();
+            typing = new CancellationTokenSource();
+            var token = typing.Token;
+            // A moment after the last key, as the iPad's 0.25 s.
+            try { await Task.Delay(250, token); } catch (TaskCanceledException) { return; }
+            await LoadAsync(search.Text);
+        };
+        dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot, Title = w.Get("settings.time_zone_title"), Content = body, CloseButtonText = w.Get("common.cancel"),
+            RequestedTheme = ActualTheme,
+        };
+        _ = LoadAsync("");
+        await dialog.ShowAsync();
+        if (chosen is { } zone && zone != current) await UseZoneAsync(set, zone);
+    }
 
     /// <summary>A row that acts: its words in the accent, amber or red, across the row.</summary>
     static Button Action(string words, string style, Action act)
