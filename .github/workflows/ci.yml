@@ -107,11 +107,12 @@ jobs:
           exe=src/Tafs.App/bin/x64/Release/net8.0-windows10.0.19041.0/Tafs.App.exe
           mkdir -p screenshots
           missing=0
-          for screen in sign-in overview overview-home taf-home taf-setup-home coach-home view-only pair needs-you record calendar calendar-week usage connect-apps account coach taf taf-setup taf-card; do
+          for screen in sign-in overview overview-home overview-labels taf-home taf-setup-home coach-home view-only pair needs-you record calendar calendar-week usage connect-apps account coach taf taf-setup taf-card; do
             case $screen in
               sign-in) opts=(--page sign-in) ;;
               overview) opts=(--sample) ;;
               overview-home) opts=(--home shared/contracts/home.json) ;;
+              overview-labels) opts=(--home tests/fixtures/home-labels/home.json) ;;
               taf-home) opts=(--home shared/contracts/home.json --page taf) ;;
               taf-setup-home) opts=(--home shared/contracts/home.json --page taf-setup) ;;
               coach-home) opts=(--home shared/contracts/home.json --page coach) ;;
