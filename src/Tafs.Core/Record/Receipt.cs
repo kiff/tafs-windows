@@ -21,6 +21,13 @@ public static class Receipt
     public static string Path(string traceId) => "/v1/receipts/" + CloudRead.PathPart(traceId);
 
     /// <summary>
+    /// "What happened" is what KIFF signed for this line, as the iPad's <c>showsWhatHappened</c>: drawn only once this PC
+    /// checked KIFF's signature and the receipt matches the line. Not signed yet, not checking out, or still checking, its
+    /// steps aren't drawn as what happened.
+    /// </summary>
+    public static bool ShowsWhatHappened(ReceiptCheck? check, bool mismatch) => check is ReceiptCheck.Verified && !mismatch;
+
+    /// <summary>
     /// The receipt's steps as KIFF signed them (its <c>causal_chain</c>, taken as written): what the sheet shows as happened.
     /// None when the receipt or its chain can't be read.
     /// </summary>
@@ -193,6 +200,37 @@ public static class RawJson
             i++;
         }
     }
+
+    /// <summary>An object's own keys, in the order written (not those of objects inside it); none when it isn't an object that reads to its end.</summary>
+    public static IReadOnlyList<string>? Keys(byte[] b)
+    {
+        var i = Space(b, 0);
+        if (i >= b.Length || b[i] != '{') return null;
+        i = Space(b, i + 1);
+        var keys = new List<string>();
+        if (i < b.Length && b[i] == '}') return keys;
+        while (true)
+        {
+            if (i >= b.Length || b[i] != '"' || StringEnd(b, i) is not { } keyEnd) return null;
+            string? name;
+            try { name = JsonSerializer.Deserialize<string>(b.AsSpan(i, keyEnd - i)); }
+            catch (JsonException) { return null; }
+            if (name is null) return null;
+            keys.Add(name);
+            i = Space(b, keyEnd);
+            if (i >= b.Length || b[i] != ':') return null;
+            i = Space(b, i + 1);
+            if (ValueEnd(b, i) is not { } valueEnd) return null;
+            i = Space(b, valueEnd);
+            if (i >= b.Length) return null;
+            if (b[i] == '}') return keys;
+            if (b[i] != ',') return null;
+            i = Space(b, i + 1);
+        }
+    }
+
+    /// <summary>No key of the object written twice. An object it can't read isn't unique.</summary>
+    public static bool KeysAreUnique(byte[] b) => Keys(b) is { } keys && keys.Distinct().Count() == keys.Count;
 
     static int Space(byte[] b, int i)
     {
