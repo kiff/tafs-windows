@@ -147,4 +147,26 @@ public class PairingAttemptTests
         Assert.False(PairingAttempt.Discard(a, _ => false));
         Assert.False(PairingAttempt.Discard(a, _ => throw new System.Runtime.InteropServices.COMException("no")));
     }
+
+    /// <summary>
+    /// KIFF answered, then the code expired (or the page closed) while the session was being kept: the passkey KIFF just
+    /// registered is never released (kiff-qa on #109). Before an answer, an expiry releases it once.
+    /// </summary>
+    [Fact]
+    public void A_passkey_KIFF_answered_for_is_never_released()
+    {
+        var (a, b) = (Passkey(1), Passkey(2));
+        var offered = new OfferedPasskey();
+        Assert.Null(offered.Offer(a));
+        Assert.Same(a, offered.Offer(b));
+        Assert.Same(b, offered.Release());
+        Assert.Null(offered.Release());
+
+        var claimed = new OfferedPasskey();
+        claimed.Offer(a);
+        claimed.Claim();
+        Assert.Null(claimed.Release());
+        Assert.Same(a, claimed.Current);
+        Assert.Null(claimed.Offer(b));
+    }
 }

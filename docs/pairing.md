@@ -64,7 +64,8 @@ PC's passkey (`WindowsHello.CreateAsync`, ES256, the person verified), then show
   - when its code expires (a new code then makes another, on the person's tap);
   - when a new code made another one (with the creation proof on, each attempt makes its own);
   - when the page closes without pairing.
-  A paired session's passkey is never removed. An older Windows that can't, or a refusal, leaves it in the list, as before,
+  A paired session's passkey is never removed: it's claimed (`OfferedPasskey.Claim`) the moment KIFF hands over the
+  session, before it's kept, so a code that expires or a page that closes while the session is being kept removes nothing. An older Windows that can't, or a refusal, leaves it in the list, as before,
   and never stops the pairing.
 - **The passkey's user id** is sha256 of the device key: the same on every attempt with that key.
 - **With the creation proof on** (`Features.PairingPasskeyProof`), the challenge holds the nonce, so each

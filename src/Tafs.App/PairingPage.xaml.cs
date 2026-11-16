@@ -25,10 +25,9 @@ public sealed partial class PairingPage : Page
     CancellationTokenSource cancel = new();
     PairingOffer? offer;
     TpmKey? deviceKey;
-    NewPasskey? passkey;
+    /// <summary>The passkey the QR offers; claimed the moment KIFF answers, so nothing removes a registered one.</summary>
+    readonly OfferedPasskey offered = new();
     bool offline;
-    /// <summary>KIFF handed over a session for this page's passkey: it's the session's now, never removed.</summary>
-    bool paired;
 
     /// <summary>KIFF handed over this PC's session. It's kept in memory for now.</summary>
     public static event Action<PairedSession>? Paired;
@@ -93,11 +92,10 @@ public sealed partial class PairingPage : Page
                 ? (challenge, c) => new WindowsHello(() => App.WindowHandle)
                     .CreateAsync(PairingAttempt.PasskeyUserId(deviceKey.PublicKeyDer), name, name, challenge, c)
                 : null;
-            var before = passkey;
-            (offer, passkey) = await PairingAttempt.OfferAsync(deviceKey.PublicKeyDer, name, make, passkey,
+            (offer, var made) = await PairingAttempt.OfferAsync(deviceKey.PublicKeyDer, name, make, offered.Current,
                 DateTimeOffset.UtcNow, Features.PairingPasskeyProof, token);
             // A new code that made another passkey leaves the one before unused: out of Windows' list.
-            PairingAttempt.Discard(PairingAttempt.Replaced(before, passkey), WindowsHello.DeletePlatformCredential);
+            PairingAttempt.Discard(offered.Offer(made), WindowsHello.DeletePlatformCredential);
             if (token.IsCancellationRequested) return;
             await ShowQrAsync();
 
@@ -105,14 +103,16 @@ public sealed partial class PairingPage : Page
                 (body, c) => KiffHttp.PostAsync(PairingClaim.Path, body, c), () => DateTimeOffset.UtcNow, Task.Delay, token);
             if (result.Session is { } session)
             {
+                // Claimed before anything is awaited: a code expiring, or the page closing, while it's kept removes nothing.
+                offered.Claim();
+                clock.Stop();
                 // Kept before Added shows, so a relaunch reads it instead of pairing the same key again.
                 // A passkey session keeps its passkey's credential id, the one the QR offered, so Windows Hello can be asked for it.
                 await App.Sessions.KeepAsync(KeptSession.Of(DeviceSignIn.Api, session.AccessToken, session.Tenant, session.Subject,
                     session.DeviceId, session.Mode, session.ExpiresIn, DateTimeOffset.UtcNow, TpmKey.PairingKeyName) with
                 {
-                    PasskeyId = session.Mode == ApprovalMode.Passkey && passkey is { } made ? KiffSigning.Base64Url(made.CredentialId) : null,
+                    PasskeyId = session.Mode == ApprovalMode.Passkey && offered.Current is { } passkey ? KiffSigning.Base64Url(passkey.CredentialId) : null,
                 });
-                paired = true;
                 Paired?.Invoke(session);
             }
             var step = PairingScreen.After(result.Status);
@@ -140,13 +140,14 @@ public sealed partial class PairingPage : Page
         }
     }
 
-    /// <summary>The passkey the QR offered, removed when no session holds it (<see cref="PairingAttempt.LeftOver"/>).</summary>
+    /// <summary>
+    /// The passkey the QR offered, removed when no session holds it (<see cref="OfferedPasskey.Release"/>). Gone or not (an older
+    /// Windows keeps it), it's no longer offered: a new code makes another. Once KIFF answered, nothing.
+    /// </summary>
     void ForgetPasskey()
     {
-        if (offline || PairingAttempt.LeftOver(passkey, paired) is not { } unused) return;
-        // Gone or not (an older Windows keeps it), it's no longer offered: a new code makes another.
-        PairingAttempt.Discard(unused, WindowsHello.DeletePlatformCredential);
-        passkey = null;
+        if (offline) return;
+        PairingAttempt.Discard(offered.Release(), WindowsHello.DeletePlatformCredential);
     }
 
     async Task ShowQrAsync()
