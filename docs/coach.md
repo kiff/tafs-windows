@@ -164,7 +164,11 @@ work, where the iPad's decoder fails the thread.
       `connecting`.
     - **A sign-in wider than the job** (kiff/tafs#1218): where tafs cloud marks the card `wider: {words}` (planque couldn't
       narrow the sign-in, `usual_access`), its words show in amber after a warning mark, above the buttons, so they're read
-      before anyone approves. Blank, or of another shape, is no line.
+      before anyone approves. Blank, or of another shape, is no line. tafs cloud marks it only on a conversation read that
+      carries this PC's planque proof (`Planque-Device-Signature`, kiff/tafs `markSigns`, `markWider`), so Coach's
+      conversation read sends it (`CoachChat.SignsRead`), as the iPad's and the Mac's: signed with the session's TPM key,
+      which asks no one, since it only reads. Its chats list and `/v1/setup` go without it; with no proof (a key gone),
+      the conversation reads unmarked.
   - **A sign-in card** (`SignInCard`, the iPad's `SetupChatView.signIn`): "Needs you · sign in" (in red, "Didn't go
     through · sign in", after a failure, with why), "Sign in at Gmail" (the card's service, else planque's name for the
     app, else "the vendor"; a signed-out connection, planque's words), "The vendor's own page opens. No taf sees your
