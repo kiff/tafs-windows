@@ -299,6 +299,14 @@ public sealed partial class MainWindow : Window
         AccountPage.ClearSampleChosen += () => Microsoft.Windows.AppLifecycle.AppInstance.Restart(
             string.Join(' ', Environment.GetCommandLineArgs().Skip(1).Where(a => a != "--sample")));
 
+        // The Record's search from record-search.json (and a case from record-case.json) beside the Home file, given before
+        // the Record opens; --page record-search opens it with a search typed, for a screenshot.
+        if (homeFile is not null)
+        {
+            RecordPage.Read = path => Task.FromResult(ContractRead(App.Words, homeFile, path));
+            if (page == "record-search") RecordPage.Typed = "42";
+        }
+
         if (page == "pair") OpenPairing();
         else if (page == "account") OnAccount(this, new RoutedEventArgs());
         else if (page == "sign-in") OpenSignIn();
@@ -318,7 +326,7 @@ public sealed partial class MainWindow : Window
         }
         else if (page is "gallery" or "gallery-job" or "new-taf") galleryAsked = page;
         else if (page == "connect-apps") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
-        else if (page == "record") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
+        else if (page is "record" or "record-search") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
         else if (page == "needs-you") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         else if (page is "taf" or "taf-setup" or "taf-card" or "taf-chat" && sample)
             OpenBeside(typeof(TafPage), SampleTaf(w, page switch
@@ -825,6 +833,8 @@ public sealed partial class MainWindow : Window
         kiffRead = path => KiffReadAsync(bearer, path);
         _ = ReadKiffAccountAsync(sessions);
         ReceiptSheet.Read = path => KiffBytesAsync(bearer, path);
+        // The Record's search, across the person's tafs, as the session.
+        RecordPage.Read = path => CloudReadAsync(bearer, path);
         // Given before Coach's read, which reads them as it draws its approvals.
         CoachMode.Grants = () => GrantsAsync(session);
         // Approve on Coach's approval cards: only a passkey session that knows its passkey signs; any other keeps the gate.
@@ -871,6 +881,7 @@ public sealed partial class MainWindow : Window
         kiffAccount = null;
         ShowKiffAccount();
         ReceiptSheet.Read = null;
+        RecordPage.Read = null;
         record = [];
         if (Pages.Content is RecordPage page) page.ShowEntries(record);
         if (!sampleHeld) ShowHeld([]);
@@ -1356,6 +1367,8 @@ public sealed partial class MainWindow : Window
                 path.StartsWith(ConnectAppsScreen.ListPath, StringComparison.Ordinal) ? "connect-apps.json"
                 : path == Gallery.Path ? "gallery.json" : path == Gallery.HomePath ? "recipes-home.json"
                 : path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "setup-coach.json"
+                : path.StartsWith("/v1/record/cases/", StringComparison.Ordinal) ? "record-case.json"
+                : path.StartsWith("/v1/record?", StringComparison.Ordinal) ? "record-search.json"
                 : path.StartsWith(Tafs.Core.Missions.Brief.Route, StringComparison.Ordinal) ? "brief.json"
                 : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json"
                 : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");

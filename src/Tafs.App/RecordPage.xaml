@@ -10,7 +10,13 @@
       <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
       <TextBlock x:Name="Lead" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
 
-      <ScrollViewer HorizontalScrollBarVisibility="Hidden" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+      <!-- Search across the tafs (the iPad's RecordSearchBox): tafs cloud's words as its placeholder; with no session, not there. -->
+      <TextBox x:Name="SearchBox" Visibility="Collapsed" TextChanged="OnSearchTyped" KeyDown="OnSearchKey"
+               AutomationProperties.AutomationId="record-search" />
+      <!-- What a search found, in tafs cloud's groups, in place of the Record while there's a search. -->
+      <StackPanel x:Name="Results" Spacing="10" Visibility="Collapsed" />
+
+      <ScrollViewer x:Name="TafChipsRow" HorizontalScrollBarVisibility="Hidden" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
         <StackPanel x:Name="TafChips" Orientation="Horizontal" Spacing="6" />
       </ScrollViewer>
       <StackPanel x:Name="FilterChips" Orientation="Horizontal" Spacing="6" />

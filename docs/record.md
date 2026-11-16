@@ -64,6 +64,25 @@ of KIFF. With neither, the Record is empty; `--sample` shows the reference set's
 shipped language: what the five sample tafs did today, the two held calls, and each taf started with its
 Card. The sample's words are the shared sample words.
 
+## Search and cases (`RecordSearch`)
+
+As the iPad's `RecordSearchBox`, `RecordResults`, `RecordHitRow` and `RecordCaseSheet`, across the person's tafs, from
+tafs cloud (`GET /v1/record?q=`, kiff/tafs `docs/api.md`): tafs cloud finds, words and decides; the app sends what's
+typed or tapped.
+- **The box,** under the lead, only signed in: tafs cloud's words as its placeholder (`hint`, read once with an empty
+  search), else "Search by order, invoice, amount or action". What's typed is searched 400 ms after the last key, so a
+  word typed letter by letter is one search; Enter searches at once; words already searched aren't searched again; an
+  emptied box shows the Record again.
+- **The results,** in place of the Record's chips and days while there's a search: tafs cloud's groups under their titles
+  (or every entry as one, when it sends none), each call under its taf's name, in capitals, as its Activity draws it: its
+  dot, what it was, the words under it, any money, its time. Nothing found says so in tafs cloud's words (`none_words`).
+  More reads the next page; a cursor tafs cloud refuses (409, a call made since) searches again from the top. At the end,
+  tafs cloud's words (`end_words`).
+- **A case** (`GET /v1/record/cases/{about}`): a call's "Order 42 ›" opens every call about the same thing, oldest first,
+  with the step that didn't go through first, in red, in tafs cloud's words. The Record never sends anything again itself.
+- For a screenshot, `--page record-search` with `--home` opens the Record with "42" searched, answered from a
+  `record-search.json` beside the Home file (a case from `record-case.json`).
+
 ## A line's sheet
 
 A tap on a line opens its sheet (`ReceiptSheet`), as the iPad's `ReceiptView`; Narrator reads the line
