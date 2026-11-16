@@ -33,6 +33,19 @@ public class HoldToastTests
     }
 
     /// <summary>
+    /// While the PC is locked, the notification says only "A taf needs you": no taf, amount, reason or deadline reaches the
+    /// lock screen. It still opens its hold.
+    /// </summary>
+    [Fact]
+    public void A_locked_PC_s_notification_says_only_that_a_taf_needs_you()
+    {
+        var locked = HoldToast.Lines(En, Call(), TimeZoneInfo.Utc, locked: true)!;
+        Assert.Equal(new ToastLines("A taf needs you", null, "ce_1"), locked);
+        Assert.Equal(locked, HoldToast.Lines(En, Call(taf: null), TimeZoneInfo.Utc, locked: true));
+        Assert.Equal("Rae needs you", HoldToast.Lines(En, Call(), TimeZoneInfo.Utc, locked: false)!.Title);
+    }
+
+    /// <summary>
     /// An agent no taf has reads "A taf needs you", not the card's "A taf"; Coach's own agent reads "Coach needs you", as
     /// the iPad's HoldNotification.fill.
     /// </summary>

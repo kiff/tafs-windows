@@ -331,7 +331,7 @@ public sealed partial class MainWindow : Window
         Toasts.Remove(HoldToast.Gone(notified, calls));
         if (HoldToast.Notifies(capabilities))
             foreach (var fresh in HoldToast.New(notified, calls))
-                if (HoldToast.Lines(App.Words, fresh, TimeZoneInfo.Local) is { } lines) Toasts.Show(lines);
+                if (HoldToast.Lines(App.Words, fresh, TimeZoneInfo.Local, Toasts.Locked()) is { } lines) Toasts.Show(lines);
         notified = calls.Where(c => c.KiffId is not null).Select(c => c.KiffId!).ToHashSet();
     }
 

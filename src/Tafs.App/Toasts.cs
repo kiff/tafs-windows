@@ -47,14 +47,42 @@ static class Toasts
     public static void Show(ToastLines lines)
     {
         if (!on) return;
-        var notification = new AppNotificationBuilder()
+        var builder = new AppNotificationBuilder()
             .AddArgument(HoldToast.Argument, lines.Hold)
-            .AddText(lines.Title)
-            .AddText(lines.Body)
-            .BuildNotification();
+            .AddText(lines.Title);
+        // No second line while the PC is locked (HoldToast.Lines).
+        if (lines.Body is { } body) builder.AddText(body);
+        var notification = builder.BuildNotification();
         notification.Tag = HoldToast.Tag(lines.Hold);
         AppNotificationManager.Default.Show(notification);
     }
+
+    /// <summary>
+    /// Whether this PC is locked, so a notification shows only "A taf needs you": the input desktop isn't the person's own
+    /// ("Default", it's Winlogon's while locked). When it can't be read, it counts as locked, so the details never reach a
+    /// lock screen by chance.
+    /// </summary>
+    public static bool Locked()
+    {
+        var desktop = OpenInputDesktop(0, false, DesktopReadObjects);
+        if (desktop == IntPtr.Zero) return true;
+        try
+        {
+            var name = new char[64];
+            return !GetUserObjectInformationW(desktop, UoiName, name, name.Length * 2, out _)
+                || new string(name).TrimEnd('\0') != "Default";
+        }
+        finally { CloseDesktop(desktop); }
+    }
+
+    const uint DesktopReadObjects = 0x0001;
+    const int UoiName = 2;
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    static extern IntPtr OpenInputDesktop(uint flags, bool inherit, uint access);
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    static extern bool GetUserObjectInformationW(IntPtr handle, int index, [System.Runtime.InteropServices.Out] char[] info, int length, out int needed);
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern bool CloseDesktop(IntPtr desktop);
 
     /// <summary>The notifications of holds no longer held, as the iPad's <c>removeAlerts(forHold:)</c>.</summary>
     public static void Remove(IEnumerable<string> holds)
