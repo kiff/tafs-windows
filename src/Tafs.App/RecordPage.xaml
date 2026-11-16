@@ -10,6 +10,8 @@
       <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
       <TextBlock x:Name="Lead" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
 
+      <!-- Export receipts, for someone who sees every taf's Record (the iPad's ExportReceiptsRow): drawn in code. -->
+      <StackPanel x:Name="Export" Spacing="6" Visibility="Collapsed" />
       <!-- Search across the tafs (the iPad's RecordSearchBox): tafs cloud's words as its placeholder; with no session, not there. -->
       <TextBox x:Name="SearchBox" Visibility="Collapsed" TextChanged="OnSearchTyped" KeyDown="OnSearchKey"
                AutomationProperties.AutomationId="record-search" />

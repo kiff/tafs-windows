@@ -179,6 +179,25 @@ static class KiffHttp
         return await SendAsync(request, cancel);
     }
 
+    /// <summary>A read as the session, its answer's bytes as they came (an export of receipts, kept exactly as issued).</summary>
+    /// <exception cref="HttpRequestException">It wasn't reached, or isn't a host the session's token may go to.</exception>
+    public static async Task<(int Status, byte[] Body)> GetBytesAsync(Uri url, string bearer, string language, CancellationToken cancel = default)
+    {
+        if (!Tafs.Core.Kiff.KeptSessions.MaySendTo(url, DeviceSignIn.Api)) throw new HttpRequestException("not a host the session goes to");
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
+        try
+        {
+            using var answer = await Client.SendAsync(request, cancel);
+            return ((int)answer.StatusCode, await answer.Content.ReadAsByteArrayAsync(cancel));
+        }
+        catch (TaskCanceledException) when (!cancel.IsCancellationRequested)
+        {
+            throw new HttpRequestException("KIFF didn't answer in time");
+        }
+    }
+
     static async Task<(int Status, string Body)> SendAsync(HttpRequestMessage request, CancellationToken cancel, HttpClient? client = null)
     {
         try

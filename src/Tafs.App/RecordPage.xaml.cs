@@ -49,9 +49,9 @@ public sealed partial class RecordPage : Page
     public RecordPage()
     {
         InitializeComponent();
-        // The results are drawn in the page's own theme: again once it's in the window, and whenever the theme changes.
-        Loaded += (_, _) => { if (searched is not null) ShowSearch(); };
-        ActualThemeChanged += (_, _) => { if (searched is not null) ShowSearch(); };
+        // Export receipts and the results are drawn in the page's own theme: again once it's in the window, and whenever the theme changes.
+        Loaded += (_, _) => { ShowExport(); if (searched is not null) ShowSearch(); };
+        ActualThemeChanged += (_, _) => { ShowExport(); if (searched is not null) ShowSearch(); };
     }
 
     /// <summary>How the search reads tafs cloud as the session; none signed out, or on the sample, and no box.</summary>
@@ -59,6 +59,89 @@ public sealed partial class RecordPage : Page
 
     /// <summary>A search already typed as the page opens: the stand-in's, for a screenshot (<c>--page record-search</c>).</summary>
     public static string? Typed { get; set; }
+
+    /// <summary>tafs cloud's answer as it came, as the session (an export's bytes); none signed out, and no Export receipts.</summary>
+    public static Func<string, Task<(byte[]? Raw, string? Why)>>? ReadBytes { get; set; }
+
+    /// <summary>Whether this person sees every taf's Record, which the export needs, as the window reads it; tafs cloud still decides (403).</summary>
+    public static bool SeesEveryTaf { get; set; }
+
+    bool exportOpen;
+    bool exporting;
+    string? exportWhy;
+    int exportMissing;
+
+    /// <summary>
+    /// Export receipts, as the iPad's <c>ExportReceiptsRow</c>: the row opens the ranges (the last 7, 30 or 90 days, today
+    /// among them); one exports them, "Preparing receipts…" meanwhile, then shares the two files through Windows' share
+    /// sheet, with how many calls have no receipt yet; not exported, why, in red.
+    /// </summary>
+    void ShowExport()
+    {
+        var w = App.Words;
+        Export.Children.Clear();
+        Export.Visibility = SeesEveryTaf && ReadBytes is not null ? Visibility.Visible : Visibility.Collapsed;
+        if (Export.Visibility != Visibility.Visible) return;
+        var row = new HyperlinkButton
+        {
+            Content = w.Get(exporting ? "record.export_preparing" : "record.export_receipts"), IsEnabled = !exporting, Padding = new Thickness(0),
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = ChatViews.ThemeBrush(ActualTheme, exporting ? "TafsDim" : "TafsAmberText"),
+        };
+        AutomationProperties.SetAutomationId(row, "export-receipts");
+        row.Click += (_, _) => { exportOpen = !exportOpen; ShowExport(); };
+        Export.Children.Add(row);
+        if (exportOpen && !exporting)
+        {
+            var days = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            foreach (var count in ReceiptsExport.Days)
+            {
+                var b = new Button { Content = w.Count("record.export_last_days", count), Style = (Style)Application.Current.Resources["TafsOutlineButton"] };
+                b.Click += (_, _) => _ = ExportAsync(count);
+                days.Children.Add(b);
+            }
+            Export.Children.Add(days);
+        }
+        if (exportMissing > 0)
+            Export.Children.Add(new TextBlock { Text = w.Count("record.export_missing", exportMissing), FontSize = 13, TextWrapping = TextWrapping.Wrap,
+                Foreground = ChatViews.ThemeBrush(ActualTheme, "TafsSoft") });
+        if (exportWhy is { } why)
+            Export.Children.Add(new TextBlock { Text = why, FontSize = 13, TextWrapping = TextWrapping.Wrap, Foreground = ChatViews.ThemeBrush(ActualTheme, "TafsNo") });
+    }
+
+    /// <summary>The export forgotten at a session change: what was open, on its way or said goes with the account.</summary>
+    public void ClearExport()
+    {
+        (exportOpen, exporting, exportWhy, exportMissing) = (false, false, null, 0);
+        ShowExport();
+    }
+
+    async Task ExportAsync(int count)
+    {
+        if (exporting || ReadBytes is not { } read) return;
+        var w = App.Words;
+        var (from, to) = ReceiptsExport.Range(count, DateOnly.FromDateTime(DateTime.Now));
+        (exporting, exportWhy, exportMissing) = (true, null, 0);
+        ShowExport();
+        var (raw, why) = await read(ReceiptsExport.Path(from, to));
+        // Another session since it was asked: no file, no share sheet, nothing said.
+        if (ReadBytes != read) return;
+        exporting = false;
+        if (raw is not null && ReceiptsExport.Read(raw, from, to) is { } export)
+        {
+            try
+            {
+                var files = ReceiptsExport.Write(ReceiptsExport.Folder, export);
+                (exportMissing, exportOpen) = (export.Missing, false);
+                ShowExport();
+                ShareFiles.Show(files, w.Get("record.export_receipts"));
+                return;
+            }
+            // The app's own words, never Windows' (they'd hold this PC's paths).
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { why = w.Get("error.ours"); }
+        }
+        exportWhy = w.Get("record.export_not_exported", ("why", why ?? w.Get("error.ours")));
+        ShowExport();
+    }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
@@ -68,6 +151,7 @@ public sealed partial class RecordPage : Page
         SearchBox.Visibility = Read is null ? Visibility.Collapsed : Visibility.Visible;
         AutomationProperties.SetName(SearchBox, SearchBox.PlaceholderText);
         ShowEntries(e.Parameter as IReadOnlyList<RecordEntry> ?? []);
+        ShowExport();
         _ = ReadHintAsync();
         if (Typed is { } typed)
         {
