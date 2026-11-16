@@ -134,6 +134,8 @@ public sealed partial class MainWindow : Window
     public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false, string? homeFile = null)
     {
         InitializeComponent();
+        // Back at the front: Your tafs' order settles again, as the iPad's when the app comes back.
+        Activated += OnReturned;
         // --theme for CI's screenshots, else the one chosen in Account last time, else the system's.
         Root.RequestedTheme = Element(ThemeChoices.AtLaunch(theme, screenshot is not null, () => ThemeChoices.Read(ThemeFile)));
         this.sample = sample;
@@ -329,8 +331,17 @@ public sealed partial class MainWindow : Window
             if (page is "taf" or "taf-setup" or "taf-chat" && home?.Tafs.FirstOrDefault() is { } first)
                 OpenBeside(typeof(TafPage), OpenTaf(w, first.Id, page switch { "taf-setup" => TafTab.Setup, "taf-chat" => TafTab.Chat, _ => TafTab.Activity }));
             // Connect apps from connect-apps.json beside the Home contract, as tafs cloud's list.
-            if (page == "connect-apps")
-                Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(null, (path, _) => Task.FromResult(ContractRead(w, homeFile, path)), null));
+            // With planque-grants.json beside it, the account's connections too, ended with nothing confirmed.
+            if (page is "connect-apps" or "connect-connections")
+            {
+                var grantsFile = Path.Combine(beside, "planque-grants.json");
+                var calls = File.Exists(grantsFile) ? new ConnectionsCalls(
+                    () => Task.FromResult(PlanqueGrants.Read(File.ReadAllBytes(grantsFile))),
+                    g => home?.Tafs.FirstOrDefault(t => t.Agent == g.Request.Agent)?.Name, Manages: true,
+                    (ids, _) => Task.FromResult((ids.Count, (string?)w.Get("common.not_done_unconfirmed"), false))) : null;
+                Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(null, (path, _) => Task.FromResult(ContractRead(w, homeFile, path)), null,
+                    calls, OpenFirst: page == "connect-connections"));
+            }
         }
         else if (screenshot is null && !sample && App.Sessions.Kept() is { } session)
         {
@@ -383,6 +394,8 @@ public sealed partial class MainWindow : Window
         var tafs = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => (g.First().Name, g.First().Colour));
         record = KiffActivity.Lines(App.Words, calls, agent => tafs.TryGetValue(agent, out var taf) ? taf : null);
         if (Pages.Content is RecordPage page) page.ShowEntries(record);
+        // The taf used last is known now: Your tafs' order can say so.
+        ShowYourTafs();
     }
 
     /// <summary>
@@ -402,6 +415,8 @@ public sealed partial class MainWindow : Window
         var tafs = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => (g.First().Name, g.First().Colour));
         var calls = KiffHeld.Calls(App.Words, holds, agent => tafs.TryGetValue(agent, out var taf) ? taf : null);
         ShowHeld(calls);
+        // A taf with a call waiting comes first.
+        ShowYourTafs();
         // A hold KIFF has held since the last read gets its notification, as the iPad's hold alert, only for someone who
         // answers held calls (canAnswerHolds) and turned alerts on for this account (Account › Alerts); one no longer held
         // loses its notification (removeAlerts(forHold:)).
@@ -781,6 +796,7 @@ public sealed partial class MainWindow : Window
         if (!sampleHeld) ShowHeld([]);
         unproven = [];
         mayAnswerHolds = true;
+        ForgetOrder();
         // The gallery is the account's: its rows go.
         gallery = null;
         ShowGalleryRows();
@@ -910,6 +926,8 @@ public sealed partial class MainWindow : Window
         var setup = Tafs.Core.Coach.CoachAccess.SetupUse(access);
         // Kept as it was when it can't be read, as the iPad's refreshAccess.
         manage = Tafs.Core.Coach.CoachAccess.Manage(access) ?? manage;
+        // Which tafs are shared with this person to use: "Shared with you".
+        ShowYourTafs();
         capabilities = me ?? capabilities;
         _ = ReadAccountHaltAsync(reading);
         mayUseCoach = Tafs.Core.Coach.CoachAccess.MayUseCoach(setup, setup is null ? capabilities : null);
@@ -1260,12 +1278,10 @@ public sealed partial class MainWindow : Window
         var w = App.Words;
         home = read;
         overviewRows = HomeList.Rows(w, home, TimeZoneInfo.Local);
-        var yours = HomeList.YourTafs(w, home, DateTimeOffset.UtcNow);
-        AddYourTafs(yours);
-        // As the iPad's sidebar: the line for no tafs only with none at all, and with tafs but none relevant now, no Your
-        // tafs: they're all on the Overview.
+        // In their order and sections (MainWindow.Order.cs). As the iPad's sidebar: the line for no tafs only with none at
+        // all, and with tafs but none relevant now, no Your tafs: they're all on the Overview.
+        ShowYourTafs();
         NoTafs.Visibility = home.Tafs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        YourTafs.Visibility = home.Tafs.Count > 0 && yours.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows, home?.Labels);
         // Coach's result cards name and open the tafs on this list.
         CoachMode.Redraw();
@@ -1311,15 +1327,21 @@ public sealed partial class MainWindow : Window
     /// lines; one no longer relevant loses its row; a new one is put in Home's order. Each read used to add its rows again,
     /// so a taf showed twice after a halt read Home once more.
     /// </summary>
-    void AddYourTafs(IReadOnlyList<OverviewRow> rows)
+    /// <param name="own">How many of <paramref name="rows"/> are the person's own: the rest go under "Shared with you".</param>
+    void AddYourTafs(IReadOnlyList<OverviewRow> rows, int? own = null)
     {
+        var mine = own ?? rows.Count;
         var listed = Nav.MenuItems.OfType<NavigationViewItem>().Where(i => i.Tag is TafRow).ToList();
         var keys = rows.Select(r => r.Key).ToHashSet();
         foreach (var gone in listed.Where(i => !keys.Contains(((TafRow)i.Tag).Key))) Nav.MenuItems.Remove(gone);
         var kept = listed.Where(i => keys.Contains(((TafRow)i.Tag).Key)).ToDictionary(i => ((TafRow)i.Tag).Key);
         var at = Nav.MenuItems.IndexOf(YourTafs) + 1;
+        var index = 0;
+        if (mine == 0) at = PlaceSharedHeader(at, rows.Count > 0);
         foreach (var taf in rows)
         {
+            // Between the person's own tafs and those shared with them: "Shared with you".
+            if (index++ == mine && mine > 0) at = PlaceSharedHeader(at, true);
             var content = new Grid { ColumnSpacing = 12 };
             content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             content.ColumnDefinitions.Add(new ColumnDefinition());
@@ -1354,6 +1376,7 @@ public sealed partial class MainWindow : Window
             AutomationProperties.SetName(row, $"{taf.Taf}. {taf.Now}");
             Nav.MenuItems.Insert(at++, row);
         }
+        if (mine >= rows.Count) PlaceSharedHeader(at, false);
     }
 
     /// <summary>
@@ -1418,7 +1441,7 @@ public sealed partial class MainWindow : Window
         else if (item.Tag == HaltAll) OpenHalt(null, "");
         else if (item.Tag is Screen.Record) Pages.Navigate(typeof(RecordPage), record);
         else if (item.Tag is Screen.Usage) Pages.Navigate(typeof(UsagePage), usage);
-        else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof));
+        else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof, ConnectionsFor()));
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
         else if (item.Tag is TafRow taf) Pages.Navigate(typeof(TafPage), OpenTaf(App.Words, taf.Key));
         else if (item.Tag is GalleryRow job) OpenGallery(job);

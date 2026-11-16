@@ -92,14 +92,14 @@ public static class CoachSend
     }
 
     /// <summary>
-    /// Sent: the conversation it went into, which the panel shows from then on. Not taken: "The message wasn't sent." and
-    /// why. An answer without its session isn't the iPad's <c>Sent</c>, so it reads as not taken.
+    /// Sent: the conversation it went into, which the panel shows from then on. Not taken: why, kept in the thread as not sent
+    /// (<see cref="Unsent"/>). An answer without its session isn't the iPad's <c>Sent</c>, so it reads as not taken.
     /// </summary>
     public static async Task<(string? Session, string? Why)> SendAsync(WordBook w, string coach, string text, CoachConversation to,
         Func<string, byte[], Task<CloudRead>> send)
     {
         var r = await send(Path(coach), Body(text, to));
         if (r.Answer is { } a && Lenient.Text(a, "session") is { } session) return (session, null);
-        return (null, w.Get("chat.not_sent", ("why", r.Answer is null ? r.Why ?? w.Get("error.offline") : w.Get("error.ours"))));
+        return (null, r.Answer is null ? r.Why ?? w.Get("error.offline") : w.Get("error.ours"));
     }
 }
