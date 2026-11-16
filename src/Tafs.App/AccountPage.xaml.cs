@@ -71,8 +71,8 @@ public sealed partial class AccountPage : Page
         Section(w.Get("settings.language_title"),
         [
             Row(w.Get("settings.language_title"), AccountScreen.LanguageName(w.Language)),
-            // Windows' own setting: the app follows Windows' languages.
-            Action(w.Get("settings.change_language"), "TafsAmberWords", () => _ = Windows.System.Launcher.LaunchUriAsync(new Uri("ms-settings:regionlanguage"))),
+            // The app's own picker, as Android's (tafs#1214): this PC's language, then tafs's 8, each named in itself.
+            Action(w.Get("settings.change_language"), "TafsAmberWords", () => _ = ChooseLanguageAsync()),
         ]);
         // Their own copy, for their rights of access and portability, for a KIFF account, as the iPad's.
         if (mode == AccountMode.Kiff)
@@ -251,5 +251,43 @@ public sealed partial class AccountPage : Page
             grid.Children.Add(b);
         }
         return new Border { Style = Look("TafsSegmentTrack"), Margin = new Thickness(0, 12, 0, 12), Child = grid };
+    }
+
+    /// <summary>
+    /// The language picker, as Android's: "Language", with "This Windows PC's language" first, then English, Deutsch,
+    /// Français, Español, Italiano, Português, Nederlands and Polski, the current choice marked. Choosing one applies it at
+    /// once (tafs starts again in it, still signed in); the one in use changes nothing.
+    /// </summary>
+    async Task ChooseLanguageAsync()
+    {
+        var w = App.Words;
+        var kept = App.KeptLanguage();
+        var list = new RadioButtons { MaxColumns = 1 };
+        list.Items.Add(new RadioButton { Content = w.Get("settings.language_device", ("device", w.Get("device.windows"))), Tag = "" });
+        foreach (var (code, name) in AppLanguage.Named)
+        {
+            var item = new RadioButton { Content = name, Tag = code };
+            // Read in its own language by Narrator.
+            item.Language = code;
+            list.Items.Add(item);
+        }
+        list.SelectedIndex = kept is null ? 0 : 1 + AppLanguage.Named.ToList().FindIndex(l => l.Code == kept);
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot, Title = w.Get("settings.language_title"), Content = new ScrollViewer { Content = list, MaxHeight = 440 },
+            CloseButtonText = w.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(dialog, "settings.language_picker");
+        string? chosen = null;
+        var picked = false;
+        list.SelectionChanged += (_, _) =>
+        {
+            if (list.SelectedItem is not RadioButton { Tag: string code }) return;
+            (chosen, picked) = (code.Length == 0 ? null : code, true);
+            dialog.Hide();
+        };
+        await dialog.ShowAsync();
+        if (!picked) return;
+        if (App.ChooseLanguage(chosen) is { } why) await new ContentDialog { XamlRoot = XamlRoot, Content = why, CloseButtonText = w.Get("common.ok") }.ShowAsync();
     }
 }
