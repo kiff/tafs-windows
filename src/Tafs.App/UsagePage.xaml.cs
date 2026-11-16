@@ -32,6 +32,8 @@ public sealed partial class UsagePage : Page
         reads = e.Parameter as UsageReads ?? reads;
         ShowBalance(reads.Balance);
         ShowCredits();
+        // Signed in: read now, as the iPad's .task, never an earlier read shown as now.
+        _ = LoadAsync();
     }
 
     void ShowBalance(Balance? b)
