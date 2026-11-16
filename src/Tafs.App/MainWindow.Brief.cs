@@ -80,8 +80,8 @@ public sealed partial class MainWindow
             },
             Log: async mission =>
                 cloudRead is { } read && (await read(MissionLog.Path(mission))).Answer is { } json ? MissionLog.Read(w, json) : null,
-            // Start opens Coach for someone who may use it.
-            StartMove: mayUseCoach ? _ => CoachMode.Open() : null,
+            // Start opens Coach for someone who may use it, with the move's words in its box, as the iPad's startNextMove.
+            StartMove: mayUseCoach ? move => CoachMode.Write(move.Words, newConversation: false) : null,
             OpenNeedsYou: () =>
             {
                 needsYouUnderBrief = true;

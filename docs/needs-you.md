@@ -24,8 +24,8 @@ The iPad's `BriefView` (Missions design v2.1), in Needs you's place once tafs cl
   (`hold:<id>`, `step:<handoff>`) plus every unproven call (`Brief.NeedsYouBeyond`); a click opens Needs you, which the row
   keeps until another screen is chosen. A held call's notification opens Needs you on its card, past the brief.
 - **A mission's log** opens from Done (`MissionLog`, `GET /v1/missions/{id}/log`).
-- **The next move's Start** opens Coach, for someone who may use it; its words go in Coach's box once that box is on main
-  (tafs-windows#99). Not now dismisses it here.
+- **The next move's Start** opens Coach, for someone who may use it, with the move's words in its box to edit and send,
+  as the iPad's `startNextMove`; nothing is sent. Not now dismisses it here.
 
 ## A held call's card
 
