@@ -10,9 +10,15 @@ namespace Tafs.Core.Home;
 /// went wrong when it needs looking at (<paramref name="Attention"/>), its Cards, how
 /// many of its calls wait, and when it last changed.
 /// </summary>
+/// <summary>
+/// When it starts and where its results go, as Home sends them: its next run (in tafs cloud's words when it sends them),
+/// whether it works from its chat alone, and tafs' own places it delivers to (none when Home doesn't say).
+/// </summary>
+public sealed record TafStarts(DateTimeOffset? NextRun, string? NextRunWords, bool Unscheduled, IReadOnlyList<string>? Results);
+
 public sealed record HomeTaf(string Id, string Name, int Colour, string State, string Now, string? Attention,
     IReadOnlyList<TafCard> Cards, int Waiting, DateTimeOffset? LastRun, DateTimeOffset? LastChange, string Job = "", string? Agent = null,
-    bool Revoked = false, IReadOnlyList<string>? LabelIds = null, IReadOnlyList<string>? CardIdList = null)
+    bool Revoked = false, IReadOnlyList<string>? LabelIds = null, IReadOnlyList<string>? CardIdList = null, TafStarts? Starts = null)
 {
     /// <summary>Its Cards' ids in KIFF (<c>card.ids</c>), revoked before it's removed for good; none without.</summary>
     public IReadOnlyList<string> CardIds => CardIdList ?? [];
@@ -115,7 +121,9 @@ public static class HomeList
             // Its Card revoked, as the iPad's card.revoked (!card.active): every Card on its page reads Revoked and fades.
             Revoked: Lenient.Field(t, "card") is { } held && Lenient.Field(held, "active") is { ValueKind: JsonValueKind.False },
             LabelIds: LabelChips.Ids(t),
-            CardIdList: Lenient.Field(t, "card") is { } ids ? Lenient.Array(ids, "ids").Where(i => i.ValueKind == JsonValueKind.String).Select(i => i.GetString()!).ToList() : null);
+            CardIdList: Lenient.Field(t, "card") is { } ids ? Lenient.Array(ids, "ids").Where(i => i.ValueKind == JsonValueKind.String).Select(i => i.GetString()!).ToList() : null,
+            Starts: new TafStarts(Lenient.At(t, "next_run"), Lenient.Text(t, "next_run_words"), Lenient.Bool(t, "unscheduled"),
+                Lenient.Field(t, "results") is { ValueKind: JsonValueKind.Array } r ? r.EnumerateArray().Select(Tafs.Core.Taf.ResultPlaces.Of).OfType<string>().ToList() : null));
     }
 
     /// <summary>What it's doing, as the iPad says it: tafs cloud's "Next run Fri 12:30" while it works on a schedule.</summary>

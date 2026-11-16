@@ -1,0 +1,25 @@
+{
+  "about": "A stand-in for tafs cloud's GET /v1/tafs/{id}/knob (kiff/tafs docs/api.md), for Setup's Starts when and Results go to screenshots: a schedule, an app event approved, a follow-up, tafs' own places and one in a connected app, and a change waiting as version 4.",
+  "answer": {
+    "version": 3,
+    "can_pause": true,
+    "pending": { "version": 4, "changes": 1 },
+    "draft": { "version": 4, "words": ["Every day at 09:00 and 15:00, instead of 09:00 alone"], "wakes": [], "when": [], "results": [] },
+    "wakes": [
+      { "id": "w1", "kind": "schedule", "label": "09:00", "words": "Weekdays at 09:00 · checks for new work first", "trigger": { "kind": "schedule", "form": "weekdays", "at": "09:00" },
+        "size": { "label": "When", "index": 0, "choices": [ { "label": "09:00", "setting": {} }, { "label": "10:00", "setting": {} } ] } },
+      { "id": "w2", "kind": "app_event", "label": "Stripe · new dispute", "words": "When a customer opens a dispute", "on": true, "grant": "grt_1",
+        "trigger": { "kind": "app_event", "grant": "grt_1", "event": "charge.dispute.created", "name": "Stripe · new dispute" },
+        "approval": { "state": "approved", "grant": "grt_1", "event": "charge.dispute.created", "config": {}, "subscription": "sub_1" } },
+      { "id": "w3", "kind": "follow_up", "label": "Check refund 42 went through", "words": "Check refund 42 went through", "follow_up": "fu_1", "expires": "2026-10-17T09:00:00Z" },
+      { "id": "w4", "kind": "run_now", "label": "Run now", "words": "" }
+    ],
+    "results": [
+      { "id": "r1", "place": "door_reply", "label": "Reply", "words": "", "on": true },
+      { "id": "r2", "place": "app", "label": "Phones", "words": "", "on": false },
+      { "id": "r3", "place": "owner_email", "label": "Email", "words": "", "on": false },
+      { "id": "r4", "place": "action", "label": "Notion · Support log", "words": "A line for each refund it answers", "on": true, "grant": "grt_2" }
+    ],
+    "setting": { "wakes": [], "when": { "busy": "skip" }, "results": ["door_reply", { "place": "action", "grant": "grt_2" }] }
+  }
+}
