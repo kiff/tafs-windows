@@ -22,6 +22,30 @@ public static class TafCards
             Active: Lenient.Field(c, "active") is not { ValueKind: JsonValueKind.False },
             Expires: Lenient.At(c, "expires"))).ToList();
 
+    /// <summary>
+    /// The Cards a taf's page shows, as the iPad's <c>Taf.shownCards</c>: KIFF's Cards as tafs cloud read them, in its order;
+    /// with none, one Card merged from the taf's own rules (<c>TafCard.merged</c>), titled with its name, so every taf has its
+    /// Card tab. The merged Card's total is its first limit over a window, as tafs cloud says it was used: none used when it
+    /// says nothing, and unknown only when it says KIFF couldn't read it (<c>usage_unknown</c>).
+    /// </summary>
+    public static IReadOnlyList<TafCard> Shown(WordBook w, JsonElement card, string name)
+    {
+        var cards = Read(w, card);
+        if (cards.Count > 0) return cards;
+        var rules = Lenient.Array(card, "rules").Where(r => Lenient.Text(r, "action") is not null).Select(r => Rule(w, r)).ToList();
+        var unknown = Lenient.Array(card, "usage_unknown").Where(u => u.ValueKind == JsonValueKind.String).Select(u => u.GetString()!).ToHashSet();
+        var used = Lenient.Field(card, "used");
+        KiffAmount? Used(string action) => used is { ValueKind: JsonValueKind.Object } u ? Amount(Lenient.Field(u, action)) : null;
+        CardTotal? total = null;
+        CallsTotal? calls = null;
+        if (rules.FirstOrDefault(r => r.PerWindow is not null) is { PerWindow: { } limit } money)
+            total = new(limit, Used(money.Action) ?? (unknown.Contains(money.Action) ? null : new KiffAmount(0, limit.Unit, limit.Scale)), money.Window);
+        else if (rules.FirstOrDefault(r => r.CountPerWindow is not null) is { CountPerWindow: { } count } counted)
+            calls = new(count, unknown.Contains(counted.Action) ? null : 0, counted.Window);
+        return [new TafCard("merged", name, rules, total, calls, Active: Lenient.Field(card, "active") is not { ValueKind: JsonValueKind.False },
+            Expires: Lenient.At(card, "expires"))];
+    }
+
     static CardRule Rule(WordBook w, JsonElement r) => new(
         Lenient.Text(r, "action")!,
         Lenient.Text(r, "label") ?? Lenient.Text(r, "action")!,

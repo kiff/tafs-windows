@@ -46,12 +46,18 @@ public sealed partial class OverviewPage : Page
     {
         var w = App.Words;
         var opening = e.Parameter as OverviewOpening;
-        var held = opening?.Held ?? [];
         NeedsYouLabel.Text = Sidebar.Eyebrow(w, "needs_you.title");
+        ShowHeld(opening?.Held ?? []);
+        ShowRows(opening?.Rows ?? []);
+    }
+
+    /// <summary>NEEDS YOU's lines, drawn again with each read of KIFF's held calls; none, no section.</summary>
+    internal void ShowHeld(IReadOnlyList<HeldCall> held)
+    {
+        var w = App.Words;
         Held.ItemsSource = held.Select(c => NeedsYouScreen.OverviewRow(w, c, TimeZoneInfo.Local))
             .Select(r => new HeldLine(r.Title, r.AnswerBy)).ToList();
         NeedsYou.Visibility = held.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        ShowRows(opening?.Rows ?? []);
     }
 
     /// <summary>
