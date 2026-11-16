@@ -60,19 +60,29 @@ public class KiffHeldStrictTests
 
     /// <summary>
     /// Where the answers go: who answers without holds.answer; the gate where Approve once would be; over a Card total, its
-    /// line, the gate only for a manager's Extra room.
+    /// line, the gate only for a manager's Extra room. The gate only while the PC can't approve: view-only or no session; a
+    /// Key or Passkey session reads the line with no gate.
     /// </summary>
     [Fact]
     public void Where_the_answers_go()
     {
+        var view = Tafs.Core.Kiff.ApprovalMode.View;
         var once = KiffHeld.Calls(En, [Hold(""","breaches":[]""")!], _ => ("Rae", 1))[0];
         var total = KiffHeld.Calls(En, [Hold(""","breaches":[],"can_approve_once":false""")!], _ => ("Rae", 1))[0];
         Assert.True(once.ApprovableOnce);
         Assert.False(total.ApprovableOnce);
-        Assert.Equal(new HeldAnswerLines(En.Get("needs_you.someone_answers"), false), NeedsYouScreen.Answers(En, once, mayAnswerHolds: false, managesCards: true));
-        Assert.Equal(new HeldAnswerLines(En.Get("needs_you.someone_answers"), false), NeedsYouScreen.Answers(En, total, mayAnswerHolds: false, managesCards: true));
-        Assert.Equal(new HeldAnswerLines(null, true), NeedsYouScreen.Answers(En, once, true, false));
-        Assert.Equal(new HeldAnswerLines(En.Get("needs_you.over_total_manager"), true), NeedsYouScreen.Answers(En, total, true, true));
-        Assert.Equal(new HeldAnswerLines(En.Get("needs_you.over_total"), false), NeedsYouScreen.Answers(En, total, true, false));
+        Assert.Equal(new HeldAnswerLines(En.Get("needs_you.someone_answers"), false), NeedsYouScreen.Answers(En, once, mayAnswerHolds: false, managesCards: true, view));
+        Assert.Equal(new HeldAnswerLines(En.Get("needs_you.someone_answers"), false), NeedsYouScreen.Answers(En, total, mayAnswerHolds: false, managesCards: true, view));
+        Assert.Equal(new HeldAnswerLines(null, true), NeedsYouScreen.Answers(En, once, true, false, view));
+        Assert.Equal(new HeldAnswerLines(En.Get("needs_you.over_total_manager"), true), NeedsYouScreen.Answers(En, total, true, true, view));
+        Assert.Equal(new HeldAnswerLines(En.Get("needs_you.over_total"), false), NeedsYouScreen.Answers(En, total, true, false, view));
+        Assert.Equal(new HeldAnswerLines(null, true), NeedsYouScreen.Answers(En, once, true, false, mode: null));
+        foreach (var approves in new[] { Tafs.Core.Kiff.ApprovalMode.Key, Tafs.Core.Kiff.ApprovalMode.Passkey })
+        {
+            Assert.Equal(new HeldAnswerLines(null, false), NeedsYouScreen.Answers(En, once, true, false, approves));
+            Assert.Equal(new HeldAnswerLines(En.Get("needs_you.over_total_manager"), false), NeedsYouScreen.Answers(En, total, true, true, approves));
+            Assert.Equal(new HeldAnswerLines(En.Get("needs_you.over_total"), false), NeedsYouScreen.Answers(En, total, true, false, approves));
+            Assert.Equal(new HeldAnswerLines(En.Get("needs_you.someone_answers"), false), NeedsYouScreen.Answers(En, once, false, true, approves));
+        }
     }
 }
