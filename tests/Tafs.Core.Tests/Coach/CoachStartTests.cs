@@ -40,8 +40,9 @@ public class CoachStartTests
         public EnrolResult Enrolled = new(EnrolOutcome.Enrolled);
         public (int, string) Draft = (201, """{"id": "drf_1", "agent_id": "setup", "status": "confirmed", "version": "v1", "claim_secret": "cs_1"}""");
         public CloudRead Claimed = Json("""{"setup": {"id": "taf_coach"}}""");
-        public byte[]? DraftSent, ClaimSent;
-        public (string, string) Signature;
+        public (int, string) Batch = (200, "{}");
+        public byte[]? DraftSent, ClaimSent, BatchSent;
+        public (string, string) Signature, BatchSignature;
         /// <summary>Signs out right after this call, by name: nothing after it may be sent.</summary>
         public string? SignOutAfter;
         bool current = true;
@@ -61,13 +62,21 @@ public class CoachStartTests
                 Did("sign draft");
                 return ("KIFF-Passkey-Assertion", $"signed {Encoding.UTF8.GetString(body)} at {at}");
             },
+            async (connect, draft, at) =>
+            {
+                if (Hello is { } h) await h();
+                Did($"sign together {connect.Id} {draft.Id}");
+                return ("KIFF-Passkey-Assertion", $"batch at {at}", $"draft at {at}");
+            },
             () => { Did("enrol"); return Task.FromResult(Enrolled); },
+            (body, signature) => { Did("batch"); (BatchSent, BatchSignature) = (body, signature); return Task.FromResult(Batch); },
             (body, signature) => { Did("draft"); (DraftSent, Signature) = (body, signature); return Task.FromResult(Draft); },
             body => { Did("claim"); ClaimSent = body; return Task.FromResult(Claimed); },
             () => "2026-11-15T18:00:00.123Z",
             () => current);
 
-        public Task<StartResult> Run(KeptSession session, bool planqueReady = false) => CoachStart.StartAsync(En, session, planqueReady, Calls_());
+        public Task<StartResult> Run(KeptSession session, bool planqueReady = false) =>
+            CoachStart.StartAsync(En, session, planqueReady, Calls_());
     }
 
     /// <summary>The iPad's order: planque first, then Setup's draft, signed before anything is sent, then tafs cloud claims its key.</summary>
@@ -191,25 +200,150 @@ public class CoachStartTests
         Assert.Equal(["read"], stubs.Calls);
     }
 
+    static JsonElement Contract(string file) => ContractFile.Answer(SharedFiles.Contract(file));
+
+    static System.Text.Json.Nodes.JsonObject Node(JsonElement e) => System.Text.Json.Nodes.JsonNode.Parse(e.GetRawText())!.AsObject();
+
     /// <summary>
-    /// tafs cloud's own first start (the tools and Coach's Cards signed together, or the draft alone) isn't on this PC yet:
-    /// read from both contracts at the pin, nothing is asked or sent. A start that isn't to give is Setup's draft as before.
+    /// tafs cloud's first start, as the iPad's startCoachTogether, from the contract at the pin: the pair signed once before
+    /// anything is sent, planque, the batch to the gateway, then the draft once the batch answered, each as tafs cloud wrote
+    /// it, then tafs cloud's claim.
     /// </summary>
     [Fact]
-    public async Task tafs_cloud_s_first_start_asks_and_sends_nothing_yet()
+    public async Task tafs_cloud_s_first_start_sends_the_pair_signed_once()
     {
-        foreach (var file in new[] { "setup-start.json", "setup-start-draft-alone.json" })
+        var answer = Contract("setup-start.json");
+        var first = FirstStart.Read(answer)!;
+        var stubs = new Stubs { Setup = CloudRead.Of(answer) };
+        Assert.Equal(new StartResult(StartOutcome.Started, Coach: "taf_coach"), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
+
+        Assert.Equal(["read", "sign together connect draft", "enrol", "batch", "draft", "claim"], stubs.Calls);
+        Assert.Equal(first.Connect!.Body, stubs.BatchSent);
+        Assert.Equal(("KIFF-Passkey-Assertion", "batch at 2026-11-15T18:00:00.123Z"), stubs.BatchSignature);
+        Assert.Equal(first.Draft!.Body, stubs.DraftSent);
+        Assert.Equal(("KIFF-Passkey-Assertion", "draft at 2026-11-15T18:00:00.123Z"), stubs.Signature);
+
+        // The batch refused, as KIFF's send reads it: the draft isn't sent.
+        stubs = new Stubs { Setup = CloudRead.Of(answer), Batch = (409, """{"error": "a tool named tafs_state exists", "words": "not KIFF's"}""") };
+        Assert.Equal(new StartResult(StartOutcome.Failed, "Couldn't start. a tool named tafs_state exists"), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
+        Assert.Equal(["read", "sign together connect draft", "enrol", "batch"], stubs.Calls);
+        stubs = new Stubs { Setup = CloudRead.Of(answer), Batch = (502, "") };
+        Assert.Equal(new StartResult(StartOutcome.Failed, "Couldn't start. KIFF answered 502"), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
+
+        // A sign-out after the pair's signature, the enrolment, the batch or the draft: nothing more is sent.
+        foreach (var (after, sent) in new[] { ("sign together connect draft", new[] { "read", "sign together connect draft" }),
+            ("enrol", ["read", "sign together connect draft", "enrol"]), ("batch", ["read", "sign together connect draft", "enrol", "batch"]),
+            ("draft", ["read", "sign together connect draft", "enrol", "batch", "draft"]) })
         {
-            var answer = ContractFile.Answer(SharedFiles.Contract(file));
-            Assert.True(CoachStart.Startable(answer), file);
-            var stubs = new Stubs { Setup = CloudRead.Of(answer) };
-            Assert.Equal(new StartResult(StartOutcome.FirstStart), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
-            Assert.Equal(["read"], stubs.Calls);
+            stubs = new Stubs { Setup = CloudRead.Of(answer), SignOutAfter = after };
+            Assert.Equal(new StartResult(StartOutcome.Cancelled), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
+            Assert.Equal(sent, stubs.Calls);
         }
-        Assert.False(CoachStart.Startable(ContractFile.Answer(SharedFiles.Contract("setup-coach.json"))));
-        Assert.False(CoachStart.Startable(JsonDocument.Parse("""{"start": {"state": "given", "scheme": "kiff.request.v1", "requests": []}}""").RootElement));
+
+        // A key session never signs the pair: it reads, asks and sends nothing.
+        stubs = new Stubs { Setup = CloudRead.Of(answer) };
+        Assert.Equal(StartOutcome.CantApprove, (await stubs.Run(Session(ApprovalMode.Key))).Outcome);
+        Assert.Empty(stubs.Calls);
+    }
+
+    /// <summary>
+    /// With every tool connected, Coach's draft goes alone, signed as Setup's is: the passkey session's one Windows Hello. A
+    /// draft with no claim secret says "Couldn't start." with why, as the iPad's catch.
+    /// </summary>
+    [Fact]
+    public async Task With_every_tool_connected_the_draft_goes_alone()
+    {
+        var answer = Contract("setup-start-draft-alone.json");
+        var stubs = new Stubs { Setup = CloudRead.Of(answer) };
+        Assert.True((await stubs.Run(Session(ApprovalMode.Passkey, "AQI"))).Started);
+        Assert.Equal(["read", "sign draft", "enrol", "draft", "claim"], stubs.Calls);
+        Assert.Equal(FirstStart.Read(answer)!.Draft!.Body, stubs.DraftSent);
+
+        stubs = new Stubs { Setup = CloudRead.Of(answer), Draft = (201, """{"id": "drf_1", "status": "draft"}""") };
+        Assert.Equal(new StartResult(StartOutcome.Failed, "Couldn't start. KIFF didn't answer as expected. Try again."), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
+    }
+
+    /// <summary>
+    /// Closing Windows Hello on the pair sends nothing. A first start Start's screen doesn't draw (no words: the iPad's tools
+    /// step, not on this PC yet) asks and sends nothing; one that isn't to give is Setup's draft, as before.
+    /// </summary>
+    [Fact]
+    public async Task Closing_Hello_on_the_pair_and_an_undrawn_start_send_nothing()
+    {
+        var stubs = new Stubs { Setup = CloudRead.Of(Contract("setup-start.json")), Hello = () => throw new OperationCanceledException() };
+        Assert.Equal(new StartResult(StartOutcome.Cancelled), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
+        Assert.Equal(["read"], stubs.Calls);
+
+        var json = Node(Contract("setup-start.json"));
+        json["start"]!.AsObject().Remove("words");
+        stubs = new Stubs { Setup = Json(json.ToJsonString()) };
+        Assert.Equal(new StartResult(StartOutcome.FirstStart), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
+        Assert.Equal(["read"], stubs.Calls);
+
         var given = new Stubs { Setup = Json("""{"setup": null, "start": {"state": "given"}}""") };
         Assert.True((await given.Run(Session(ApprovalMode.Passkey, "AQI"))).Started);
+        Assert.Equal("""{"agent_id":"setup","label":"Setup","no_tools":true}""", Encoding.UTF8.GetString(given.DraftSent!));
+    }
+
+    /// <summary>
+    /// The first start read as the iPad's CoachStart.read: each request's body as tafs cloud wrote it, the batch's lines,
+    /// KIFF's words for the Cards, the step's groups and details, Start's words; startable as the iPad's.
+    /// </summary>
+    [Fact]
+    public void The_first_start_reads_as_the_iPad_s()
+    {
+        var answer = Contract("setup-start.json");
+        var first = FirstStart.Read(answer)!;
+        Assert.Equal(("to_give", "kiff.requests.v1", true, true, true), (first.State, first.Scheme, first.Together, first.Startable, first.OneScreen));
+        var raw = answer.GetProperty("start").GetProperty("requests");
+        Assert.Equal(raw[0].GetProperty("body").GetRawText(), Encoding.UTF8.GetString(first.Connect!.Body));
+        Assert.Equal(raw[1].GetProperty("body").GetRawText(), Encoding.UTF8.GetString(first.Draft!.Body));
+        Assert.Equal("See your tafs, their versions and their runs", first.Connect.Lines[0]);
+        Assert.Equal(("Coach's Card", "KIFF's line for coach-reads"), (first.Draft.CardTitle, first.Draft.Cards[0].Lines[0]));
+        Assert.Equal(("Watch your tafs", "See your tafs"), (first.Groups[0].Name, first.Groups[0].Tools[0].Name));
+        Assert.Equal("Each tool and its limits", first.Details);
+        Assert.Equal(new FirstStartWords("Start gives Coach the tools below. You approve them on this device.", "Start", ""), first.Words);
+
+        var alone = FirstStart.Read(Contract("setup-start-draft-alone.json"))!;
+        Assert.False(alone.Together);
+        Assert.True(alone.Startable);
+        Assert.Null(alone.Connect);
+        Assert.Null(FirstStart.Read(Contract("setup-coach.json")));
+
+        // Never Cards the person hasn't read in KIFF's words: a draft without them isn't startable.
+        var json = Node(answer);
+        foreach (var r in json["start"]!["requests"]!.AsArray()) r!.AsObject().Remove("cards");
+        Assert.False(FirstStart.Read(JsonDocument.Parse(json.ToJsonString()).RootElement)!.Startable);
+    }
+
+    /// <summary>
+    /// kiff.requests.v1, as the iPad's RequestsTogether: the scheme, the account, the one signed_at as written (milliseconds
+    /// kept) and the two request messages' hashes in sorted order, signed once by this PC's passkey, its challenge
+    /// base64url(sha256) of that message; each header carries the other's hash.
+    /// </summary>
+    [Fact]
+    public async Task The_pair_is_signed_once_over_both_requests()
+    {
+        const string at = "2026-11-15T18:00:00.123Z";
+        using var key = new TestSigner();
+        var first = FirstStart.Read(Contract("setup-start.json"))!;
+        var batchHash = RequestsTogether.Hash(KiffSigning.RequestV1("t_01", "POST", "/v1/connections/batch", first.Connect!.Body, at));
+        var draftHash = RequestsTogether.Hash(KiffSigning.RequestV1("t_01", "POST", "/v1/me/agent-drafts", first.Draft!.Body, at));
+        var sorted = string.CompareOrdinal(batchHash, draftHash) <= 0 ? new[] { batchHash, draftHash } : [draftHash, batchHash];
+        var message = RequestsTogether.Message("t_01", at, batchHash, draftHash);
+        Assert.Equal(string.Join((char)10, ["kiff.requests.v1", "t_01", at, .. sorted]), Encoding.UTF8.GetString(message));
+        Assert.Equal(message, RequestsTogether.Message("t_01", at, draftHash, batchHash));
+        Assert.Equal(64, batchHash.Length);
+
+        var hello = new Hello(key);
+        var (header, batch, draft) = await RequestsTogether.SignAsync(new PasskeyApprover(hello, [1, 2], true), "t_01", first.Connect!, first.Draft!, at);
+        Assert.Equal("KIFF-Passkey-Assertion", header);
+        Assert.StartsWith($"t={at},a=", batch);
+        Assert.EndsWith($",with=sha256:{draftHash}", batch);
+        Assert.EndsWith($",with=sha256:{batchHash}", draft);
+        Assert.Equal(batch.Split(",with=")[0], draft.Split(",with=")[0]);
+        using var client = JsonDocument.Parse(hello.ClientData!);
+        Assert.Equal(PasskeyApprover.Challenge(message), client.RootElement.GetProperty("challenge").GetString());
     }
 
     /// <summary>
