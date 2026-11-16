@@ -4,12 +4,13 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
 using Tafs.Core.Account;
 using Tafs.Core.SignIn;
+using Tafs.Core.Taf;
 using Tafs.Core.Words;
 
 namespace Tafs.App;
 
-/// <summary>What Account opens with: whether the window shows the iPad's sample, and the theme it's in.</summary>
-public sealed record AccountOpening(bool Sample, ElementTheme Theme);
+/// <summary>What Account opens with: whether the window shows the iPad's sample, the theme it's in, and tafs cloud's read as the session.</summary>
+public sealed record AccountOpening(bool Sample, ElementTheme Theme, Func<string, Task<CloudRead>>? Read = null);
 
 /// <summary>
 /// Account. Its rows follow where this PC stands (the sample, signed in with KIFF, or signed out). The KIFF account's name,
@@ -24,8 +25,13 @@ public sealed partial class AccountPage : Page
     public static event Action<ElementTheme>? ThemeChosen;
     public static event Action? AlertsChosen;
     public static event Action? DevicesChosen;
+    public static event Action? PeopleChosen;
 
     AccountOpening opening = new(false, ElementTheme.Default);
+    // Export my chats, as the iPad's ExportChatsSection: preparing, why the last one failed, and the files it made.
+    bool exporting;
+    string? exportWhy;
+    IReadOnlyList<string>? exported;
 
     public AccountPage() => InitializeComponent();
 
@@ -53,10 +59,13 @@ public sealed partial class AccountPage : Page
             account.Add(Action(w.Get("pair.view_only.add", ("device", w.Get("device.windows"))), "TafsAmberWords", () => AddThisDeviceChosen?.Invoke()));
         }
         Section(w.Get("settings.your_account"), account);
-        // People & apps, as the iPad's, for a KIFF account: Devices here; People & groups in its own change.
+        // People & apps, as the iPad's, for a KIFF account: People & groups, then Devices.
         if (mode == AccountMode.Kiff)
             Section(w.Get("settings.people_apps"),
-                [Opens(Row(w.Get("settings.devices.title"), "", chevron: true), w.Get("settings.devices.title"), () => DevicesChosen?.Invoke())]);
+            [
+                Opens(Row(w.Get("people.title"), "", chevron: true), w.Get("people.title"), () => PeopleChosen?.Invoke()),
+                Opens(Row(w.Get("settings.devices.title"), "", chevron: true), w.Get("settings.devices.title"), () => DevicesChosen?.Invoke()),
+            ]);
         Section(null, [Opens(Row(w.Get("settings.alerts"), "", chevron: true), w.Get("settings.alerts"), () => AlertsChosen?.Invoke())]);
         Section(w.Get("settings.theme_title"), [ThemePicker(w)]);
         Section(w.Get("settings.language_title"),
@@ -65,6 +74,12 @@ public sealed partial class AccountPage : Page
             // Windows' own setting: the app follows Windows' languages.
             Action(w.Get("settings.change_language"), "TafsAmberWords", () => _ = Windows.System.Launcher.LaunchUriAsync(new Uri("ms-settings:regionlanguage"))),
         ]);
+        // Their own copy, for their rights of access and portability, for a KIFF account, as the iPad's.
+        if (mode == AccountMode.Kiff)
+        {
+            Section(null, ExportRows(w));
+            Footer(w.Get("export.own_chats_each_taf_coach"));
+        }
         Section(w.Get("sign_in.how_works"), [Words(AccountScreen.HowItWorks(w), "TafsSoftText", 15)]);
         Section(w.Get("settings.legal"),
         [
@@ -126,6 +141,57 @@ public sealed partial class AccountPage : Page
         // A section with no head sits as far below the one before as the iPad's inset-grouped list puts it (about 35).
         Sections.Children.Add(new Border { Style = Look("TafsListPanel"), Child = list, Margin = new Thickness(0, title is null ? 26 : 0, 0, 0) });
     }
+
+    /// <summary>
+    /// Export my chats (the iPad's <c>ExportChatsSection</c>): the row, with a spinner and "Preparing your chats…" while
+    /// it's made, "Try again" after a failure; then why in red, or the files it made, to share again.
+    /// </summary>
+    List<UIElement> ExportRows(WordBook w)
+    {
+        var rows = new List<UIElement>();
+        if (exporting)
+        {
+            var preparing = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, MinHeight = 52 };
+            preparing.Children.Add(new ProgressRing { IsActive = true, Width = 18, Height = 18, VerticalAlignment = VerticalAlignment.Center });
+            preparing.Children.Add(new TextBlock { Text = w.Get("export.preparing"), FontSize = 17, VerticalAlignment = VerticalAlignment.Center, Style = Look("TafsDimText") });
+            rows.Add(preparing);
+            return rows;
+        }
+        rows.Add(Action(w.Get(exportWhy is null ? "export.row" : "common.try_again"), "TafsAccentText", Export));
+        if (exportWhy is not null)
+            rows.Add(new TextBlock { Text = exportWhy, FontSize = 13, TextWrapping = TextWrapping.Wrap, Style = Look("TafsNoText"), Margin = new Thickness(0, 12, 0, 12) });
+        else if (exported is { } files)
+        {
+            var again = Action(ChatsExport.Ready(w, files), "TafsDimText", () => ShareFiles.Show(files, w.Get("export.row")));
+            ((TextBlock)again.Content).FontSize = 13;
+            ((TextBlock)again.Content).TextWrapping = TextWrapping.Wrap;
+            rows.Add(again);
+        }
+        return rows;
+    }
+
+    /// <summary>As the iPad's <c>export</c>: one at a time; the share sheet opens with the files once they're made.</summary>
+    async void Export()
+    {
+        if (exporting) return;
+        var w = App.Words;
+        exporting = true;
+        exportWhy = null;
+        Show();
+        var read = opening.Read ?? (_ => Task.FromResult(CloudRead.Unreached(w)));
+        var (files, why) = await ChatsExport.RunAsync(w, read, ChatsExport.Folder);
+        exporting = false;
+        exported = files ?? exported;
+        exportWhy = why;
+        Show();
+        if (files is not null) ShareFiles.Show(files, w.Get("export.row"));
+    }
+
+    /// <summary>A section's footer, as the iPad's: 13, dim, under the panel.</summary>
+    void Footer(string text) => Sections.Children.Add(new TextBlock
+    {
+        Text = text, FontSize = 13, TextWrapping = TextWrapping.Wrap, Style = Look("TafsDimText"), Margin = new Thickness(16, -4, 16, 0),
+    });
 
     /// <summary>A label and its value on the right, 17, as the iPad's LabeledContent; a chevron for a row that opens.</summary>
     static Grid Row(string label, string value, bool chevron = false)
