@@ -714,11 +714,6 @@ public sealed partial class CoachPanel : UserControl
     static readonly string[] Kinds = ["questions", "notice", "result", "confirm", "approval"];
 
     /// <summary>
-    /// An approval, as the iPad's <c>SetupApproval</c>: planque's own words for the connection (its exact terms under
-    /// Details), KIFF's draft of the taf's Card as its lines, and where it stands. Answered, one line; a newer request for
-    /// the same connection makes it history. Approving comes in its own change: until then Decline and Approve are off.
-    /// </summary>
-    /// <summary>
     /// tafs cloud's line for a sign-in wider than the job, in amber after a warning mark, as one thing Narrator reads: the
     /// sign-in asks for more access than the taf uses, and the taf still uses only its own tools.
     /// </summary>
@@ -737,6 +732,11 @@ public sealed partial class CoachPanel : UserControl
         return line;
     }
 
+    /// <summary>
+    /// An approval, as the iPad's <c>SetupApproval</c>: planque's own words for the connection (its exact terms under
+    /// Details), KIFF's draft of the taf's Card as its lines, and where it stands. Answered, one line; a newer request for
+    /// the same connection makes it history. Approving comes in its own change: until then Decline and Approve are off.
+    /// </summary>
     UIElement Approval(CoachThread thread, CoachCard c)
     {
         var w = App.Words;
