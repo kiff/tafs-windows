@@ -112,7 +112,7 @@ jobs:
           exe=src/Tafs.App/bin/x64/Release/net8.0-windows10.0.19041.0/Tafs.App.exe
           mkdir -p screenshots
           missing=0
-          for screen in sign-in signed-out overview overview-home overview-labels taf-home taf-setup-home coach-home view-only pair needs-you record calendar calendar-week usage connect-apps account coach taf taf-setup taf-card; do
+          for screen in sign-in signed-out overview overview-home overview-labels taf-home taf-setup-home coach-home view-only pair needs-you record calendar calendar-week usage connect-apps account coach coach-wide taf taf-setup taf-card; do
             case $screen in
               sign-in) opts=(--page sign-in) ;;
               signed-out) opts=(--page signed-out) ;;
@@ -132,6 +132,8 @@ jobs:
               connect-apps) opts=(--page connect-apps --sample) ;;
               account) opts=(--page account --sample) ;;
               coach) opts=(--page coach --sample) ;;
+              # "Taking shape" beside the conversation: the contracts, with planque's grants and KIFF's draft beside them.
+              coach-wide) python ci/coach-shape.py "$RUNNER_TEMP/coach-shape"; opts=(--home "$RUNNER_TEMP/coach-shape/home.json" --page coach-wide) ;;
               taf) opts=(--page taf --sample) ;;
               taf-setup) opts=(--page taf-setup --sample) ;;
               taf-card) opts=(--page taf-card --sample) ;;

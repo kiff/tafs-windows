@@ -225,6 +225,28 @@ work, where the iPad's decoder fails the thread.
 - `--home` with `--page coach` reads tafs cloud's contracts beside the Home file: `setup-coach.json`, `coach-chats.json`
   and `coach-conversation.json`. CI saves Coach's thread that way (`coach-home`), and `CoachContractTests` read them.
 
+## Taking shape (`CoachShape`, `CoachPanel.Shape.cs`)
+
+As the iPad's `SetupShapePanel` (kiff/tafs#85): beside the conversation, once the panel is 780 across or more
+(`CoachScreen.Shaping`, its edge's strip aside), a column 420 wide on Coach's deeper blue (`TafsCoachPanel`, the iPad's
+`Theme.coachPanel`) says what the conversation has made so far. It needs Coach's thread and planque (the session's
+grants); narrower, or without them, the conversation is alone. It's read only from what this PC already holds (the
+thread, planque's grants and KIFF's drafts) and asks no server for more; the cards to answer stay in the conversation.
+
+- **Its heading:** "Taking shape", then the taf's name from a result card, else the plan's title; with nothing yet, "As the
+  conversation goes, the plan, the apps being connected and the taf's Card show here."
+- **The plan:** "Plan · 2 of 4" and each step with its mark. With a plan from Coach, its steps; its step at work reads
+  "Needs you" under it while a card waits on the person. With none, what Coach asked (approve, sign in, questions,
+  confirm), each where it stands: done, waiting, failed, or struck through when declined or written past. The plan pinned
+  above the thread isn't shown as well while the column is.
+- **Tools:** each vendor a card names, from planque's grant: Connected (green, its tools in mono), Signed in or Waiting for
+  you (amber), Not connected (red, with planque's reason); then "No taf sees your sign-ins."
+- **The Card:** the latest draft an approval names that KIFF has shown, with tools: its title and lines in mono, a dashed
+  edge and "A draft until you approve it in the conversation." until confirmed, then KIFF's green.
+- It's drawn again with the thread, when the panel crosses 780, and in the panel's theme when that changes.
+- `--page coach-wide` opens Coach full screen; CI saves it (`coach-wide`) from the contracts with planque's grants and a
+  KIFF draft beside them (`ci/coach-shape.py`, `tests/fixtures/coach-shape`).
+
 ## Conversations and writing to Coach (`CoachChats`, `CoachSend`)
 
 - **Which conversation shows,** as the iPad's `setupChat` and `setupFresh` (`CoachConversation`): at first the newest, by

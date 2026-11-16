@@ -13,6 +13,8 @@
       <SolidColorBrush x:Key="TafsAmberText" Color="#B35500" />
       <!-- Coach's wash (the iPad's Theme.coachWash), and the dim at 22% (a primary button that's off). -->
       <SolidColorBrush x:Key="TafsCoachWash" Color="#EEF3FF" />
+      <!-- What Coach has made so far, beside the conversation: a shade deeper than its wash (the iPad's Theme.coachPanel). -->
+      <SolidColorBrush x:Key="TafsCoachPanel" Color="#E3EBFF" />
       <SolidColorBrush x:Key="TafsDimFaint" Color="#38736D7F" />
       <!-- A segmented control's track: the system grey, #767680 at 12% (24% in dark), as the iPad's. -->
       <SolidColorBrush x:Key="TafsSegmentGrey" Color="#1F767680" />
@@ -64,6 +66,7 @@
       <SolidColorBrush x:Key="TafsLine" Color="#1FF2EFE9" />
       <SolidColorBrush x:Key="TafsAmberText" Color="#F0A45A" />
       <SolidColorBrush x:Key="TafsCoachWash" Color="#1A2033" />
+      <SolidColorBrush x:Key="TafsCoachPanel" Color="#232B42" />
       <SolidColorBrush x:Key="TafsDimFaint" Color="#3896918A" />
       <SolidColorBrush x:Key="TafsSegmentGrey" Color="#3D767680" />
       <SolidColorBrush x:Key="TafsCoach" Color="#7FA2FF" />

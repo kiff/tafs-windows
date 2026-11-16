@@ -43,6 +43,17 @@ public static class CoachScreen
     /// </summary>
     public const string Biometry = "Windows Hello";
 
+    /// <summary>
+    /// Whether "Taking shape" shows beside the conversation, as the iPad's <c>shaping</c> (kiff/tafs#85): from 780 across,
+    /// the conversation and the column together; narrower, the conversation alone.
+    /// </summary>
+    public static bool Shaping(double width) => width >= ShapingFrom;
+
+    public const double ShapingFrom = 780;
+
+    /// <summary>The column's width, as the iPad's <c>SetupShapePanel().frame(width: 420)</c>.</summary>
+    public const double ShapeWidth = 420;
+
     /// <summary>The panel opens at a third of the window, as the iPad's does.</summary>
     public static double PanelWidth(double window) => Math.Max(0, window) / 3;
 
