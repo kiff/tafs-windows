@@ -67,13 +67,17 @@ leaves the TPM.
   - Closing Windows Hello (`ERROR_CANCELLED`, `NTE_USER_CANCELLED`) is a cancel.
   - Anything else is refused with Windows' own name for the error.
 
-**The creation proof, built and switched off** (`Features.PairingPasskeyProof`, 15 Nov):
-- The QR's credential ships as it is.
-- When KIFF takes the proof, the pairing's passkey is made with the challenge
-  `PairingClaim.PasskeyChallenge`: base64url(sha256 of `kiff.passkey.pair.v1`, the nonce and pub, joined
-  by newlines, as the QR writes them).
-- The claim then also sends `credential_proof: {client_data_json, attestation_object}`, as Windows
-  returned them, base64url. Off, the claim is unchanged.
+**The creation proof, on** (`Features.PairingPasskeyProof`, built 15 Nov, on 16 Nov). KIFF refuses a passkey
+computer's pairing claim without it from 1 Dec 2026, and never takes a bad proof as none:
+- The pairing's passkey is made with the challenge `PairingClaim.PasskeyChallenge`: base64url(sha256 of
+  `kiff.passkey.pair.v1`, the nonce and pub, joined by newlines, as the QR writes them). So each new code makes the
+  passkey again.
+- The claim also sends `credential_proof: {client_data_json, attestation_object}`, base64url:
+  - `client_data_json` as Windows hashed it: `webauthn.create`, the challenge, `https://kiff.dev`, `crossOrigin` false;
+  - `attestation_object` built here from the create's authenticator data, `{fmt: "none", attStmt: {}, authData}`
+    (`PasskeyCreationProof.WithNoAttestation`), as WebAuthn's "none" conveyance writes it. KIFF takes only "none" and
+    reads the key from authData, so whatever statement Windows' own object carries is never sent.
+- KIFF also checks UP and UV, one ES256 key, and that the id and key are the ones the phone approved.
 
 **Not decided yet:**
 - `residentKey: preferred` needs the options' version 4. Version 1 asks for a non-discoverable

@@ -16,10 +16,11 @@ public static class Features
 
     /// <summary>
     /// The pairing claim proves this PC's passkey was made for this pairing: the create's challenge is
-    /// <see cref="Pairing.PairingClaim.PasskeyChallenge"/>, and the claim sends client_data_json and attestation_object.
-    /// Off until KIFF takes them: the QR's credential ships as it is.
+    /// <see cref="Pairing.PairingClaim.PasskeyChallenge"/>, and the claim sends client_data_json and attestation_object
+    /// ("none", <see cref="PasskeyCreationProof.WithNoAttestation"/>). On: KIFF checks the proof, and from 1 Dec 2026 refuses
+    /// a passkey computer's claim without it.
     /// </summary>
-    public static readonly bool PairingPasskeyProof = false;
+    public static readonly bool PairingPasskeyProof = true;
 }
 
 /// <summary>authenticatorData's fixed head: rpIdHash (32), flags (1), signCount (4).</summary>

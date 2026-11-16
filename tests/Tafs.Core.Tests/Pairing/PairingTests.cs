@@ -94,7 +94,7 @@ public class PairingTests
 
         using var off = JsonDocument.Parse(await PairingClaim.BodyAsync(offer, device));
         Assert.Equal(new[] { "nonce", "pub", "proof" }, off.RootElement.EnumerateObject().Select(p => p.Name));
-        Assert.False(Features.PairingPasskeyProof, "off until KIFF takes it");
+        Assert.True(Features.PairingPasskeyProof, "on: KIFF checks the proof, and requires it from 1 Dec 2026");
 
         using var on = JsonDocument.Parse(await PairingClaim.BodyAsync(offer, device, withPasskeyProof: true));
         var made2 = on.RootElement.GetProperty("credential_proof");
@@ -106,6 +106,26 @@ public class PairingTests
         var plain = PairingOffer.Create(device.PublicKeyDer, null, "tafs", Now, Nonce, credential: made with { Proof = null });
         using var none = JsonDocument.Parse(await PairingClaim.BodyAsync(plain, device, withPasskeyProof: true));
         Assert.False(none.RootElement.TryGetProperty("credential_proof", out _));
+    }
+
+    /// <summary>
+    /// The attestation object KIFF takes, built from the create's authenticator data: fmt "none", an empty attStmt, the
+    /// authData as it came, in CTAP2's canonical order, with the shortest CBOR length for each size.
+    /// </summary>
+    [Fact]
+    public void The_creation_proof_carries_no_attestation_only_the_authenticator_data()
+    {
+        static byte[] Head(params byte[] rest) => [0xA3, 0x63, .. "fmt"u8, 0x64, .. "none"u8, 0x67, .. "attStmt"u8, 0xA0,
+            0x68, .. "authData"u8, .. rest];
+        Assert.Equal(Head(0x43, 1, 2, 3), PasskeyCreationProof.NoneAttestation([1, 2, 3]));
+        var real = Enumerable.Range(0, 164).Select(i => (byte)i).ToArray();
+        Assert.Equal(Head([0x58, 164, .. real]), PasskeyCreationProof.NoneAttestation(real));
+        var big = new byte[300];
+        Assert.Equal(Head([0x59, 0x01, 0x2C, .. big]), PasskeyCreationProof.NoneAttestation(big));
+
+        var proof = PasskeyCreationProof.WithNoAttestation([7], real);
+        Assert.Equal(new byte[] { 7 }, proof.ClientDataJson);
+        Assert.Equal(PasskeyCreationProof.NoneAttestation(real), proof.AttestationObject);
     }
 
     [Fact]

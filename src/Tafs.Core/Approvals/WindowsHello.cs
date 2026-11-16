@@ -63,9 +63,11 @@ public sealed class WindowsHello(Func<IntPtr> window) : IPasskeyAuthenticator
         try
         {
             var attestation = Marshal.PtrToStructure<CredentialAttestation>(result);
-            return PasskeyRegistration.Read(Copy(attestation.AuthenticatorData, attestation.AuthenticatorDataLength)) with
+            var authenticatorData = Copy(attestation.AuthenticatorData, attestation.AuthenticatorDataLength);
+            return PasskeyRegistration.Read(authenticatorData) with
             {
-                Proof = new PasskeyCreationProof(clientData, Copy(attestation.AttestationObject, attestation.AttestationObjectLength)),
+                // Windows' own attestation object isn't sent: KIFF takes only "none", built from the same authenticator data.
+                Proof = PasskeyCreationProof.WithNoAttestation(clientData, authenticatorData),
             };
         }
         finally { Native.WebAuthNFreeCredentialAttestation(result); }
