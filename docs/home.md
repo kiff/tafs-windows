@@ -66,6 +66,26 @@ page, and Narrator reads it as one:
 Refunds, Chargebacks and Access. Without it, and with no tafs from tafs cloud, it shows "No tafs yet." under the
 headings.
 
+## Labels (`LabelChips`, `HomeLabels`)
+
+Chips on the tafs list, for the person to filter it by, as kiff/tafs `docs/labels.md` and the iPad's `LabelChips`,
+`TafLabels` and `AppModel.filterList` (iOS #1173). tafs-macos #120 is a second reference. The app never changes a label;
+Coach does.
+- **What Home sends:** `labels: [id]` on each taf that has any; `labels: [{id, name, color, count, waiting, headline}]`
+  for the account, in the order to show them; and `labels_words.all`, the first chip's word. Each label is read on its
+  own: one with no id or name, or of another shape, is left out, and `waiting` sent as yes/no reads as one. A list of
+  another shape reads as none, and Home still reads. With no labelled taf, Home sends none and the Overview is as before.
+- **The chips,** under NEEDS YOU and above the table: All (tafs cloud's word, else the app's "All"), two labels with
+  their count and an amber dot while one of their tafs waits, then "+N", which shows the rest once clicked. The chosen
+  chip is filled; clicked again, it goes back to All. They use the Record's filter chips' look.
+- **Filtering:** a chip shows only its tafs, in Home's order: it never reorders. A label that's gone goes back to All.
+  The Overview opens on All every time.
+- **A taf's line** shows its labels under its name, in the account's order, as small grey chips: two, then "+1" (a taf
+  carries at most three). Narrator reads them with the line.
+- **Not here:** Your tafs in the sidebar isn't filtered, as on the iPad's sidebar. The colour token isn't drawn, as on
+  the iPad's chips.
+- **Screenshot:** `--home tests/fixtures/home-labels/home.json`, three tafs and three labels (CI's `overview-labels`).
+
 ## Home's list from tafs cloud
 
 Signed in, once the window is up, the app reads `GET /v1/home` on tafs cloud (`https://cloud.tafs.kiff.dev`) as the
