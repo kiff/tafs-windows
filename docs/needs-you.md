@@ -98,6 +98,8 @@ While tafs runs, a call KIFF holds gets a Windows notification, as the iPad's ho
   - **While the PC is locked, only "A taf needs you"**, because Windows shows notifications on the lock screen by
     default: no taf, amount, reason or deadline, as the iPad's alert with previews hidden and Android's while locked. It
     still opens that hold. The PC counts as locked when the input desktop isn't the person's own, or can't be read.
+    Locked is read when the notification is made: one shown while the PC was unlocked keeps its details in Notification
+    Centre, and they show there if the PC is locked later, as a phone keeps an alert shown with previews on.
 - **When it's read:** with each refresh of Home's list, and every minute while a session is in use. The iPad hears of a
   new hold by push instead, which Windows doesn't have yet. Minimised for more than ten minutes, the minute's read stops;
   the window coming back reads once.
