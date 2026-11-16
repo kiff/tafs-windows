@@ -274,6 +274,8 @@ public sealed partial class CoachPanel : UserControl
     public CoachPanel()
     {
         InitializeComponent();
+        // Board 9; it paints itself in the panel's theme, and again when that changes.
+        IntroArt.Child = Illustrations.CoachStarting();
         var w = App.Words;
         var intro = CoachScreen.Intro(w);
         TitleText.Text = intro.Title;
