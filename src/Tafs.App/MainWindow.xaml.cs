@@ -140,6 +140,9 @@ public sealed partial class MainWindow : Window
         Activated += OnReturned;
         // --theme for CI's screenshots, else the one chosen in Account last time, else the system's.
         Root.RequestedTheme = Element(ThemeChoices.AtLaunch(theme, screenshot is not null, () => ThemeChoices.Read(ThemeFile)));
+        // What code draws takes its colours from the window's theme as it shows, kept as it changes.
+        Root.ActualThemeChanged += (_, _) => ChatViews.WindowTheme = Root.ActualTheme;
+        Root.Loaded += (_, _) => ChatViews.WindowTheme = Root.ActualTheme;
         this.sample = sample;
         var w = App.Words;
         Title = w.Get("app.name");
@@ -368,7 +371,11 @@ public sealed partial class MainWindow : Window
             CoachMode.Read = path => Task.FromResult(ContractRead(w, homeFile, path));
             // The first taf's page, its Activity from taf-activity.json beside the Home contract, its Chat from taf-conversation.json.
             if (page is "taf" or "taf-setup" or "taf-chat" && home?.Tafs.FirstOrDefault() is { } first)
-                OpenBeside(typeof(TafPage), OpenTaf(w, first.Id, page switch { "taf-setup" => TafTab.Setup, "taf-chat" => TafTab.Chat, _ => TafTab.Activity }));
+                OpenBeside(typeof(TafPage), OpenTaf(w, first.Id, page switch { "taf-setup" => TafTab.Setup, "taf-chat" => TafTab.Chat, _ => TafTab.Activity }) with
+                {
+                    // Its composer as a session draws it; a send says it didn't reach, as offline.
+                    Send = (_, _) => Task.FromResult(CloudRead.Unreached(w)),
+                });
             // Connect apps from connect-apps.json beside the Home contract, as tafs cloud's list.
             // With planque-grants.json beside it, the account's connections too, ended with nothing confirmed.
             if (page is "connect-apps" or "connect-connections")
@@ -1101,7 +1108,7 @@ public sealed partial class MainWindow : Window
             {
                 Tag = HaltAll,
                 Icon = new FontIcon { Glyph = ((char)0xE7E8).ToString(), Style = (Style)Application.Current.Resources["TafsSidebarIcon"],
-                    Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TafsNo"] },
+                    Foreground = ChatViews.Themed("TafsNo") },
                 Style = (Style)Application.Current.Resources["TafsSidebarItem"],
             };
             // Under the screens, as the iPad's first section: after the last of them.
@@ -1564,7 +1571,7 @@ public sealed partial class MainWindow : Window
             content.Children.Add(new Microsoft.UI.Xaml.Shapes.Ellipse
             {
                 Width = 8, Height = 8, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
-                Fill = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TafsAmber"],
+                Fill = ChatViews.Themed("TafsAmber"),
             });
             Grid.SetColumn(lines, 1);
             content.Children.Add(lines);

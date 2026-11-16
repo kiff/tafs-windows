@@ -133,7 +133,7 @@ public sealed partial class BriefPage : Page
     static Button Chip(string words, int? count, bool waiting, bool selected, Action choose)
     {
         var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
-        if (waiting) content.Children.Add(new Ellipse { Width = 6, Height = 6, Fill = (Brush)Application.Current.Resources["TafsAmber"], VerticalAlignment = VerticalAlignment.Center });
+        if (waiting) content.Children.Add(new Ellipse { Width = 6, Height = 6, Fill = ChatViews.Themed("TafsAmber"), VerticalAlignment = VerticalAlignment.Center });
         content.Children.Add(new TextBlock { Text = words, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium, VerticalAlignment = VerticalAlignment.Center });
         if (count is { } n) content.Children.Add(new TextBlock { Text = n.ToString(CultureInfo.CurrentCulture), FontSize = 12, Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center });
         var chip = new Button { Content = content, MinHeight = 32, Style = Look(selected ? "TafsChipChosen" : "TafsChip") };
@@ -163,10 +163,10 @@ public sealed partial class BriefPage : Page
         if (d.Urgent)
         {
             var urgent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 3 };
-            urgent.Children.Add(new FontIcon { Glyph = "", FontSize = 10, Foreground = (Brush)Application.Current.Resources["TafsOnFill"] });
+            urgent.Children.Add(new FontIcon { Glyph = "", FontSize = 10, Foreground = ChatViews.Themed("TafsOnFill") });
             if (words.Urgent.Length > 0) urgent.Children.Add(new TextBlock { Text = words.Urgent, FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                Foreground = (Brush)Application.Current.Resources["TafsOnFill"] });
-            side = new Border { CornerRadius = new CornerRadius(10), Padding = new Thickness(7, 4, 7, 4), Background = (Brush)Application.Current.Resources["TafsNo"], Child = urgent };
+                Foreground = ChatViews.Themed("TafsOnFill") });
+            side = new Border { CornerRadius = new CornerRadius(10), Padding = new Thickness(7, 4, 7, 4), Background = ChatViews.Themed("TafsNo"), Child = urgent };
             AutomationProperties.SetAutomationId(side, "brief.urgent");
         }
         else if (d.Deadline is { } deadline)
@@ -179,7 +179,7 @@ public sealed partial class BriefPage : Page
         {
             var rec = new StackPanel { Spacing = 4 };
             rec.Children.Add(new TextBlock { Text = $"{words.Recommends}: {pick.Words}", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                TextWrapping = TextWrapping.Wrap, Foreground = (Brush)Application.Current.Resources["TafsCoach"] });
+                TextWrapping = TextWrapping.Wrap, Foreground = ChatViews.Themed("TafsCoach") });
             rec.Children.Add(Line(why, 14, "TafsInkText"));
             lines.Children.Add(new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(12), Background = ThemeBrush("TafsCoachWash"), Child = rec });
         }
@@ -257,7 +257,7 @@ public sealed partial class BriefPage : Page
                 if (c.Words.Length > 0)
                 {
                     var words = Line(c.Words, 13, "TafsSoftText");
-                    if (c.Closed) words.Foreground = (Brush)Application.Current.Resources["TafsOk"];
+                    if (c.Closed) words.Foreground = ChatViews.Themed("TafsOk");
                     text.Children.Add(words);
                 }
                 row.Children.Add(text);
@@ -271,7 +271,7 @@ public sealed partial class BriefPage : Page
                 if (group.Log is { } mission)
                 {
                     var evidence = new HyperlinkButton { Content = b.Words.Evidence + " ›", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                        Foreground = (Brush)Application.Current.Resources["TafsCoach"], Padding = new Thickness(0) };
+                        Foreground = ChatViews.Themed("TafsCoach"), Padding = new Thickness(0) };
                     AutomationProperties.SetAutomationId(evidence, "brief.evidence." + mission);
                     evidence.Click += (_, _) => _ = ShowLogAsync(mission, group.Mission ?? "", o);
                     Grid.SetColumn(evidence, 1);
@@ -304,7 +304,7 @@ public sealed partial class BriefPage : Page
         dismiss.Click += (_, _) => { moveDismissed = true; Show(); };
         row.Children.Add(dismiss);
         lines.Children.Add(row);
-        var panel = new Border { Background = ThemeBrush("TafsPanel"), BorderBrush = (Brush)Application.Current.Resources["TafsAmberEdge"], BorderThickness = new Thickness(1),
+        var panel = new Border { Background = ThemeBrush("TafsPanel"), BorderBrush = ChatViews.Themed("TafsAmberEdge"), BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(16), Padding = new Thickness(16), Child = lines };
         AutomationProperties.SetAutomationId(panel, "brief.next-move");
         return panel;
@@ -371,7 +371,7 @@ public sealed partial class BriefPage : Page
             var foot = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
             foreach (var e in item.Evidence)
                 foot.Children.Add(new Border { CornerRadius = new CornerRadius(8), Padding = new Thickness(6, 2, 6, 2), Background = ThemeBrush("TafsCoachWash"),
-                    Child = new TextBlock { Text = e.Words, FontSize = 11, FontFamily = new FontFamily("Cascadia Mono, Consolas"), Foreground = (Brush)Application.Current.Resources["TafsCoach"] } });
+                    Child = new TextBlock { Text = e.Words, FontSize = 11, FontFamily = new FontFamily("Cascadia Mono, Consolas"), Foreground = ChatViews.Themed("TafsCoach") } });
             if (item.Value is { } value) foot.Children.Add(Line(value, 12, "TafsInkText", semibold: true));
             lines.Children.Add(foot);
         }
@@ -389,7 +389,7 @@ public sealed partial class BriefPage : Page
 
     static FontIcon Arrow()
     {
-        var arrow = new FontIcon { Glyph = "", FontSize = 12, Foreground = (Brush)Application.Current.Resources["TafsDim"], VerticalAlignment = VerticalAlignment.Center };
+        var arrow = new FontIcon { Glyph = "", FontSize = 12, Foreground = ChatViews.Themed("TafsDim"), VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(arrow, 1);
         return arrow;
     }

@@ -23,9 +23,11 @@ public static class PairingAttempt
     /// <summary>
     /// The offer, and the passkey to keep for the next attempt. With no passkey (no Windows Hello, or the person
     /// closed it), the offer carries no credential: the PC then approves through the phone or the account's passkeys.
+    /// Its lifetime starts once Windows Hello is done (<paramref name="clock"/> read then): the time spent reading its prompt
+    /// and typing a password never counts against the code, so a code is never shown already expired.
     /// </summary>
     public static async Task<(PairingOffer Offer, NewPasskey? Keep)> OfferAsync(
-        byte[] devicePub, string name, MakePasskey? makePasskey, NewPasskey? kept, DateTimeOffset now,
+        byte[] devicePub, string name, MakePasskey? makePasskey, NewPasskey? kept, Func<DateTimeOffset> clock,
         bool withPasskeyProof, CancellationToken cancel, byte[]? nonce = null)
     {
         nonce ??= RandomNumberGenerator.GetBytes(32);
@@ -43,7 +45,7 @@ public static class PairingAttempt
                 credential = null; // closed, or refused: pair without it rather than not at all
             }
         }
-        var offer = PairingOffer.Create(devicePub, approvalPub: null, name, now, nonce, credential: credential,
+        var offer = PairingOffer.Create(devicePub, approvalPub: null, name, clock(), nonce, credential: credential,
             withPasskeyProof: withPasskeyProof);
         return (offer, credential);
     }

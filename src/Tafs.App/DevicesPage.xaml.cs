@@ -21,8 +21,15 @@ public sealed partial class DevicesPage : Page
 
     static Style Look(string key) => (Style)Application.Current.Resources[key];
 
+    /// <summary>Back to Account, where it opened from.</summary>
+    void OnBack(object sender, RoutedEventArgs e)
+    {
+        if (Frame.CanGoBack) Frame.GoBack();
+    }
+
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
+        BackButton.Content = "‹ " + App.Words.Get("common.back");
         var w = App.Words;
         Heading.Text = w.Get("settings.devices.title");
         Note.Text = w.Get("settings.devices.note_device", ("device", w.Get("device.windows")));

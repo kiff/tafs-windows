@@ -30,13 +30,31 @@ public class PairingAttemptTests
         public void Dispose() => Key.Dispose();
     }
 
+    /// <summary>The code's 4.5 minutes start once Windows Hello is done: minutes in its prompt never show a code already expired.</summary>
+    [Fact]
+    public async Task The_code_s_lifetime_starts_after_Windows_Hello()
+    {
+        using var device = new TestSigner();
+        using var hello = new FakeHello();
+        var now = Now;
+        // The person reads Windows Hello's prompt and types a password for five minutes.
+        async Task<NewPasskey> Slow(string? challenge, CancellationToken c)
+        {
+            now = now.AddMinutes(5);
+            return await hello.Make(challenge, c);
+        }
+        var (offer, _) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", Slow, null, () => now, false, default);
+        Assert.False(offer.IsExpired(Now.AddMinutes(5)));
+        Assert.Equal(Now.AddMinutes(5) + PairingOffer.Lifetime, offer.Expires);
+    }
+
     [Fact]
     public async Task The_QR_carries_this_PC_s_passkey_and_a_new_code_keeps_it()
     {
         using var device = new TestSigner();
         using var hello = new FakeHello();
-        var (first, keep) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, Now, false, default);
-        var (second, _) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, keep, Now, false, default);
+        var (first, keep) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, () => Now, false, default);
+        var (second, _) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, keep, () => Now, false, default);
 
         Assert.Single(hello.Challenges); // one Windows Hello prompt, one passkey in Windows' list
         Assert.Null(hello.Challenges[0]);
@@ -50,8 +68,8 @@ public class PairingAttemptTests
     {
         using var device = new TestSigner();
         using var hello = new FakeHello();
-        var (first, keep) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, Now, true, default, Nonce);
-        var (second, _) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, keep, Now, true, default);
+        var (first, keep) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, () => Now, true, default, Nonce);
+        var (second, _) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, keep, () => Now, true, default);
 
         Assert.Equal(2, hello.Challenges.Count);
         Assert.Equal(PairingClaim.PasskeyChallenge(KiffSigning.Base64Url(Nonce), device.PublicKeyDer), hello.Challenges[0]);
@@ -69,12 +87,12 @@ public class PairingAttemptTests
         {
             Fails = how == "closed" ? new OperationCanceledException() : new PasskeyRefusedException("NotAllowedError"),
         };
-        var (offer, keep) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, Now, false, default);
+        var (offer, keep) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, () => Now, false, default);
         Assert.Null(offer.Credential);
         Assert.Null(keep);
         Assert.Equal(ApprovalKind.Passkey, offer.Kind);
 
-        var (none, _) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", makePasskey: null, null, Now, false, default);
+        var (none, _) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", makePasskey: null, null, () => Now, false, default);
         Assert.Null(none.Credential);
     }
 
@@ -86,7 +104,7 @@ public class PairingAttemptTests
         using var stop = new CancellationTokenSource();
         stop.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, Now, false, stop.Token));
+            PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, () => Now, false, stop.Token));
     }
 
     [Fact]
