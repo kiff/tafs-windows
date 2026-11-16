@@ -16,6 +16,18 @@ public sealed record KiffAccount(string TenantId, string Slug, string? DisplayNa
     /// </summary>
     public bool MayDelete => Capabilities?.Contains("account.delete") ?? true;
 
+    /// <summary>
+    /// Whether KIFF takes this session's change of the account's time zone: <c>account.settings</c>, which KIFF asks for on
+    /// <c>PUT /v1/me/time-zone</c>; a KIFF that lists no capabilities allows it, as <see cref="MayDelete"/>.
+    /// </summary>
+    public bool MaySetTimeZone => Capabilities?.Contains("account.settings") ?? true;
+
+    /// <summary>
+    /// What Account offers this session: Use this PC's time zone and Delete account, each only where KIFF takes it, and
+    /// neither on a view-only session, which would get Windows Hello and then KIFF's refusal.
+    /// </summary>
+    public (bool TimeZone, bool Delete) Offered(bool viewOnly) => (!viewOnly && MaySetTimeZone, !viewOnly && MayDelete);
+
     /// <summary>The account as the owner knows it: its name, else its slug.</summary>
     public string Name => string.IsNullOrWhiteSpace(DisplayName) ? Slug : DisplayName!.Trim();
 

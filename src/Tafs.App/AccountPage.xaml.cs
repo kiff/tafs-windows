@@ -119,16 +119,18 @@ public sealed partial class AccountPage : Page
         // (each said once), and its time zone, which ends a Card's day.
         if (mode == AccountMode.Kiff && opening.Account is { } kiff)
         {
+            // Only what KIFF takes from this session: a view-only one is offered neither change.
+            var offered = kiff.Offered(AccountScreen.ViewOnly(mode, kept));
             account.Add(Row(w.Get("settings.kiff_account"), kiff.Name));
             if (kiff.Slug != kiff.Name) account.Add(Row(w.Get("settings.account_id"), kiff.Slug));
             if (kiff.SignedInAs is { } email) account.Add(Row(w.Get("settings.signed_in_as"), email));
             account.Add(Row(w.Get("settings.time_zone_title"), kiff.TimeZone ?? "UTC"));
             // This PC's zone, when the account's differs, as the iPad's "Use this iPad: …": one Windows Hello, then the device
             // key signs KIFF's change. Holds' deadlines, Activity, the Record and what tafs write use it.
-            if (opening.SetTimeZone is { } set && AccountTimeZone.ThisPc(TimeZoneInfo.Local) is { } here && here != (kiff.TimeZone ?? "UTC"))
+            if (offered.TimeZone && opening.SetTimeZone is { } set && AccountTimeZone.ThisPc(TimeZoneInfo.Local) is { } here && here != (kiff.TimeZone ?? "UTC"))
                 account.Add(Action(w.Get("settings.use_device_zone", ("device", w.Get("device.windows")), ("identifier", here)), "TafsAmberWords",
                     () => _ = UseZoneAsync(set, here)));
-            if (kiff.MayDelete && opening.DeleteAccount is { } delete)
+            if (offered.Delete && opening.DeleteAccount is { } delete)
                 account.Add(Action(w.Get("settings.delete_account.row"), "TafsNoText", () => _ = DeleteAccountAsync(delete)));
             if (zoneWhy is { } why) account.Add(new TextBlock { Text = why, FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(20, 0, 20, 12), Style = Look("TafsNoText") });
         }

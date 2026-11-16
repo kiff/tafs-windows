@@ -60,6 +60,20 @@ public class AccountTimeZoneTests
         Assert.Single(signedOut.Made);
     }
 
+    /// <summary>
+    /// Offered only where KIFF takes the PUT: <c>account.settings</c>, or no list at all; never on a view-only session, which
+    /// would get Windows Hello and then KIFF's refusal (kiff-qa on #97).
+    /// </summary>
+    [Fact]
+    public void The_zone_is_offered_with_account_settings_and_never_view_only()
+    {
+        Assert.True(new KiffAccount("t", "s", null, null, null, ["account.settings"]).Offered(viewOnly: false).TimeZone);
+        Assert.False(new KiffAccount("t", "s", null, null, null, ["cards.manage", "account.delete"]).Offered(viewOnly: false).TimeZone);
+        Assert.True(new KiffAccount("t", "s", null, null, null).Offered(viewOnly: false).TimeZone);
+        Assert.False(new KiffAccount("t", "s", null, null, null, ["account.settings"]).Offered(viewOnly: true).TimeZone);
+        Assert.False(new KiffAccount("t", "s", null, null, null).Offered(viewOnly: true).TimeZone);
+    }
+
     [Fact]
     public void This_PC_s_zone_is_its_IANA_name() =>
         Assert.Equal("Europe/Paris", AccountTimeZone.ThisPc(TimeZoneInfo.FindSystemTimeZoneById(OperatingSystem.IsWindows() ? "Romance Standard Time" : "Europe/Paris")));

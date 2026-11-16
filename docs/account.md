@@ -10,11 +10,13 @@ The sections, in the iPad's order:
     KIFF account (its name, else its slug), Account id (only when it differs from the name), Signed in as (the email,
     left out when the account is named after it, as `AccountLines.signedInAs`), and Time zone (KIFF's, else UTC).
   - **Use this Windows PC: Europe/Paris,** under Time zone when the account's differs from this PC's (Windows' zone as its
-    IANA name), as the iPad's "Use this iPad": Windows Hello asks first ("Set your account's time zone to Europe/Paris"),
+    IANA name), for a session KIFF lets change it (`account.settings`, or a KIFF that lists none) and never a view-only
+    one (`KiffAccount.Offered`), as the iPad's "Use this iPad": Windows Hello asks first ("Set your account's time zone to Europe/Paris"),
     then this session's TPM key signs KIFF's `PUT /v1/me/time-zone` as a signed setup call (`KIFF-Device-Signature` over
     `kiff.request.v1`). Closed or failing, nothing is sent ("The time zone didn't change."); KIFF refusing says the app's
     line; taken, the account is read again. The iPad's full list of zones isn't here yet.
-  - **Delete account…,** in red, for someone KIFF lets delete it (`account.delete`, or a KIFF that lists none), as the
+  - **Delete account…,** in red, for someone KIFF lets delete it (`account.delete`, or a KIFF that lists none) on a session
+    that isn't view-only, as the
     iPad's `DeleteAccountView` (App Store guideline 5.1.1(v)): its warning, what goes (tafs, runs, chats and notes; Cards
     and keys; app sign-ins; KIFF records after 30 days), and "You confirm with Windows Hello. Other devices sign out too."
     Then, in the iPad's order (`AccountDeletion`): Windows Hello ("Delete your account"); tafs cloud erases every taf
