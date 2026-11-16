@@ -509,19 +509,10 @@ public sealed partial class AccountPage : Page
         if (App.ChooseLanguage(chosen) is { } why) await new ContentDialog { XamlRoot = XamlRoot, Content = why, CloseButtonText = w.Get("common.ok") }.ShowAsync();
     }
 
-    /// <summary>The consent's screen, as the iPad's <c>AIConsentView</c>: its title and lines, Allow (for this version) and Not now.</summary>
+    /// <summary>The consent's screen, from its row: Allow sends this version.</summary>
     async Task AskConsentAsync(AiConsent ai)
     {
-        var lines = new StackPanel { Spacing = 10 };
-        foreach (var line in ai.Words.Lines) lines.Children.Add(new TextBlock { Text = line, TextWrapping = TextWrapping.Wrap, FontSize = 14 });
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot, Title = ai.Words.Title, Content = new ScrollViewer { Content = lines, MaxHeight = 420 },
-            PrimaryButtonText = ai.Words.Allow, CloseButtonText = ai.Words.NotNow.Length > 0 ? ai.Words.NotNow : App.Words.Get("common.cancel"),
-            DefaultButton = ContentDialogButton.Close,
-        };
-        AutomationProperties.SetAutomationId(dialog, "ai-consent");
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (!await ConsentDialog.AskAsync(XamlRoot, ai)) return;
         await ChangeAsync("POST", AiConsent.Path, ai.AllowBody(), j => consent = AiConsent.Read(j) ?? consent);
     }
 

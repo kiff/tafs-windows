@@ -217,7 +217,7 @@ work, where the iPad's decoder fails the thread.
   (`cardRef`), every card under it busy meanwhile. Sent only when tafs cloud answers its session, run and status.
   Signing out drops the thread, what was answered and an answer in flight. Sent, the thread is read again; a 409
   (the card doesn't wait any more) reads it again too; refused for want of the AI-data consent (`ai_consent_required`), the
-  card stays as chosen; anything else says "Your answer didn't reach Setup. Tap it again." under the card.
+  card stays as chosen and the consent's screen says why (Account's `ConsentDialog`); anything else says "Your answer didn't reach Setup. Tap it again." under the card.
 - `--home` with `--page coach` reads tafs cloud's contracts beside the Home file: `setup-coach.json`, `coach-chats.json`
   and `coach-conversation.json`. CI saves Coach's thread that way (`coach-home`), and `CoachContractTests` read them.
 
@@ -280,11 +280,11 @@ a second reference.
 - **Opening a sign-in card's vendor page** (it comes with connecting apps), connecting an app from an approval, and the conversation read's proof and `?can=`
   (they mark approval cards).
 - **After an answer:** the iPad follows the run's stream as it writes; here the thread is read again, until the stream is
-  ported. The AI-data consent's screen isn't ported, so a refusal for it leaves the card as it was, with no line.
+  ported.
 - **A drive's end** (what Coach did in the app, `DriveRecap`), placed in the thread on the iPad: with drives.
 - **Writing to Coach, the rest:** the stream as Coach writes (here the thread is read again every 2 s), Stop, queued
-  messages, steering, files and dictation, `starts` and its recipes, and the AI-data consent's
-  screen on a refusal for it.
+  messages, steering, files and dictation, and `starts` and its recipes. A message refused for want of the AI-data
+  consent goes back in the box, with no Not sent row, and the consent's screen says why, as the iPad's.
 - **Starting Coach, the rest of `startSetup`:**
   - the tools step for a first start without tafs cloud's words (`CoachToolsStep`), and its Not now;
   - KIFF's alerts (`keepKIFFAlerts`);

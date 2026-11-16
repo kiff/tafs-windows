@@ -49,8 +49,28 @@ public enum StepConfirmed { Yes, Cancelled, Failed }
 /// Reading and answering Your step, as the iPad's <c>YourStep</c>, <c>KIFFClient.handoffMessage</c>/<c>handoff</c>/<c>answerHandoff</c>
 /// and <c>AppModel.showSteps</c>/<c>canAnswerSteps</c>/<c>answerYourStep</c>/<c>answerRefusedWords</c>.
 /// </summary>
+/// <summary>
+/// Whether Windows Hello can confirm on this PC, as the iPad's <c>ApprovalReadiness</c>: ready; not set up for this person
+/// (Settings opens it); busy just now; or not here at all (no Hello this PC can use, or turned off by policy).
+/// </summary>
+public enum HelloReadiness { Ready, NotSetUp, Busy, Unsupported }
+
+/// <summary>What a step says in place of Done and Skip while Hello isn't ready, as the iPad's <c>ApprovalNotReady</c>.</summary>
+public sealed record HelloNotReady(string Line, bool OpensSettings, bool ChecksAgain);
+
 public static class YourSteps
 {
+    /// <summary>
+    /// A step's answer is confirmed with Windows Hello: until Hello is ready, the shared line ("Set up Windows Hello (a PIN is
+    /// enough) to answer here, or answer on your phone."), with Open Settings only where setting it up is the way, and Check
+    /// again unless this PC has no Hello it can use. Ready, none: Done and Skip.
+    /// </summary>
+    public static HelloNotReady? NotReady(WordBook w, HelloReadiness hello) => hello == HelloReadiness.Ready ? null
+        : new(w.Get("needs_you.your_step.set_up_hello"), hello == HelloReadiness.NotSetUp, hello != HelloReadiness.Unsupported);
+
+    /// <summary>Where Open Settings goes: Windows' sign-in options, where Hello's PIN, face and fingerprint are set up.</summary>
+    public static readonly Uri HelloSettings = new("ms-settings:signinoptions");
+
     public static string HandoffPath(string id) => "/v1/me/handoffs/" + CloudRead.PathPart(id);
     public static string AnswerPath(string id) => HandoffPath(id) + "/answer";
 

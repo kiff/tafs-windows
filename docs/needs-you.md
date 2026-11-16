@@ -124,6 +124,11 @@ Ported from the iPad's `YourStepCard`, `TafsCloud.YourStep`, `KIFFClient.handoff
   apart and the link's own, and the button's words), with the host under it, 12 mono dim. Anything else is the words
   only. **Done** and **Skip** show only when this PC can answer: the session's device key is here, and the person
   answers the account's holds (KIFF's `holds.answer`). They're off while answering. "Nothing waiting" needs no step.
+- **Windows Hello not ready** (`YourSteps.NotReady`, the iPad's `ApprovalNotReady`): once a step is listed, the window
+  asks Windows whether Hello can confirm here (`UserConsentVerifier.CheckAvailabilityAsync`). Until it can, the card says
+  "Set up Windows Hello (a PIN is enough) to answer here, or answer on your phone." in place of Done and Skip, with
+  **Open Settings** (Windows' sign-in options) when Hello isn't set up for this person, and **Check again**, which asks
+  again. A PC with no Hello it can use, or Hello off by policy, gets the line alone. Ready, Done and Skip as before.
 - **Answering:**
   1. The hand-off is read from KIFF (`GET /v1/me/handoffs/{id}`) for the version to sign. One KIFF no longer waits on
      says it ended and leaves the list.

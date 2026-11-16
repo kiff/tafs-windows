@@ -269,6 +269,13 @@ public sealed partial class CoachPanel
         var (into, refused) = await CoachSend.SendAsync(w, id, text, conversation, send);
         if (gen != generation || mine != conversationGen) return null;
         coachSending = false;
+        if (refused is { Consent: true })
+        {
+            // Refused for want of the AI-data consent: its screen says why, and the words go back in the box, as the iPad's.
+            coachSent.Remove(pending);
+            ShowConversation();
+            return null;
+        }
         if (refused is not null)
         {
             coachSent.Remove(pending);

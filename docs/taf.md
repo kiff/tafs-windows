@@ -187,6 +187,8 @@ reference:
     place of the error mark, and **Resume** before Retry, which can't pass a halt. Resume opens Halt's screen, the
     account's or this taf's, where resuming is the person's act behind Windows Hello; nothing resumes by itself. Retry
     sends it once that's done.
+  - **Refused for want of the AI-data consent** (`ai_consent_required`), as the iPad's: no Not sent row. The words go
+    back in the box, and the consent's screen says why (`docs/account.md`); sent again once it's allowed.
   - **Retry is a new send.** tafs cloud doesn't take an idempotency key for a message yet (kiff-admin's, in tafs cloud), so
     a send that reached it but whose answer was lost can show twice after Retry.
 - **While the taf works,** or a sent message waits, the thread is read again every 2 s, only while Chat shows.

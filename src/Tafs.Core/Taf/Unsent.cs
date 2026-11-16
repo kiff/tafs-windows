@@ -12,10 +12,13 @@ public sealed record UnsentMessage(string Id, string Text, string Why, DateTimeO
         new(Guid.NewGuid().ToString("N"), text, why, at, halted);
 }
 
-/// <summary>Why a message wasn't taken: tafs cloud's words, and the halt it was refused for, when it was (<c>account</c> or <c>taf</c>).</summary>
-public sealed record Refusal(string Why, string? Halted = null)
+/// <summary>
+/// Why a message wasn't taken: tafs cloud's words, the halt it was refused for, when it was (<c>account</c> or <c>taf</c>),
+/// and whether it was refused for want of the AI-data consent, whose screen then says why.
+/// </summary>
+public sealed record Refusal(string Why, string? Halted = null, bool Consent = false)
 {
-    public static Refusal Of(CloudRead r, string fallback) => new(r.Why ?? fallback, r.Halted);
+    public static Refusal Of(CloudRead r, string fallback) => new(r.Why ?? fallback, r.Halted, r.AsksConsent);
 }
 
 /// <summary>The unsent bubble's words and its list, as the iPad's <c>UnsentBubble</c> and <c>retryChat</c>, the same in a taf's chat and Coach.</summary>
