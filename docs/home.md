@@ -89,7 +89,7 @@ Coach does.
   for the account, in the order to show them; and `labels_words.all`, the first chip's word. Each label is read on its
   own: one with no id or name, or of another shape, is left out, and `waiting` sent as yes/no reads as one. A list of
   another shape reads as none, and Home still reads. With no labelled taf, Home sends none and the Overview is as before.
-- **The chips,** under NEEDS YOU and above the table: All (tafs cloud's word, else the app's "All"), two labels with
+- **The chips,** under NEEDS YOU and above the table: All (tafs cloud's word, else Home's own `home.labels_all`, never the Record's filter word: in French "Tous", not "Tout"), two labels with
   their count and an amber dot while one of their tafs waits, then "+N", which shows the rest once clicked. The chosen
   chip is filled; clicked again, it goes back to All. They use the Record's filter chips' look.
 - **Filtering:** a chip shows only its tafs, in Home's order: it never reorders. A label that's gone goes back to All.
