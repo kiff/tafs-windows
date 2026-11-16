@@ -212,10 +212,13 @@ jobs:
           # The 5.0.2 package names its DLL after the bootstrapper applications, so it's named by its path.
           bal=.wix/extensions/WixToolset.Bal.wixext/5.0.2/wixext5/WixToolset.BootstrapperApplications.wixext.dll
           mkdir -p artifacts/installer
-          dotnet wix build installer/Package.wxs -arch "$arch" -d AppDir="artifacts/zip/tafs-$PLATFORM" -d Version="$version" \
-            -o "artifacts/installer/tafs-$version-$arch.msi"
-          dotnet wix build installer/Bundle.wxs -arch "$arch" -ext "$bal" -d Msi="artifacts/installer/tafs-$version-$arch.msi" \
-            -d Version="$version" -o "artifacts/installer/tafs-setup-$version-$arch.exe"
+          # WiX reads -d paths from the .wxs file's folder, so they're absolute Windows paths; -wx makes a warning (a folder
+          # it can't harvest, say) fail the build instead of shipping an installer with nothing in it.
+          app=$(cygpath -w "$PWD/artifacts/zip/tafs-$PLATFORM")
+          msi=$(cygpath -w "$PWD/artifacts/installer/tafs-$version-$arch.msi")
+          dotnet wix build installer/Package.wxs -wx -arch "$arch" -d AppDir="$app" -d Version="$version" -o "$msi"
+          dotnet wix build installer/Bundle.wxs -wx -arch "$arch" -ext "$bal" -d Msi="$msi" -d Version="$version" \
+            -o "artifacts/installer/tafs-setup-$version-$arch.exe"
           ls -la artifacts/installer
       # On x64: the setup installs quietly, tafs starts from where it put it and saves its sign-in screen, and it uninstalls.
       - name: It installs, starts and uninstalls

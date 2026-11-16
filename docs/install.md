@@ -47,8 +47,11 @@ signed. Everyone else waits for the signed package.
   ```bash
   dotnet tool restore
   dotnet wix extension add WixToolset.Bal.wixext/5.0.2
-  dotnet wix build installer/Package.wxs -arch x64 -d AppDir=artifacts/zip/tafs-x64 -d Version=0.1.0.0 -o artifacts/installer/tafs-x64.msi
-  dotnet wix build installer/Bundle.wxs -arch x64 -ext .wix/extensions/WixToolset.Bal.wixext/5.0.2/wixext5/WixToolset.BootstrapperApplications.wixext.dll     -d Msi=artifacts/installer/tafs-x64.msi -d Version=0.1.0.0 -o artifacts/installer/tafs-setup-0.1.0.0-x64.exe
+  # AppDir and Msi are read from installer/, so give them as absolute Windows paths.
+  app=$(cygpath -w "$PWD/artifacts/zip/tafs-x64"); msi=$(cygpath -w "$PWD/artifacts/installer/tafs-x64.msi")
+  dotnet wix build installer/Package.wxs -wx -arch x64 -d AppDir="$app" -d Version=0.1.0.0 -o "$msi"
+  dotnet wix build installer/Bundle.wxs -wx -arch x64 -ext .wix/extensions/WixToolset.Bal.wixext/5.0.2/wixext5/WixToolset.BootstrapperApplications.wixext.dll \
+    -d Msi="$msi" -d Version=0.1.0.0 -o artifacts/installer/tafs-setup-0.1.0.0-x64.exe
   ```
 - **Not yet:** signed (the setup's engine and the .exe, in CI's sign job once Azure exists), its words in the app's 8
   languages (WiX's standard setup is in English), and the app's own icon (the app has no `.ico` yet, so Start shows
