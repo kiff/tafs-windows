@@ -32,6 +32,10 @@ public sealed class HeldCallView : INotifyPropertyChanged
         DetailsText = string.Join(Environment.NewLine, call.Details);
     }
 
+    /// <summary>The answers under the card, drawn by the page; and the footer, which a lasting refusal takes away.</summary>
+    public UIElement? Answers { get; init; }
+    public Visibility FooterShown { get; init; } = Visibility.Visible;
+
     /// <summary>What it's on, one line an argument, under Details; empty for a call KIFF kept no arguments for.</summary>
     public string DetailsHeading { get; }
     public string DetailsText { get; }
@@ -72,14 +76,17 @@ public sealed partial class NeedsYouPage : Page
     /// <summary>Add this Windows PC, from a card's answers.</summary>
     public static event Action? AddThisDeviceChosen;
 
+    /// <summary>An answer chosen on a held call.</summary>
+    public static event Action<HeldCall, HeldAnswer>? HeldAnswerChosen;
+
+    /// <summary>Who's answering and how this PC answers, for the held calls' answers; set by the window before it draws them.</summary>
+    internal static HeldAnswering Answering { get; set; } = HeldAnswering.None;
+
     /// <summary>Done (true) or Skip on a step.</summary>
     public static event Action<YourStep, bool>? StepAnswerChosen;
 
     /// <summary>F5: Needs you read again, the Windows form of the iPad's pull-to-refresh.</summary>
     public static event Action? RefreshChosen;
-
-    /// <summary>KIFF's <c>holds.answer</c> and <c>cards.manage</c> for the person, from <c>GET /v1/me</c>; both allowed until read.</summary>
-    internal static (bool MayAnswerHolds, bool ManagesCards) Capabilities { get; set; } = (true, true);
 
     readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromSeconds(1) };
     IReadOnlyList<HeldCallView> views = [];
@@ -109,7 +116,12 @@ public sealed partial class NeedsYouPage : Page
     {
         var w = App.Words;
         var now = DateTimeOffset.UtcNow;
-        views = calls.Select(c => new HeldCallView(w, c, now, Capabilities.MayAnswerHolds, Capabilities.ManagesCards)).ToList();
+        views = calls.Select(c => new HeldCallView(w, c, now)
+        {
+            Answers = HeldAnswersView(w, c),
+            FooterShown = c.KiffId is { } id && Answering.Lasting.TryGetValue(id, out var code) && !HeldAnswers.RefusesOnly(code)
+                ? Visibility.Collapsed : Visibility.Visible,
+        }).ToList();
         Calls.ItemsSource = views;
         ShowEmpty();
         if (views.Count > 0) clock.Start();
@@ -117,6 +129,94 @@ public sealed partial class NeedsYouPage : Page
     }
 
     void OnAddThisDevice(object sender, RoutedEventArgs e) => AddThisDeviceChosen?.Invoke();
+
+    /// <summary>
+    /// A held call's answers, as the iPad's <c>HeldCallCard.answers</c>, for Windows: a lasting refusal's words in their place;
+    /// without <c>holds.answer</c>, who answers; when this PC can answer, Approve once with Windows Hello (or, over a Card total,
+    /// its line and Extra room for someone who manages Cards), then the Card's next steps and Refuse, off while sending. A
+    /// PC that doesn't approve keeps the gate (why, and Add this Windows PC) where Approve would be; one that can't answer
+    /// at all says to answer in KIFF, with its page. <c>self_review</c> leaves Refuse and the next steps only.
+    /// </summary>
+    UIElement HeldAnswersView(WordBook w, HeldCall call)
+    {
+        var a = Answering;
+        var panel = new StackPanel { Spacing = 8 };
+        var code = call.KiffId is { } id && a.Lasting.TryGetValue(id, out var c) ? c : null;
+        if (code is not null && !HeldAnswers.RefusesOnly(code))
+        {
+            panel.Children.Add(Line(YourSteps.RefusalWords(w, code) ?? w.Get("needs_you.answer_not_taken"), 14, "TafsSoftText"));
+            return panel;
+        }
+        var refuseOnly = code is not null;
+        if (refuseOnly) panel.Children.Add(Line(YourSteps.RefusalWords(w, code!) ?? "", 14, "TafsSoftText"));
+        var sending = call.KiffId is { } sent && a.Sending.Contains(sent);
+        if (!a.MayAnswerHolds)
+        {
+            // A viewer uses the taf but doesn't answer for the account.
+            panel.Children.Add(Line(w.Get("needs_you.someone_answers"), 13, "TafsSoftText"));
+            return panel;
+        }
+        if (!a.CanAnswer(call))
+        {
+            panel.Children.Add(Line(w.Get("needs_you.answer_in_kiff_until"), 13, "TafsSoftText"));
+            if (call.KiffId is { } kiffId)
+            {
+                var page = Button(w.Get("needs_you.answer_in_kiff_button"), "TafsPrimary", sending: false);
+                page.Click += (_, _) => _ = Windows.System.Launcher.LaunchUriAsync(HeldAnswers.AnswerPage(kiffId, w.Language));
+                panel.Children.Add(page);
+            }
+            return panel;
+        }
+        if (!refuseOnly)
+        {
+            if (call.ApprovableOnce) panel.Children.Add(Approve(w, call, new HeldAnswer.ApproveOnce(), "needs_you.approve_once_with", sending));
+            else
+            {
+                // Over a total the Card keeps across calls: approving once can't pass it; extra room can, for this call.
+                panel.Children.Add(Line(w.Get(a.ManagesCards ? "needs_you.over_total_manager" : "needs_you.over_total"), 13, "TafsSoftText"));
+                if (a.ManagesCards) panel.Children.Add(Approve(w, call, new HeldAnswer.ExtraRoom(), "needs_you.extra_room_with", sending));
+            }
+        }
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        foreach (var step in call.NextSteps)
+        {
+            var next = Button(step, "TafsOutlineButton", sending);
+            next.Click += (_, _) => HeldAnswerChosen?.Invoke(call, new HeldAnswer.NextStep(step));
+            row.Children.Add(next);
+        }
+        var refuse = Button(w.Get("needs_you.refuse"), "TafsOutlineButton", sending);
+        refuse.Foreground = ThemeBrush("TafsNo");
+        refuse.Click += (_, _) => HeldAnswerChosen?.Invoke(call, new HeldAnswer.Refuse());
+        row.Children.Add(refuse);
+        panel.Children.Add(row);
+        return panel;
+    }
+
+    /// <summary>Approve once or Extra room "with Windows Hello" when this PC approves; else the gate, as the iPad's ApprovalGate.</summary>
+    UIElement Approve(WordBook w, HeldCall call, HeldAnswer answer, string key, bool sending)
+    {
+        if (!Answering.Approves)
+        {
+            var gate = NeedsYouScreen.Gate(w);
+            var add = Button(gate.Add, "TafsOutlineButton", sending: false);
+            add.Click += OnAddThisDevice;
+            return new StackPanel { Spacing = 8, Children = { Line(gate.Lead, 13, "TafsSoftText"), add } };
+        }
+        var b = Button(w.Get(key, ("biometry", "Windows Hello")), "TafsPrimary", sending);
+        b.Click += (_, _) => HeldAnswerChosen?.Invoke(call, answer);
+        return b;
+    }
+
+    static Button Button(string text, string style, bool sending)
+    {
+        var b = new Button
+        {
+            Content = text, IsEnabled = !sending, HorizontalAlignment = HorizontalAlignment.Left,
+            Style = (Style)Application.Current.Resources[sending && style == "TafsPrimary" ? "TafsPrimaryOff" : style],
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, text);
+        return b;
+    }
 
     /// <summary>Nothing waiting only with no held call and no call to say about, as the iPad's.</summary>
     void ShowEmpty() => Empty.Visibility = views.Count == 0 && unproven.Count == 0 && steps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;

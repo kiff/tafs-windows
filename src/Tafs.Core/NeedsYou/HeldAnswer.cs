@@ -187,6 +187,10 @@ public static class HeldAnswers
         return new(false, YourSteps.RefusedWords(w, status, answerBody), LastingRefusal(status, answerBody));
     }
 
+    /// <summary>The held call's page in KIFF, where it's answered while this PC can't (the iPad's <c>answerPage</c>), in the app's language.</summary>
+    public static Uri AnswerPage(string kiffId, string language) =>
+        new($"https://app.kiff.dev/needs-you/{CloudRead.PathPart(kiffId)}?lang={CloudRead.QueryPart(language)}");
+
     /// <summary>Whether this PC approves (approve once, extra room): a passkey session with this PC's own passkey.</summary>
     public static bool Approves(ApprovalMode mode, string? passkeyId) => mode == ApprovalMode.Passkey && passkeyId is not null;
 }

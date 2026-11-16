@@ -34,6 +34,14 @@ public sealed partial class MainWindow : Window
     bool mayAnswerHolds = true;
 
     /// <summary>
+    /// Answering held calls: whether the person manages Cards (KIFF's <c>cards.manage</c>, as the iPad's <c>canManageCards</c>),
+    /// KIFF's lasting refusals by hold, and the holds whose answer is on its way.
+    /// </summary>
+    bool managesCards = true;
+    readonly Dictionary<string, string> lastingRefusals = [];
+    readonly HashSet<string> sendingHolds = [];
+
+    /// <summary>
     /// Your step, as the iPad's <c>yourSteps</c>: Home's, less those answered here that it still lists; those being answered;
     /// and why the last answer didn't go through (the iPad's <c>lastError</c>).
     /// </summary>
@@ -154,6 +162,7 @@ public sealed partial class MainWindow : Window
         SignInPage.PairInsteadChosen += OpenPairing;
         NeedsYouPage.AddThisDeviceChosen += OpenPairing;
         NeedsYouPage.StepAnswerChosen += (step, done) => _ = AnswerStepAsync(step, done);
+        NeedsYouPage.HeldAnswerChosen += (call, answer) => _ = AnswerHeldAsync(call, answer);
         Toasts.HoldChosen += hold => DispatcherQueue.TryEnqueue(() => OpenHold(hold));
         heldClock.Tick += (_, _) =>
         {
@@ -351,7 +360,7 @@ public sealed partial class MainWindow : Window
         // Who answers, and who manages Cards, as the iPad's mayAnswerHolds and canManageCards: KIFF's capabilities on /v1/me.
         var capabilities = Tafs.Core.Coach.CoachAccess.Capabilities((await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer);
         if (reading != sessions) return;
-        NeedsYouPage.Capabilities = (HoldToast.Notifies(capabilities), capabilities?.Contains("cards.manage") ?? true);
+        (mayAnswerHolds, managesCards) = (DidThisHappen.MayAnswerHolds(capabilities), capabilities?.Contains("cards.manage") ?? true);
         var answer = (await read(KiffHeld.Path)).Answer;
         if (reading != sessions || answer is not { } json || KiffHeld.Read(json) is not { } holds) return;
         var tafs = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => (g.First().Name, g.First().Colour));
@@ -396,14 +405,81 @@ public sealed partial class MainWindow : Window
     async Task ReadUnprovenAsync(int reading)
     {
         if (kiffRead is not { } read || sampleHeld) return;
-        // Read into a local first: an answer from an earlier session never replaces this one's, as the iPad's accountGeneration.
-        var may = DidThisHappen.MayAnswerHolds(Tafs.Core.Coach.CoachAccess.Capabilities((await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer));
+        // Read into locals first: an answer from an earlier session never replaces this one's, as the iPad's accountGeneration.
+        var capabilities = Tafs.Core.Coach.CoachAccess.Capabilities((await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer);
         if (reading != sessions) return;
-        mayAnswerHolds = may;
+        (mayAnswerHolds, managesCards) = (DidThisHappen.MayAnswerHolds(capabilities), capabilities?.Contains("cards.manage") ?? true);
+        ShowHeld(held);
         if (mayAnswerHolds && (await read(DidThisHappen.Path)).Answer is { } json && reading == sessions && DidThisHappen.Read(json) is { } calls)
             unproven = calls;
         if (reading == sessions && Pages.Content is NeedsYouPage page) page.ShowUnproven(unproven, mayAnswerHolds);
         if (reading == sessions) ShowSteps();
+    }
+
+    /// <summary>How this PC answers the held calls now: none signed out or for the sample.</summary>
+    HeldAnswering HeldAnsweringNow()
+    {
+        if (sampleHeld || App.Sessions.Kept() is not { } session) return HeldAnswering.None;
+        var hasKey = TpmKey.Exists(session.KeyName);
+        return new(mayAnswerHolds, call => HeldAnswers.CanAnswer(call, session.Tenant, hasKey), HeldAnswers.Approves(session.Mode, session.PasskeyId),
+            managesCards, lastingRefusals, sendingHolds);
+    }
+
+    /// <summary>
+    /// An answer to a held call, as the iPad's <c>answer(_:with:)</c>: approving once or extra room with a fresh Windows Hello
+    /// passkey assertion over KIFF's <c>kiff.answer.v1</c>; refusing, with a next step or not, confirmed with Windows Hello and
+    /// signed by the session's device key. Taken, the call leaves Needs you and Home is read again; not taken, why shows
+    /// at the top and a lasting refusal stays with the call. A sign-out meanwhile ends it quietly.
+    /// </summary>
+    async Task AnswerHeldAsync(HeldCall call, HeldAnswer answer)
+    {
+        var w = App.Words;
+        if (App.Sessions.Kept() is not { } session || sampleHeld || call.KiffId is not { } id || sendingHolds.Contains(id)) return;
+        if (!held.Any(h => h.KiffId == id)) return;
+        if (!HeldAnswers.CanAnswer(call, session.Tenant, TpmKey.Exists(session.KeyName)))
+        {
+            needsYouError = w.Get(TpmKey.Exists(session.KeyName) ? "needs_you.answer_in_kiff" : "needs_you.sign_in_again_to_answer");
+            ShowSteps();
+            return;
+        }
+        var reading = sessions;
+        var bearer = session.AccessToken;
+        sendingHolds.Add(id);
+        needsYouError = null;
+        ShowHeld(held);
+        ShowSteps();
+        var hello = new WindowsHello(() => App.WindowHandle);
+        var credential = session.PasskeyId is { } passkeyId ? KiffSigning.FromBase64Url(passkeyId) : null;
+        var answered = await HeldAnswers.AnswerAsync(w, call, answer, session.Tenant, session.Mode, session.PasskeyId,
+            // The device key's answer asks for the person first, as the iPad's signer.sign(message, reason:).
+            ConfirmStepAsync,
+            message => credential is null
+                ? Task.FromException<System.Text.Json.Nodes.JsonObject>(new PasskeyRefusedException("this PC has no passkey"))
+                : HeldAnswers.PasskeyAsync(message, credential,
+                    clientData => hello.GetAssertionAsync(PasskeyApprover.RpId, credential, clientData, CancellationToken.None)),
+            async message =>
+            {
+                using var key = TpmKey.Open(session.KeyName);
+                return Convert.ToBase64String(await key.SignDerAsync(message));
+            },
+            async (path, body) =>
+            {
+                try { return await KiffHttp.PostAsync(path, body, bearer: bearer); }
+                catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException) { return (0, ""); }
+            },
+            () => SigningTime.Next(DateTimeOffset.UtcNow), () => reading == sessions);
+        if (answered.Stopped || reading != sessions) return;
+        sendingHolds.Remove(id);
+        if (answered.Taken)
+        {
+            ShowHeld(held.Where(h => h.KiffId != id).ToList());
+            if (cloudRead is { } read) await ReadHomeAsync(read);
+            return;
+        }
+        needsYouError = answered.Why;
+        if (answered.Lasting is { } code) lastingRefusals[id] = code;
+        ShowHeld(held);
+        ShowSteps();
     }
 
     /// <summary>Whether this PC can answer a step: the session's device key, and someone who answers the account's holds.</summary>
@@ -497,6 +573,7 @@ public sealed partial class MainWindow : Window
     {
         var w = App.Words;
         held = calls;
+        NeedsYouPage.Answering = HeldAnsweringNow();
         AddHeldCalls(w);
         if (needsYouRow is { } row) ShowCount(row, w, needsYouTitle);
         if (Pages.Content is NeedsYouPage page) page.Show(held);
@@ -585,7 +662,6 @@ public sealed partial class MainWindow : Window
         sessions++;
         // The last export's files too, as the iPad's removeOpenedFiles: a person's chats never stay on this PC after them.
         ChatsExport.Remove(ChatsExport.Folder);
-        NeedsYouPage.Capabilities = (true, true);
         cloudRead = null;
         cloudReadWithProof = null;
         setupProof = null;
@@ -598,6 +674,9 @@ public sealed partial class MainWindow : Window
         unproven = [];
         mayAnswerHolds = true;
         listedSteps = [];
+        managesCards = true;
+        lastingRefusals.Clear();
+        sendingHolds.Clear();
         answeredSteps.Clear();
         answeringSteps.Clear();
         needsYouError = null;
