@@ -894,7 +894,12 @@ public sealed partial class MainWindow : Window
         ReceiptSheet.Read = null;
         RecordPage.ReadBytes = null;
         record = [];
-        if (Pages.Content is RecordPage page) page.ShowEntries(record);
+        if (Pages.Content is RecordPage page)
+        {
+            page.ShowEntries(record);
+            // The last account's export, on its way or said, goes with it.
+            page.ClearExport();
+        }
         if (!sampleHeld) ShowHeld([]);
         unproven = [];
         mayAnswerHolds = true;
@@ -1255,10 +1260,11 @@ public sealed partial class MainWindow : Window
     {
         var w = App.Words;
         int status;
-        string body;
-        try { (status, body) = await KiffHttp.GetAsync(new Uri(HomeList.Api, path), bearer, w.Language); }
+        byte[] raw;
+        try { (status, raw) = await KiffHttp.GetBytesAsync(new Uri(HomeList.Api, path), bearer, w.Language); }
         catch (System.Net.Http.HttpRequestException) { return (null, CloudRead.Unreached(w).Why); }
-        return status is < 200 or > 299 ? (null, CloudRead.Refused(w, status, body).Why) : (System.Text.Encoding.UTF8.GetBytes(body), null);
+        // Its bytes as they came, never decoded and encoded again; a refusal's words read from them.
+        return status is < 200 or > 299 ? (null, CloudRead.Refused(w, status, System.Text.Encoding.UTF8.GetString(raw)).Why) : (raw, null);
     }
 
     /// <summary>A card's answer sent to tafs cloud as the session, answered as a read is.</summary>

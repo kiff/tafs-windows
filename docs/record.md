@@ -74,7 +74,10 @@ sees every taf's Record (every taf on Home managed by them, as KIFF says; tafs c
   cloud's answer byte for byte, so KIFF's receipts are exactly as issued, never re-encoded; the CSV as tafs cloud wrote
   it. How many calls have no receipt yet is said under the row. They're written under the temporary folder, replaced at
   each export and removed at every session change, as Export my chats' are.
-- Not exported: "They couldn't be exported." and why, in red.
+- **Its names** come from the range this PC asked for (`YYYY-MM-DD`), never from the answer, so a file is only ever
+  written inside its folder. The JSON is read as bytes (`KiffHttp.GetBytesAsync`), never decoded and encoded again.
+- **A session change** drops an export still on its way (no file, no share sheet) and clears what the row said.
+- Not exported: "They couldn't be exported." and why, in red, in the app's or tafs cloud's words, never Windows'.
 - For a screenshot, `--home` shows the row, answered from a `receipts-export.json` beside the Home file.
 
 ## A line's sheet

@@ -27,18 +27,27 @@ public static class ReceiptsExport
     public static (string From, string To) Range(int count, DateOnly today) =>
         (today.AddDays(-(count - 1)).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
 
-    /// <summary>tafs cloud's answer, its bytes kept as they came; its days, CSV and missing count read beside them. None for one that isn't an object.</summary>
+    /// <summary>
+    /// tafs cloud's answer, its bytes kept as they came, with its CSV and missing count read beside them; its days are the
+    /// range this PC asked for (<see cref="Range"/>'s digits and dashes), never the answer's, since they name the files.
+    /// None for an answer that isn't an object, or a range that isn't two <c>YYYY-MM-DD</c> days.
+    /// </summary>
     public static ReceiptsAnswer? Read(byte[] raw, string from, string to)
     {
+        if (!IsDay(from) || !IsDay(to)) return null;
         try
         {
             using var doc = JsonDocument.Parse(raw);
             var a = doc.RootElement;
             if (a.ValueKind != JsonValueKind.Object) return null;
-            return new(Lenient.Text(a, "from") ?? from, Lenient.Text(a, "to") ?? to, raw, Lenient.Text(a, "csv") ?? "", Lenient.Int(a, "missing") ?? 0);
+            return new(from, to, raw, Lenient.Text(a, "csv") ?? "", Lenient.Int(a, "missing") ?? 0);
         }
         catch (JsonException) { return null; }
     }
+
+    /// <summary>A day as <see cref="Range"/> writes it: <c>YYYY-MM-DD</c>, a real date, nothing else.</summary>
+    static bool IsDay(string day) =>
+        day.Length == 10 && DateOnly.TryParseExact(day, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
 
     /// <summary>Where the files are written: beside Export my chats', replaced at each export and removed at every session change.</summary>
     public static string Folder => System.IO.Path.Combine(System.IO.Path.GetTempPath(), "tafs", "receipts");
@@ -51,6 +60,9 @@ public static class ReceiptsExport
         var stem = $"receipts-{export.From}-to-{export.To}";
         var json = System.IO.Path.Combine(folder, stem + ".json");
         var csv = System.IO.Path.Combine(folder, stem + ".csv");
+        // Inside the folder, always: a name that isn't its own day range never reaches the disk.
+        if (System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(json)) != System.IO.Path.GetFullPath(folder).TrimEnd(System.IO.Path.DirectorySeparatorChar))
+            throw new IOException("not the export's folder");
         File.WriteAllBytes(json, export.Json);
         File.WriteAllText(csv, export.Csv, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         return [json, csv];

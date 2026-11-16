@@ -101,6 +101,13 @@ public sealed partial class RecordPage : Page
             Export.Children.Add(new TextBlock { Text = why, FontSize = 13, TextWrapping = TextWrapping.Wrap, Foreground = ChatViews.ThemeBrush(ActualTheme, "TafsNo") });
     }
 
+    /// <summary>The export forgotten at a session change: what was open, on its way or said goes with the account.</summary>
+    public void ClearExport()
+    {
+        (exportOpen, exporting, exportWhy, exportMissing) = (false, false, null, 0);
+        ShowExport();
+    }
+
     async Task ExportAsync(int count)
     {
         if (exporting || ReadBytes is not { } read) return;
@@ -109,6 +116,8 @@ public sealed partial class RecordPage : Page
         (exporting, exportWhy, exportMissing) = (true, null, 0);
         ShowExport();
         var (raw, why) = await read(ReceiptsExport.Path(from, to));
+        // Another session since it was asked: no file, no share sheet, nothing said.
+        if (ReadBytes != read) return;
         exporting = false;
         if (raw is not null && ReceiptsExport.Read(raw, from, to) is { } export)
         {
@@ -120,7 +129,8 @@ public sealed partial class RecordPage : Page
                 ShareFiles.Show(files, w.Get("record.export_receipts"));
                 return;
             }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { why = e.Message; }
+            // The app's own words, never Windows' (they'd hold this PC's paths).
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { why = w.Get("error.ours"); }
         }
         exportWhy = w.Get("record.export_not_exported", ("why", why ?? w.Get("error.ours")));
         ShowExport();
