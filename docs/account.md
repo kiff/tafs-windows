@@ -14,6 +14,14 @@ The sections, in the iPad's order:
     then this session's TPM key signs KIFF's `PUT /v1/me/time-zone` as a signed setup call (`KIFF-Device-Signature` over
     `kiff.request.v1`). Closed or failing, nothing is sent ("The time zone didn't change."); KIFF refusing says the app's
     line; taken, the account is read again. The iPad's full list of zones isn't here yet.
+  - **Delete account…,** in red, for someone KIFF lets delete it (`account.delete`, or a KIFF that lists none), as the
+    iPad's `DeleteAccountView` (App Store guideline 5.1.1(v)): its warning, what goes (tafs, runs, chats and notes; Cards
+    and keys; app sign-ins; KIFF records after 30 days), and "You confirm with Windows Hello. Other devices sign out too."
+    Then, in the iPad's order (`AccountDeletion`): Windows Hello ("Delete your account"); tafs cloud erases every taf
+    (`POST /v1/account/delete`, `{done}`); planque forgets the connections (`DELETE /v1/accounts/{tenant}`, signed by this
+    device); KIFF, last (`POST /v1/me/delete`, signed by the TPM key as a setup call). Each step that fails says which part
+    is left (only the owner can, not erased yet, connections left, KIFF didn't delete), and trying again goes on from
+    there. Deleted, this PC forgets the session as a sign-out does and opens sign-in.
   - **In the sidebar,** under Account: the person's email, else the account's name, once read. Narrator reads both.
   - **View only**, with Add this Windows PC, shows exactly when the kept session's `approval_mode` says view ([the session](session.md)).
 - **People & apps,** for a KIFF account: People & groups, Devices, and Connect apps, which opens the sidebar's screen.

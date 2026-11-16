@@ -165,6 +165,17 @@ static class KiffHttp
         return await SendAsync(request, cancel);
     }
 
+    /// <summary>A DELETE to planque as this device (erasing the account's connections), signed with <c>Planque-Device-Signature</c>.</summary>
+    /// <exception cref="HttpRequestException">It wasn't reached, or isn't planque.</exception>
+    public static async Task<(int Status, string Body)> PlanqueDeleteAsync(Uri url, string deviceSignature, string language, CancellationToken cancel = default)
+    {
+        if (!Tafs.Core.Kiff.PlanqueProof.IsPlanque(url)) throw new HttpRequestException("not planque");
+        using var request = new HttpRequestMessage(HttpMethod.Delete, url);
+        request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
+        request.Headers.Add("Planque-Device-Signature", deviceSignature);
+        return await SendAsync(request, cancel);
+    }
+
     static async Task<(int Status, string Body)> SendAsync(HttpRequestMessage request, CancellationToken cancel, HttpClient? client = null)
     {
         try

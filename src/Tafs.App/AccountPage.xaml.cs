@@ -14,7 +14,7 @@ namespace Tafs.App;
 /// <param name="Manages">Whether this person manages the account's tafs (KIFF's <c>cards.manage</c>): who may change suggestions.</param>
 public sealed record AccountOpening(bool Sample, ElementTheme Theme, Func<string, Task<CloudRead>>? Read = null,
     KiffAccount? Account = null, Func<string, string, byte[]?, Task<CloudRead>>? Write = null, bool Manages = false,
-    Func<string, Task<(string? Zone, string? Why)>>? SetTimeZone = null);
+    Func<string, Task<(string? Zone, string? Why)>>? SetTimeZone = null, Func<Task<(Deleted Done, string? Why)>>? DeleteAccount = null);
 
 /// <summary>
 /// Account. Its rows follow where this PC stands (the sample, signed in with KIFF, or signed out). The KIFF account's name,
@@ -128,6 +128,8 @@ public sealed partial class AccountPage : Page
             if (opening.SetTimeZone is { } set && AccountTimeZone.ThisPc(TimeZoneInfo.Local) is { } here && here != (kiff.TimeZone ?? "UTC"))
                 account.Add(Action(w.Get("settings.use_device_zone", ("device", w.Get("device.windows")), ("identifier", here)), "TafsAmberWords",
                     () => _ = UseZoneAsync(set, here)));
+            if (kiff.MayDelete && opening.DeleteAccount is { } delete)
+                account.Add(Action(w.Get("settings.delete_account.row"), "TafsNoText", () => _ = DeleteAccountAsync(delete)));
             if (zoneWhy is { } why) account.Add(new TextBlock { Text = why, FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(20, 0, 20, 12), Style = Look("TafsNoText") });
         }
         // View only exactly when the session says view: Add this Windows PC pairs it.
@@ -419,5 +421,39 @@ public sealed partial class AccountPage : Page
         AutomationProperties.SetAutomationId(dialog, "ai-consent");
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
         await ChangeAsync("POST", AiConsent.Path, ai.AllowBody(), j => consent = AiConsent.Read(j) ?? consent);
+    }
+
+    /// <summary>
+    /// Delete account, as the iPad's <c>DeleteAccountView</c>: its warning and what goes, confirmed with Windows Hello. Deleted,
+    /// this PC forgets the session as a sign-out does and opens sign-in; not, why shows, and trying again goes on from where it
+    /// stopped.
+    /// </summary>
+    async Task DeleteAccountAsync(Func<Task<(Deleted Done, string? Why)>> delete)
+    {
+        var w = App.Words;
+        var lines = new StackPanel { Spacing = 8 };
+        lines.Children.Add(new TextBlock { Text = w.Get("settings.delete_account.warning"), TextWrapping = TextWrapping.Wrap, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        lines.Children.Add(new TextBlock { Text = w.Get("settings.delete_account.what_goes"), Style = Look("TafsEyebrow") });
+        foreach (var key in new[] { "settings.delete_account.goes_tafs", "settings.delete_account.goes_cards", "settings.delete_account.goes_sign_ins", "settings.delete_account.goes_records" })
+            lines.Children.Add(new TextBlock { Text = "• " + w.Get(key), TextWrapping = TextWrapping.Wrap });
+        lines.Children.Add(new TextBlock { Text = w.Get("settings.delete_account.confirm_with", ("biometry", Tafs.Core.Coach.CoachScreen.Biometry)), TextWrapping = TextWrapping.Wrap, Style = Look("TafsSoftText") });
+        var ask = new ContentDialog
+        {
+            XamlRoot = XamlRoot, Title = w.Get("settings.delete_account.title"), Content = lines,
+            PrimaryButtonText = w.Get("settings.delete_account.title"), CloseButtonText = w.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
+        };
+        AutomationProperties.SetAutomationId(ask, "settings.delete_account");
+        if (await ask.ShowAsync() != ContentDialogResult.Primary) return;
+        var (done, why) = await delete();
+        if (done == Deleted.Yes)
+        {
+            // KIFF deleted the account and its sessions: forget this one here, as a sign-out does, whatever the logout answers.
+            try { await App.Sessions.SignOutAsync(); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            SignedOut?.Invoke();
+            return;
+        }
+        if (done == Deleted.No && why is not null)
+            await new ContentDialog { XamlRoot = XamlRoot, Content = why, CloseButtonText = w.Get("common.ok") }.ShowAsync();
     }
 }

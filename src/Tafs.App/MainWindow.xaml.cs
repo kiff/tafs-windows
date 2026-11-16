@@ -1020,6 +1020,43 @@ public sealed partial class MainWindow : Window
         };
     }
 
+    /// <summary>
+    /// Delete account (<see cref="Tafs.Core.Account.AccountDeletion.DeleteAsync"/>): Windows Hello as Your step asks it, then
+    /// tafs cloud's erase, planque's (signed by this device), and KIFF's, last, signed by this session's TPM key. None without
+    /// a session.
+    /// </summary>
+    Func<Task<(Tafs.Core.Account.Deleted Done, string? Why)>>? DeleteAccountFor()
+    {
+        if (App.Sessions.Kept() is not { } session) return null;
+        var reading = sessions;
+        var w = App.Words;
+        return async () =>
+        {
+            using var key = TpmKey.Open(session.KeyName);
+            return await Tafs.Core.Account.AccountDeletion.DeleteAsync(w, session.Tenant, ConfirmStepAsync,
+                () => CloudWriteAsync(session.AccessToken, "POST", Tafs.Core.Account.AccountDeletion.CloudPath, Tafs.Core.Account.AccountDeletion.Body()),
+                async () =>
+                {
+                    var path = Tafs.Core.Account.AccountDeletion.PlanquePath(session.Tenant);
+                    // This device's id in KIFF, as Start's proof loads it: planque takes no signature without it.
+                    async Task<string?> LoadDevice()
+                    {
+                        var devices = await KiffReadAsync(session.AccessToken, PlanqueProof.DevicesPath);
+                        var device = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
+                        if (reading == sessions) deviceId = device;
+                        return device;
+                    }
+                    var signature = await PlanqueProof.SignAsync(session.Tenant, deviceId, LoadDevice, key,
+                        () => SigningTime.Next(DateTimeOffset.UtcNow), "DELETE", path, []);
+                    return signature is null ? 0 : (await KiffHttp.PlanqueDeleteAsync(new Uri(PlanqueProof.Api, path), signature, w.Language)).Status;
+                },
+                async header => (await KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, Tafs.Core.Account.AccountDeletion.KiffPath),
+                    Tafs.Core.Account.AccountDeletion.Body(), session.AccessToken, w.Language, signature: ("KIFF-Device-Signature", header))).Status,
+                async message => await key.SignDerAsync(message),
+                () => SigningTime.Next(DateTimeOffset.UtcNow), () => reading == sessions);
+        };
+    }
+
     /// <summary>A write to tafs cloud as the session (POST, PUT or DELETE), answered as a read is: Account's settings.</summary>
     static async Task<CloudRead> CloudWriteAsync(string bearer, string method, string path, byte[]? body)
     {
@@ -1381,7 +1418,7 @@ public sealed partial class MainWindow : Window
         OpenBeside(typeof(AccountPage), new AccountOpening(sample, Root.RequestedTheme,
             path => cloudRead is { } read ? read(path) : Task.FromResult(CloudRead.Unreached(App.Words)), kiffAccount,
             App.Sessions.Kept() is { } session ? (method, path, body) => CloudWriteAsync(session.AccessToken, method, path, body) : null,
-            Halt.ManagesCards(capabilities), SetTimeZoneFor()));
+            Halt.ManagesCards(capabilities), SetTimeZoneFor(), DeleteAccountFor()));
         ShowAccountChosen(true);
     }
 

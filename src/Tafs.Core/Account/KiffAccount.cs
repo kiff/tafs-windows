@@ -7,8 +7,15 @@ namespace Tafs.Core.Account;
 /// The KIFF account this PC is signed in to, from <c>GET /v1/me</c>, as the iPad's <c>KIFFClient.Account</c>: its id and slug,
 /// its display name, the person's email, and the account's time zone, which ends a Card's day.
 /// </summary>
-public sealed record KiffAccount(string TenantId, string Slug, string? DisplayName, string? Email, string? TimeZone)
+public sealed record KiffAccount(string TenantId, string Slug, string? DisplayName, string? Email, string? TimeZone,
+    IReadOnlyList<string>? Capabilities = null)
 {
+    /// <summary>
+    /// Whether Account offers Delete account: KIFF's <c>account.delete</c>, as the iPad's <c>mayDeleteAccount</c>; a KIFF that
+    /// lists no capabilities allows it, and tafs cloud still refuses anyone but the owner.
+    /// </summary>
+    public bool MayDelete => Capabilities?.Contains("account.delete") ?? true;
+
     /// <summary>The account as the owner knows it: its name, else its slug.</summary>
     public string Name => string.IsNullOrWhiteSpace(DisplayName) ? Slug : DisplayName!.Trim();
 
@@ -19,7 +26,10 @@ public sealed record KiffAccount(string TenantId, string Slug, string? DisplayNa
             o.ValueKind == JsonValueKind.Object && o.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String
             && v.GetString()!.Trim() is { Length: > 0 } t ? t : null;
         return T(me, "tenant_id") is { } id && T(me, "tenant_slug") is { } slug
-            ? new(id, slug, T(me, "tenant_display_name"), T(me, "email"), T(me, "time_zone")) : null;
+            ? new(id, slug, T(me, "tenant_display_name"), T(me, "email"), T(me, "time_zone"),
+                me.TryGetProperty("capabilities", out var c) && c.ValueKind == JsonValueKind.Array
+                    ? c.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()!).ToList() : null)
+            : null;
     }
 
     /// <summary>
