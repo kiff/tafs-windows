@@ -88,7 +88,9 @@ public abstract record ReceiptCheck
     /// The Ethereum-style address that signed <paramref name="digest"/>: keccak256 of the uncompressed public key recovered
     /// from the signature, its last 20 bytes. None when the signature can't be parsed or recovers no key: r and s outside
     /// 1..n−1, a recovery id outside 0–3 (after 27 is taken off one of 27 or more), an R that isn't on the curve or isn't
-    /// of order n, or a key at infinity.
+    /// of order n, or a key at infinity. A high-s signature is taken, on purpose: its twin recovers the same key, so it
+    /// can't change who signed. That's Ethereum's <c>ecrecover</c>, and iOS's and Android's checks too; refusing it on one
+    /// platform only would make the apps disagree about the same receipt.
     /// </summary>
     public static string? RecoverAddress(byte[] digest, byte[] signature)
     {
