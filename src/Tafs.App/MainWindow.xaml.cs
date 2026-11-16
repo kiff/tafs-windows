@@ -134,6 +134,8 @@ public sealed partial class MainWindow : Window
     public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false, string? homeFile = null)
     {
         InitializeComponent();
+        // The mascot in the title bar and the taskbar, as the exe's own icon.
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "tafs.ico"));
         // Back at the front: Your tafs' order settles again, as the iPad's when the app comes back.
         Activated += OnReturned;
         // --theme for CI's screenshots, else the one chosen in Account last time, else the system's.
