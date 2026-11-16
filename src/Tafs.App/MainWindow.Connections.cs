@@ -35,7 +35,9 @@ public sealed partial class MainWindow
                     var path = AppConnections.DisconnectPath(session.Tenant, id);
                     var signature = await PlanqueProof.SignAsync(session.Tenant, deviceId, LoadDevice, key,
                         () => SigningTime.Next(DateTimeOffset.UtcNow), "DELETE", path, []);
-                    return signature is null ? 0 : (await KiffHttp.PlanqueDeleteAsync(new Uri(PlanqueProof.Api, path), signature, w.Language)).Status;
+                    // Signed out while the TPM signed: nothing is sent for the account that's gone.
+                    if (signature is null || reading != sessions) return 0;
+                    return (await KiffHttp.PlanqueDeleteAsync(new Uri(PlanqueProof.Api, path), signature, w.Language)).Status;
                 }, () => reading == sessions);
             });
     }
