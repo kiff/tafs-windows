@@ -14,8 +14,9 @@ portable core in `Tafs.Core` and the screen.
 `IKiffSigner` is all `Tafs.Core` sees of a key: its public half (SPKI DER) and DER signatures.
 **No private key is ever in this app's memory.** The software signer in the tests exists only there.
 Windows Hello can't hold a P-256 approval key, so a Windows PC never sends `approval_pub`: it pairs as
-`passkey`, with its own passkey as `credential` when it has one. With no TPM, it pairs as a view device
-(`key_store: "software"`, no credential) and every approval goes to the phone.
+`passkey`, with its own passkey as `credential` when it has one. With no TPM, or a TPM that refuses, it doesn't pair
+(or sign in) at all: the page says it wasn't added, and nothing is kept. The contract's software-keyed view device
+(`key_store: "software"`) is built in `PairingOffer` but never used by the app.
 
 ## Signatures (`Tafs.Core.Kiff`)
 

@@ -331,7 +331,7 @@ public sealed partial class MainWindow : Window
         var reports = await Task.WhenAll(listed.Tafs.Select(t => TafRuns.LoadReportAsync(w, t.Id, read)));
         if (reading != sessions) return;
         overviewRows = HomeList.Rows(w, listed, TimeZoneInfo.Local, listed.Tafs.Select((t, i) => (t.Id, Report: reports[i])).ToDictionary(r => r.Id, r => r.Report));
-        if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows);
+        if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows, home?.Labels);
     }
 
     /// <summary>
@@ -1037,7 +1037,7 @@ public sealed partial class MainWindow : Window
         // tafs: they're all on the Overview.
         NoTafs.Visibility = home.Tafs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         YourTafs.Visibility = home.Tafs.Count > 0 && yours.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
-        if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows);
+        if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows, home?.Labels);
         // Coach's result cards name and open the tafs on this list.
         CoachMode.Redraw();
     }
@@ -1162,7 +1162,7 @@ public sealed partial class MainWindow : Window
         if (args.SelectedItem is not NavigationViewItem item) return;
         ShowAccountChosen(false);
         if (item == BrandItem)
-            Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, overviewRows));
+            Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, overviewRows, home?.Labels));
         else if (item.Tag is Screen.NeedsYou or HeldCall)
         {
             Pages.Navigate(typeof(NeedsYouPage), held);

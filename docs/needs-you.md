@@ -72,6 +72,35 @@ Ported from the iPad's `YourStepCard`, `TafsCloud.YourStep`, `KIFFClient.handoff
   6. A sign-out at any point ends it quietly, sending nothing more.
 - **Not here:** a step on its taf's page (the request view), and Needs you's count, which counts held calls only.
 
+## Your step (`YourSteps`, `YourStep`)
+
+Ported from the iPad's `YourStepCard`, `TafsCloud.YourStep`, `KIFFClient.handoffMessage`/`handoff`/`answerHandoff` and
+`AppModel.showSteps`/`canAnswerSteps`/`answerYourStep`/`answerRefusedWords`. tafs-macos #78 is a second reference.
+- **What it is:** a step a taf may never take itself, such as approving a bank transfer, which it prepared and handed to
+  its owner. Every word on it is tafs cloud's.
+- **Where it comes from:** Home's `your_steps`, with each read of Home. A step needs its hand-off; every other field
+  reads leniently. A step without its hand-off makes the list unreadable: on the iPad Home then fails as a whole, here
+  Home's own lines stay and the steps stay as they were.
+- **Its card,** first on Needs you: tafs cloud's title as the eyebrow; the taf's name, 14 semibold; what, 16 semibold;
+  why, 14 soft. The vendor's page is an outlined button only when tafs cloud vouched for the link (https, its host given
+  apart and the link's own, and the button's words), with the host under it, 12 mono dim. Anything else is the words
+  only. **Done** and **Skip** show only when this PC can answer: the session's device key is here, and the person
+  answers the account's holds (KIFF's `holds.answer`). They're off while answering. "Nothing waiting" needs no step.
+- **Answering:**
+  1. The hand-off is read from KIFF (`GET /v1/me/handoffs/{id}`) for the version to sign. One KIFF no longer waits on
+     says it ended and leaves the list.
+  2. The person confirms with Windows Hello (a face, a fingerprint or the PIN), the prompt in tafs cloud's words: "Done ·
+     Approve the transfer of €1,200 to Acme". Closed, it's "Cancelled, so nothing was approved…"; Hello not set up, or
+     failing, it's "Not answered: it wasn't confirmed." Either way nothing is signed or sent, and the step stays.
+  3. The session's device key (the TPM key) signs KIFF's `kiff.handoff.v1` (tenant, hand-off, done or skipped, version,
+     signed-at), pinned by KIFF's vector. It grants nothing, so it's never an approval.
+  4. `POST /v1/me/handoffs/{id}/answer` with `{answer, signature: {signed_at, value}}`. A 409 means it ended meanwhile.
+     Taken, the step leaves the list and Home is read again.
+  5. A refusal says why in the app's words: KIFF's `error`, else its `reason`, among its six, else "KIFF didn't take the
+     answer:" with the app's line (signed out of KIFF for a 401). It shows at the top of Needs you, in red.
+  6. A sign-out at any point ends it quietly, sending nothing more.
+- **Not here:** a step on its taf's page (the request view), and Needs you's count, which counts held calls only.
+
 ## Did this happen? (`DidThisHappen`, `Unproven`)
 
 Ported from the iPad's `DidThisHappenCard` (NeedsYouView.swift), `KIFFClient.Unproven`/`didThisHappen` and
