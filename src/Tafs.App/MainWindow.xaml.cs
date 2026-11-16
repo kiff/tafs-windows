@@ -33,6 +33,16 @@ public sealed partial class MainWindow : Window
     IReadOnlyList<Unproven> unproven = [];
     bool mayAnswerHolds = true;
 
+    /// <summary>
+    /// Your step, as the iPad's <c>yourSteps</c>: Home's, less those answered here that it still lists; those being answered;
+    /// and why the last answer didn't go through (the iPad's <c>lastError</c>).
+    /// </summary>
+    IReadOnlyList<YourStep> listedSteps = [];
+    IReadOnlyList<YourStep> steps = [];
+    readonly HashSet<string> answeredSteps = [];
+    readonly HashSet<string> answeringSteps = [];
+    string? needsYouError;
+
     /// <summary>A screenshot's samples: they stay, and KIFF isn't read for them.</summary>
     readonly bool sampleHeld;
 
@@ -143,6 +153,7 @@ public sealed partial class MainWindow : Window
 
         SignInPage.PairInsteadChosen += OpenPairing;
         NeedsYouPage.AddThisDeviceChosen += OpenPairing;
+        NeedsYouPage.StepAnswerChosen += (step, done) => _ = AnswerStepAsync(step, done);
         Toasts.HoldChosen += hold => DispatcherQueue.TryEnqueue(() => OpenHold(hold));
         heldClock.Tick += (_, _) =>
         {
@@ -298,6 +309,9 @@ public sealed partial class MainWindow : Window
         if ((await read(HomeList.Path)).Answer is not { } answer || reading != sessions) return;
         cloudRead = read;
         ShowHome(HomeList.Read(w, answer, TimeZoneInfo.Local));
+        // Home's steps; a list that can't be read leaves them as they were.
+        if (YourSteps.Read(answer) is { } listedNow) listedSteps = listedNow;
+        ShowSteps();
         ShowHaltAll();
         // Who manages each taf and the account's capabilities, read with the list as the iPad's refreshAccess, then every
         // taf's halt, now that tafs cloud can be read: whatever order KIFF's reads land in.
@@ -389,6 +403,93 @@ public sealed partial class MainWindow : Window
         if (mayAnswerHolds && (await read(DidThisHappen.Path)).Answer is { } json && reading == sessions && DidThisHappen.Read(json) is { } calls)
             unproven = calls;
         if (reading == sessions && Pages.Content is NeedsYouPage page) page.ShowUnproven(unproven, mayAnswerHolds);
+        if (reading == sessions) ShowSteps();
+    }
+
+    /// <summary>Whether this PC can answer a step: the session's device key, and someone who answers the account's holds.</summary>
+    bool CanAnswerSteps(KeptSession? session) =>
+        YourSteps.CanAnswer(session is not null && !sampleHeld, mayAnswerHolds, session?.Tenant, session is not null && TpmKey.Exists(session.KeyName));
+
+    /// <summary>The steps drawn again on Needs you when open, as the iPad's <c>showSteps</c>.</summary>
+    void ShowSteps()
+    {
+        steps = YourSteps.Shown(listedSteps, answeredSteps);
+        if (Pages.Content is NeedsYouPage page)
+        {
+            page.ShowSteps(steps, CanAnswerSteps(App.Sessions.Kept()), answeringSteps);
+            page.ShowError(needsYouError);
+        }
+    }
+
+    /// <summary>
+    /// Done or Skip on a step, as the iPad's <c>answerYourStep</c>: the hand-off read from KIFF, confirmed with Windows Hello in
+    /// tafs cloud's words, signed with the session's device key over <c>kiff.handoff.v1</c>, and posted. Answered or ended, it
+    /// leaves the list; answered, Home is read again. Not answered, it stays with why. A sign-out meanwhile ends it quietly.
+    /// </summary>
+    async Task AnswerStepAsync(YourStep step, bool done)
+    {
+        var w = App.Words;
+        var session = App.Sessions.Kept();
+        if (session is null || sampleHeld || answeringSteps.Contains(step.Handoff) || answeredSteps.Contains(step.Handoff)) return;
+        if (!CanAnswerSteps(session))
+        {
+            needsYouError = w.Get(TpmKey.Exists(session.KeyName) ? "needs_you.answer_in_kiff" : "needs_you.sign_in_again_to_answer");
+            ShowSteps();
+            return;
+        }
+        var reading = sessions;
+        var bearer = session.AccessToken;
+        answeringSteps.Add(step.Handoff);
+        needsYouError = null;
+        ShowSteps();
+        var (outcome, why) = await YourSteps.AnswerAsync(w, step, done, session.Tenant,
+            async path =>
+            {
+                try { return await KiffHttp.GetAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), bearer, w.Language); }
+                catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException) { return (0, ""); }
+            },
+            ConfirmStepAsync,
+            async message =>
+            {
+                using var key = TpmKey.Open(session.KeyName);
+                return Convert.ToBase64String(await key.SignDerAsync(message));
+            },
+            async (path, body) =>
+            {
+                try { return await KiffHttp.PostAsync(path, body, bearer: bearer); }
+                catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException) { return (0, ""); }
+            },
+            () => SigningTime.Next(DateTimeOffset.UtcNow), () => reading == sessions);
+        if (outcome == StepAnswered.Stopped || reading != sessions) return;
+        answeringSteps.Remove(step.Handoff);
+        needsYouError = why;
+        if (outcome is StepAnswered.Answered or StepAnswered.Ended) answeredSteps.Add(step.Handoff);
+        ShowSteps();
+        // The lists read again, as the iPad's refresh once KIFF took the answer.
+        if (outcome == StepAnswered.Answered && cloudRead is { } read) await ReadHomeAsync(read);
+    }
+
+    /// <summary>
+    /// The person's confirmation before the device key signs, as the iPad's <c>deviceOwnerAuthentication</c>: Windows Hello
+    /// (a face, a fingerprint or the PIN) over this window, with the prompt. Closed is cancelled; Hello not set up, or
+    /// anything else, isn't confirmed.
+    /// </summary>
+    static async Task<StepConfirmed> ConfirmStepAsync(string prompt)
+    {
+        try
+        {
+            var result = await Windows.Security.Credentials.UI.UserConsentVerifierInterop.RequestVerificationForWindowAsync(App.WindowHandle, prompt);
+            return result switch
+            {
+                Windows.Security.Credentials.UI.UserConsentVerificationResult.Verified => StepConfirmed.Yes,
+                Windows.Security.Credentials.UI.UserConsentVerificationResult.Canceled => StepConfirmed.Cancelled,
+                _ => StepConfirmed.Failed,
+            };
+        }
+        catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException)
+        {
+            return StepConfirmed.Failed;
+        }
     }
 
     /// <summary>The held calls drawn again: NEEDS YOU in the sidebar, Needs you's count, and Needs you or the Overview when open.</summary>
@@ -496,6 +597,11 @@ public sealed partial class MainWindow : Window
         if (!sampleHeld) ShowHeld([]);
         unproven = [];
         mayAnswerHolds = true;
+        listedSteps = [];
+        answeredSteps.Clear();
+        answeringSteps.Clear();
+        needsYouError = null;
+        ShowSteps();
         if (Pages.Content is NeedsYouPage needsYou) needsYou.ShowUnproven(unproven, mayAnswerHolds);
         notified = null;
         // The requested hold is kept: a session starting (a cold start from a click, or signing in after one) forgets the
@@ -982,6 +1088,7 @@ public sealed partial class MainWindow : Window
         {
             Pages.Navigate(typeof(NeedsYouPage), held);
             if (Pages.Content is NeedsYouPage page) page.ShowUnproven(unproven, mayAnswerHolds);
+            ShowSteps();
             _ = ReadUnprovenAsync(sessions);
             ShowRequestedHold();
         }
