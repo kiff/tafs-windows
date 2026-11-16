@@ -6,7 +6,7 @@ using Tafs.Core.Words;
 namespace Tafs.Core.Kiff;
 
 /// <summary>How setting up planque ended: its key kept, enrolled with a new one, or why not.</summary>
-public enum EnrolOutcome { Kept, Enrolled, AdminOnly, OtherDevice, NotSetUp }
+public enum EnrolOutcome { Kept, Enrolled, AdminOnly, OtherDevice, NotSetUp, CantApprove, Cancelled }
 
 /// <summary>What setting up planque came to, with the person's words for why when it didn't.</summary>
 public sealed record EnrolResult(EnrolOutcome Outcome, string? Why = null)
@@ -30,6 +30,31 @@ public static class PlanqueEnrolment
     /// <summary>What the device confirms before setting up, as the iPad's Face ID prompt signs it: <c>tafs.planque.v1|{tenant}</c>.</summary>
     public static byte[] GateMessage(string tenant) => System.Text.Encoding.UTF8.GetBytes($"tafs.planque.v1|{tenant}");
 
+    /// <summary>
+    /// Whether this session may set planque up, and behind what, before anything is sent: only a passkey session that knows
+    /// its passkey, behind Windows Hello over <see cref="GateMessage"/>, as the iPad's one Face ID, which it never skips. Any
+    /// other session can't ("This device can't approve…"): a key session's device key asks no one, so it gives no authority.
+    /// <paramref name="hello"/> asks Windows Hello with the passkey's credential id; closing it, or a Windows Hello that
+    /// doesn't verify, stops quietly, as the iPad's failed Face ID. None means it may go on. <paramref name="message"/> is what's confirmed, when it's a step with planque in it
+    /// (Start's <c>tafs.setup.v1</c>); <see cref="GateMessage"/> otherwise.
+    /// </summary>
+    public static async Task<EnrolResult?> GateAsync(WordBook w, KeptSession session, Func<byte[], byte[], Task> hello, byte[]? message = null)
+    {
+        var cant = new EnrolResult(EnrolOutcome.CantApprove, w.Get("approval.device_can_not_approve_approve"));
+        switch (session.Mode)
+        {
+            case ApprovalMode.Passkey when session.PasskeyId is { } id:
+                try
+                {
+                    await hello(KiffSigning.FromBase64Url(id), message ?? GateMessage(session.Tenant));
+                    return null;
+                }
+                catch (Exception e) when (e is OperationCanceledException or Approvals.PasskeyRefusedException) { return new(EnrolOutcome.Cancelled); }
+            default:
+                return cant;
+        }
+    }
+
     /// <summary>The key KIFF mints for planque: labelled <c>planque</c>, with the <c>connector</c> role only.</summary>
     public static byte[] MintBody() => JsonSerializer.SerializeToUtf8Bytes(new { label = "planque", roles = new[] { "connector" } });
 
@@ -37,7 +62,7 @@ public static class PlanqueEnrolment
     /// <c>KIFF-Device-Signature</c> for the mint, as a signed setup call: <c>kiff.request.v1</c> over exactly
     /// <see cref="MintBody"/>, signed by the session's device key, which asks no one.
     /// </summary>
-    public static async Task<string> MintSignatureAsync(IKiffSigner key, string tenant, DateTimeOffset signedAt, CancellationToken cancel = default) =>
+    public static async Task<string> MintSignatureAsync(IKiffSigner key, string tenant, string signedAt, CancellationToken cancel = default) =>
         KiffSigning.SignatureHeaderV1(signedAt, await key.SignDerAsync(KiffSigning.RequestV1(tenant, "POST", KeysPath, MintBody(), signedAt), cancel));
 
     /// <summary>
@@ -57,15 +82,21 @@ public static class PlanqueEnrolment
     /// a replayed signature, a changed enrolment) stops with why, and nothing is minted. A code-less 409 on the second
     /// enrolment is another device's; one with a code says why.
     /// KIFF refusing the key (403) is for an admin only; planque refusing the enrolment (409) is another device's; anything
-    /// else says why. <paramref name="postToPlanque"/> signs and sends a body; <paramref name="mintKey"/> sends KIFF's signed
-    /// mint. Each answers status and body, and throws <see cref="HttpRequestException"/> when not reached.
+    /// else says why, KIFF's refusal of the mint read as KIFF's. <paramref name="postToPlanque"/> signs and sends a body;
+    /// <paramref name="mintKey"/> sends KIFF's signed mint. Each answers status and body, and throws
+    /// <see cref="HttpRequestException"/> when not reached. <paramref name="current"/> says whether the session it began in
+    /// is still signed in, as the iPad's <c>accountGeneration</c>: checked after the first ask (so no key is minted for an
+    /// account signed out of), after the mint (so none is enrolled) and after the enrolment; signed out, it's
+    /// <see cref="EnrolOutcome.Cancelled"/> and nothing more is sent.
     /// </summary>
     public static async Task<EnrolResult> EnrolAsync(WordBook w, byte[] deviceKeyDer, Func<byte[], Task<(int Status, string Body)>> postToPlanque,
-        Func<Task<(int Status, string Body)>> mintKey)
+        Func<Task<(int Status, string Body)>> mintKey, Func<bool>? current = null)
     {
+        current ??= () => true;
         try
         {
             var (status, body) = await postToPlanque(Body(deviceKeyDer, null));
+            if (!current()) return new(EnrolOutcome.Cancelled);
             if (status is >= 200 and <= 299 && Kept(body)) return new(EnrolOutcome.Kept);
             // A key is minted only when planque says it needs one: anything else stops here, and the next try asks again,
             // so no key is ever left live in KIFF that no one can revoke.
@@ -76,15 +107,18 @@ public static class PlanqueEnrolment
         try
         {
             var (status, body) = await mintKey();
+            if (!current()) return new(EnrolOutcome.Cancelled);
             if (status == 403) return new(EnrolOutcome.AdminOnly, w.Get("coach.connect_admin_only"));
-            if (status is < 200 or > 299 || Plaintext(body) is not { } minted)
-                return NotSetUp(w, CloudRead.Refused(w, status, status is < 200 or > 299 ? body : "").Why);
+            // KIFF's refusal, read as KIFF's (the iPad's KIFFClient.send), never as tafs cloud's.
+            if (status is < 200 or > 299) return NotSetUp(w, Coach.CoachStart.KiffRefused(w, status, body));
+            if (Plaintext(body) is not { } minted) return NotSetUp(w, w.Get("kiff.kiff_did_not_answer_expected"));
             key = minted;
         }
         catch (HttpRequestException) { return NotSetUp(w, CloudRead.Unreached(w).Why); }
         try
         {
             var (status, body) = await postToPlanque(Body(deviceKeyDer, key));
+            if (!current()) return new(EnrolOutcome.Cancelled);
             if (status is >= 200 and <= 299) return new(EnrolOutcome.Enrolled);
             // Another device's enrolment only when planque says nothing more: a 409 with a code is that code's, and says why.
             if (status == 409 && Code(body) is null) return new(EnrolOutcome.OtherDevice, w.Get("coach.connect_other_device"));
