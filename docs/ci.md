@@ -89,3 +89,14 @@ The organisation shares 20 parallel jobs. This repo uses no macOS job. Part jobs
 they only need the portable core; jobs that need Windows (the app build, the TPM key) will be a
 separate job that runs only when its paths change. NuGet packages are cached: every run restores,
 only main saves.
+
+## The team's download, and the MSIX
+
+Both run on Windows (`docs/install.md`):
+- **`zip`:** the unpackaged app, self-contained, for x64 and ARM64, with no debug symbols, stamped `0.1.<run number>.0`
+  with its commit. It waits for `test` and `app` (a part the run skipped counts as passed). The x64 build must open its
+  sign-in screen and save it, or the job fails. It's kept as `tafs-windows-x64` and `tafs-windows-ARM64` only from
+  main, the nightly run and on demand; a PR that changes the app only checks that it publishes and starts, and keeps
+  nothing, since a PR from a fork runs its own code.
+- **`msix`:** the MSIX for x64 and ARM64, kept as `tafs-msix-x64` and `tafs-msix-ARM64`, for the day it's signed, from
+  main and on demand only. Its version is `0.1.<run number>.0`, stamped into the manifest before the build.
