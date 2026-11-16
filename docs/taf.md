@@ -194,8 +194,20 @@ reference:
   refusal is said and never sent again; a stream that breaks leaves the rest to the thread. Narrator reads the live line
   politely as it changes.
 
+**Resume** (`HaltResume`, ported from the iPad's `resumeHalt`), on a taf's Halt screen or every taf's:
+- **Who:** only a passkey session that knows its passkey, the same rule as Approve once (`HeldAnswers.Approves`). Any other
+  session reads "This device can't approve. Approve on another device signed in to your account." in its place.
+- **One Windows Hello:** "Resume with Windows Hello". This PC's passkey asserts KIFF's resume itself
+  (`KIFF-Passkey-Assertion` over `kiff.request.v1`, `POST /v1/agents/{agent}/resume`, or `/v1/resume` for every taf),
+  since resuming gives authority back and KIFF takes it only signed by the approval key.
+- **Then tafs cloud** releases its halt (`DELETE` on the halt), which lets the taf run only once KIFF says it's resumed.
+  Taken, the screen reads Running, and the list and the sidebar are read again.
+- **Not taken:** closing Windows Hello says "Cancelled, so nothing was approved…"; any other failure to sign, "Not resumed:
+  it wasn't confirmed."; KIFF not taking it, "KIFF didn't resume Rae." with the app's line for its status; tafs cloud not
+  taking it after KIFF did, "KIFF resumed Rae, but tafs cloud didn't yet." with why. A sign-out meanwhile sends nothing
+  more. A taf halted with every taf is resumed from every taf's screen.
+
 **Not yet:**
-- **Resuming** (`ResumeConfirmation`), with the approvals.
 - **The revision as If-None-Match:** the server's ETag is the quoted form of `revision`; each read is whole for now. Its
   days are titled as sent, in 12 semibold, not in the sample's capitals. Pull to refresh has no Windows gesture yet.
 - **Chat's Retry** on a message kept unsent, and steering a run at work (`/steer`).
