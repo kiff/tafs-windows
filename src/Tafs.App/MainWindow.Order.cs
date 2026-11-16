@@ -71,6 +71,9 @@ public sealed partial class MainWindow
         if (e.WindowActivationState == WindowActivationState.Deactivated) return;
         settleOnReturn = true;
         ShowYourTafs();
+        // Windows Hello may have been set up meanwhile: asked again with the steps, as the iPad reads its readiness on return.
+        helloChecked = false;
+        if (Pages.Content is NeedsYouPage) ShowSteps();
     }
 
     /// <summary>Signed out: the order is the next account's to settle.</summary>

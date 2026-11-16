@@ -129,6 +129,8 @@ Ported from the iPad's `YourStepCard`, `TafsCloud.YourStep`, `KIFFClient.handoff
   "Set up Windows Hello (a PIN is enough) to answer here, or answer on your phone." in place of Done and Skip, with
   **Open Settings** (Windows' sign-in options) when Hello isn't set up for this person, and **Check again**, which asks
   again. A PC with no Hello it can use, or Hello off by policy, gets the line alone. Ready, Done and Skip as before.
+  It's asked again when the window comes back to the front (Hello may have been set up meanwhile, as the iPad reads its
+  readiness on return) and for each new session.
 - **Answering:**
   1. The hand-off is read from KIFF (`GET /v1/me/handoffs/{id}`) for the version to sign. One KIFF no longer waits on
      says it ended and leaves the list.
