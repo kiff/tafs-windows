@@ -48,7 +48,9 @@ public class HomeLabelsTests
     {
         var plain = Home("""{"tafs":[{"id":"t1","name":"Rae","state":"working"}]}""");
         Assert.Empty(plain.Labels.Labels);
-        Assert.Equal(En.Get("record.filter.all"), LabelChips.All(En, plain.Labels));
+        // Home's own word for it, never the Record's filter's: they differ in some languages.
+        Assert.Equal(En.Get("home.labels_all"), LabelChips.All(En, plain.Labels));
+        Assert.Equal("Tous", LabelChips.All(WordBook.Load(SharedFiles.Strings, "fr"), plain.Labels));
 
         var odd = Home("""{"tafs":[{"id":"t1","name":"Rae","state":"working","labels":"l_money"}],"labels":{"id":"l"},"labels_words":"All"}""");
         Assert.Single(odd.Tafs);
