@@ -1,0 +1,213 @@
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Navigation;
+using Tafs.Core.Connections;
+using Tafs.Core.Kiff;
+
+namespace Tafs.App;
+
+/// <summary>What an app's connections open with: the app, tafs cloud's removed tafs, this PC's read of the grants, and how to read again.</summary>
+public sealed record AppConnectionsOpening(ConnectApp App, IReadOnlyList<RemovedTaf> Removed, IReadOnlyList<PlanqueGrant> Grants, bool Reads,
+    ConnectionsCalls Calls, Func<Task<(IReadOnlyList<PlanqueGrant> Grants, IReadOnlyList<RemovedTaf> Removed)>> ReadAgain);
+
+/// <summary>
+/// An app's connections, as the iPad's <c>AppConnectionsView</c>: a section per taf it was made for (those needing attention
+/// first), then the removed tafs' with one Clear, then the others. Each is ended with Remove access, or Cancel while its
+/// sign-in waits, asked first in words that name the taf it ends, then Windows Hello in the same words.
+/// </summary>
+public sealed partial class AppConnectionsPage : Page
+{
+    AppConnectionsOpening? opening;
+    IReadOnlyList<PlanqueGrant> grants = [];
+    IReadOnlyList<RemovedTaf> removed = [];
+    /// <summary>The connection being ended, or Clear (its ids joined), one at a time; why the last one wasn't, or how Clear went.</summary>
+    string? busy;
+    string? note;
+    bool noteIsError;
+
+    public AppConnectionsPage()
+    {
+        InitializeComponent();
+        ActualThemeChanged += (_, _) => Show();
+    }
+
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        opening = e.Parameter as AppConnectionsOpening;
+        if (opening is null) return;
+        (grants, removed) = (opening.Grants, opening.Removed);
+        BackButton.Content = "‹ " + App.Words.Get("common.back");
+        Heading.Text = App.Words.Get("connect.apps.your_connections", ("app", opening.App.DisplayName));
+        Show();
+    }
+
+    void OnBack(object sender, RoutedEventArgs e)
+    {
+        if (Frame.CanGoBack) Frame.GoBack();
+    }
+
+    void Show()
+    {
+        if (opening is not { } o) return;
+        var w = App.Words;
+        Body.Children.Clear();
+        var listed = AppConnections.RemovedListed(removed);
+        var (tafs, gone, others) = AppConnections.Groups(AppConnections.Of(o.App, grants), o.Calls.TafOf, removed.Select(t => t.Agent).ToHashSet());
+        // This PC hasn't read the account's connections: it says so, rather than an empty list.
+        if (!o.Reads) Body.Children.Add(Words(w.Get("connect.start_connected_tools_first", ("device", w.Get("device.windows"))), 15, "TafsSoft"));
+        foreach (var group in tafs)
+            Section(group.Taf, group.Grants.Select(g => Row(g, group.Taf)));
+        if (gone.Count > 0)
+        {
+            var rows = gone.Select(g => RemovedRow(g, listed.TryGetValue(g.Id, out var r) ? r.UsedBy.Select(u => u.Name).ToList() : null)).ToList();
+            // Only one tafs cloud lists with nobody using it is cleared; not listed means no Clear.
+            var clearable = gone.Where(g => listed.TryGetValue(g.Id, out var r) && r.UsedBy.Count == 0).Select(g => g.Id).ToList();
+            if (o.Calls.Manages && clearable.Count > 0)
+            {
+                var clear = new Button
+                {
+                    Content = busy == "clear" ? w.Get("connect.apps.clearing") : w.Get("connect.clear_removed.button"),
+                    Style = (Style)Application.Current.Resources["TafsOutlineNo"], IsEnabled = busy is null, Padding = new Thickness(16, 0, 16, 0),
+                };
+                AutomationProperties.SetAutomationId(clear, "connect.clear-removed");
+                clear.Click += (_, _) => _ = ClearAsync(clearable);
+                rows.Add(clear);
+            }
+            Section(w.Get("connect.from_removed"), rows);
+        }
+        if (others.Count > 0) Section(w.Get("connect.other_connections"), others.Select(g => Row(g, null)));
+        if (o.Calls.Manages && tafs.Count > 0) Body.Children.Add(Words(w.Get("connect.apps.disconnect_why"), 13, "TafsDim"));
+        if (note is { } n) Body.Children.Add(Words(n, 13, noteIsError ? "TafsNo" : "TafsInk"));
+    }
+
+    void Section(string title, IEnumerable<UIElement> rows)
+    {
+        Body.Children.Add(new TextBlock { Text = title, Style = (Style)Application.Current.Resources["TafsEyebrow"], Margin = new Thickness(0, 8, 0, 0) });
+        var panel = new StackPanel { Spacing = 0 };
+        var first = true;
+        foreach (var row in rows)
+        {
+            panel.Children.Add(new Border
+            {
+                Child = row, Padding = new Thickness(16, 12, 16, 12), BorderBrush = Look("TafsLine"),
+                BorderThickness = new Thickness(0, first ? 0 : 1, 0, 0),
+            });
+            first = false;
+        }
+        Body.Children.Add(new Border { Child = panel, CornerRadius = new CornerRadius(18), Background = Look("TafsPanel"), BorderBrush = Look("TafsLine"), BorderThickness = new Thickness(1) });
+    }
+
+    /// <summary>A connection: its name, its status in planque's words (or waiting on its sign-in), and Remove access or Cancel.</summary>
+    UIElement Row(PlanqueGrant g, string? taf)
+    {
+        var w = App.Words;
+        var lines = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+        lines.Children.Add(Words(g.Title ?? opening!.App.DisplayName, 16, "TafsInk", semibold: true));
+        if (g.StatusWords is { Length: > 0 } status) lines.Children.Add(Words(status, 13, "TafsDim"));
+        else if (AppConnections.WaitingSignIn(g)) lines.Children.Add(Words(w.Get("connect.status.waiting_sign_in", ("vendor", g.Vendor)), 13, "TafsDim"));
+        var row = new Grid { ColumnSpacing = 12, MinHeight = 44 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.Children.Add(lines);
+        // Only someone who manages Cards ends a connection, as the iPad's canManageCards.
+        if (opening!.Calls.Manages)
+        {
+            var end = new Button
+            {
+                Content = busy == g.Id ? w.Get("connect.disconnecting") : AppConnections.EndWord(w, g), IsEnabled = busy is null,
+                Style = (Style)Application.Current.Resources["TafsOutlineNo"], Padding = new Thickness(16, 0, 16, 0), VerticalAlignment = VerticalAlignment.Center,
+            };
+            AutomationProperties.SetAutomationId(end, "connect.disconnect." + g.Id);
+            AutomationProperties.SetName(end, $"{AppConnections.EndWord(w, g)}: {g.Title ?? opening.App.DisplayName}");
+            end.Click += (_, _) => _ = EndAsync(g, taf);
+            Grid.SetColumn(end, 1);
+            row.Children.Add(end);
+        }
+        return row;
+    }
+
+    /// <summary>A removed taf's connection: what it is, the removed taf by the name planque keeps, its status, and who keeps it.</summary>
+    UIElement RemovedRow(PlanqueGrant g, IReadOnlyList<string>? usedBy)
+    {
+        var lines = new StackPanel { Spacing = 2, MinHeight = 44 };
+        lines.Children.Add(Words(g.Title ?? opening!.App.DisplayName, 16, "TafsInk", semibold: true));
+        if (g.AgentName is { } name && name.Trim().Length > 0) lines.Children.Add(Words(name, 13, "TafsSoft"));
+        if (g.StatusWords is { Length: > 0 } status) lines.Children.Add(Words(status, 13, "TafsDim"));
+        if (usedBy is not null && AppConnections.KeptBy(App.Words, usedBy) is { } kept) lines.Children.Add(Words(kept, 13, "TafsSoft"));
+        return lines;
+    }
+
+    /// <summary>
+    /// Remove access, or Cancel for a sign-in that waits: asked first, naming the one taf it ends; then Windows Hello in the
+    /// same words, then planque, signed by this device. Then the connections and Connect apps are read again.
+    /// </summary>
+    async Task EndAsync(PlanqueGrant g, string? taf)
+    {
+        if (opening is not { } o || busy is not null) return;
+        var w = App.Words;
+        var cancel = AppConnections.Cancellable(g);
+        var title = cancel ? AppConnections.CancelTitle(w, g) : AppConnections.DisconnectTitle(w, g.Vendor, taf, []);
+        var ask = new ContentDialog
+        {
+            XamlRoot = XamlRoot, Title = title, RequestedTheme = ActualTheme,
+            Content = new TextBlock
+            {
+                Text = cancel ? w.Get("connect.cancel_sign_in.body", ("vendor", g.Vendor)) : AppConnections.DisconnectMessage(w, g.Vendor, taf, [], g.TakesKey),
+                TextWrapping = TextWrapping.Wrap,
+            },
+            PrimaryButtonText = cancel ? AppConnections.CancelWord(w, g) : w.Get("connect.disconnect_button"),
+            CloseButtonText = cancel ? w.Get("connect.cancel_sign_in.keep_waiting") : w.Get("common.cancel"),
+            DefaultButton = ContentDialogButton.Close,
+        };
+        if (await ask.ShowAsync() != ContentDialogResult.Primary) return;
+        (busy, note) = (g.Id, null);
+        Show();
+        var (left, why, stopped) = await o.Calls.End([g.Id], title);
+        if (stopped) return;
+        await AfterAsync(left == 0 ? null : why, isError: true);
+    }
+
+    /// <summary>Clear, as the iPad's: asked first, then one Windows Hello for all of them; one a live Card uses was kept by tafs cloud's word.</summary>
+    async Task ClearAsync(IReadOnlyList<string> ids)
+    {
+        if (opening is not { } o || busy is not null) return;
+        var w = App.Words;
+        var plan = AppConnections.ClearPlan(ids, grants, AppConnections.RemovedListed(removed));
+        if (plan.Ending.Count == 0) return;
+        var title = w.Count("connect.clear_removed.title", plan.Ending.Count);
+        var ask = new ContentDialog
+        {
+            XamlRoot = XamlRoot, Title = title, RequestedTheme = ActualTheme,
+            Content = new TextBlock { Text = w.Get("connect.clear_removed.body"), TextWrapping = TextWrapping.Wrap },
+            PrimaryButtonText = w.Get("connect.clear_removed.clear"), CloseButtonText = w.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
+        };
+        if (await ask.ShowAsync() != ContentDialogResult.Primary) return;
+        (busy, note) = ("clear", null);
+        Show();
+        var (left, why, stopped) = await o.Calls.End(plan.Ending.Select(g => g.Id).ToList(), title);
+        if (stopped) return;
+        var keptFor = plan.KeptFor.SelectMany(k => k).Select(k => k.Name).ToList();
+        // Not confirmed: nothing was cleared, and it says so.
+        var said = left == plan.Ending.Count && why == w.Get("common.not_done_unconfirmed") ? why
+            : AppConnections.Cleared(w, plan.Ending.Count - left, plan.KeptFor.Count, keptFor, left);
+        await AfterAsync(said, isError: left > 0);
+    }
+
+    async Task AfterAsync(string? said, bool isError)
+    {
+        if (opening is not { } o) return;
+        var (readGrants, readRemoved) = await o.ReadAgain();
+        (grants, removed, busy, note, noteIsError) = (readGrants, readRemoved, null, said, isError);
+        Show();
+    }
+
+    TextBlock Words(string text, double size, string brush, bool semibold = false) => new()
+    {
+        Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, Foreground = Look(brush),
+        FontWeight = semibold ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal,
+    };
+
+    Brush Look(string key) => ChatViews.ThemeBrush(ActualTheme, key);
+}
