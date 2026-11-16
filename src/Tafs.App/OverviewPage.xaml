@@ -73,6 +73,8 @@
       </Grid>
 
       <TextBlock x:Name="Footnote" FontSize="12" Foreground="{ThemeResource TafsDim}" />
+      <!-- With no taf, the recipes tafs cloud lists, in place of the empty table, as the iPad's HomeRecipes. -->
+      <Frame x:Name="Recipes" Visibility="Collapsed" />
     </StackPanel>
     </Grid>
   </ScrollViewer>

@@ -6,7 +6,7 @@
       Background="{ThemeResource TafsBackground}">
   <ScrollViewer>
     <!-- Up to 640 wide, as the iPad's sheet, from the leading edge. -->
-    <Grid Padding="24">
+    <Grid x:Name="Holder" Padding="24">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" MaxWidth="640" />
         <ColumnDefinition Width="Auto" />

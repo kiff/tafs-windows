@@ -152,11 +152,16 @@ The iPad's `RecipeGallerySheet`, `RecipeStrip`, `RecipeRow` and `RecipeSheet`, r
   over the sample: the gallery to create, titled "New taf", with **Say it in your own words** first (Coach in a new
   conversation, its box empty) and each job's sheet ending on **Hand it to Coach** (`labels.hand`): a new conversation with
   the job's words in the box. With no gallery from tafs cloud, it opens Coach in a new conversation, as the iPad's.
+- **Home's recipes with no taf** (the iPad's `HomeRecipes` and `homeListsRecipes`): while the account has no taf, Home's
+  list reads `GET /v1/recipes`. Where tafs cloud lists them (`home.shown`, the sheet's words, a category with a job), the
+  Overview shows them in place of its empty table, under its own heading: tafs cloud's line ("Pick a job for your first
+  taf."), "Say it in your own words" for someone who may use Coach, the category chips and the jobs, each opening its
+  sheet, whose Hand it to Coach starts a new conversation with its words. Otherwise the empty table, as before.
 - **Signed out,** the rows go.
 
 ## Not yet
 
-- **Home's recipes with no taf** (the iPad's `HomeRecipes` on its detail pane).
+- **Home's recipes with no taf:** done below.
 
 - **+ New**, above Coach on the iPad, comes with Coach: on Windows it would have nothing to open yet.
 - **Where a held call opens.** On the iPad, a held call opens its taf's page, from the sidebar and from

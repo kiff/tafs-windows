@@ -407,6 +407,7 @@ public sealed partial class MainWindow : Window
         ShowSteps();
         ShowHaltAll();
         _ = ReadGalleryAsync(read, reading);
+        _ = ReadHomeRecipesAsync(read, reading);
         // Who manages each taf and the account's capabilities, read with the list as the iPad's refreshAccess, then every
         // taf's halt, now that tafs cloud can be read: whatever order KIFF's reads land in.
         if (App.Sessions.Kept()?.AccessToken is { } bearer) _ = AllowCoachAsync(bearer);
@@ -1313,7 +1314,7 @@ public sealed partial class MainWindow : Window
             : path.EndsWith("/conversation", StringComparison.Ordinal) && File.Exists(tafThread) ? tafThread
             : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!,
                 path.StartsWith(ConnectAppsScreen.ListPath, StringComparison.Ordinal) ? "connect-apps.json"
-                : path == Gallery.Path ? "gallery.json"
+                : path == Gallery.Path ? "gallery.json" : path == Gallery.HomePath ? "recipes-home.json"
                 : path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "setup-coach.json"
                 : path.StartsWith(Tafs.Core.Missions.Brief.Route, StringComparison.Ordinal) ? "brief.json"
                 : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json"
@@ -1484,7 +1485,7 @@ public sealed partial class MainWindow : Window
         // Another screen chosen: Needs you's row opens the brief again.
         if (item != needsYouRow) needsYouUnderBrief = false;
         if (item == BrandItem)
-            Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, overviewRows, home?.Labels));
+            Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, overviewRows, home?.Labels, HomeRecipesOpening()));
         else if (item.Tag is Screen.NeedsYou) ShowNeedsYouOrBrief();
         else if (item.Tag is HeldCall) ShowNeedsYou();
         else if (item.Tag == HaltAll) OpenHalt(null, "");
