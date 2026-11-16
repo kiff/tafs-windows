@@ -879,6 +879,9 @@ public sealed partial class MainWindow : Window
     {
         sessions++;
         consentPutOff = false;
+        // A Discard of the last session's says nothing more, and its Cards left are the next account's to read.
+        discarding.Clear();
+        discardLeft.Clear();
         // The next session asks Windows Hello again before its first step.
         (hello, helloChecked) = (HelloReadiness.Ready, false);
         // The last export's files too, as the iPad's removeOpenedFiles: a person's chats never stay on this PC after them.
@@ -1415,7 +1418,8 @@ public sealed partial class MainWindow : Window
         ShowYourTafs();
         NoTafs.Visibility = home.Tafs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows, home?.Labels);
-        // Coach's result cards name and open the tafs on this list.
+        // Coach's result cards name and open the tafs on this list, and its empty chat draws board 7 with none or one.
+        CoachMode.TafCount = read.Tafs.Count;
         CoachMode.Redraw();
     }
 

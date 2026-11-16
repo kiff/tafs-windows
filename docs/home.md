@@ -36,7 +36,22 @@ From the top:
     set up in someone else's Coach chat, the name alone. A row whose chat is Coach's own, for someone who may use Coach
     (`SettingUp.Finishes`, the iPad's `canFinishSetup`), opens Coach on that chat (`CoachPanel.OpenOn`, the iPad's
     `finishSetup`); reading it makes the taf at tafs cloud, and the next Home read lists it with the tafs. Any other row
-    opens nothing, and none is selected. Discard comes in its own change.
+    opens nothing, and none is selected.
+  - **Discard** (`SetupDiscard`, the iPad's `DiscardSettingUpButton` and `discardSettingUp`), beside the row, for the
+    person whose setup it was (tafs cloud sends its words only to them), on a PC that approves with its passkey, as
+    Resume; any other session has no button. Every word is tafs cloud's: the button, then the confirmation (its title,
+    else the button; its text; yes and no). Its yes:
+    1. **Signed first,** behind one Windows Hello: this PC's passkey asserts `kiff.request.v1` over `POST`, the discard
+       path and the empty body, sent as `KIFF-Passkey-Assertion`, as a removal is. Closed or refused, nothing is sent:
+       "Not removed. Nothing changed."
+    2. **Its Cards revoked in KIFF** (`POST /v1/me/mandates/{id}/revoke`): Home's `discard.cards`, and any a refused
+       Discard named.
+    3. **tafs cloud asked** (`POST /v1/home/setting-up/{kiff_agent}/discard`). Done, Home is read again and the row goes.
+       Refused while KIFF still holds Cards in force (409 `cards_in_force`), "KIFF didn't revoke 1 of its Cards: revoke
+       them in KIFF.", and the Cards it named are revoked on the next Discard. Any other refusal says tafs cloud's words.
+    - While it goes, the button reads Loading… and is off. A sign-out ends it quietly.
+    - tafs cloud reads `KIFF-Passkey-Assertion` on this route from kiff/tafs#1247 on, and asks KIFF whether this PC's
+      passkey signed it.
   - **Each row:** the avatar (34), the name in 15 semibold, and what it's doing in 13 soft, on one line each. A row
     opens its taf's page.
   - **The sample's** are Deploys and Bill pay, the two a call waits on, as overview.png.

@@ -233,7 +233,12 @@ public sealed partial class NeedsYouPage : Page
     }
 
     /// <summary>Nothing waiting only with no held call and no call to say about, as the iPad's.</summary>
-    void ShowEmpty() => Empty.Visibility = views.Count == 0 && unproven.Count == 0 && steps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    void ShowEmpty()
+    {
+        Empty.Visibility = views.Count == 0 && unproven.Count == 0 && steps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        // Board 6, nothing waiting, as the iPad's NeedsYouView: drawn once, in this page's theme.
+        if (Empty.Visibility == Visibility.Visible && EmptyArt.Child is null) EmptyArt.Child = Illustrations.NothingWaiting();
+    }
 
     /// <summary>Why the last answer didn't go through, at the top in red, as the iPad's <c>lastError</c>; none hides it.</summary>
     internal void ShowError(string? why)

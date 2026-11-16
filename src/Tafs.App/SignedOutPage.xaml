@@ -32,24 +32,13 @@
       <RowDefinition x:Name="BottomRow" Height="0" />
     </Grid.RowDefinitions>
 
-    <!-- Sign in with KIFF: a screen with its button and a lock, on a soft circle. -->
+    <!-- Sign in with KIFF: board 1, a card opening, sparkles round it. -->
     <Grid x:Name="Left" Background="{ThemeResource TafsBackground}">
       <ScrollViewer x:Name="LeftIntro" VerticalScrollBarVisibility="Auto">
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="28" Padding="24,40">
-          <Viewbox Width="300" Height="300" AutomationProperties.AccessibilityView="Raw">
-            <Canvas Width="400" Height="400">
-              <Ellipse Canvas.Left="10" Canvas.Top="10" Width="380" Height="380" Fill="#E9DCC6" Opacity="0.85" />
-              <Border Canvas.Left="72" Canvas.Top="60" Width="256" Height="316" CornerRadius="30" Background="White">
-                <Canvas>
-                  <Border Canvas.Left="34" Canvas.Top="34" Width="70" Height="70" CornerRadius="18" Background="{StaticResource TafsBrand}" />
-                  <Rectangle Canvas.Left="34" Canvas.Top="128" Width="158" Height="16" RadiusX="8" RadiusY="8" Fill="#3B3946" />
-                  <Rectangle Canvas.Left="34" Canvas.Top="164" Width="120" Height="16" RadiusX="8" RadiusY="8" Fill="#D9D9D9" />
-                  <Rectangle Canvas.Left="34" Canvas.Top="228" Width="186" Height="54" RadiusX="27" RadiusY="27" Fill="{StaticResource GateAmber}" />
-                </Canvas>
-              </Border>
-              <Ellipse Canvas.Left="300" Canvas.Top="-24" Width="100" Height="100" Fill="White" />
-              <FontIcon Canvas.Left="331" Canvas.Top="7" Glyph="&#xE72E;" FontSize="38" Foreground="#1B1726" />
-            </Canvas>
+          <!-- Board 1, first run: the owner's approved art for the welcome (Illustrations.FirstRun), at the phone half's width. -->
+          <Viewbox Width="300" AutomationProperties.AccessibilityView="Raw">
+            <Border x:Name="KiffArt" />
           </Viewbox>
           <TextBlock x:Name="KiffHeading" FontSize="40" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center"
                      Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />

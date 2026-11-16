@@ -78,6 +78,21 @@ public sealed partial class MainWindow
                     Style = (Style)Application.Current.Resources["TafsAmberWords"] });
             Grid.SetColumn(lines, 1);
             content.Children.Add(lines);
+            // Discard, beside it, for the person whose setup it was and a PC that signs it (the iPad's DiscardSettingUpButton).
+            if (taf.Discard is { } words && DiscardFor(taf) is { } discard)
+            {
+                content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var busy = taf.Agent is { } a && discarding.Contains(a);
+                var button = new Button
+                {
+                    Content = busy ? App.Words.Get("common.loading") : words.Button, IsEnabled = !busy, VerticalAlignment = VerticalAlignment.Center,
+                    Style = (Style)Application.Current.Resources["TafsOutlineButton"], FontSize = 13, Padding = new Thickness(10, 4, 10, 4),
+                };
+                AutomationProperties.SetAutomationId(button, "home.discard-setup");
+                button.Click += (_, _) => _ = ConfirmDiscardAsync(taf, words, discard);
+                Grid.SetColumn(button, 2);
+                content.Children.Add(button);
+            }
             var row = new NavigationViewItem
             {
                 Content = content, Tag = new SettingUpRow(taf), Style = (Style)Application.Current.Resources["TafsSidebarItem"],

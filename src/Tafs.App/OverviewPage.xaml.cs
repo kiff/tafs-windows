@@ -142,6 +142,11 @@ public sealed partial class OverviewPage : Page
     void DrawRows(IReadOnlyList<OverviewRow> rows)
     {
         Empty.Visibility = allRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        // The drawings, once, in this page's theme: board 10 always (a desktop is the iPad's regular width), board 2 with no
+        // taf (the recipes, when tafs cloud lists them, take the table's place instead).
+        OverviewArt.Child ??= Illustrations.Overview();
+        NoTafsArt.Visibility = Empty.Visibility;
+        if (allRows.Count == 0) NoTafsArt.Child ??= Illustrations.NoTafs();
         // Drawn again when tafs cloud answers: the lines under the headings go first.
         foreach (var old in Table.Children.OfType<FrameworkElement>().Where(c => Grid.GetRow(c) >= 2).ToList()) Table.Children.Remove(old);
         while (Table.RowDefinitions.Count > 2) Table.RowDefinitions.RemoveAt(2);
