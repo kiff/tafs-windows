@@ -192,7 +192,7 @@ reference:
 
 **Writing to the taf** (`TafChatSend`, ported from the iPad's `sendChat`, `SentMessages` and `stopChat`):
 - **The composer** sits under the thread for a taf tafs cloud runs: "Message Refunds", or "Send to Refunds while it
-  works" while a run of its is at work. Ctrl+Enter sends; Enter is a new line.
+  works" while a run of its is at work. Enter sends; Shift+Enter is a new line.
 - **Sending:** an empty message sends nothing and says nothing; one over 2000 characters says "That's longer than 2000
   characters…" and sends nothing. Otherwise it shows at once, never above the thread's latest, and goes to tafs cloud
   (`POST /v1/tafs/{id}/messages`, `{text}`). One at a time: Send is off while it goes.

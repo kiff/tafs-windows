@@ -204,12 +204,11 @@ public sealed partial class TafPage : Page
         StopButton.Visibility = working && opening.Manages ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>Ctrl+Enter sends; Enter alone is a new line.</summary>
+    /// <summary>Enter sends; Shift+Enter is a new line.</summary>
     void OnDraftKey(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
     {
-        var ctrl = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
-            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-        if (e.Key == Windows.System.VirtualKey.Enter && ctrl) { e.Handled = true; OnSend(sender, e); }
+        // Enter sends; Shift+Enter is a new line (seen before the box takes the Enter).
+        if (ChatViews.SendsOnEnter(e)) { e.Handled = true; OnSend(sender, e); }
     }
 
     /// <summary>
@@ -356,6 +355,11 @@ public sealed partial class TafPage : Page
     void ShowChat()
     {
         var w = App.Words;
+        // The latest message in view, as the iPad's thread opens at its end: once the thread is laid out, unless the person
+        // had scrolled up to read.
+        var atEnd = PageScroll.VerticalOffset >= PageScroll.ScrollableHeight - 24;
+        if (atEnd) DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+            () => PageScroll.ChangeView(null, PageScroll.ScrollableHeight, null, disableAnimation: true));
         ChatPane.Children.Clear();
         Microsoft.UI.Xaml.Media.Brush Brush(string key) => ChatViews.ThemeBrush(ActualTheme, key);
         IReadOnlyList<Tafs.Core.Coach.ThreadItem> items = chat is { } thread ? TafChat.Items(thread)
@@ -945,7 +949,7 @@ public sealed partial class TafPage : Page
         row.ColumnDefinitions.Add(new ColumnDefinition());
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var hand = new FontIcon { Glyph = ((char)0xE7E8).ToString(), FontSize = 16 };
-        hand.SetValue(FontIcon.ForegroundProperty, Application.Current.Resources["TafsNo"]);
+        hand.Foreground = ChatViews.Themed("TafsNo");
         var caret = new FontIcon { Glyph = ((char)0xE76C).ToString(), FontSize = 12 };
         Grid.SetColumn(words, 1);
         Grid.SetColumn(caret, 2);

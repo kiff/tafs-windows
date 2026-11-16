@@ -14,6 +14,14 @@ namespace Tafs.App;
 static class ChatViews
 {
     /// <summary>
+    /// Whether a key in a message box sends it: Enter alone sends, as people expect from a chat; Shift+Enter is a new line.
+    /// Read on <c>PreviewKeyDown</c>, before a box that accepts returns takes the Enter.
+    /// </summary>
+    public static bool SendsOnEnter(Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e) =>
+        e.Key == Windows.System.VirtualKey.Enter && !e.KeyStatus.IsMenuKeyDown
+        && !Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+    /// <summary>
     /// A theme brush in a view's theme: Theme.xaml's dictionaries are merged into the app's, so they're looked for there; a
     /// brush that's the same in both themes (the brand's gradient) is the app's own.
     /// </summary>
@@ -26,6 +34,15 @@ static class ChatViews
                 return b;
         return (Brush)Application.Current.Resources[key];
     }
+
+    /// <summary>The window's theme as it shows, the one chosen in tafs (Account › Appearance) else Windows': set by the window.</summary>
+    public static ElementTheme WindowTheme { get; set; } = ElementTheme.Light;
+
+    /// <summary>
+    /// A theme brush in the window's theme, for what code draws: never <c>Application.Current.Resources</c>, which follows
+    /// Windows' theme, not the one chosen in tafs.
+    /// </summary>
+    public static Brush Themed(string key) => ThemeBrush(WindowTheme, key);
 
     /// <summary>The person's words, on the right in a brand bubble, as the iPad's owner <c>ChatBubble</c>.</summary>
     public static Border OwnerBubble(string words, Func<string, Brush> brush) => new()

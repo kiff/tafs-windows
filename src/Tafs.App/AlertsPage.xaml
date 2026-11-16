@@ -5,6 +5,9 @@
       Background="{ThemeResource TafsBackground}">
   <ScrollViewer>
     <StackPanel Margin="40,32" Spacing="12" MaxWidth="760" HorizontalAlignment="Left">
+      <!-- Back to Account, as the iPad's navigation back. -->
+      <Button x:Name="BackButton" Click="OnBack" Style="{StaticResource TafsQuietButton}" FontSize="15" Foreground="{ThemeResource TafsCoach}"
+              Padding="0" AutomationProperties.AutomationId="back" />
       <TextBlock x:Name="Heading" FontSize="28" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
       <!-- What an alert looks like, as the iPad's two LockScreenAlerts. Drawn in code. -->
       <StackPanel x:Name="Previews" Spacing="10" />

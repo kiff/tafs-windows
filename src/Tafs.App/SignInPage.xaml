@@ -33,10 +33,15 @@
         </StackPanel>
       </Border>
 
-      <StackPanel x:Name="StatusRow" Orientation="Horizontal" Spacing="10">
-        <ProgressRing x:Name="Busy" Width="18" Height="18" IsActive="False" Foreground="{StaticResource TafsAmber}" />
-        <TextBlock x:Name="Status" FontSize="15" TextWrapping="Wrap" MaxWidth="520" Foreground="{ThemeResource TafsInk}" />
-      </StackPanel>
+      <!-- The ring and what's happening: the words wrap in the page's width, never cut. -->
+      <Grid x:Name="StatusRow" ColumnSpacing="10">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <ProgressRing x:Name="Busy" Width="18" Height="18" IsActive="False" VerticalAlignment="Top" Margin="0,2,0,0" Foreground="{StaticResource TafsAmber}" />
+        <TextBlock x:Name="Status" Grid.Column="1" FontSize="15" TextWrapping="Wrap" Foreground="{ThemeResource TafsInk}" />
+      </Grid>
 
       <Button x:Name="Primary" Click="OnPrimary" Style="{StaticResource AccentButtonStyle}" Padding="20,8" />
 

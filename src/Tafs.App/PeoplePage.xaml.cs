@@ -42,8 +42,15 @@ public sealed partial class PeoplePage : Page
         return (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources[key];
     }
 
+    /// <summary>Back to Account, where it opened from.</summary>
+    void OnBack(object sender, RoutedEventArgs e)
+    {
+        if (Frame.CanGoBack) Frame.GoBack();
+    }
+
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
+        BackButton.Content = "‹ " + App.Words.Get("common.back");
         var w = App.Words;
         opening = e.Parameter as PeopleOpening;
         Heading.Text = w.Get("people.title");

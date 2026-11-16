@@ -127,7 +127,7 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBox x:Name="CoachDraft" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="160" KeyDown="OnCoachDraftKey"
+            <TextBox x:Name="CoachDraft" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="160" PreviewKeyDown="OnCoachDraftKey"
                      AutomationProperties.AutomationId="coach.draft" />
             <Button x:Name="CoachSendButton" Grid.Column="1" Style="{StaticResource TafsPrimary}" VerticalAlignment="Bottom" Padding="18,0"
                     Click="OnCoachSend" AutomationProperties.AutomationId="coach.send" />
