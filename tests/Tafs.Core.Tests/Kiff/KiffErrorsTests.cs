@@ -5,7 +5,7 @@ using Tafs.Core.Words;
 namespace Tafs.Core.Tests.Kiff;
 
 /// <summary>A failed KIFF read in the iPad's plain words: KIFFError.errorDescription and PlainError.words(status:).</summary>
-[Part("account")]
+[Part("pairing")]
 public class KiffErrorsTests
 {
     static readonly WordBook En = WordBook.Load(SharedFiles.Strings, "en");
