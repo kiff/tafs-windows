@@ -258,6 +258,8 @@ public sealed partial class CoachPanel : UserControl
         ThreadItems.Children.Clear();
         IntroError.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Collapsed;
+        ShapeView.Visibility = Visibility.Collapsed;
+        ShapeItems.Children.Clear();
         Intro.Visibility = Visibility.Visible;
         starting = false;
         ShowFirstStart(null);
@@ -289,6 +291,9 @@ public sealed partial class CoachPanel : UserControl
         AutomationProperties.SetName(Backdrop, w.Get("coach.close_coach_mode"));
         KeyboardAccelerators.Add(Escape());
         StartChats();
+        // "Taking shape" is painted in the panel's theme: again once it's in the window, and when the theme changes.
+        Loaded += (_, _) => ShapeAgain();
+        ActualThemeChanged += (_, _) => ShapeAgain();
     }
 
     static CoachMotion Motion => CoachScreen.Motion(new UISettings().AnimationsEnabled);
@@ -429,11 +434,14 @@ public sealed partial class CoachPanel : UserControl
     {
         var w = App.Words;
         ThreadItems.Children.Clear();
-        ShowPlan(thread.Plan);
+        // The plan is in "Taking shape" when it shows, as the iPad's: not pinned above the thread as well.
+        ShowPlan(Shaping ? null : thread.Plan);
         // Asked once the thread is drawn: Home's read can answer at once, and it draws the thread again.
         if (Tafs is { } tafs && thread.ReadHomeFor(tafs().Select(t => t.Agent), homeAsked)) DispatcherQueue.TryEnqueue(() => HomeWanted?.Invoke());
         // In the order already drawn: nothing moves while Coach answers (kiff/tafs#1233).
         var items = CoachChat.Steady(drawnOrder, thread.Drawn(Kinds));
+        // Beside the thread when the panel is wide: what it has made so far, read again with it.
+        ShowShape(thread);
         drawnOrder = items.Select(i => i.Id).ToList();
         for (var i = 0; i < items.Count; i++)
         {

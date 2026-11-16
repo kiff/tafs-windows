@@ -27,10 +27,12 @@
         </Rectangle.Fill>
       </Rectangle>
 
-      <Grid x:Name="Sheet" Background="{ThemeResource TafsBackground}">
+      <Grid x:Name="Sheet" Background="{ThemeResource TafsBackground}" SizeChanged="OnSheetSized">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="16" />
           <ColumnDefinition Width="*" />
+          <!-- "Taking shape", beside the thread on a wide panel: 420 and its line, or none. -->
+          <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
@@ -45,7 +47,7 @@
                      VerticalAlignment="Center" Fill="{ThemeResource TafsDim}" Opacity="0.5" />
         </Grid>
         <!-- The bar: Full screen and Back on a pill, and the title inline. -->
-        <Grid Grid.Column="1" Padding="0,12,16,12">
+        <Grid Grid.Column="1" Grid.ColumnSpan="2" Padding="0,12,16,12">
           <Border Style="{StaticResource TafsToolPill}" HorizontalAlignment="Left">
             <StackPanel Orientation="Horizontal">
               <Button x:Name="FullScreen" Click="OnFull" Style="{StaticResource TafsArrow}" Width="40">
@@ -131,6 +133,14 @@
                     Click="OnCoachSend" AutomationProperties.AutomationId="coach.send" />
           </Grid>
         </Grid>
+        <!-- What the conversation has made so far, as the iPad's SetupShapePanel: drawn in code, on Coach's deeper blue. -->
+        <Border x:Name="ShapeView" Grid.Row="1" Grid.Column="2" Width="421" BorderThickness="1,0,0,0" Visibility="Collapsed"
+                BorderBrush="{ThemeResource TafsLine}" Background="{ThemeResource TafsCoachPanel}"
+                AutomationProperties.AutomationId="coach.shape">
+          <ScrollViewer>
+            <StackPanel x:Name="ShapeItems" Spacing="22" Padding="20" />
+          </ScrollViewer>
+        </Border>
         <!-- Coach's previous conversations, then Archived, as the iPad's SetupChatsList and ArchivedSetupChats: drawn in code. -->
         <Grid x:Name="ChatsView" Grid.Row="1" Grid.Column="1" Visibility="Collapsed" RowSpacing="8" Padding="0,0,16,16">
           <Grid.RowDefinitions>

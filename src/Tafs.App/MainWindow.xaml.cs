@@ -306,11 +306,15 @@ public sealed partial class MainWindow : Window
             string.Join(' ', Environment.GetCommandLineArgs().Skip(1).Where(a => a != "--sample")));
 
         // The Record's search from record-search.json (and a case from record-case.json) beside the Home file, given before
-        // the Record opens; --page record-search opens it with a search typed, for a screenshot.
+        // the Record opens; --page record-search opens it with a search typed, for a screenshot. Export receipts from a
+        // receipts-export.json beside it; the stand-in sees every taf, so the row shows.
         if (homeFile is not null)
         {
             RecordPage.Read = path => Task.FromResult(ContractRead(App.Words, homeFile, path));
             if (page == "record-search") RecordPage.Typed = "42";
+            var export = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!, "receipts-export.json");
+            RecordPage.ReadBytes = _ => Task.FromResult<(byte[]?, string?)>(File.Exists(export) ? (File.ReadAllBytes(export), null) : (null, CloudRead.Unreached(App.Words).Why));
+            standInSeesEveryTaf = true;
         }
 
         if (page == "pair") OpenPairing();
@@ -323,12 +327,14 @@ public sealed partial class MainWindow : Window
             Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Calendar);
         }
         else if (page == "usage") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
-        else if (page is "coach" or "coach-chats")
+        else if (page is "coach" or "coach-chats" or "coach-wide")
         {
-            // Over the Overview, which stays in view beside it; with coach-chats, on Previous conversations.
+            // Over the Overview, which stays in view beside it; with coach-chats, on Previous conversations; with coach-wide,
+            // full screen, so "Taking shape" shows beside the conversation.
             Nav.SelectedItem = BrandItem;
             CoachMode.Open(animate: false);
             if (page == "coach-chats") CoachMode.ShowPreviousChats();
+            if (page == "coach-wide") CoachMode.Widen();
         }
         else if (page is "gallery" or "gallery-job" or "new-taf") galleryAsked = page;
         else if (page == "connect-apps") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
@@ -849,6 +855,8 @@ public sealed partial class MainWindow : Window
         ReceiptSheet.Read = path => KiffBytesAsync(bearer, path);
         // The Record's search, across the person's tafs, as the session.
         RecordPage.Read = path => CloudReadAsync(bearer, path);
+        // Export receipts: tafs cloud's answer as it came, so KIFF's receipts are exactly as issued.
+        RecordPage.ReadBytes = path => CloudBytesAsync(bearer, path);
         // Given before Coach's read, which reads them as it draws its approvals.
         CoachMode.Grants = () => GrantsAsync(session);
         // Approve on Coach's approval cards: only a passkey session that knows its passkey signs; any other keeps the gate.
@@ -900,6 +908,7 @@ public sealed partial class MainWindow : Window
         (hello, helloChecked) = (HelloReadiness.Ready, false);
         // The last export's files too, as the iPad's removeOpenedFiles: a person's chats never stay on this PC after them.
         ChatsExport.Remove(ChatsExport.Folder);
+        ChatsExport.Remove(Tafs.Core.Record.ReceiptsExport.Folder);
         cloudRead = null;
         cloudReadWithProof = null;
         setupProof = null;
@@ -909,12 +918,15 @@ public sealed partial class MainWindow : Window
         ShowKiffAccount();
         ReceiptSheet.Read = null;
         RecordPage.Read = null;
+        RecordPage.ReadBytes = null;
         record = [];
         if (Pages.Content is RecordPage page)
         {
             page.ShowEntries(record);
             // The last account's search, its results and any case on its way go with it.
             page.ClearSearch();
+            // The last account's export, on its way or said, goes with it.
+            page.ClearExport();
         }
         if (!sampleHeld) ShowHeld([]);
         unproven = [];
@@ -1285,6 +1297,21 @@ public sealed partial class MainWindow : Window
         return Answered(w, status, answer);
     }
 
+    /// <summary>A stand-in Home (<c>--home</c>) shows Export receipts, answered from its own file.</summary>
+    bool standInSeesEveryTaf;
+
+    /// <summary>A read of tafs cloud as the session, its answer's bytes as they came (an export of receipts), or why not.</summary>
+    static async Task<(byte[]? Raw, string? Why)> CloudBytesAsync(string bearer, string path)
+    {
+        var w = App.Words;
+        int status;
+        byte[] raw;
+        try { (status, raw) = await KiffHttp.GetBytesAsync(new Uri(HomeList.Api, path), bearer, w.Language); }
+        catch (System.Net.Http.HttpRequestException) { return (null, CloudRead.Unreached(w).Why); }
+        // Its bytes as they came, never decoded and encoded again; a refusal's words read from them.
+        return status is < 200 or > 299 ? (null, CloudRead.Refused(w, status, System.Text.Encoding.UTF8.GetString(raw)).Why) : (raw, null);
+    }
+
     /// <summary>A card's answer sent to tafs cloud as the session, answered as a read is.</summary>
     static async Task<CloudRead> CloudSendAsync(string bearer, string path, byte[] sent)
     {
@@ -1592,7 +1619,13 @@ public sealed partial class MainWindow : Window
         else if (item.Tag is Screen.NeedsYou) ShowNeedsYouOrBrief();
         else if (item.Tag is HeldCall) ShowNeedsYou();
         else if (item.Tag == HaltAll) OpenHalt(null, "");
-        else if (item.Tag is Screen.Record) Pages.Navigate(typeof(RecordPage), record);
+        else if (item.Tag is Screen.Record)
+        {
+            // Every taf on Home managed by this person, as KIFF says: the iPad's seesEveryTaf, which the export needs.
+            RecordPage.SeesEveryTaf = standInSeesEveryTaf
+                || home is { Tafs.Count: > 0 } h && h.Tafs.All(t => t.Agent is { } a && manage?.GetValueOrDefault(a) == true);
+            Pages.Navigate(typeof(RecordPage), record);
+        }
         else if (item.Tag is Screen.Usage) Pages.Navigate(typeof(UsagePage), usage);
         else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof, ConnectionsFor()));
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
