@@ -24,10 +24,26 @@ writes them; the app adds nothing but their order. The core is `Tafs.Core.Usage.
     that isn't an object.
   - A balance with no `words`, or credits with no total, reads as none.
 
+**As the session** (`UsageCalls`, `KiffUsage`, `UsagePage.Requests.cs`): signed in, the page reads everything again each
+time it opens, as the iPad's `.task`: tafs cloud's balance (`GET /v1/usage/balance`) and both periods' credits
+(`GET /v1/usage/credits`, `?period=previous`), KIFF's usage (`GET /v1/me/usage`) and whether this person manages billing
+(`billing.manage` on KIFF's `/v1/me`). In the iPad's order:
+- **The balance,** then, where tafs cloud offers Raise and the person manages billing, "This device can't approve.
+  Approve on another device signed in to your account." in its place: nothing that moves money happens on Windows in
+  this release (the PM, 00:08), so no buying and no raise.
+- **Who bills the plan,** in one line ("Billed by KIFF").
+- **A member** (no `billing.manage`): their request waiting ("You asked an admin to raise the spend limit. An admin
+  answers.") with Withdraw; else the last answer, and Ask an admin where the plan lets them ask (a raise on Company, a
+  pack on Solo while packs are on sale): which pack, why (optional), Ask. Primary when the balance is waiting.
+- **Someone who manages billing:** members' open requests in the shared words with their reason, the same line where
+  Approve would be (it buys or raises), and **Decline** with an optional note: Windows Hello first, then this session's
+  TPM key signs exactly the request (`KIFF-Device-Signature`), as the account's time zone does, then the POST.
+- KIFF's read failing is said once, in red. A change goes one at a time, then everything is read again.
+- `--page usage` or `usage-admin` with `--home` reads `usage-balance.json`, `usage-credits.json` and `kiff-usage.json`
+  beside the Home file.
+
+**Not on Windows in this release:** buying Solo and packs, and Raise the limit (they move money).
+
 **Not yet:**
-- **tafs cloud's reads.** Until then, the page shows its title only, never a balance it hasn't read; `--sample` shows the
-  iPad's (Solo, 48%, and this period's and last period's credits).
-- **Changing the plan:** Raise the limit (`raise`, behind an approval), buying Solo and packs, who bills the plan,
-  members' requests and Ask an admin.
 - **A taf's runs:** opening a taf's row shows its runs.
 - **A read that failed:** tafs cloud's words for it.

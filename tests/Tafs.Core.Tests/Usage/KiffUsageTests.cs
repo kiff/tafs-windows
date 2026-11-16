@@ -1,0 +1,80 @@
+using System.Text;
+using System.Text.Json;
+using Tafs.Core.Kiff;
+using Tafs.Core.NeedsYou;
+using Tafs.Core.Tests.Kiff;
+using Tafs.Core.Tests.Strings;
+using Tafs.Core.Usage;
+using Tafs.Core.Words;
+
+namespace Tafs.Core.Tests.Usage;
+
+/// <summary>KIFF's usage on Plan &amp; usage: who bills, asking an admin, members' requests, and the signed decline.</summary>
+[Part("calendar")]
+public class KiffUsageTests
+{
+    static readonly WordBook En = WordBook.Load(SharedFiles.Strings, "en");
+
+    static KiffUsage Read(string plan, string requests = "[]") => KiffUsage.Read(JsonDocument.Parse($$"""
+        {"plan": "{{plan}}", "billing": {"source": "stripe"},
+         "store": {"solo_product": "solo", "packs": [{"id": "first", "name": "First month", "line": "First month: 500 credits", "apple_product": "p0", "once": true},
+                                                      {"id": "rayo", "name": "Rayo", "line": "Rayo: 2,000 credits", "apple_product": "p1"}]},
+         "requests": {{requests}}}
+        """).RootElement)!;
+
+    [Fact]
+    public void Who_bills_and_what_a_member_may_ask()
+    {
+        var team = Read("team");
+        Assert.Equal("Billed by KIFF", team.BillingLine(En));
+        Assert.True(team.Asks);
+        Assert.False(Read("solo").Asks);
+        Assert.Null(Read("internal").Asks);
+        Assert.Equal(["rayo"], Read("solo").Askable.Select(p => p.Id));
+        Assert.Null(KiffUsage.Read(JsonDocument.Parse("[]").RootElement));
+    }
+
+    [Fact]
+    public void A_member_sees_their_own_request_and_an_admin_sees_every_open_one()
+    {
+        var u = Read("solo", """[{"id": "q1", "asked_by": "s1", "kind": "pack", "pack": "rayo", "reason": "Busy week", "status": "open", "created_at": "2026-11-16T09:00:00Z", "expires_at": "2026-11-23T09:00:00Z"}]""");
+        Assert.Equal("q1", u.Waiting(managesBilling: false)!.Id);
+        Assert.Null(u.Waiting(managesBilling: true));
+        Assert.Equal(["q1"], u.Open(managesBilling: true).Select(r => r.Id));
+        Assert.Empty(u.Open(managesBilling: false));
+        Assert.Contains("Rayo: 2,000 credits", u.RequestLine(En, u.Requests[0]));
+        var declined = Read("team", """[{"id": "q2", "kind": "raise", "status": "declined", "note": "Next month"}]""");
+        Assert.Contains("Next month", declined.LastAnswer(En, managesBilling: false));
+        Assert.Null(declined.LastAnswer(En, managesBilling: true));
+    }
+
+    [Fact]
+    public void The_ask_and_its_routes()
+    {
+        Assert.Equal("""{"reason":"Busy week","kind":"raise"}""", Encoding.UTF8.GetString(KiffUsage.AskBody(true, null, " Busy week ")));
+        Assert.Equal("""{"reason":"","pack":"rayo"}""", Encoding.UTF8.GetString(KiffUsage.AskBody(false, "rayo", "")));
+        Assert.Equal(("/v1/me/pack-requests/q%2F1/withdraw", "/v1/me/pack-requests/q1/decline"), (KiffUsage.WithdrawPath("q/1"), KiffUsage.DeclinePath("q1")));
+    }
+
+    /// <summary>Declining is signed: Windows Hello first, then the device key over exactly the request; closed, nothing is sent.</summary>
+    [Fact]
+    public async Task Declining_asks_Windows_Hello_then_signs_exactly_the_request()
+    {
+        using var key = new TestSigner();
+        var request = new PackRequest("q1", "raise", null, "", "open", null);
+        var sent = new List<(string Path, byte[] Body, string Header)>();
+        Task<(int, string)> Post(string path, byte[] body, string header) { sent.Add((path, body, header)); return Task.FromResult((200, "{}")); }
+        var why = await KiffUsage.DeclineAsync(En, "t1", request, " Not this month ", _ => Task.FromResult(StepConfirmed.Yes), m => key.SignDerAsync(m), Post,
+            () => "1700000000", () => true);
+        Assert.Null(why);
+        var (path, body, header) = Assert.Single(sent);
+        Assert.Equal("/v1/me/pack-requests/q1/decline", path);
+        Assert.Equal("""{"note":"Not this month"}""", Encoding.UTF8.GetString(body));
+        Assert.StartsWith("t=1700000000,v1=", header);
+        Assert.True(TestSigner.Verify(key.PublicKeyDer, KiffSigning.RequestV1("t1", "POST", path, body, "1700000000"), Convert.FromBase64String(header["t=1700000000,v1=".Length..])));
+
+        sent.Clear();
+        Assert.Null(await KiffUsage.DeclineAsync(En, "t1", request, "", _ => Task.FromResult(StepConfirmed.Cancelled), m => key.SignDerAsync(m), Post, () => "1", () => true));
+        Assert.Empty(sent);
+    }
+}
