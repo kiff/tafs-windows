@@ -238,7 +238,8 @@ work, where the iPad's decoder fails the thread.
   - **Sent:** the conversation tafs cloud names (`session`) is the one shown from then on, a new one after a hand-over
     included. The thread is read again, every 2 s while Coach works or a sent message waits, only while the panel is open.
   - **Not taken:** it stays after the thread as not sent, as a taf's chat does (`docs/taf.md`): "Not sent · why", Edit and
-    Retry, with Copy and Delete in its menu. Another conversation forgets it.
+    Retry, with Copy and Delete in its menu. Refused because the account is halted, it offers Resume, which closes Coach mode
+    and opens Halt all. Another conversation forgets it.
 - **Words handed to Coach** (`CoachPanel.Write`): Coach opens with them in its box to edit and send, and nothing is sent.
   In a new conversation for a job's Try it with Coach (the iPad's `handRecipeToCoach`), in the one shown for a brief's
   next move (its `startNextMove`).
@@ -272,7 +273,7 @@ a second reference.
   ported. The AI-data consent's screen isn't ported, so a refusal for it leaves the card as it was, with no line.
 - **A drive's end** (what Coach did in the app, `DriveRecap`), placed in the thread on the iPad: with drives.
 - **Writing to Coach, the rest:** the stream as Coach writes (here the thread is read again every 2 s), Stop, queued
-  messages, a refusal for a halt with Resume on the unsent bubble, steering, files and dictation, `starts` and its recipes, and the AI-data consent's
+  messages, steering, files and dictation, `starts` and its recipes, and the AI-data consent's
   screen on a refusal for it.
 - **Starting Coach, the rest of `startSetup`:**
   - the tools step for a first start without tafs cloud's words (`CoachToolsStep`), and its Not now;

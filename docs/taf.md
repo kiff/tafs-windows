@@ -183,6 +183,10 @@ reference:
   "Not sent · Too busy." in red under it (tafs cloud's words for why, else not reached), then **Edit**, which puts its
   words back in the box and takes it out of the thread, and **Retry**, which sends it again once. Its menu has Copy and
   Delete. Not tried at all (another message going), Retry leaves it where it was.
+  - **Refused for a halt** (tafs cloud's `halted`: the `account`, or the `taf` on its own), as the iPad's: a raised hand in
+    place of the error mark, and **Resume** before Retry, which can't pass a halt. Resume opens Halt's screen, the
+    account's or this taf's, where resuming is the person's act behind Windows Hello; nothing resumes by itself. Retry
+    sends it once that's done.
   - **Retry is a new send.** tafs cloud doesn't take an idempotency key for a message yet (kiff-admin's, in tafs cloud), so
     a send that reached it but whose answer was lost can show twice after Retry.
 - **While the taf works,** or a sent message waits, the thread is read again every 2 s, only while Chat shows.

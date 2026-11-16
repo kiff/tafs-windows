@@ -239,6 +239,8 @@ public sealed partial class MainWindow : Window
             CoachMode.Close();
             Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
         };
+        // An unsent bubble refused for a halt: Resume opens Halt's screen, the account's or the taf's.
+        ChatViews.ResumeChosen += (taf, name) => OpenHalt(taf, name);
         OverviewPage.NeedsYouChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         SignInPage.SignedIn += session =>
         {
