@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Tafs.Core.Home;
 
@@ -41,7 +42,57 @@ public sealed partial class MainWindow
         var ordered = ListOrder.Listed(yours, r => r.Key, listOrder, latest, waiting, waitingWhenSettled);
         var (own, shared) = ListOrder.Split(ordered, r => Manages(listed, r.Key));
         AddYourTafs([.. own, .. shared], own.Count);
-        YourTafs.Visibility = listed.Tafs.Count > 0 && yours.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        AddSettingUp(listed.SettingUp);
+        YourTafs.Visibility = listed.Tafs.Count > 0 && yours.Count == 0 && listed.SettingUp.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    /// <summary>A taf being set up's row: its name; Finish setting up when the row finishes it.</summary>
+    sealed record SettingUpRow(SettingUp Taf);
+
+    /// <summary>
+    /// The tafs being set up, as the iPad's sidebar: among Your tafs, after the person's own and before Shared with you, by
+    /// their name. Where the setup stopped, tafs cloud's line in amber; set up in someone else's chat, the name alone. A row
+    /// whose chat is Coach's own, for someone who may use Coach, opens Coach there; any other opens nothing.
+    /// </summary>
+    void AddSettingUp(IReadOnlyList<SettingUp> settingUp)
+    {
+        foreach (var old in Nav.MenuItems.OfType<NavigationViewItem>().Where(i => i.Tag is SettingUpRow).ToList()) Nav.MenuItems.Remove(old);
+        var own = Nav.MenuItems.OfType<NavigationViewItem>().Where(i => i.Tag is TafRow t && Manages(home!, t.Key) != false).LastOrDefault();
+        var at = own is not null ? Nav.MenuItems.IndexOf(own) + 1 : Nav.MenuItems.IndexOf(YourTafs) + 1;
+        foreach (var taf in settingUp)
+        {
+            var content = new Grid { ColumnSpacing = 12 };
+            content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            content.ColumnDefinitions.Add(new ColumnDefinition());
+            content.Children.Add(new Border
+            {
+                Width = 34, Height = 34, CornerRadius = new CornerRadius(10), Background = RecordLineView.Colour(taf.Colour),
+                Child = new TextBlock { Text = Tafs.Core.Taf.TafScreen.Initial(taf.Name), FontSize = 17, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                    Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White),
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+            });
+            var lines = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+            lines.Children.Add(new TextBlock { Text = taf.Name, FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
+            if (taf.Line is { } line)
+                lines.Children.Add(new TextBlock { Text = line, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Normal, TextTrimming = TextTrimming.CharacterEllipsis,
+                    Style = (Style)Application.Current.Resources["TafsAmberWords"] });
+            Grid.SetColumn(lines, 1);
+            content.Children.Add(lines);
+            var row = new NavigationViewItem
+            {
+                Content = content, Tag = new SettingUpRow(taf), Style = (Style)Application.Current.Resources["TafsSidebarItem"],
+                HorizontalContentAlignment = HorizontalAlignment.Stretch, MinHeight = 56, SelectsOnInvoked = false,
+            };
+            AutomationProperties.SetName(row, taf.Line is { } said ? $"{taf.Name}. {said}" : taf.Name);
+            AutomationProperties.SetAutomationId(row, "home.finish-setup");
+            Nav.MenuItems.Insert(at++, row);
+        }
+    }
+
+    /// <summary>A taf being set up's row, invoked: Coach on the chat where its setup stopped, when the row finishes it.</summary>
+    void OnSettingUpInvoked(SettingUpRow row)
+    {
+        if (row.Taf.Finish is { } finish && row.Taf.Finishes(CoachMode.CoachId, CoachMode.Answer is not null)) CoachMode.OpenOn(finish.Session);
     }
 
     /// <summary>The tafs waiting on the person: a call held for an answer (KIFF's, by its taf), or tafs cloud's own count.</summary>

@@ -27,12 +27,39 @@ public sealed record HomeTaf(string Id, string Name, int Colour, string State, s
 }
 
 /// <summary>
-/// Home's answer: the tafs, its headline ("2 tafs working."), counted by tafs cloud, never here, and the account's labels
-/// (none when no taf is labelled).
+/// Home's answer: the tafs, its headline ("2 tafs working."), counted by tafs cloud, never here, the account's labels
+/// (none when no taf is labelled), and the tafs whose setup stopped partway.
 /// </summary>
-public sealed record HomeAnswer(IReadOnlyList<HomeTaf> Tafs, string? Headline, HomeLabels? LabelList = null)
+public sealed record HomeAnswer(IReadOnlyList<HomeTaf> Tafs, string? Headline, HomeLabels? LabelList = null,
+    IReadOnlyList<SettingUp>? SettingUpList = null)
 {
     public HomeLabels Labels => LabelList ?? HomeLabels.None;
+
+    /// <summary>The tafs being set up, listed among the tafs; none from a tafs cloud from before them.</summary>
+    public IReadOnlyList<SettingUp> SettingUp => SettingUpList ?? [];
+}
+
+/// <summary>"Finish setting up", as the iPad's <c>HomeTaf.Finish</c>: the Coach chat where it stopped, and tafs cloud's words for it.</summary>
+public sealed record SetupFinish(string Taf, string Session, string Words);
+
+/// <summary>Discard's words, tafs cloud's, as the iPad's <c>SettingUp.Discard</c>: the button, and its confirmation.</summary>
+public sealed record DiscardWords(string Button, string Title, string Text, string Yes, string No);
+
+/// <summary>
+/// A taf whose setup stopped partway (<c>setting_up</c>, kiff/tafs <c>docs/tafs.md</c>), as the iPad's <c>SettingUp</c>: the
+/// name Coach gave it, its agent and colour; for the person whose Coach chat it was, the chat that finishes it, and Discard
+/// with the Cards to revoke first.
+/// </summary>
+public sealed record SettingUp(string Name, string? Agent, int Colour, SetupFinish? Finish, DiscardWords? Discard, IReadOnlyList<string> Cards)
+{
+    /// <summary>Its row's line: where its setup stopped, in tafs cloud's words; being set up in someone else's chat, none.</summary>
+    public string? Line => Finish?.Words;
+
+    /// <summary>
+    /// Whether its row finishes it, as the iPad's <c>canFinishSetup</c>: only Coach's own chat, for someone who may use Coach.
+    /// Otherwise the row opens nothing.
+    /// </summary>
+    public bool Finishes(string? coach, bool mayUseCoach) => mayUseCoach && coach is not null && Finish?.Taf == coach;
 }
 
 /// <summary>
@@ -49,7 +76,28 @@ public static class HomeList
         Lenient.Array(answer, "tafs").Where(t => Lenient.Text(t, "id") is not null && Lenient.Text(t, "name") is not null)
             .Select(t => Taf(w, t, zone)).ToList(),
         Lenient.Field(answer, "headline") is { } h && Lenient.Text(h, "words") is { Length: > 0 } words ? words : null,
-        LabelChips.Read(answer));
+        LabelChips.Read(answer),
+        Lenient.Field(answer, "setting_up") is { ValueKind: JsonValueKind.Array } half ? SettingUps(half) : null);
+
+    /// <summary>
+    /// The tafs being set up, as the iPad reads them: one with no name is left out; a finish or Discard it can't draw (no
+    /// chat or words; no button or yes) is none. Its Cards are plain ids or <c>{id}</c> each.
+    /// </summary>
+    static List<SettingUp> SettingUps(JsonElement half) =>
+        half.EnumerateArray().Select(s =>
+        {
+            string T(JsonElement o, string n) => Lenient.Text(o, n)?.Trim() ?? "";
+            var f = Lenient.Field(s, "finish") ?? default;
+            var finish = new SetupFinish(T(f, "taf"), T(f, "session"), T(f, "words"));
+            var discard = Lenient.Field(s, "discard") ?? default;
+            var d = Lenient.Field(discard, "words") ?? default;
+            var words = new DiscardWords(T(d, "button"), T(d, "title"), T(d, "text"), T(d, "yes"), T(d, "no"));
+            var cards = Lenient.Array(discard, "cards").Select(c => c.ValueKind == JsonValueKind.String ? c.GetString() : Lenient.Text(c, "id"))
+                .OfType<string>().ToList();
+            return new SettingUp(T(s, "name"), Lenient.Text(s, "kiff_agent") is { Length: > 0 } agent ? agent : null, Lenient.Int(s, "color") ?? 0,
+                finish is { Taf.Length: > 0, Session.Length: > 0, Words.Length: > 0 } ? finish : null,
+                words is { Button.Length: > 0, Yes.Length: > 0 } ? words : null, cards);
+        }).Where(s => s.Name.Length > 0).ToList();
 
     static HomeTaf Taf(WordBook w, JsonElement t, TimeZoneInfo zone)
     {

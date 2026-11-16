@@ -203,6 +203,16 @@ public sealed partial class CoachPanel
         }
     }
 
+    /// <summary>
+    /// Coach on one of its own chats, as the iPad's <c>finishSetup</c>: Finish setting up opens it where the setup stopped.
+    /// Reading that chat is what makes the taf at tafs cloud; the next Home read lists it with the tafs.
+    /// </summary>
+    public void OpenOn(string chosenSession)
+    {
+        OpenChat(chosenSession);
+        Open();
+    }
+
     /// <summary>A conversation from the list, reopened: shown alone, and messages go on in it, as the iPad's <c>openSetupChat</c>.</summary>
     void OpenChat(string chosenSession)
     {
