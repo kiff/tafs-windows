@@ -173,7 +173,10 @@ public static class HeldAnswers
         {
             return current() ? new(false, w.Get("approval.cancelled_nothing_approved_request_kept")) : new(false, Stopped: true);
         }
-        catch (Exception e) when (e is Approvals.PasskeyRefusedException or CryptographicException or InvalidOperationException)
+        // Authenticator data too short to read (InvalidDataException) and Windows Hello's own failures (COMException) too:
+        // the card says nothing was sent, never waits with no words.
+        catch (Exception e) when (e is Approvals.PasskeyRefusedException or CryptographicException or InvalidOperationException
+            or InvalidDataException or System.Runtime.InteropServices.COMException)
         {
             return current() ? new(false, w.Get("common.not_sent_unconfirmed")) : new(false, Stopped: true);
         }
