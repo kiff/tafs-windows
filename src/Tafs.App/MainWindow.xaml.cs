@@ -299,6 +299,15 @@ public sealed partial class MainWindow : Window
         AccountPage.ClearSampleChosen += () => Microsoft.Windows.AppLifecycle.AppInstance.Restart(
             string.Join(' ', Environment.GetCommandLineArgs().Skip(1).Where(a => a != "--sample")));
 
+        // Export receipts from a receipts-export.json beside the Home file, given before the Record opens; the stand-in sees
+        // every taf, so the row shows.
+        if (homeFile is not null)
+        {
+            var export = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!, "receipts-export.json");
+            RecordPage.ReadBytes = _ => Task.FromResult<(byte[]?, string?)>(File.Exists(export) ? (File.ReadAllBytes(export), null) : (null, CloudRead.Unreached(App.Words).Why));
+            standInSeesEveryTaf = true;
+        }
+
         if (page == "pair") OpenPairing();
         else if (page == "account") OnAccount(this, new RoutedEventArgs());
         else if (page == "sign-in") OpenSignIn();
@@ -825,6 +834,8 @@ public sealed partial class MainWindow : Window
         kiffRead = path => KiffReadAsync(bearer, path);
         _ = ReadKiffAccountAsync(sessions);
         ReceiptSheet.Read = path => KiffBytesAsync(bearer, path);
+        // Export receipts: tafs cloud's answer as it came, so KIFF's receipts are exactly as issued.
+        RecordPage.ReadBytes = path => CloudBytesAsync(bearer, path);
         // Given before Coach's read, which reads them as it draws its approvals.
         CoachMode.Grants = () => GrantsAsync(session);
         // Approve on Coach's approval cards: only a passkey session that knows its passkey signs; any other keeps the gate.
@@ -872,6 +883,7 @@ public sealed partial class MainWindow : Window
         (hello, helloChecked) = (HelloReadiness.Ready, false);
         // The last export's files too, as the iPad's removeOpenedFiles: a person's chats never stay on this PC after them.
         ChatsExport.Remove(ChatsExport.Folder);
+        ChatsExport.Remove(Tafs.Core.Record.ReceiptsExport.Folder);
         cloudRead = null;
         cloudReadWithProof = null;
         setupProof = null;
@@ -880,6 +892,7 @@ public sealed partial class MainWindow : Window
         kiffAccount = null;
         ShowKiffAccount();
         ReceiptSheet.Read = null;
+        RecordPage.ReadBytes = null;
         record = [];
         if (Pages.Content is RecordPage page) page.ShowEntries(record);
         if (!sampleHeld) ShowHeld([]);
@@ -1234,6 +1247,20 @@ public sealed partial class MainWindow : Window
         return status is < 200 or > 299 ? (null, CloudRead.Refused(w, status, body).Why) : (System.Text.Encoding.UTF8.GetBytes(body), null);
     }
 
+    /// <summary>A stand-in Home (<c>--home</c>) shows Export receipts, answered from its own file.</summary>
+    bool standInSeesEveryTaf;
+
+    /// <summary>A read of tafs cloud as the session, its answer's bytes as they came (an export of receipts), or why not.</summary>
+    static async Task<(byte[]? Raw, string? Why)> CloudBytesAsync(string bearer, string path)
+    {
+        var w = App.Words;
+        int status;
+        string body;
+        try { (status, body) = await KiffHttp.GetAsync(new Uri(HomeList.Api, path), bearer, w.Language); }
+        catch (System.Net.Http.HttpRequestException) { return (null, CloudRead.Unreached(w).Why); }
+        return status is < 200 or > 299 ? (null, CloudRead.Refused(w, status, body).Why) : (System.Text.Encoding.UTF8.GetBytes(body), null);
+    }
+
     /// <summary>A card's answer sent to tafs cloud as the session, answered as a read is.</summary>
     static async Task<CloudRead> CloudSendAsync(string bearer, string path, byte[] sent)
     {
@@ -1538,7 +1565,13 @@ public sealed partial class MainWindow : Window
         else if (item.Tag is Screen.NeedsYou) ShowNeedsYouOrBrief();
         else if (item.Tag is HeldCall) ShowNeedsYou();
         else if (item.Tag == HaltAll) OpenHalt(null, "");
-        else if (item.Tag is Screen.Record) Pages.Navigate(typeof(RecordPage), record);
+        else if (item.Tag is Screen.Record)
+        {
+            // Every taf on Home managed by this person, as KIFF says: the iPad's seesEveryTaf, which the export needs.
+            RecordPage.SeesEveryTaf = standInSeesEveryTaf
+                || home is { Tafs.Count: > 0 } h && h.Tafs.All(t => t.Agent is { } a && manage?.GetValueOrDefault(a) == true);
+            Pages.Navigate(typeof(RecordPage), record);
+        }
         else if (item.Tag is Screen.Usage) Pages.Navigate(typeof(UsagePage), usage);
         else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof, ConnectionsFor()));
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);

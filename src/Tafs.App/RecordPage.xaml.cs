@@ -45,13 +45,93 @@ public sealed partial class RecordPage : Page
     RecordFilter filter = RecordFilter.All;
     string? taf;
 
-    public RecordPage() => InitializeComponent();
+    public RecordPage()
+    {
+        InitializeComponent();
+        // Export receipts is drawn in the page's own theme: again once it's in the window, and whenever the theme changes.
+        Loaded += (_, _) => ShowExport();
+        ActualThemeChanged += (_, _) => ShowExport();
+    }
+
+    /// <summary>tafs cloud's answer as it came, as the session (an export's bytes); none signed out, and no Export receipts.</summary>
+    public static Func<string, Task<(byte[]? Raw, string? Why)>>? ReadBytes { get; set; }
+
+    /// <summary>Whether this person sees every taf's Record, which the export needs, as the window reads it; tafs cloud still decides (403).</summary>
+    public static bool SeesEveryTaf { get; set; }
+
+    bool exportOpen;
+    bool exporting;
+    string? exportWhy;
+    int exportMissing;
+
+    /// <summary>
+    /// Export receipts, as the iPad's <c>ExportReceiptsRow</c>: the row opens the ranges (the last 7, 30 or 90 days, today
+    /// among them); one exports them, "Preparing receipts…" meanwhile, then shares the two files through Windows' share
+    /// sheet, with how many calls have no receipt yet; not exported, why, in red.
+    /// </summary>
+    void ShowExport()
+    {
+        var w = App.Words;
+        Export.Children.Clear();
+        Export.Visibility = SeesEveryTaf && ReadBytes is not null ? Visibility.Visible : Visibility.Collapsed;
+        if (Export.Visibility != Visibility.Visible) return;
+        var row = new HyperlinkButton
+        {
+            Content = w.Get(exporting ? "record.export_preparing" : "record.export_receipts"), IsEnabled = !exporting, Padding = new Thickness(0),
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = ChatViews.ThemeBrush(ActualTheme, exporting ? "TafsDim" : "TafsAmberText"),
+        };
+        AutomationProperties.SetAutomationId(row, "export-receipts");
+        row.Click += (_, _) => { exportOpen = !exportOpen; ShowExport(); };
+        Export.Children.Add(row);
+        if (exportOpen && !exporting)
+        {
+            var days = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            foreach (var count in ReceiptsExport.Days)
+            {
+                var b = new Button { Content = w.Count("record.export_last_days", count), Style = (Style)Application.Current.Resources["TafsOutlineButton"] };
+                b.Click += (_, _) => _ = ExportAsync(count);
+                days.Children.Add(b);
+            }
+            Export.Children.Add(days);
+        }
+        if (exportMissing > 0)
+            Export.Children.Add(new TextBlock { Text = w.Count("record.export_missing", exportMissing), FontSize = 13, TextWrapping = TextWrapping.Wrap,
+                Foreground = ChatViews.ThemeBrush(ActualTheme, "TafsSoft") });
+        if (exportWhy is { } why)
+            Export.Children.Add(new TextBlock { Text = why, FontSize = 13, TextWrapping = TextWrapping.Wrap, Foreground = ChatViews.ThemeBrush(ActualTheme, "TafsNo") });
+    }
+
+    async Task ExportAsync(int count)
+    {
+        if (exporting || ReadBytes is not { } read) return;
+        var w = App.Words;
+        var (from, to) = ReceiptsExport.Range(count, DateOnly.FromDateTime(DateTime.Now));
+        (exporting, exportWhy, exportMissing) = (true, null, 0);
+        ShowExport();
+        var (raw, why) = await read(ReceiptsExport.Path(from, to));
+        exporting = false;
+        if (raw is not null && ReceiptsExport.Read(raw, from, to) is { } export)
+        {
+            try
+            {
+                var files = ReceiptsExport.Write(ReceiptsExport.Folder, export);
+                (exportMissing, exportOpen) = (export.Missing, false);
+                ShowExport();
+                ShareFiles.Show(files, w.Get("record.export_receipts"));
+                return;
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { why = e.Message; }
+        }
+        exportWhy = w.Get("record.export_not_exported", ("why", why ?? w.Get("error.ours")));
+        ShowExport();
+    }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         var w = App.Words;
         (Heading.Text, Lead.Text) = RecordScreen.Heading(w);
         ShowEntries(e.Parameter as IReadOnlyList<RecordEntry> ?? []);
+        ShowExport();
     }
 
     /// <summary>New lines, as a read lands: the chosen taf and filter stay, as the iPad's do across a refresh.</summary>

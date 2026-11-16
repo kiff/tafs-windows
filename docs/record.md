@@ -64,6 +64,19 @@ of KIFF. With neither, the Record is empty; `--sample` shows the reference set's
 shipped language: what the five sample tafs did today, the two held calls, and each taf started with its
 Card. The sample's words are the shared sample words.
 
+## Export receipts (`ReceiptsExport`)
+
+As the iPad's `ExportReceiptsRow` and `exportReceipts`, for an accountant, under the Record's lead, only for someone who
+sees every taf's Record (every taf on Home managed by them, as KIFF says; tafs cloud still decides, 403):
+- **Export receipts** opens the ranges: the last 7, 30 or 90 days, today among them (`GET /v1/record/receipts?from=&to=`,
+  92 days at most). One exports them, "Preparing receipts…" meanwhile.
+- **Two files**, `receipts-{from}-to-{to}.json` and `.csv`, shared through Windows' share sheet: the JSON is tafs
+  cloud's answer byte for byte, so KIFF's receipts are exactly as issued, never re-encoded; the CSV as tafs cloud wrote
+  it. How many calls have no receipt yet is said under the row. They're written under the temporary folder, replaced at
+  each export and removed at every session change, as Export my chats' are.
+- Not exported: "They couldn't be exported." and why, in red.
+- For a screenshot, `--home` shows the row, answered from a `receipts-export.json` beside the Home file.
+
 ## A line's sheet
 
 A tap on a line opens its sheet (`ReceiptSheet`), as the iPad's `ReceiptView`; Narrator reads the line

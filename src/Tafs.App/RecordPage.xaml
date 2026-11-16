@@ -10,6 +10,9 @@
       <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
       <TextBlock x:Name="Lead" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
 
+      <!-- Export receipts, for someone who sees every taf's Record (the iPad's ExportReceiptsRow): drawn in code. -->
+      <StackPanel x:Name="Export" Spacing="6" Visibility="Collapsed" />
+
       <ScrollViewer HorizontalScrollBarVisibility="Hidden" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
         <StackPanel x:Name="TafChips" Orientation="Horizontal" Spacing="6" />
       </ScrollViewer>
