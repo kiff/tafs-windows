@@ -16,7 +16,11 @@ namespace Tafs.App;
 public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, ActivityPage> Activity, SetupOpening? Setup = null,
     TafTab OpensOn = TafTab.Activity, IReadOnlyList<TafCard>? Cards = null, string IssuedBy = "", string? CloudId = null,
     Func<string, Task<CloudRead>>? Read = null, Func<string, string?, Task<CloudRead>>? ReadWithProof = null,
-    Func<Task<string?>>? SetupProof = null, bool Revoked = false, IReadOnlyList<Tafs.Core.Coach.ChatMessage>? SampleChat = null);
+    Func<Task<string?>>? SetupProof = null, bool Revoked = false, IReadOnlyList<Tafs.Core.Coach.ChatMessage>? SampleChat = null,
+    TafHalt? Halt = null);
+
+/// <summary>A taf's halt row, for whoever manages the taf: how its halt is read, and what opens its screen.</summary>
+public sealed record TafHalt(Func<Task<Halt>> Read, Action Open);
 
 /// <summary>The sample's Setup, as taf-setup.png: its job and the notes it keeps.</summary>
 public sealed record SetupOpening(string Job, IReadOnlyList<MemoryNote> Notes);
@@ -512,15 +516,15 @@ public sealed partial class TafPage : Page
     }
 
     /// <summary>
-    /// Activity is always built; Setup and the Card when the taf has them; Chat, as the iPad's <c>canChat</c>, for a sample taf
-    /// and for one tafs cloud runs.
+    /// Activity is always built; Setup when the taf has it; the Card with Cards, or a halt row; Chat, as the iPad's
+    /// <c>canChat</c>, for a sample taf and for one tafs cloud runs.
     /// </summary>
     bool Built(TafTab each) => each switch
     {
         TafTab.Activity => true,
         TafTab.Chat => opening is { CloudId: not null, Read: not null } || opening?.SampleChat is not null,
         TafTab.Setup => opening?.Setup is not null,
-        TafTab.Card => opening?.Cards is { Count: > 0 },
+        TafTab.Card => opening?.Cards is { Count: > 0 } || opening?.Halt is not null,
         _ => false,
     };
 
@@ -554,7 +558,16 @@ public sealed partial class TafPage : Page
     /// </summary>
     void ShowCards()
     {
-        if (opening?.Cards is not { Count: > 0 } cards) return;
+        if (opening?.Cards is not { Count: > 0 } cards)
+        {
+            // A tafs cloud taf's Cards aren't drawn here yet: its halt row still is, for whoever manages it.
+            if (opening?.Halt is { } alone && !revoked)
+            {
+                CardPane.Children.Clear();
+                CardPane.Children.Add(HaltRow(alone));
+            }
+            return;
+        }
         var w = App.Words;
         CardPane.Children.Clear();
         var shown = cards.FirstOrDefault(c => c.Id == front) ?? cards[0];
@@ -593,11 +606,52 @@ public sealed partial class TafPage : Page
         }
         if (shown.Rules.Count > 0) CardPane.Children.Add(Panel(lines));
 
+        if (revoked) return;
+        // Halting is a job of its own too, for whoever manages the taf: its row opens its screen (the iPad's HaltRow).
+        if (opening.Halt is { } halt) CardPane.Children.Add(HaltRow(halt));
         // Revoke reaches nothing yet, so it's the sample's only: on a real taf it would look done when KIFF revoked nothing.
-        if (revoked || opening?.CloudId is not null) return;
+        if (opening?.CloudId is not null) return;
         var revoke = new Button { Content = w.Get("taf.revoke"), Style = Look("TafsOutlineNo"), HorizontalAlignment = HorizontalAlignment.Stretch };
         revoke.Click += async (_, _) => await RevokeAsync();
         CardPane.Children.Add(revoke);
+    }
+
+    /// <summary>
+    /// The row that opens the taf's halt, with where it stands (the iPad's <c>HaltRow</c>, framed): the hand in red, "Halt",
+    /// "Stop it until you resume" or its state in red, and the caret. The whole row opens it.
+    /// </summary>
+    Button HaltRow(TafHalt halt)
+    {
+        var w = App.Words;
+        var line = Words(Tafs.Core.Taf.Halt.RowLine(w, Tafs.Core.Taf.Halt.Running), 13, "TafsDimText");
+        var title = new TextBlock { Text = w.Get("taf.halt.title"), FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Style = Look("TafsInkText") };
+        var words = new StackPanel { Spacing = 2, Children = { title, line } };
+        var row = new Grid { ColumnSpacing = 12 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition());
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var hand = new FontIcon { Glyph = ((char)0xE7E8).ToString(), FontSize = 16 };
+        hand.SetValue(FontIcon.ForegroundProperty, Application.Current.Resources["TafsNo"]);
+        var caret = new FontIcon { Glyph = ((char)0xE76C).ToString(), FontSize = 12 };
+        Grid.SetColumn(words, 1);
+        Grid.SetColumn(caret, 2);
+        row.Children.Add(hand);
+        row.Children.Add(words);
+        row.Children.Add(caret);
+        var button = new Button { Style = Look("TafsBox"), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Padding = new Thickness(16), Content = row };
+        AutomationProperties.SetName(button, $"{title.Text}. {line.Text}");
+        button.Click += (_, _) => halt.Open();
+        _ = ShowHaltAsync();
+        return button;
+
+        async Task ShowHaltAsync()
+        {
+            var h = await halt.Read();
+            line.Text = Tafs.Core.Taf.Halt.RowLine(w, h);
+            if (h.State != Tafs.Core.Taf.HaltState.Running) line.Style = Look("TafsNoText");
+            AutomationProperties.SetName(button, $"{title.Text}. {line.Text}");
+        }
     }
 
     /// <summary>
