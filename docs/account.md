@@ -14,7 +14,13 @@ The sections, in the iPad's order:
     one (`KiffAccount.Offered`), as the iPad's "Use this iPad": Windows Hello asks first ("Set your account's time zone to Europe/Paris"),
     then this session's TPM key signs KIFF's `PUT /v1/me/time-zone` as a signed setup call (`KIFF-Device-Signature` over
     `kiff.request.v1`). Closed or failing, nothing is sent ("The time zone didn't change."); KIFF refusing says the app's
-    line; taken, the account is read again. The iPad's full list of zones isn't here yet.
+    line.
+  - **Then tafs cloud moves the schedules,** as the iPad's `syncTimeZone`: once KIFF has the zone, `POST /v1/account/time-zone`
+    (no body) moves every recurring schedule of the account's tafs to it. If it can't yet, the zone is still changed and
+    "The account's zone changed. Its schedules couldn't be updated yet:" says why. Then the account and Home are read again.
+  - **Any zone** (the iPad's `TimeZonePicker`): for the same sessions, Time zone opens its list, "Use this Windows PC: …" first,
+    then tafs cloud's zones (`GET /v1/time-zones?q=`), searched there a moment after the last key ("Find a time zone"),
+    the account's marked with a check. One chosen is set as this PC's is, behind the same Windows Hello and signature.
   - **Delete account…,** in red, for someone KIFF lets delete it (`account.delete`, or a KIFF that lists none) on a session
     that isn't view-only, as the
     iPad's `DeleteAccountView` (App Store guideline 5.1.1(v)): its warning, what goes (tafs, runs, chats and notes; Cards

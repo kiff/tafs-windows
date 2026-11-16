@@ -1049,8 +1049,15 @@ public sealed partial class MainWindow : Window
                 },
                 async header => await KiffHttp.PutAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, Tafs.Core.Account.AccountTimeZone.Path),
                     Tafs.Core.Account.AccountTimeZone.Body(zone), session.AccessToken, App.Words.Language, signature: ("KIFF-Device-Signature", header)),
-                () => SigningTime.Next(DateTimeOffset.UtcNow), () => reading == sessions);
-            if (result.Zone is not null && reading == sessions) await ReadKiffAccountAsync(reading);
+                () => SigningTime.Next(DateTimeOffset.UtcNow), () => reading == sessions,
+                // KIFF has it: tafs cloud moves the tafs' schedules to it.
+                () => CloudWriteAsync(session.AccessToken, "POST", Tafs.Core.Account.AccountTimeZone.SchedulesPath, null));
+            if (result.Zone is not null && reading == sessions)
+            {
+                await ReadKiffAccountAsync(reading);
+                // The tafs' times are in it now: Home is read again.
+                if (cloudRead is { } read) _ = ReadHomeAsync(read);
+            }
             return result;
         };
     }
