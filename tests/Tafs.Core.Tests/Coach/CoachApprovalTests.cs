@@ -335,7 +335,7 @@ public class CoachApprovalTests
     public async Task A_failure_says_why_and_sends_nothing_more()
     {
         var closed = new Fakes { Hello = new OperationCanceledException() };
-        Assert.Equal(new ApproveResult(null), await closed.Approve());
+        Assert.Equal(new ApproveResult("Cancelled, so nothing was approved. The request is kept: approve again when you're ready."), await closed.Approve());
         Assert.Equal(2, closed.Sent.Count);
         var tpm = new System.Security.Cryptography.CryptographicException("x");
         var failed = new Fakes { Hello = tpm };

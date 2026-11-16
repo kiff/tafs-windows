@@ -9,7 +9,7 @@ using Windows.UI.ViewManagement;
 
 namespace Tafs.App;
 
-/// <summary>Coach mode's panel. Its conversation (tafs cloud's Setup) comes in its own change: until then, the intro.</summary>
+/// <summary>Coach mode's panel: the intro until Coach is started, then its conversation (tafs cloud's Setup).</summary>
 public sealed partial class CoachPanel : UserControl
 {
     /// <summary>The iPad's shadow reaches 24 past the panel's edge: a slide goes that much further, so none of it stays.</summary>
@@ -41,7 +41,10 @@ public sealed partial class CoachPanel : UserControl
         set
         {
             answer = value;
+            ShowChatTools();
             Redraw();
+            // The list's Archive and Put back come and go with it.
+            if (ChatsView.Visibility == Visibility.Visible) _ = ShowChatsAsync(showingArchived);
         }
     }
 
@@ -180,6 +183,8 @@ public sealed partial class CoachPanel : UserControl
         starting = false;
         firstStart = result.Outcome == StartOutcome.FirstStart;
         ShowStart();
+        // Started: its conversation and box show, even with nothing in it yet.
+        begun |= result.Started;
         if (result.Started) await LoadThreadAsync();
         else if (result.Why is { } why)
         {
@@ -252,6 +257,7 @@ public sealed partial class CoachPanel : UserControl
         Intro.Visibility = Visibility.Visible;
         starting = false;
         ShowFirstStart(null);
+        ForgetChats();
     }
 
     /// <summary>Coach's id, its thread as last read, and each card's state here, as the iPad's model keeps them.</summary>
@@ -276,6 +282,7 @@ public sealed partial class CoachPanel : UserControl
         AutomationProperties.SetName(FullScreen, w.Get("coach.full_screen"));
         AutomationProperties.SetName(Backdrop, w.Get("coach.close_coach_mode"));
         KeyboardAccelerators.Add(Escape());
+        StartChats();
     }
 
     static CoachMotion Motion => CoachScreen.Motion(new UISettings().AnimationsEnabled);
@@ -308,31 +315,46 @@ public sealed partial class CoachPanel : UserControl
     }
 
     /// <summary>
-    /// Coach's newest conversation, read as the panel opens, as the iPad's <c>loadSetupThread</c>. With messages, the thread
-    /// shows in place of the intro; with no Coach yet, none, or a read that fails, the intro stays.
+    /// The conversation shown, read as the panel opens, as the iPad's <c>loadSetupThread</c>: the newest, as at launch, or the
+    /// one chosen here; a new one has nothing to read yet. With messages, or once Coach was started here or a conversation
+    /// chosen, it shows in place of the intro; with no Coach yet, none, or a read that fails, the intro stays.
     /// </summary>
     async Task LoadThreadAsync()
     {
         if (read is not { } reader) return;
-        var gen = generation;
+        var (gen, mine) = (generation, conversationGen);
         CloudRead? setup = null;
-        var (loaded, error, id) = await CoachChat.LoadAsync(App.Words, async path =>
+        var loaded = await CoachChat.LoadAsync(App.Words, async path =>
         {
             var r = await reader(path);
             if (path == CoachStart.SetupPath) setup = r;
             return r;
-        });
-        if (gen != generation) return;
+        }, conversation);
+        if (gen != generation || mine != conversationGen) return;
         ShowFirstStart(setup?.Answer is { } answer ? FirstStart.Read(answer) : null);
-        IntroError.Text = error ?? "";
-        IntroError.Visibility = error is null ? Visibility.Collapsed : Visibility.Visible;
-        coach = id;
-        if (loaded is null || loaded.Drawn(Kinds).Count == 0) return;
-        thread = loaded;
-        ShowThread(loaded);
-        Intro.Visibility = Visibility.Collapsed;
-        ThreadView.Visibility = Visibility.Visible;
-        await ReadApprovalsAsync(loaded, gen);
+        coach = loaded.Coach;
+        session = loaded.Session ?? session;
+        if (previousAsked && coach is not null)
+        {
+            previousAsked = false;
+            if (loaded.Thread is { } first) thread = first;
+            await ShowChatsAsync(archived: false);
+            return;
+        }
+        var shows = ShowsConversation(loaded.Thread);
+        // Why it couldn't be read: under the intro, or over the box once the conversation shows.
+        IntroError.Text = loaded.Error ?? "";
+        IntroError.Visibility = loaded.Error is null || shows ? Visibility.Collapsed : Visibility.Visible;
+        if (!shows)
+        {
+            ShowChatTools();
+            return;
+        }
+        if (loaded.Error is { } why) chatError = why;
+        if (loaded.Thread is { } t) thread = t;
+        if (ChatsView.Visibility == Visibility.Visible) return;
+        ShowConversation();
+        if (loaded.Thread is { } l) await ReadApprovalsAsync(l, gen);
     }
 
     /// <summary>
@@ -361,7 +383,9 @@ public sealed partial class CoachPanel : UserControl
         ShowPlan(thread.Plan);
         // Asked once the thread is drawn: Home's read can answer at once, and it draws the thread again.
         if (Tafs is { } tafs && thread.ReadHomeFor(tafs().Select(t => t.Agent), homeAsked)) DispatcherQueue.TryEnqueue(() => HomeWanted?.Invoke());
-        var items = thread.Drawn(Kinds);
+        // In the order already drawn: nothing moves while Coach answers (kiff/tafs#1233).
+        var items = CoachChat.Steady(drawnOrder, thread.Drawn(Kinds));
+        drawnOrder = items.Select(i => i.Id).ToList();
         for (var i = 0; i < items.Count; i++)
         {
             if (CoachChat.GapTime(w, items, i, DateTimeOffset.Now, TimeZoneInfo.Local) is { } gap)
@@ -871,7 +895,8 @@ public sealed partial class CoachPanel : UserControl
     /// <summary>The thread drawn again: after an answer, and when Home's list changes, so a result card finds its taf.</summary>
     public void Redraw()
     {
-        if (thread is not null) ShowThread(thread);
+        if (ThreadView.Visibility == Visibility.Visible && coach is not null) ShowConversation(toEnd: false);
+        else if (thread is not null) ShowThread(thread);
     }
 
     /// <summary>A run's start, as the iPad's kickoff line: "Run started 09:00 · …", centred, two lines at most.</summary>
@@ -915,15 +940,15 @@ public sealed partial class CoachPanel : UserControl
 
     void OnBack(object sender, RoutedEventArgs e) => Close();
 
-    bool full;
+    bool full => chosen.Full;
 
-    /// <summary>⤢ makes it full screen, and brings it back to a third: its edge moves, as the iPad's does.</summary>
+    /// <summary>⤢ makes it full screen, and brings it back to the width it had: its edge moves, as the iPad's does. Kept for next time.</summary>
     void OnFull(object sender, RoutedEventArgs e)
     {
         var before = PanelColumn.Width.Value;
-        full = !full;
-        FullIcon.Glyph = full ? "" : "";
-        AutomationProperties.SetName(FullScreen, App.Words.Get(full ? "coach.back_width" : "coach.full_screen"));
+        chosen = chosen with { Full = !chosen.Full };
+        KeepWidth();
+        ShowFull();
         var after = WidthIn(Over.ActualWidth);
         if (Motion == CoachMotion.Fade)
         {
@@ -955,7 +980,7 @@ public sealed partial class CoachPanel : UserControl
         if (running is null) Fit(e.NewSize.Width);
     }
 
-    double WidthIn(double window) => full ? window : CoachScreen.PanelWidth(window);
+    double WidthIn(double window) => CoachScreen.PanelWidth(window, chosen);
 
     void Fit(double window) => PanelColumn.Width = new GridLength(WidthIn(window));
 
