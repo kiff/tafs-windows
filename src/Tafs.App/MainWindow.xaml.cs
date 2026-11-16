@@ -244,6 +244,12 @@ public sealed partial class MainWindow : Window
         };
         // An unsent bubble refused for a halt: Resume opens Halt's screen, the account's or the taf's.
         ChatViews.ResumeChosen += (taf, name) => OpenHalt(taf, name);
+        // A taf removed for good: Home again, and the Overview, since its page has nothing left to show.
+        TafPage.Removed += () =>
+        {
+            if (cloudRead is { } read) _ = ReadHomeAsync(read);
+            Nav.SelectedItem = BrandItem;
+        };
         // A taf being set up's row selects nothing: it opens Coach where its setup stopped, when it can.
         Nav.ItemInvoked += (_, a) => { if (a.InvokedItemContainer?.Tag is SettingUpRow row) OnSettingUpInvoked(row); };
         // A turn refused for want of the AI-data consent, from any route: its screen, wherever the person tried.
@@ -299,10 +305,13 @@ public sealed partial class MainWindow : Window
         AccountPage.ClearSampleChosen += () => Microsoft.Windows.AppLifecycle.AppInstance.Restart(
             string.Join(' ', Environment.GetCommandLineArgs().Skip(1).Where(a => a != "--sample")));
 
-        // Export receipts from a receipts-export.json beside the Home file, given before the Record opens; the stand-in sees
-        // every taf, so the row shows.
+        // The Record's search from record-search.json (and a case from record-case.json) beside the Home file, given before
+        // the Record opens; --page record-search opens it with a search typed, for a screenshot. Export receipts from a
+        // receipts-export.json beside it; the stand-in sees every taf, so the row shows.
         if (homeFile is not null)
         {
+            RecordPage.Read = path => Task.FromResult(ContractRead(App.Words, homeFile, path));
+            if (page == "record-search") RecordPage.Typed = "42";
             var export = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!, "receipts-export.json");
             RecordPage.ReadBytes = _ => Task.FromResult<(byte[]?, string?)>(File.Exists(export) ? (File.ReadAllBytes(export), null) : (null, CloudRead.Unreached(App.Words).Why));
             standInSeesEveryTaf = true;
@@ -327,7 +336,7 @@ public sealed partial class MainWindow : Window
         }
         else if (page is "gallery" or "gallery-job" or "new-taf") galleryAsked = page;
         else if (page == "connect-apps") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
-        else if (page == "record") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
+        else if (page is "record" or "record-search") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
         else if (page == "needs-you") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         else if (page is "taf" or "taf-setup" or "taf-card" or "taf-chat" && sample)
             OpenBeside(typeof(TafPage), SampleTaf(w, page switch
@@ -834,6 +843,8 @@ public sealed partial class MainWindow : Window
         kiffRead = path => KiffReadAsync(bearer, path);
         _ = ReadKiffAccountAsync(sessions);
         ReceiptSheet.Read = path => KiffBytesAsync(bearer, path);
+        // The Record's search, across the person's tafs, as the session.
+        RecordPage.Read = path => CloudReadAsync(bearer, path);
         // Export receipts: tafs cloud's answer as it came, so KIFF's receipts are exactly as issued.
         RecordPage.ReadBytes = path => CloudBytesAsync(bearer, path);
         // Given before Coach's read, which reads them as it draws its approvals.
@@ -895,11 +906,14 @@ public sealed partial class MainWindow : Window
         kiffAccount = null;
         ShowKiffAccount();
         ReceiptSheet.Read = null;
+        RecordPage.Read = null;
         RecordPage.ReadBytes = null;
         record = [];
         if (Pages.Content is RecordPage page)
         {
             page.ShowEntries(record);
+            // The last account's search, its results and any case on its way go with it.
+            page.ClearSearch();
             // The last account's export, on its way or said, goes with it.
             page.ClearExport();
         }
@@ -1401,6 +1415,8 @@ public sealed partial class MainWindow : Window
                 path.StartsWith(ConnectAppsScreen.ListPath, StringComparison.Ordinal) ? "connect-apps.json"
                 : path == Gallery.Path ? "gallery.json" : path == Gallery.HomePath ? "recipes-home.json"
                 : path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "setup-coach.json"
+                : path.StartsWith("/v1/record/cases/", StringComparison.Ordinal) ? "record-case.json"
+                : path.StartsWith("/v1/record?", StringComparison.Ordinal) ? "record-search.json"
                 : path.StartsWith(Tafs.Core.Missions.Brief.Route, StringComparison.Ordinal) ? "brief.json"
                 : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json"
                 : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
@@ -1624,7 +1640,7 @@ public sealed partial class MainWindow : Window
                 // isn't read on this PC yet, so its issuer is the iPad's for anyone else: "The account".
                 Cards: taf.Cards, IssuedBy: w.Get("card.issued_by_account"), Revoked: taf.Revoked,
                 CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof,
-                Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream,
+                Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream, Remove: RemoveFor(taf),
                 // Stop is for whoever manages the taf (cards.manage), as KIFF says, once read.
                 Manages: taf.Agent is { } agent && manage?.GetValueOrDefault(agent) == true)
             : SampleTaf(w, key, opensOn);
@@ -1638,6 +1654,40 @@ public sealed partial class MainWindow : Window
         if (!Halt.HasRow(taf) || taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is not { } read || haltSend is null) return null;
         return new(async () => (await read(Halt.Path(taf.Id))).Answer is { } a && Halt.Read(a) is { } h ? h : Halt.Running,
             () => OpenHalt(taf.Id, taf.Name));
+    }
+
+    /// <summary>
+    /// Remove for good, only for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume: a
+    /// removal is the approval key's act, never the device key's. None for anyone else, and no button.
+    /// </summary>
+    TafRemove? RemoveFor(HomeTaf taf)
+    {
+        if (taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is not { } read) return null;
+        if (App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session) || session.PasskeyId is not { } id) return null;
+        var bearer = session.AccessToken;
+        var reading = sessions;
+        return new(
+            async () => (await read(TafRemoval.PreviewPath(taf.Id))).Answer is { } a ? TafRemoval.PreviewWords(a) : null,
+            () =>
+            {
+                var windowsHello = new WindowsHello(() => App.WindowHandle);
+                var passkey = new PasskeyApprover(windowsHello, KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);
+                return TafRemoval.RemoveAsync(App.Words, taf.Id, taf.Name, taf.CardIds, taf.Revoked,
+                    async path => (PasskeyApprover.HeaderName,
+                        await passkey.ApproveAsync(session.Tenant, "DELETE", path, TafRemoval.Body(), SigningTime.Next(DateTimeOffset.UtcNow))),
+                    async path => (await KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), TafRemoval.RevokeBody(), bearer,
+                        App.Words.Language)).Status is >= 200 and <= 299,
+                    async (path, signature) =>
+                    {
+                        try
+                        {
+                            var (status, body) = await KiffHttp.DeleteAsync(new Uri(HomeList.Api, path), bearer, App.Words.Language, signature: signature);
+                            return Answered(App.Words, status, body);
+                        }
+                        catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(App.Words); }
+                    },
+                    () => reading == sessions && App.Sessions.Kept()?.AccessToken == bearer);
+            });
     }
 
     /// <summary>

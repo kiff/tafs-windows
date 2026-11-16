@@ -217,6 +217,21 @@ reference:
   taking it after KIFF did, "KIFF resumed Rae, but tafs cloud didn't yet." with why. A sign-out meanwhile sends nothing
   more. A taf halted with every taf is resumed from every taf's screen.
 
+**Remove for good** (`TafRemoval`, ported from the iPad's `removeTaf` and `removalWords`): "Remove Rae", outlined in red,
+last on the Card tab, for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume (a removal
+is the approval key's act, never the device key's); a revoked taf can still be removed.
+1. **The confirmation:** "Remove Rae for good?", what always goes (`taf.remove_body`), then what goes with it and what
+   stays, in tafs cloud's words (`GET /v1/tafs/{id}/removal`, which ends nothing). Cancel changes nothing.
+2. **Signed first,** behind one Windows Hello: this PC's passkey asserts `kiff.request.v1` over `DELETE /v1/tafs/{id}`
+   and its empty body, sent as `KIFF-Passkey-Assertion` (read by tafs cloud from kiff/tafs#1247 on). Closed or refused:
+   "Not removed. Nothing changed.", and nothing is sent.
+3. **Its Cards revoked in KIFF** (Home's `card.ids`, `POST /v1/me/mandates/{id}/revoke`), unless it's revoked already;
+   one KIFF doesn't revoke is counted and said.
+4. **tafs cloud removes it** (`DELETE /v1/tafs/{id}`): done, what went ("Its Cards are revoked in KIFF. Its access to apps
+   is removed. Its schedule, chats, run reports, memory and key are deleted, and the name Rae is free."), then Home is
+   read again and the Overview opens; not finished, which steps are left, tried again on each refresh; not answered,
+   why, and that it finishes on the next refresh if it began. A sign-out at any point ends it quietly.
+
 **Not yet:**
 - **The revision as If-None-Match:** the server's ETag is the quoted form of `revision`; each read is whole for now. Its
   days are titled as sent, in 12 semibold, not in the sample's capitals. Pull to refresh has no Windows gesture yet.
@@ -228,7 +243,7 @@ reference:
   Markdown, as Coach's are.
 - **What acts in Setup:** a connected app's sheet, the + to connect one, a Card-unit exception's Coach and Dismiss
   (signed), the taf's own Connect again, Improve in Coach, Change the workflow with Coach, the memory's See all, Starts
-  when, Results go to, and Remove. They need Coach, signing or sign-in, and whether the person manages the taf. The
+  when and Results go to. They need Coach, signing or sign-in, and whether the person manages the taf. The
   sample's Forget and Pause change its page only.
 - **The real Revoke:** `POST /v1/me/mandates/{id}/revoke` for each of its Cards, shown only to whoever KIFF says manages
   the taf, and Stopped only once KIFF has revoked them all (`card.revoke_failed` otherwise). How it's signed, and

@@ -43,7 +43,8 @@ public static class TafActivity
             Lenient.Text(answer, "next_cursor"), Lenient.Array(answer, "entries").Count());
     }
 
-    static ActivityLine? Line(JsonElement e) =>
+    /// <summary>One of tafs cloud's Activity entries, as drawn: none without an id or a title. The Record's search reads its hits with it.</summary>
+    public static ActivityLine? Line(JsonElement e) =>
         Lenient.Text(e, "id") is { } id && Lenient.Text(e, "title") is { } title
             ? new ActivityLine(id, EntryKinds.Parse(Lenient.Text(e, "kind")), title, Lenient.Text(e, "detail") ?? "", Lenient.Text(e, "time") ?? "", Lenient.Text(e, "amount_text"))
             : null;

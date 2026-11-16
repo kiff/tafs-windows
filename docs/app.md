@@ -65,6 +65,16 @@ in the theme's line colour on Windows.
 - **Board 5 (an app connected):** drawn, and placed once connecting an app with a key
   comes to Windows. **Boards 11 and 12** are the watches'.
 
+## One tafs, and its scheme
+
+- **One window holds the session** (`Program.cs`, as Windows App SDK's single-instance guide): a second start hands its
+  activation to the tafs already running, which comes to the front, and ends. A screenshot (`--screenshot`) always runs
+  on its own. CI checks it on x64: a second start with a `tafs://` URL ends, and the first keeps running.
+- **The `tafs:` scheme** is registered for the person on each start (`ActivationRegistrationManager`), so planque's return
+  from a vendor's sign-in (`tafs://planque/signed-in?tenant=…&grant=…&confirm=…`, `PlanqueSignIn`) comes back to the
+  window that's waiting (`App.SignedInReturned`). The URL alone connects nothing: this PC confirms its one-use code
+  with planque, signed, and the connection counts only once planque says so. Connecting an app is built on this next.
+
 ## Language
 
 The app speaks the first of the person's Windows languages that tafs ships (`AppLanguage.Pick`), otherwise English. Every line comes from `WordBook`: nothing is written in code.
@@ -75,7 +85,7 @@ The app speaks the first of the person's Windows languages that tafs ships (`App
 | :- | :- |
 | `--lang fr` | speak a shipped language |
 | `--theme light` or `dark` | force the appearance |
-| `--page pair`, `sign-in`, `signed-out`, `connected`, `needs-you`, `record`, `calendar`, `calendar-week`, `calendar-month`, `usage`, `connect-apps`, `connect-connections`, `account`, `coach`, `coach-chats`, `gallery`, `gallery-job`, `new-taf`, `taf`, `taf-setup` or `taf-card` | open Add this Windows PC, Sign in with KIFF, the signed-out window, the celebration, Needs you, the Record, Calendar in Day, Week or Month, Plan & usage, Connect apps (on its first app's connections with `connect-connections`), Account, Coach mode over the Overview (on its Previous conversations with `coach-chats`), the jobs' gallery (to create with `new-taf`, on its first job's sheet with `gallery-job`, read from a `gallery.json` beside `--home`'s contract), or the sample's Refunds on its Activity, Setup or Card (`taf`, `taf-setup`, `taf-card`, with `--sample`) |
+| `--page pair`, `sign-in`, `signed-out`, `connected`, `needs-you`, `record`, `record-search`, `calendar`, `calendar-week`, `calendar-month`, `usage`, `connect-apps`, `connect-connections`, `account`, `coach`, `coach-chats`, `gallery`, `gallery-job`, `new-taf`, `taf`, `taf-setup` or `taf-card` | open Add this Windows PC, Sign in with KIFF, the signed-out window, the celebration, Needs you, the Record (with a search typed and answered from a `record-search.json` beside `--home`'s contract with `record-search`), Calendar in Day, Week or Month, Plan & usage, Connect apps (on its first app's connections with `connect-connections`), Account, Coach mode over the Overview (on its Previous conversations with `coach-chats`), the jobs' gallery (to create with `new-taf`, on its first job's sheet with `gallery-job`, read from a `gallery.json` beside `--home`'s contract), or the sample's Refunds on its Activity, Setup or Card (`taf`, `taf-setup`, `taf-card`, with `--sample`) |
 | `--view-only` | show the session as view-only |
 | `--sample` | show the iPad's sample held calls, Record, Plan & usage and Connect apps |
 | `--home contract.json` | read Home's list from a contract file (`shared/contracts/home.json`) in place of tafs cloud, and each taf's runs, report, Activity and Setup from the contracts beside it (Your brief from a `brief.json` beside it, if there is one); with `--page taf` or `taf-setup`, open the first taf there |
