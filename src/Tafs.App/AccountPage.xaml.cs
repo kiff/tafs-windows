@@ -498,10 +498,14 @@ public sealed partial class AccountPage : Page
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(dialog, "settings.language_picker");
         string? chosen = null;
         var picked = false;
-        list.SelectionChanged += (_, _) =>
+        // Heard only once the sheet is open: the list marks the current choice as it loads, which is no choice, and closed it at
+        // once. Choosing the one already in use changes nothing.
+        dialog.Opened += (_, _) => list.SelectionChanged += (_, _) =>
         {
             if (list.SelectedItem is not RadioButton { Tag: string code }) return;
-            (chosen, picked) = (code.Length == 0 ? null : code, true);
+            var choice = code.Length == 0 ? null : code;
+            if (choice == kept) return;
+            (chosen, picked) = (choice, true);
             dialog.Hide();
         };
         await dialog.ShowAsync();

@@ -128,7 +128,7 @@ public sealed partial class OverviewPage : Page
     static Button Chip(string words, int? count, bool waiting, bool selected, Action choose, string? id = null)
     {
         var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
-        if (waiting) content.Children.Add(new Ellipse { Width = 6, Height = 6, Fill = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TafsAmber"], VerticalAlignment = VerticalAlignment.Center });
+        if (waiting) content.Children.Add(new Ellipse { Width = 6, Height = 6, Fill = ChatViews.Themed("TafsAmber"), VerticalAlignment = VerticalAlignment.Center });
         content.Children.Add(new TextBlock { Text = words, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium, VerticalAlignment = VerticalAlignment.Center });
         if (count is { } n) content.Children.Add(new TextBlock { Text = n.ToString(System.Globalization.CultureInfo.CurrentCulture), FontSize = 12, Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center });
         var chip = new Button { Content = content, MinHeight = 32, Style = Look(selected ? "TafsChipChosen" : "TafsChip") };

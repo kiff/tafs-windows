@@ -24,8 +24,15 @@ public sealed partial class AlertsPage : Page
 
     static Style Look(string key) => (Style)Application.Current.Resources[key];
 
+    /// <summary>Back to Account, where it opened from.</summary>
+    void OnBack(object sender, RoutedEventArgs e)
+    {
+        if (Frame.CanGoBack) Frame.GoBack();
+    }
+
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
+        BackButton.Content = "‹ " + App.Words.Get("common.back");
         var w = App.Words;
         tenant = (e.Parameter as AlertsOpening)?.Tenant;
         Heading.Text = w.Get("settings.alerts");
@@ -105,7 +112,7 @@ public sealed partial class AlertsPage : Page
         grid.Children.Add(words);
         grid.Children.Add(mark);
         var card = new Border { Child = grid, Padding = new Thickness(12), CornerRadius = new CornerRadius(18) };
-        card.SetValue(Border.BackgroundProperty, Application.Current.Resources["TafsRaised"]);
+        card.Background = ChatViews.Themed("TafsRaised");
         AutomationProperties.SetName(card, preview.Spoken(w));
         return card;
     }

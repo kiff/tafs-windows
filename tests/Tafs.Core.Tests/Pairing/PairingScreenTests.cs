@@ -166,4 +166,34 @@ public class PairingScreenTests
     [Fact]
     public void The_name_in_English() =>
         Assert.Equal("tafs on this Windows PC", PairingScreen.DeviceName(En));
+
+    /// <summary>
+    /// Before Windows Hello's prompt, a card says why: in tafs's own words once shared, until then the lines it has (what
+    /// the passkey lets this PC do, that Windows asks once), and Continue; in every shipped language, no placeholder left.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Shipped))]
+    public void The_passkey_card_says_why_in_every_language(string language)
+    {
+        var w = WordBook.Load(SharedFiles.Strings, language);
+        var (title, body, go) = PairingScreen.PasskeyWhy(w);
+        Assert.All(new[] { title, body, go }, line => Assert.False(string.IsNullOrWhiteSpace(line) || line.Contains('{'), line));
+        if (language == "en")
+            Assert.Equal(("Windows PC will be able to approve your tafs' actions with Windows Hello.", "Starting asks for Windows Hello once.", "Continue"),
+                (title, body, go));
+    }
+
+    /// <summary>The card comes first only where Windows Hello will make a passkey for a code to show.</summary>
+    [Fact]
+    public void The_card_comes_first_only_before_a_passkey_is_made()
+    {
+        var api = new Uri("https://api.kiff.dev");
+        var paired = Tafs.Core.Kiff.KeptSession.Of(api, "token", "t1", "s1", "dev_1", Tafs.Core.Kiff.ApprovalMode.Passkey,
+            TimeSpan.FromDays(90), Now, "key");
+        Assert.True(PairingScreen.AsksWhyFirst(null, helloAvailable: true, offline: false));
+        Assert.True(PairingScreen.AsksWhyFirst(paired with { Mode = Tafs.Core.Kiff.ApprovalMode.View }, true, false));
+        Assert.False(PairingScreen.AsksWhyFirst(null, helloAvailable: false, offline: false));
+        Assert.False(PairingScreen.AsksWhyFirst(null, true, offline: true));
+        Assert.False(PairingScreen.AsksWhyFirst(paired, true, false));
+    }
 }

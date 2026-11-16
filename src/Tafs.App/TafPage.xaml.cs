@@ -19,7 +19,8 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     Func<Task<string?>>? SetupProof = null, bool Revoked = false, IReadOnlyList<Tafs.Core.Coach.ChatMessage>? SampleChat = null,
     TafHalt? Halt = null, Func<string, byte[], Task<CloudRead>>? Send = null, bool Manages = false, TafStream? Stream = null,
     TafRemove? Remove = null, Func<HttpMethod, string, byte[]?, Task<CloudRead>>? Change = null, TafStarts? Starts = null,
-    bool Paused = false, string? Email = null, string? TimeZone = null, Action? AskCoach = null, SetupScreen SetupOn = SetupScreen.Main);
+    bool Paused = false, string? Email = null, string? TimeZone = null, Action? AskCoach = null, SetupScreen SetupOn = SetupScreen.Main,
+    TafHealth? Health = null, Action<string>? AskCoachWith = null, Action? OpenUsage = null);
 
 /// <summary>
 /// Remove for good, for whoever manages the taf on a PC that signs with its passkey: what goes with it, in tafs cloud's words,
@@ -60,7 +61,16 @@ public sealed partial class TafPage : Page
     /// <summary>tafs cloud's Activity, one set of pages a filter, as the iPad keeps them by taf and filter.</summary>
     readonly Dictionary<string, ActivityPages> cloudPages = [];
     /// <summary>tafs cloud's Setup for this taf, as last read.</summary>
-    readonly SetupRead setupRead = new();
+    SetupRead setupRead = new();
+
+    /// <summary>
+    /// Each taf's Setup as last read in this session, by its id: opened again, its page draws at once and is read again
+    /// underneath. Another session starts from nothing (<see cref="setupsFor"/> is that session's read).
+    /// </summary>
+    static readonly Tafs.Core.Kiff.SessionScoped<string, SetupRead> setups = new();
+
+    /// <summary>Signed out: every taf's Setup kept goes, connections included.</summary>
+    public static void ForgetSetups() => setups.Forget();
     /// <summary>Its thread, as tafs cloud last answered it, and why the last read didn't come (the iPad's chatErrors).</summary>
     Tafs.Core.Coach.CoachThread? chat;
     string? chatError;
@@ -113,6 +123,9 @@ public sealed partial class TafPage : Page
         Show();
         _ = LoadActivityAsync();
         _ = LoadSetupAsync();
+        // Its work and its runs, above its record, for a taf tafs cloud runs.
+        ShowWork();
+        _ = LoadWorkAsync();
         if (tab == TafTab.Chat) _ = LoadChatAsync();
         if (opening.SetupOn != SetupScreen.Main) OpenSetupScreen(opening.SetupOn);
     }
@@ -195,12 +208,11 @@ public sealed partial class TafPage : Page
         StopButton.Visibility = working && opening.Manages ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>Ctrl+Enter sends; Enter alone is a new line.</summary>
+    /// <summary>Enter sends; Shift+Enter is a new line.</summary>
     void OnDraftKey(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
     {
-        var ctrl = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
-            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-        if (e.Key == Windows.System.VirtualKey.Enter && ctrl) { e.Handled = true; OnSend(sender, e); }
+        // Enter sends; Shift+Enter is a new line (seen before the box takes the Enter).
+        if (ChatViews.SendsOnEnter(e)) { e.Handled = true; OnSend(sender, e); }
     }
 
     /// <summary>
@@ -347,6 +359,11 @@ public sealed partial class TafPage : Page
     void ShowChat()
     {
         var w = App.Words;
+        // The latest message in view, as the iPad's thread opens at its end: once the thread is laid out, unless the person
+        // had scrolled up to read.
+        var atEnd = PageScroll.VerticalOffset >= PageScroll.ScrollableHeight - 24;
+        if (atEnd) DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+            () => PageScroll.ChangeView(null, PageScroll.ScrollableHeight, null, disableAnimation: true));
         ChatPane.Children.Clear();
         Microsoft.UI.Xaml.Media.Brush Brush(string key) => ChatViews.ThemeBrush(ActualTheme, key);
         IReadOnlyList<Tafs.Core.Coach.ThreadItem> items = chat is { } thread ? TafChat.Items(thread)
@@ -431,8 +448,13 @@ public sealed partial class TafPage : Page
     async Task LoadSetupAsync()
     {
         if (opening is not { CloudId: { } id, Read: { } read }) return;
-        await setupRead.LoadAsync(id, opening.ReadWithProof ?? ((path, _) => read(path)), opening.SetupProof);
-        if (tab == TafTab.Setup) ShowSetup();
+        var kept = setups.Get(read, id, () => new SetupRead());
+        setupRead = kept;
+        if (tab == TafTab.Setup && kept.Page is not null) ShowSetup();
+        // Drawn as soon as the quick read lands; the connections when planque's signed read does.
+        await kept.LoadAsync(id, opening.ReadWithProof ?? ((path, _) => read(path)), opening.SetupProof,
+            () => { if (tab == TafTab.Setup && opening?.CloudId == id) ShowSetup(); });
+        if (tab == TafTab.Setup && opening?.CloudId == id) ShowSetup();
     }
 
     /// <summary>
@@ -595,14 +617,16 @@ public sealed partial class TafPage : Page
         // ConnectedToolsRing: why its connections couldn't be read, with Try again; a read going; else the ring and workflow.
         var tools = new StackPanel { Spacing = 10 };
         tools.Children.Add(Eyebrow("connect.connected_tools"));
-        if ((setupRead.Error ?? page?.ConnectionsError) is { } error)
+        if (!setupRead.ConnectionsPending && (setupRead.Error ?? page?.ConnectionsError) is { } error)
         {
             tools.Children.Add(Words(error, 13, "TafsNoText"));
             var again = new Button { Content = App.Words.Get("common.try_again") };
             again.Click += (_, _) => _ = LoadSetupAsync();
             tools.Children.Add(again);
         }
-        if (page is null && setupRead.Error is null) tools.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24 });
+        // Reading: the whole page, or its connections while planque's signed read is on its way.
+        if ((page is null && setupRead.Error is null) || (setupRead.ConnectionsPending && page?.Connections.Count == 0))
+            tools.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Left });
         if (page is not null)
         {
             tools.Children.Add(Ring(TafSetup.Nodes(page.Connections), setup.Job));
@@ -628,6 +652,9 @@ public sealed partial class TafPage : Page
         }
         else memory.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Left });
         SetupPane.Children.Add(Panel(memory));
+
+        // Remove for good, last on Setup, in red, as the iPad's: what goes with it first, then Windows Hello. A revoked taf too.
+        if (opening?.Remove is { } remove) SetupPane.Children.Add(RemoveButton(remove));
     }
 
     /// <summary>
@@ -856,16 +883,10 @@ public sealed partial class TafPage : Page
         }
         if (shown.Rules.Count > 0) CardPane.Children.Add(Panel(lines));
 
-        // A revoked taf can't be halted, but it can still be removed for good.
-        if (revoked)
-        {
-            if (opening.Remove is { } gone) CardPane.Children.Add(RemoveButton(gone));
-            return;
-        }
+        // A revoked taf can't be halted. Remove for good is on Setup, as the iPad's.
+        if (revoked) return;
         // Halting is a job of its own too, for whoever manages the taf: its row opens its screen (the iPad's HaltRow).
         if (opening.Halt is { } halt) CardPane.Children.Add(HaltRow(halt));
-        // Remove for good, last, in red, as the iPad's: what goes with it first, then Windows Hello.
-        if (opening.Remove is { } remove) CardPane.Children.Add(RemoveButton(remove));
         // Revoke reaches nothing yet, so it's the sample's only: on a real taf it would look done when KIFF revoked nothing.
         if (opening?.CloudId is not null) return;
         var revoke = new Button { Content = w.Get("taf.revoke"), Style = Look("TafsOutlineNo"), HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -891,9 +912,11 @@ public sealed partial class TafPage : Page
         var name = opening!.Head.Name;
         var button = new Button
         {
-            Content = w.Get("taf.remove_named", ("taf", name)), Style = Look("TafsOutlineNo"), HorizontalAlignment = HorizontalAlignment.Stretch,
+            Content = w.Get("setup.remove_for_good"), Style = Look("TafsOutlineNo"), HorizontalAlignment = HorizontalAlignment.Stretch,
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(button, "taf.remove");
+        // Narrator names the taf it removes: "Remove Refunds".
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, w.Get("taf.remove_named", ("taf", name)));
         button.Click += async (_, _) =>
         {
             button.IsEnabled = false;
@@ -929,7 +952,7 @@ public sealed partial class TafPage : Page
         row.ColumnDefinitions.Add(new ColumnDefinition());
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var hand = new FontIcon { Glyph = ((char)0xE7E8).ToString(), FontSize = 16 };
-        hand.SetValue(FontIcon.ForegroundProperty, Application.Current.Resources["TafsNo"]);
+        hand.Foreground = ChatViews.Themed("TafsNo");
         var caret = new FontIcon { Glyph = ((char)0xE76C).ToString(), FontSize = 12 };
         Grid.SetColumn(words, 1);
         Grid.SetColumn(caret, 2);

@@ -140,6 +140,9 @@ public sealed partial class MainWindow : Window
         Activated += OnReturned;
         // --theme for CI's screenshots, else the one chosen in Account last time, else the system's.
         Root.RequestedTheme = Element(ThemeChoices.AtLaunch(theme, screenshot is not null, () => ThemeChoices.Read(ThemeFile)));
+        // What code draws takes its colours from the window's theme as it shows, kept as it changes.
+        Root.ActualThemeChanged += (_, _) => ChatViews.WindowTheme = Root.ActualTheme;
+        Root.Loaded += (_, _) => ChatViews.WindowTheme = Root.ActualTheme;
         this.sample = sample;
         var w = App.Words;
         Title = w.Get("app.name");
@@ -324,6 +327,7 @@ public sealed partial class MainWindow : Window
         }
 
         if (page == "pair") OpenPairing();
+        else if (page == "pair-why") OpenBeside(typeof(PairingPage), "why");
         else if (page == "account") OnAccount(this, new RoutedEventArgs());
         else if (page == "sign-in") OpenSignIn();
         else if (page is "calendar" or "calendar-week" or "calendar-month")
@@ -374,7 +378,11 @@ public sealed partial class MainWindow : Window
             CoachMode.Read = path => Task.FromResult(ContractRead(w, homeFile, path));
             // The first taf's page, its Activity from taf-activity.json beside the Home contract, its Chat from taf-conversation.json.
             if (page is "taf" or "taf-setup" or "taf-chat" && home?.Tafs.FirstOrDefault() is { } first)
-                OpenBeside(typeof(TafPage), OpenTaf(w, first.Id, page switch { "taf-setup" => TafTab.Setup, "taf-chat" => TafTab.Chat, _ => TafTab.Activity }));
+                OpenBeside(typeof(TafPage), OpenTaf(w, first.Id, page switch { "taf-setup" => TafTab.Setup, "taf-chat" => TafTab.Chat, _ => TafTab.Activity }) with
+                {
+                    // Its composer as a session draws it; a send says it didn't reach, as offline.
+                    Send = (_, _) => Task.FromResult(CloudRead.Unreached(w)),
+                });
             // Setup › Starts when or Results go to, its dial from taf-knob.json beside the Home file, as whoever manages the taf.
             if (page is "taf-starts" or "taf-results" && home?.Tafs.FirstOrDefault() is { } shown)
                 OpenBeside(typeof(TafPage), OpenTaf(w, shown.Id, TafTab.Setup) with
@@ -908,6 +916,10 @@ public sealed partial class MainWindow : Window
     void ForgetSession()
     {
         sessions++;
+        // The pages' in-memory caches go with the account: every taf's Setup, the Connect apps list, and what Back would reopen.
+        TafPage.ForgetSetups();
+        ConnectAppsPage.Forget();
+        Pages.BackStack.Clear();
         consentPutOff = false;
         // A Discard of the last session's says nothing more, and its Cards left are the next account's to read.
         discarding.Clear();
@@ -1119,7 +1131,7 @@ public sealed partial class MainWindow : Window
             {
                 Tag = HaltAll,
                 Icon = new FontIcon { Glyph = ((char)0xE7E8).ToString(), Style = (Style)Application.Current.Resources["TafsSidebarIcon"],
-                    Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TafsNo"] },
+                    Foreground = ChatViews.Themed("TafsNo") },
                 Style = (Style)Application.Current.Resources["TafsSidebarItem"],
             };
             // Under the screens, as the iPad's first section: after the last of them.
@@ -1456,7 +1468,7 @@ public sealed partial class MainWindow : Window
                 : path.StartsWith("/v1/record?", StringComparison.Ordinal) ? "record-search.json"
                 : path.StartsWith(Tafs.Core.Missions.Brief.Route, StringComparison.Ordinal) ? "brief.json"
                 : path.StartsWith("/v1/calendar?", StringComparison.Ordinal) ? "calendar.json"
-                : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json" : path.EndsWith("/knob") ? "taf-knob.json"
+                : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json" : path.EndsWith("/knob") ? "taf-knob.json" : path.EndsWith("/work") ? "taf-work.json"
                 : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
         return File.Exists(file) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(file)) : CloudRead.Unreached(w);
     }
@@ -1600,7 +1612,7 @@ public sealed partial class MainWindow : Window
             content.Children.Add(new Microsoft.UI.Xaml.Shapes.Ellipse
             {
                 Width = 8, Height = 8, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
-                Fill = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TafsAmber"],
+                Fill = ChatViews.Themed("TafsAmber"),
             });
             Grid.SetColumn(lines, 1);
             content.Children.Add(lines);
@@ -1682,6 +1694,9 @@ public sealed partial class MainWindow : Window
                 // Setup › Starts when and Results go to: when it starts and where results go, as Home says, and the changes made at once.
                 Change: cloudChange, Starts: taf.Starts, Paused: taf.State == "paused", Email: kiffAccount?.Email, TimeZone: kiffAccount?.TimeZone,
                 AskCoach: mayUseCoach ? () => CoachMode.Open() : null,
+                // Its health's fixes: Coach with tafs cloud's words in the box, nothing sent; Plan & usage for credits.
+                Health: taf.Health, AskCoachWith: mayUseCoach ? words => CoachMode.Write(words, newConversation: true) : null,
+                OpenUsage: () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage),
                 // Stop is for whoever manages the taf (cards.manage), as KIFF says, once read.
                 Manages: taf.Agent is { } agent && manage?.GetValueOrDefault(agent) == true)
             : SampleTaf(w, key, opensOn);

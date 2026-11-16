@@ -295,7 +295,7 @@ public sealed partial class NeedsYouPage : Page
             }
             var card = new Border
             {
-                Background = ThemeBrush("TafsPanel"), BorderBrush = (Brush)Application.Current.Resources["TafsAmberEdge"],
+                Background = ThemeBrush("TafsPanel"), BorderBrush = ChatViews.Themed("TafsAmberEdge"),
                 BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18), Padding = new Thickness(16), Child = lines,
             };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(card, "yourStep." + step.Handoff);
@@ -360,7 +360,7 @@ public sealed partial class NeedsYouPage : Page
             }
             var card = new Border
             {
-                Background = ThemeBrush("TafsPanel"), BorderBrush = (Brush)Application.Current.Resources["TafsAmberEdge"],
+                Background = ThemeBrush("TafsPanel"), BorderBrush = ChatViews.Themed("TafsAmberEdge"),
                 BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18), Padding = new Thickness(16), Child = lines,
             };
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(card, "happened." + call.Proposal);
