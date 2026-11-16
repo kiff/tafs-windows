@@ -289,11 +289,12 @@ public sealed partial class MainWindow : Window
             Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Calendar);
         }
         else if (page == "usage") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
-        else if (page == "coach")
+        else if (page is "coach" or "coach-chats")
         {
-            // Over the Overview, which stays in view beside it.
+            // Over the Overview, which stays in view beside it; with coach-chats, on Previous conversations.
             Nav.SelectedItem = BrandItem;
             CoachMode.Open(animate: false);
+            if (page == "coach-chats") CoachMode.ShowPreviousChats();
         }
         else if (page == "connect-apps") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
         else if (page == "record") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
