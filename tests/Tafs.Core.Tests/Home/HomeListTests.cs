@@ -117,4 +117,47 @@ public class HomeListTests
 
         Assert.Equal(attention, Home(json, TimeZoneInfo.Utc).Tafs[0].Attention);
     }
+
+    /// <summary>
+    /// As the iPad's <c>SettingUp</c>: a taf whose setup stopped partway, by its name; the chat that finishes it and Discard
+    /// only when they can be drawn; its Cards as plain ids or <c>{id}</c>; one with no name left out. Only Coach's own chat,
+    /// for someone who may use Coach, finishes it from its row.
+    /// </summary>
+    [Fact]
+    public void A_taf_being_set_up_reads_by_its_name_with_its_finish_and_Discard()
+    {
+        var home = Home("""
+            {"tafs": [], "setting_up": [
+              {"name": " Invoices ", "kiff_agent": "agt_inv", "color": 3,
+               "finish": {"taf": "taf-coach", "session": "s9", "words": "Its setup stopped. Finish it with Coach."},
+               "discard": {"words": {"button": "Discard", "title": "Discard Invoices?", "text": "Its Cards are revoked.", "yes": "Discard", "no": "Keep"},
+                           "cards": ["c_1", {"id": "c_2"}, 3]}},
+              {"name": "Refunds", "finish": {"taf": "taf-coach", "session": "", "words": "x"}, "discard": {"words": {"button": "Discard"}}},
+              {"name": "", "kiff_agent": "agt_none"},
+              "not one"
+            ]}
+            """, TimeZoneInfo.Utc);
+
+        Assert.Equal(["Invoices", "Refunds"], home.SettingUp.Select(s => s.Name));
+        var invoices = home.SettingUp[0];
+        Assert.Equal(("agt_inv", 3), (invoices.Agent, invoices.Colour));
+        Assert.Equal(new SetupFinish("taf-coach", "s9", "Its setup stopped. Finish it with Coach."), invoices.Finish);
+        Assert.Equal("Its setup stopped. Finish it with Coach.", invoices.Line);
+        Assert.Equal(new DiscardWords("Discard", "Discard Invoices?", "Its Cards are revoked.", "Discard", "Keep"), invoices.Discard);
+        Assert.Equal(["c_1", "c_2"], invoices.Cards);
+        Assert.True(invoices.Finishes("taf-coach", mayUseCoach: true));
+        Assert.False(invoices.Finishes("taf-coach", mayUseCoach: false));
+        Assert.False(invoices.Finishes("taf-other", mayUseCoach: true));
+        Assert.False(invoices.Finishes(null, mayUseCoach: true));
+
+        // A finish with no chat, and Discard with no yes, can't be drawn: someone else's setup, its name alone.
+        var refunds = home.SettingUp[1];
+        Assert.Equal((null, null, null), (refunds.Finish, refunds.Discard, refunds.Line));
+        Assert.Null(refunds.Agent);
+        Assert.False(refunds.Finishes("taf-coach", mayUseCoach: true));
+
+        // A tafs cloud from before it lists none.
+        Assert.Empty(Home("home.json").SettingUp);
+        Assert.Empty(Home("""{"tafs": []}""", TimeZoneInfo.Utc).SettingUp);
+    }
 }

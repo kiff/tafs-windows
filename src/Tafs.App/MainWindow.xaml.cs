@@ -242,6 +242,8 @@ public sealed partial class MainWindow : Window
         };
         // An unsent bubble refused for a halt: Resume opens Halt's screen, the account's or the taf's.
         ChatViews.ResumeChosen += (taf, name) => OpenHalt(taf, name);
+        // A taf being set up's row selects nothing: it opens Coach where its setup stopped, when it can.
+        Nav.ItemInvoked += (_, a) => { if (a.InvokedItemContainer?.Tag is SettingUpRow row) OnSettingUpInvoked(row); };
         // A turn refused for want of the AI-data consent, from any route: its screen, wherever the person tried.
         CloudRead.ConsentRequired += consent => DispatcherQueue.TryEnqueue(() => _ = AskConsentAsync(consent));
         OverviewPage.NeedsYouChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);

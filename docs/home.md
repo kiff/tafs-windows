@@ -31,6 +31,12 @@ From the top:
   - **Shared with you** (`ListOrder.Split`, the iPad's `tafSections`): under its own heading, after the person's own, the
     tafs KIFF says are shared with them to use, not manage. A taf whose answer isn't in yet counts as theirs, so nothing
     moves under the heading and back.
+  - **Tafs being set up** (`setting_up`, `HomeList.SettingUp`, the iPad's `settingUp`): after the person's own and before
+    Shared with you, by the name Coach gave them. Where the setup stopped, tafs cloud's line under the name in amber; being
+    set up in someone else's Coach chat, the name alone. A row whose chat is Coach's own, for someone who may use Coach
+    (`SettingUp.Finishes`, the iPad's `canFinishSetup`), opens Coach on that chat (`CoachPanel.OpenOn`, the iPad's
+    `finishSetup`); reading it makes the taf at tafs cloud, and the next Home read lists it with the tafs. Any other row
+    opens nothing, and none is selected. Discard comes in its own change.
   - **Each row:** the avatar (34), the name in 15 semibold, and what it's doing in 13 soft, on one line each. A row
     opens its taf's page.
   - **The sample's** are Deploys and Bill pay, the two a call waits on, as overview.png.
