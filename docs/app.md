@@ -50,6 +50,7 @@ in the theme's line colour on Windows.
 
 | Board | Where on Windows | Shown when |
 |---|---|---|
+| 1 First run | the KIFF half of the signed-out window, in place of its old drawing | signed out |
 | 2 No tafs yet | the Overview, above the empty table's words | no taf, and tafs cloud lists no recipes |
 | 3 Brief, nothing to decide | Your brief, where decisions go | the brief has none |
 | 4 All halted | the Halt screen for every taf | every taf reads halted |
@@ -59,8 +60,7 @@ in the theme's line colour on Windows.
 | 9 Coach starting | Coach's start, above its words | before Coach is started |
 | 10 Overview | the Overview, under its title | always (a desktop is the iPad's regular width) |
 
-- **Board 1 (first run):** Windows' welcome is the signed-out split, drawn with its own approved art (S23, S27), so
-  there's no second drawing there. **Board 5 (an app connected):** drawn, and placed once connecting an app with a key
+- **Board 5 (an app connected):** drawn, and placed once connecting an app with a key
   comes to Windows. **Boards 11 and 12** are the watches'.
 
 ## Language

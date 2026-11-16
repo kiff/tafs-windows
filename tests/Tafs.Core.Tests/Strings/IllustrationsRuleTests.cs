@@ -30,6 +30,7 @@ public class IllustrationsRuleTests
     }
 
     [Theory]
+    [InlineData("SignedOutPage.xaml.cs", "FirstRun")]
     [InlineData("NeedsYouPage.xaml.cs", "NothingWaiting")]
     [InlineData("OverviewPage.xaml.cs", "Overview")]
     [InlineData("OverviewPage.xaml.cs", "NoTafs")]

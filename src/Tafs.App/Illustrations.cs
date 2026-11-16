@@ -18,12 +18,13 @@ namespace Tafs.App;
 /// </summary>
 static class Illustrations
 {
-    /// <summary>Board 1, first run: a card opening, sparkles round it.</summary>
+    /// <summary>Board 1, first run: a card opening, sparkles round it. Its button sits 32 down, not iOS's 40, so it fits inside
+    /// the card: a Windows border clips what overflows.</summary>
     public static FrameworkElement FirstRun() => Make(380, 335, 200, d =>
     {
             d.Place(d.Halo(), 40, 10, 300, 300);
             d.Place(d.Card(24, 22, d.Mark(52), d.Bar(120, 0.85, top: 22), d.Bar(90, 0.18, top: 12), d.Bar(140, 0.18, top: 12),
-                d.Pill(d.Tint("TafsAmber", 1), 40, top: 40)), 90, 40, 200, 250);
+                d.Pill(d.Tint("TafsAmber", 1), 40, top: 32)), 90, 40, 200, 250);
             d.Place(d.Dot(d.Tint("TafsAmberText", 0.6)), 10, 20, 18, 18);
             d.Place(d.Chip(d.Tint("TafsBlue", 0.55), 20), 350, 60, 16, 16);
             d.Place(d.Chip(Drawing.Pink(0.5), -15), 30, 310, 14, 14);
