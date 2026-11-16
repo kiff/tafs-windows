@@ -24,6 +24,8 @@ public sealed record ConnectApp(string Entry)
     public IReadOnlyList<string>? UsedBy { get; init; }
     /// <summary>tafs cloud's logo path for it (<c>/v1/logos/…</c>), drawn only through <see cref="ConnectAppsScreen.LogoUrl"/>.</summary>
     public string? Logo { get; init; }
+    /// <summary>The grant tafs cloud names for it, when it names one: its connections are planque's under this app too.</summary>
+    public string? Grant { get; init; }
 
     public string DisplayName => Name ?? Title;
     public bool Connected => State == "connected" || ConnectedFlag;
@@ -38,7 +40,23 @@ public sealed record ConnectApp(string Entry)
 /// tafs cloud's Connect apps list: the apps in its order, whether Coach connects others, and for More apps the cursor of the
 /// next page and the catalog it's from (<paramref name="Provider"/>).
 /// </summary>
-public sealed record ConnectAppsList(IReadOnlyList<ConnectApp> Apps, bool ByKey, string? NextCursor, string? Provider = null);
+public sealed record ConnectAppsList(IReadOnlyList<ConnectApp> Apps, bool ByKey, string? NextCursor, string? Provider = null)
+{
+    /// <summary>
+    /// The tafs removed since, as tafs cloud names them (<c>removed_tafs</c>), for someone who manages Cards: a grant whose
+    /// agent is one is a removed taf's. Empty from a tafs cloud without it.
+    /// </summary>
+    public IReadOnlyList<RemovedTaf> RemovedTafs { get; init; } = [];
+}
+
+/// <summary>A live taf whose Card still uses a removed taf's connection, by tafs cloud's name.</summary>
+public sealed record RemovedUsedBy(string Taf, string Name);
+
+/// <summary>A removed taf's live connection, with the live tafs whose Cards still use it: Clear keeps those.</summary>
+public sealed record RemovedGrant(string Grant, IReadOnlyList<RemovedUsedBy> UsedBy);
+
+/// <summary>A taf removed since: its agent, and its live connections, none when tafs cloud couldn't list them (then no Clear).</summary>
+public sealed record RemovedTaf(string Agent, IReadOnlyList<RemovedGrant>? Grants);
 
 /// <summary>What a row says: how it connects, whose it is, where it stands, who uses it, or tafs cloud's setup line.</summary>
 public sealed record ConnectRow(string How, string? Whose, string? Status, string? UsedBy, string? Setup);
@@ -69,9 +87,37 @@ public static class ConnectAppsScreen
                         Whose = Text(a, "whose"),
                         UsedBy = Names(a),
                         Logo = Text(a, "logo"),
+                        Grant = Text(a, "grant"),
                     });
         var byKey = root.TryGetProperty("by_key", out var k) && k.ValueKind == JsonValueKind.True;
-        return new ConnectAppsList(apps, byKey, Text(root, "next_cursor"), Text(root, "provider"));
+        return new ConnectAppsList(apps, byKey, Text(root, "next_cursor"), Text(root, "provider")) { RemovedTafs = Removed(root) };
+    }
+
+    /// <summary>tafs cloud's <c>removed_tafs</c>, read leniently: one without its agent is left out, never the list.</summary>
+    static IReadOnlyList<RemovedTaf> Removed(JsonElement root)
+    {
+        if (!root.TryGetProperty("removed_tafs", out var list) || list.ValueKind != JsonValueKind.Array) return [];
+        var removed = new List<RemovedTaf>();
+        foreach (var t in list.EnumerateArray())
+        {
+            if (t.ValueKind != JsonValueKind.Object || Text(t, "agent") is not { } agent) continue;
+            List<RemovedGrant>? grants = null;
+            if (t.TryGetProperty("grants", out var g) && g.ValueKind == JsonValueKind.Array)
+            {
+                grants = [];
+                foreach (var x in g.EnumerateArray())
+                {
+                    if (x.ValueKind != JsonValueKind.Object || Text(x, "grant") is not { } grant) continue;
+                    var used = new List<RemovedUsedBy>();
+                    if (x.TryGetProperty("used_by", out var u) && u.ValueKind == JsonValueKind.Array)
+                        foreach (var y in u.EnumerateArray())
+                            if (y.ValueKind == JsonValueKind.Object) used.Add(new(Text(y, "taf") ?? "", Text(y, "name") ?? ""));
+                    grants.Add(new(grant, used));
+                }
+            }
+            removed.Add(new(agent, grants));
+        }
+        return removed;
     }
 
     public const string ListPath = "/v1/connect/apps";

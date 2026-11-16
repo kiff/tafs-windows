@@ -55,13 +55,26 @@ public sealed class ConnectRowView
     public Visibility HasButton { get; init; } = Visibility.Collapsed;
     public Microsoft.UI.Xaml.Media.ImageSource? Logo { get; init; }
     public Visibility HasLogo { get; init; } = Visibility.Collapsed;
+    /// <summary>Its connections open (<see cref="AppConnections.Opens"/>), named "Your Stripe connections".</summary>
+    public Visibility Opens { get; init; } = Visibility.Collapsed;
+    public string OpensName { get; init; } = "";
+    public ConnectApp? App { get; init; }
 }
+
+/// <summary>
+/// An app's connections, from Connect apps (the iPad's <c>AppConnectionsView</c>): this PC's signed read of planque's grants,
+/// the taf each was made for by its agent, whether this person manages Cards (who may end one), and the ending itself:
+/// Windows Hello in the question's words, then planque's DELETE for each, signed by this device.
+/// </summary>
+public sealed record ConnectionsCalls(Func<Task<IReadOnlyList<Tafs.Core.Kiff.PlanqueGrant>?>> Grants, Func<Tafs.Core.Kiff.PlanqueGrant, string?> TafOf,
+    bool Manages, Func<IReadOnlyList<string>, string, Task<(int Left, string? Why, bool Stopped)>> End);
 
 /// <summary>
 /// How Connect apps opens: the iPad's sample list for a screenshot, or tafs cloud's read as the session with this PC's
 /// signed grants read (the proof, as Setup sends it); with neither, only its title.
 /// </summary>
-public sealed record ConnectAppsOpening(ConnectAppsList? Sample, Func<string, string?, Task<Tafs.Core.Taf.CloudRead>>? Read, Func<Task<string?>>? Proof);
+public sealed record ConnectAppsOpening(ConnectAppsList? Sample, Func<string, string?, Task<Tafs.Core.Taf.CloudRead>>? Read, Func<Task<string?>>? Proof,
+    ConnectionsCalls? Connections = null, bool OpenFirst = false);
 
 /// <summary>
 /// Connect apps: tafs cloud's list read as the session, searched as the person types, More apps for its next page; or the
@@ -121,6 +134,36 @@ public sealed partial class ConnectAppsPage : Page
         if (answer.Answer is { } json) Show(ConnectAppsScreen.Read(json.GetRawText()));
         else Problem.Text = App.Words.Get("connect.apps_not_read", ("why", answer.Why ?? ""));
         Problem.Visibility = Seen(answer.Answer is null);
+        // The account's connections, as this PC reads them, so a row opens its connections where it has any.
+        if (opening.Connections is { } calls && await calls.Grants() is { } read2 && mine == request)
+        {
+            (grants, grantsRead) = (read2, true);
+            Show(shown);
+            // For a screenshot (--page connect-connections): the first app whose connections open.
+            if (opening.OpenFirst && shown?.Apps.FirstOrDefault(a => AppConnections.Opens(a, grants)) is { } first)
+                DispatcherQueue.TryEnqueue(() => Open(first, calls));
+        }
+    }
+
+    /// <summary>The account's connections, as this PC last read them; none until read, or without the read.</summary>
+    IReadOnlyList<Tafs.Core.Kiff.PlanqueGrant> grants = [];
+    bool grantsRead;
+
+    /// <summary>An app's connections, in this frame, with Back, as the iPad's NavigationLink.</summary>
+    void OnOpenConnections(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is ConnectRowView { App: { } app } && opening?.Connections is { } calls) Open(app, calls);
+    }
+
+    void Open(ConnectApp app, ConnectionsCalls calls)
+    {
+        if (shown is { } list)
+            Frame.Navigate(typeof(AppConnectionsPage), new AppConnectionsOpening(app, list.RemovedTafs, grants, grantsRead, calls, async () =>
+            {
+                // Ended: the connections and the list are read again, as the iPad's disconnect does.
+                await ReadAsync(query);
+                return (grants, shown?.RemovedTafs ?? []);
+            }));
     }
 
     /// <summary>More apps, as the iPad's <c>loadMoreConnectApps</c>: the same search's next page, added only if nothing changed meanwhile.</summary>
@@ -197,6 +240,9 @@ public sealed partial class ConnectAppsPage : Page
                 Button = button ?? "", HasButton = Seen(button is not null),
                 Logo = ConnectAppsScreen.LogoUrl(app.Logo) is { } logo ? new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(logo) : null,
                 HasLogo = Seen(ConnectAppsScreen.LogoUrl(app.Logo) is not null),
+                Opens = Seen(opening?.Connections is not null && AppConnections.Opens(app, grants)),
+                OpensName = w.Get("connect.apps.your_connections", ("app", app.DisplayName)),
+                App = app,
             });
         }
         return rows;

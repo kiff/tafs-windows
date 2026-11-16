@@ -331,8 +331,17 @@ public sealed partial class MainWindow : Window
             if (page is "taf" or "taf-setup" or "taf-chat" && home?.Tafs.FirstOrDefault() is { } first)
                 OpenBeside(typeof(TafPage), OpenTaf(w, first.Id, page switch { "taf-setup" => TafTab.Setup, "taf-chat" => TafTab.Chat, _ => TafTab.Activity }));
             // Connect apps from connect-apps.json beside the Home contract, as tafs cloud's list.
-            if (page == "connect-apps")
-                Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(null, (path, _) => Task.FromResult(ContractRead(w, homeFile, path)), null));
+            // With planque-grants.json beside it, the account's connections too, ended with nothing confirmed.
+            if (page is "connect-apps" or "connect-connections")
+            {
+                var grantsFile = Path.Combine(beside, "planque-grants.json");
+                var calls = File.Exists(grantsFile) ? new ConnectionsCalls(
+                    () => Task.FromResult(PlanqueGrants.Read(File.ReadAllBytes(grantsFile))),
+                    g => home?.Tafs.FirstOrDefault(t => t.Agent == g.Request.Agent)?.Name, Manages: true,
+                    (ids, _) => Task.FromResult((ids.Count, (string?)w.Get("common.not_done_unconfirmed"), false))) : null;
+                Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(null, (path, _) => Task.FromResult(ContractRead(w, homeFile, path)), null,
+                    calls, OpenFirst: page == "connect-connections"));
+            }
         }
         else if (screenshot is null && !sample && App.Sessions.Kept() is { } session)
         {
@@ -1432,7 +1441,7 @@ public sealed partial class MainWindow : Window
         else if (item.Tag == HaltAll) OpenHalt(null, "");
         else if (item.Tag is Screen.Record) Pages.Navigate(typeof(RecordPage), record);
         else if (item.Tag is Screen.Usage) Pages.Navigate(typeof(UsagePage), usage);
-        else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof));
+        else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof, ConnectionsFor()));
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
         else if (item.Tag is TafRow taf) Pages.Navigate(typeof(TafPage), OpenTaf(App.Words, taf.Key));
         else if (item.Tag is GalleryRow job) OpenGallery(job);

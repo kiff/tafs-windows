@@ -41,6 +41,7 @@
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
           <StackPanel Spacing="2" VerticalAlignment="Center">
             <TextBlock Text="{x:Bind Status}" FontSize="14" FontWeight="SemiBold" Visibility="{x:Bind IsConnected}" Foreground="{ThemeResource TafsOk}" />
@@ -52,6 +53,11 @@
                     AutomationProperties.Name="{x:Bind Status}" />
           <Button Grid.Column="1" Content="{x:Bind Button}" Visibility="{x:Bind HasButton}" IsEnabled="False"
                   Style="{StaticResource TafsOutlineButton}" Padding="16,0" />
+          <!-- Its connections, as the iPad's NavigationLink: for a connected app, and one this PC holds a connection to. -->
+          <Button Grid.Column="2" Click="OnOpenConnections" Visibility="{x:Bind Opens}" Style="{StaticResource TafsArrow}" Width="32"
+                  AutomationProperties.Name="{x:Bind OpensName}" ToolTipService.ToolTip="{x:Bind OpensName}">
+            <FontIcon Glyph="&#xE76C;" FontSize="13" Foreground="{ThemeResource TafsDim}" />
+          </Button>
         </Grid>
       </Grid>
     </DataTemplate>
