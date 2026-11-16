@@ -99,7 +99,8 @@ public sealed partial class TafPage : Page
     {
         if (opening is not { CloudId: { } id, Read: { } read } mine) return;
         var (thread, error) = await TafChat.LoadAsync(App.Words, id, read);
-        // An answer for a page since opened on another taf is dropped.
+        // An answer for a page since opened on another taf is dropped. A sign-out leaves for the sign-in page, and a taf's
+        // page is never brought back from history, so an answer landing after it reaches a page nobody sees.
         if (opening != mine) return;
         if (thread is not null) chat = thread;
         chatError = error;
@@ -108,9 +109,10 @@ public sealed partial class TafPage : Page
 
     /// <summary>
     /// The thread, as the iPad's <c>TafChatView.thread</c>: a time between parts an hour apart; the person's words on the right
-    /// in a brand bubble, "Answered the card above" under an answer; the taf's full width, with "Worked for 12 s" above them,
-    /// which opens its steps, where its result went above and what it did under, and a refused connection's lines; a run's
-    /// start as a line. With nothing in it, what the chat is for; a read that didn't come, why, in red.
+    /// in a brand bubble, the files sent with them above, "Answered the card above" under an answer; the taf's full width, with
+    /// "Worked for 12 s" above them, which opens its steps, where its result went above and what it did under, and a refused
+    /// connection's lines; a run's start as a line. A message through a door has its stamp: over it, where it came from;
+    /// under the taf's answer, how it went back. With nothing in it, what the chat is for; a read that didn't come, why, in red.
     /// </summary>
     void ShowChat()
     {
@@ -137,9 +139,12 @@ public sealed partial class TafPage : Page
             if (m is { From: Tafs.Core.Coach.ChatFrom.Owner, Kickoff: false })
             {
                 var said = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0) };
+                // Through a door, someone else's words: where they came from, over them.
+                if (m.Door is { } door) said.Children.Add(ChatViews.DoorStamp(door, fromOwner: true, Brush));
+                if (m.Files is { } files) said.Children.Add(ChatViews.MessageFiles(files, Brush));
                 if (m.Text.Length > 0) said.Children.Add(ChatViews.OwnerBubble(m.Text, Brush));
-                // Written while a card waited: these words were its answer.
-                if (m.Answers is not null) said.Children.Add(ChatViews.AnsweredCardLine());
+                // Written while a card waited: these words were its answer. Not a door's.
+                if (m is { Answers: not null, Door: null }) said.Children.Add(ChatViews.AnsweredCardLine());
                 if (said.Children.Count > 0) ChatPane.Children.Add(said);
                 continue;
             }
@@ -147,19 +152,21 @@ public sealed partial class TafPage : Page
             // What it did before writing it, folded.
             if (m is { From: Tafs.Core.Coach.ChatFrom.Taf, Work: { } work })
                 lines.Children.Add(ChatViews.WorkSummary(TafChat.WorkRows(w, work), work.Ms, Brush));
-            // Where the run's result went: tafs cloud's line, above the taf's words.
-            if (m.Delivered is { } delivered) lines.Children.Add(ChatViews.RunLine(delivered));
+            // Where the run's result went: tafs cloud's line, above the taf's words; none on a run's start.
+            if (m.RunLines.Above is { } delivered) lines.Children.Add(ChatViews.RunLine(delivered));
             if (m.Kickoff) lines.Children.Add(ChatViews.Kickoff(m));
             else
             {
                 var text = CoachPanel.Words(m.Text, 16, "TafsInkText");
                 text.IsTextSelectionEnabled = true;
                 lines.Children.Add(text);
+                // Its answer to a door's message: how it went back, under it.
+                if (m.Door is { } door) lines.Children.Add(ChatViews.DoorStamp(door, fromOwner: false, Brush));
             }
             // What the run did, counted from the record: tafs cloud's line, under them.
-            if (m.Counted is { } counted) lines.Children.Add(ChatViews.RunLine(counted));
+            if (m.RunLines.Under is { } counted) lines.Children.Add(ChatViews.RunLine(counted));
             // A connection its work asked for that was refused: tafs cloud's lines, never folded.
-            if (m.Refused is { } refused) lines.Children.Add(ChatViews.RefusedLines(refused, Brush));
+            if (m.RefusedLines is { } refused) lines.Children.Add(ChatViews.RefusedLines(refused, Brush));
             ChatPane.Children.Add(lines);
         }
         if (chatError is { } why)
@@ -215,9 +222,8 @@ public sealed partial class TafPage : Page
     }
 
     /// <summary>
-    /// The tabs, the chosen one filled, and its pane. Activity and Setup are built; Chat and the Card are shown, so the
-    /// page has the iPad's tabs, and plainly off. The Card bar is above Activity only here, as on the iPad it's above Chat
-    /// and Activity.
+    /// The tabs, the chosen one filled, and its pane: each tab the taf has opens (<see cref="Built"/>), and one it hasn't is
+    /// shown off, so the page keeps the iPad's tabs. The Card bar is above the Chat and the Activity, as the iPad's.
     /// </summary>
     void ShowTab()
     {

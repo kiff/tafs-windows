@@ -36,6 +36,52 @@ static class ChatViews
             Foreground = new SolidColorBrush(Microsoft.UI.Colors.White) },
     };
 
+    /// <summary>
+    /// A door's stamp, as the iPad's <c>DoorStamp</c>: mono 10 medium, two lines at most, blue, red when it wasn't sent back;
+    /// over the person's side of the thread on the right, under the taf's answer on the left. Narrator reads it in lower case.
+    /// </summary>
+    public static TextBlock DoorStamp(ChatDoor door, bool fromOwner, Func<string, Brush> brush)
+    {
+        var text = door.Stamp(App.Words, fromOwner);
+        var stamp = new TextBlock
+        {
+            Text = text, FontSize = 10, FontWeight = Microsoft.UI.Text.FontWeights.Medium, FontFamily = new FontFamily("Cascadia Mono, Consolas"),
+            MaxLines = 2, TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis,
+            Foreground = brush(door.NotSent ? "TafsNo" : "TafsBlue"),
+            HorizontalAlignment = fromOwner ? HorizontalAlignment.Right : HorizontalAlignment.Left,
+            TextAlignment = fromOwner ? TextAlignment.Right : TextAlignment.Left,
+        };
+        AutomationProperties.SetName(stamp, text.ToLowerInvariant());
+        return stamp;
+    }
+
+    /// <summary>
+    /// The files sent with a message, as the iPad's <c>MessageFiles</c>: each its own row on the right, its kind's mark and its
+    /// name in 14 medium, one line, on the panel colour with a line round it, corners of 12. Opening one full size comes with
+    /// reading its bytes; until then each is its name.
+    /// </summary>
+    public static StackPanel MessageFiles(IReadOnlyList<ChatFile> files, Func<string, Brush> brush)
+    {
+        var column = new StackPanel { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right };
+        foreach (var file in files)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            // An image's mark, else a document's, as the iPad's FileIcon by media type.
+            row.Children.Add(new FontIcon { Glyph = file.MediaType.StartsWith("image/", StringComparison.Ordinal) ? "\uEB9F" : "\uE8A5", FontSize = 16,
+                Foreground = brush("TafsSoft") });
+            row.Children.Add(new TextBlock { Text = file.Name, FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Medium, MaxLines = 1,
+                TextTrimming = TextTrimming.CharacterEllipsis, Foreground = brush("TafsInk"), VerticalAlignment = VerticalAlignment.Center });
+            var chip = new Border
+            {
+                Child = row, Padding = new Thickness(6, 6, 12, 6), CornerRadius = new CornerRadius(12), BorderThickness = new Thickness(1),
+                Background = brush("TafsPanel"), BorderBrush = brush("TafsLine"), HorizontalAlignment = HorizontalAlignment.Right,
+            };
+            AutomationProperties.SetName(chip, file.Name);
+            column.Children.Add(chip);
+        }
+        return column;
+    }
+
     /// <summary>Under an answer written while a card waited, as the iPad's <c>AnsweredCardLine</c>: "Answered the card above".</summary>
     public static TextBlock AnsweredCardLine() =>
         CoachPanel.Words(App.Words.Get("chat.answered_card_above"), 12, "TafsDimText", HorizontalAlignment.Right);

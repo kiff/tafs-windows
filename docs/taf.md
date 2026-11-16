@@ -20,7 +20,12 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
   "Worked for 12 s ›" above them, which opens its steps in the taf's words (`TafChat.ActivityWords`, the iPad's
   `tafActivityWords`: "Reading its notes…", "Asking KIFF to run stripe refund…"); where its result went above its words
   and what the run did under them, tafs cloud's lines in 13 soft; a refused connection's lines, the first in red. A
-  run's start is a centred line, "Run started 08:00 · …". With nothing in it, `chat.empty_named`; a read that doesn't
+  run's start is a centred line, "Run started 08:00 · …"; tafs cloud's lines are only ever around the taf's own words
+  (`ChatMessage.RunLines`, `RefusedLines`, the iPad's `runLines`, `refusedLines`). A message through one of the taf's
+  doors keeps its stamp (`ChatDoor`, the iPad's `DoorMark` and `DoorStamp`, mono 10, blue, red when not sent back): "BY
+  EMAIL · who" over it, on the right, and under the taf's answer how it went back ("↩ SENT BACK BY EMAIL · SAME
+  THREAD", "NOT SENT BACK · why", "GOES BACK BY EMAIL WHEN DONE"). The files sent with a message are drawn above its
+  words, each its name with its kind's mark, as `MessageFiles`; a message with only files keeps them. With nothing in it, `chat.empty_named`; a read that doesn't
   come keeps the thread there was and says "The thread couldn't be loaded." and why, in red at 13. A sample taf's
   thread is its greeting (`sample.hello`), with what it's doing as its Overview line says it. Coach's thread draws
   its bubbles, run starts and work the same way (`ChatViews`).
@@ -139,7 +144,8 @@ rules and totals.
 - **Chat's composer:** writing to the taf, its answer as it streams, Stop, Retry, a message not sent, and what's
   written while it works. They come in the next change, with reading the thread again while an answer is awaited.
 - **Chat's other items:** held calls in the thread and the Needs you pill, what became of an approved call, a door's
-  knocks, a setting handed to Coach, a run stopped at its cap, the answer's Report menu, and a connected tool's title
+  knocks, a setting handed to Coach, a run stopped at its cap, the answer's Report menu, opening a sent file full size
+  (it's named only, until its bytes are read), and a connected tool's title
   in its steps ("Asking KIFF: Create refund…", from planque's grants). The taf's words are drawn as written, not as
   Markdown, as Coach's are.
 - **What acts in Setup:** a connected app's sheet, the + to connect one, a Card-unit exception's Coach and Dismiss

@@ -35,10 +35,10 @@ public static class TafChat
 
     /// <summary>
     /// A sample taf's thread, as the iPad's <c>loadChat</c> in sample mode: its greeting, "Hi, I'm Refunds. I'm on it: …",
-    /// with what it's doing now, else that it's starting.
+    /// with what it's doing now, else the iPad's word for a taf with nothing set, Ready (<c>Models.swift</c>'s <c>now</c>).
     /// </summary>
     public static IReadOnlyList<ChatMessage> Sample(WordBook w, string name, string now, DateTimeOffset at) =>
-        [new(at, ChatFrom.Taf, false, w.Get("sample.hello", ("name", name), ("now", now.Length > 0 ? now : w.Get("taf.now.starting"))), "sample")];
+        [new(at, ChatFrom.Taf, false, w.Get("sample.hello", ("name", name), ("now", now.Length > 0 ? now : w.Get("taf.state.ready"))), "sample")];
 
     /// <summary>
     /// Under an empty thread, as the iPad's <c>Words.Chat.emptyNamed</c>: "Ask Refunds what it did, …", or "it" with no name.
