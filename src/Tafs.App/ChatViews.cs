@@ -42,14 +42,15 @@ static class ChatViews
     /// in its menu. Narrator reads it as one line, with Retry and Edit as its actions' buttons.
     /// </summary>
     public static StackPanel UnsentBubble(Tafs.Core.Words.WordBook w, Tafs.Core.Taf.UnsentMessage m, Func<string, Brush> brush, bool busy,
-        Action retry, Action edit, Action delete)
+        Action retry, Action edit, Action delete, Action? resume = null)
     {
         var box = new StackPanel { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0) };
         var bubble = OwnerBubble(m.Text, brush);
         bubble.Opacity = 0.6;
         box.Children.Add(bubble);
         var why = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right };
-        why.Children.Add(new FontIcon { Glyph = "", FontSize = 13, Foreground = brush("TafsNo"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0) });
+        // A halt's refusal has the iPad's raised hand; any other, its error mark.
+        why.Children.Add(new FontIcon { Glyph = resume is null ? "\uEA39" : "\uE768", FontSize = 13, Foreground = brush("TafsNo"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0) });
         why.Children.Add(new TextBlock { Text = Tafs.Core.Taf.Unsent.Line(w, m), FontSize = 13, Foreground = brush("TafsNo"), TextWrapping = TextWrapping.Wrap,
             TextAlignment = TextAlignment.Right, MaxWidth = 520 });
         box.Children.Add(why);
@@ -60,7 +61,18 @@ static class ChatViews
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = brush("TafsInk") };
         retryButton.Click += (_, _) => retry();
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(retryButton, "unsent.retry");
-        actions.Children.Add(editButton);
+        if (resume is not null)
+        {
+            // Retry can't pass a halt: Resume opens the Halt screen, where resuming is the person's act behind Windows Hello.
+            var resumeButton = new HyperlinkButton { Content = w.Get("taf.resume"), FontSize = 14, Padding = new Thickness(0),
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = brush("TafsInk") };
+            resumeButton.Click += (_, _) => resume();
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(resumeButton, "unsent.resume");
+            retryButton.FontWeight = Microsoft.UI.Text.FontWeights.Normal;
+            retryButton.Foreground = brush("TafsSoft");
+            actions.Children.Add(resumeButton);
+        }
+        else actions.Children.Add(editButton);
         actions.Children.Add(retryButton);
         box.Children.Add(actions);
         var menu = new MenuFlyout();
@@ -79,6 +91,11 @@ static class ChatViews
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(bubble, $"{m.Text}. {Tafs.Core.Taf.Unsent.Line(w, m)}");
         return box;
     }
+
+    /// <summary>A halted refusal's Resume: the window opens Halt's screen, for the taf by tafs cloud's id, or none for the account.</summary>
+    public static event Action<string?, string>? ResumeChosen;
+
+    public static void ChooseResume(string? taf, string name) => ResumeChosen?.Invoke(taf, name);
 
     /// <summary>
     /// A door's stamp, as the iPad's <c>DoorStamp</c>: mono 10 medium, two lines at most, blue, red when it wasn't sent back;

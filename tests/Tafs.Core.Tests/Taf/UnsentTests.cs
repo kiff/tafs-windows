@@ -14,6 +14,25 @@ public class UnsentTests
     public void It_says_not_sent_and_why_in_one_line() =>
         Assert.Equal("Not sent · Too busy.", Unsent.Line(En, UnsentMessage.Of("Hi", "Too busy.", DateTimeOffset.UnixEpoch)));
 
+    /// <summary>
+    /// A refusal for a halt names which (tafs cloud's <c>halted</c>): the account's Halt screen resumes it anywhere, a taf's only
+    /// in its own chat; a word tafs cloud doesn't send, or another refusal, offers no Resume.
+    /// </summary>
+    [Fact]
+    public void A_halted_refusal_is_resumed_on_its_own_halt_screen()
+    {
+        Assert.Equal("taf", CloudRead.Refused(En, 409, """{"words": "Refunds is halted.", "halted": "taf"}""").Halted);
+        Assert.Null(CloudRead.Refused(En, 409, """{"words": "x", "halted": "everything"}""").Halted);
+        Assert.Null(CloudRead.Refused(En, 503, """{"words": "x"}""").Halted);
+
+        UnsentMessage M(string? halted) => UnsentMessage.Of("Hi", "x", DateTimeOffset.UnixEpoch, halted);
+        Assert.Equal(HaltScreen.Account, Unsent.ResumesWith(M("account"), inTafChat: false));
+        Assert.Equal(HaltScreen.Account, Unsent.ResumesWith(M("account"), inTafChat: true));
+        Assert.Equal(HaltScreen.Taf, Unsent.ResumesWith(M("taf"), inTafChat: true));
+        Assert.Null(Unsent.ResumesWith(M("taf"), inTafChat: false));
+        Assert.Null(Unsent.ResumesWith(M(null), inTafChat: true));
+    }
+
     /// <summary>Retry takes it out where it was; not tried at all, it goes back to the same place, never lost.</summary>
     [Fact]
     public void Retry_takes_it_out_and_puts_it_back_in_its_place()

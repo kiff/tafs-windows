@@ -416,7 +416,8 @@ public sealed partial class AccountPage : Page
             }
             else
             {
-                problem.Text = w.Get("settings.time_zone.not_changed", ("why", answer.Why ?? w.Get("error.ours"))).Trim();
+                // The list wasn't read: said so, not that the zone didn't change, which nobody asked yet.
+                problem.Text = w.Get("common.could_not_read_why", ("what", w.Get("settings.time_zone_title")), ("why", answer.Why ?? w.Get("error.ours")));
                 problem.Visibility = Visibility.Visible;
             }
         }

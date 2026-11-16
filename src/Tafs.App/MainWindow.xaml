@@ -98,5 +98,7 @@
     </NavigationView>
     <!-- Coach mode: over everything, the sidebar too, as on the iPad. -->
     <local:CoachPanel x:Name="CoachMode" Visibility="Collapsed" />
+    <!-- Signed out, and the celebration after signing in: the whole window, over the app. -->
+    <Frame x:Name="Gate" Visibility="Collapsed" />
   </Grid>
 </Window>

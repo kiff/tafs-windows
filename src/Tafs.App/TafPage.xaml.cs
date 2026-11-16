@@ -228,7 +228,7 @@ public sealed partial class TafPage : Page
         if (refused is not null)
         {
             sent.Remove(pending);
-            unsent.Add(UnsentMessage.Of(text, refused, DateTimeOffset.UtcNow));
+            unsent.Add(UnsentMessage.Of(text, refused.Why, DateTimeOffset.UtcNow, refused.Halted));
             ShowChat();
             return false;
         }
@@ -272,14 +272,14 @@ public sealed partial class TafPage : Page
     /// then the thread read again. The stream not opening (not reached) sends it plainly, as the iPad's; a refusal is said,
     /// never sent again. A stream that breaks leaves the rest to the thread.
     /// </summary>
-    async Task<string?> StreamAsync(Tafs.Core.Words.WordBook w, string id, string text, TafStream stream,
+    async Task<Refusal?> StreamAsync(Tafs.Core.Words.WordBook w, string id, string text, TafStream stream,
         Func<string, byte[], Task<CloudRead>> send, TafOpening mine)
     {
         (int Status, string Body, System.Net.Http.HttpResponseMessage? Open) answer;
         try { answer = await stream(TafChatStream.Path(id), TafChatSend.Body(text), CancellationToken.None); }
         catch (System.Net.Http.HttpRequestException) { return await TafChatSend.SendAsync(w, id, text, send); }
         if (answer.Open is not { } open)
-            return CloudRead.Refused(w, answer.Status, answer.Body).Why ?? w.Get("error.ours");
+            return Refusal.Of(CloudRead.Refused(w, answer.Status, answer.Body), w.Get("error.ours"));
         using (open)
         {
             live = LiveAnswer.Start;
@@ -383,7 +383,14 @@ public sealed partial class TafPage : Page
         }
         // What tafs cloud didn't take, after the thread, where it was written.
         foreach (var m in unsent)
-            ChatPane.Children.Add(ChatViews.UnsentBubble(w, m, Brush, sending, () => RetryUnsent(m), () => EditUnsent(m), () => DeleteUnsent(m)));
+            ChatPane.Children.Add(ChatViews.UnsentBubble(w, m, Brush, sending, () => RetryUnsent(m), () => EditUnsent(m), () => DeleteUnsent(m),
+                // Refused for a halt: Resume opens the Halt screen that resumes it, the account's or this taf's.
+                Unsent.ResumesWith(m, inTafChat: true) switch
+                {
+                    HaltScreen.Account => () => ChatViews.ChooseResume(null, ""),
+                    HaltScreen.Taf when opening?.CloudId is { } taf => () => ChatViews.ChooseResume(taf, opening.Head.Name),
+                    _ => null,
+                }));
         if (chatError is { } why)
         {
             var error = CoachPanel.Words(why, 13, "TafsSoftText");

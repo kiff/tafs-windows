@@ -137,7 +137,9 @@ public sealed partial class CoachPanel
         // What tafs cloud didn't take, after it, where it was written.
         foreach (var m in coachUnsent)
             ThreadItems.Children.Add(ChatViews.UnsentBubble(App.Words, m, Brush, coachSending,
-                () => RetryCoachUnsent(m), () => EditCoachUnsent(m), () => DeleteCoachUnsent(m)));
+                () => RetryCoachUnsent(m), () => EditCoachUnsent(m), () => DeleteCoachUnsent(m),
+                // Refused because the account is halted: Resume opens Halt all, Coach mode closing first.
+                Unsent.ResumesWith(m, inTafChat: false) is HaltScreen.Account ? () => { Close(); ChatViews.ChooseResume(null, ""); } : null));
         Intro.Visibility = Visibility.Collapsed;
         ChatsView.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Visible;
@@ -259,7 +261,7 @@ public sealed partial class CoachPanel
         if (refused is not null)
         {
             coachSent.Remove(pending);
-            coachUnsent.Add(UnsentMessage.Of(text, refused, DateTimeOffset.UtcNow));
+            coachUnsent.Add(UnsentMessage.Of(text, refused.Why, DateTimeOffset.UtcNow, refused.Halted));
             ShowConversation();
             return false;
         }
