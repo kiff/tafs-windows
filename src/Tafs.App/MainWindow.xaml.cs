@@ -38,6 +38,9 @@ public sealed partial class MainWindow : Window
     /// KIFF's lasting refusals by hold, and the holds whose answer is on its way.
     /// </summary>
     bool managesCards = true;
+
+    /// <summary>KIFF's capabilities for the person, from <c>GET /v1/me</c>: "Allow this from now on" waits for <c>holds.allow</c>.</summary>
+    IReadOnlyList<string>? capabilitiesRead;
     readonly Dictionary<string, string> lastingRefusals = [];
     readonly HashSet<string> sendingHolds = [];
 
@@ -163,6 +166,7 @@ public sealed partial class MainWindow : Window
         NeedsYouPage.AddThisDeviceChosen += OpenPairing;
         NeedsYouPage.StepAnswerChosen += (step, done) => _ = AnswerStepAsync(step, done);
         NeedsYouPage.HeldAnswerChosen += (call, answer) => _ = AnswerHeldAsync(call, answer);
+        NeedsYouPage.AllowChosen += call => _ = OpenAllowAsync(call);
         Toasts.HoldChosen += hold => DispatcherQueue.TryEnqueue(() => OpenHold(hold));
         heldClock.Tick += (_, _) =>
         {
@@ -360,7 +364,7 @@ public sealed partial class MainWindow : Window
         // Who answers, and who manages Cards, as the iPad's mayAnswerHolds and canManageCards: KIFF's capabilities on /v1/me.
         var capabilities = Tafs.Core.Coach.CoachAccess.Capabilities((await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer);
         if (reading != sessions) return;
-        (mayAnswerHolds, managesCards) = (DidThisHappen.MayAnswerHolds(capabilities), capabilities?.Contains("cards.manage") ?? true);
+        (mayAnswerHolds, managesCards, capabilitiesRead) = (DidThisHappen.MayAnswerHolds(capabilities), capabilities?.Contains("cards.manage") ?? true, capabilities);
         var answer = (await read(KiffHeld.Path)).Answer;
         if (reading != sessions || answer is not { } json || KiffHeld.Read(json) is not { } holds) return;
         var tafs = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => (g.First().Name, g.First().Colour));
@@ -408,7 +412,7 @@ public sealed partial class MainWindow : Window
         // Read into locals first: an answer from an earlier session never replaces this one's, as the iPad's accountGeneration.
         var capabilities = Tafs.Core.Coach.CoachAccess.Capabilities((await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer);
         if (reading != sessions) return;
-        (mayAnswerHolds, managesCards) = (DidThisHappen.MayAnswerHolds(capabilities), capabilities?.Contains("cards.manage") ?? true);
+        (mayAnswerHolds, managesCards, capabilitiesRead) = (DidThisHappen.MayAnswerHolds(capabilities), capabilities?.Contains("cards.manage") ?? true, capabilities);
         ShowHeld(held);
         if (mayAnswerHolds && (await read(DidThisHappen.Path)).Answer is { } json && reading == sessions && DidThisHappen.Read(json) is { } calls)
             unproven = calls;
@@ -422,7 +426,64 @@ public sealed partial class MainWindow : Window
         if (sampleHeld || App.Sessions.Kept() is not { } session) return HeldAnswering.None;
         var hasKey = TpmKey.Exists(session.KeyName);
         return new(mayAnswerHolds, call => HeldAnswers.CanAnswer(call, session.Tenant, hasKey), HeldAnswers.Approves(session.Mode, session.PasskeyId),
-            managesCards, lastingRefusals, sendingHolds);
+            managesCards, lastingRefusals, sendingHolds, call => HoldAllow.Offers(call, capabilitiesRead, managesCards, TafOf(call)));
+    }
+
+    /// <summary>The held call's taf in tafs cloud, by its agent, as the iPad's <c>cloudTaf(for:)</c>: none for one no taf has.</summary>
+    string? TafOf(HeldCall call) =>
+        call.Agent is { } agent ? home?.Tafs.FirstOrDefault(t => t.Agent == agent)?.Id : null;
+
+    /// <summary>
+    /// "Allow this from now on" on a held call, as the iPad's <c>openAllow</c>, <c>loadAllow</c> and <c>confirmAllow</c>: tafs
+    /// cloud's offer made on the tap, KIFF's draft read by this PC, and one Windows Hello, this PC's passkey asserting the
+    /// draft's confirm itself (with the held call when the switch is on). A sign-out meanwhile closes the sheet; taken, Needs
+    /// you and Home read again.
+    /// </summary>
+    async Task OpenAllowAsync(HeldCall call)
+    {
+        var w = App.Words;
+        if (sampleHeld || App.Sessions.Kept() is not { } session || call.KiffId is null) return;
+        var reading = sessions;
+        var bearer = session.AccessToken;
+        var taf = TafOf(call);
+        var calls = new AllowCalls(
+            async round =>
+            {
+                if (taf is null) return (null, w.Get("needs_you.answer_not_taken"), false);
+                var (read, why) = await HoldAllow.ReadAsync(w, taf, call, round,
+                    async (path, body) =>
+                    {
+                        try { return await CloudSendAsync(bearer, path, body); }
+                        catch (TaskCanceledException) { return CloudRead.Unreached(w); }
+                    },
+                    async path =>
+                    {
+                        // KIFF's draft; its refusal in the app's plain words (a 401 is signed out), as the iPad's kiff.draft(id:) and PlainError.
+                        try
+                        {
+                            var (status, answer) = await KiffHttp.GetAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), bearer, w.Language);
+                            return status is >= 200 and <= 299 ? Answered(w, status, answer)
+                                : new CloudRead(null, Tafs.Core.Kiff.KiffErrors.Words(w, status), status);
+                        }
+                        catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException) { return CloudRead.Unreached(w); }
+                    },
+                    () => reading == sessions);
+                return (read, why, reading != sessions);
+            },
+            async (sheet, body) =>
+            {
+                var confirmed = await HoldAllow.ConfirmAsync(w, sheet.Draft!.Id, body,
+                    (path, signed) => HoldAllow.SignConfirmAsync(session,
+                        session.PasskeyId is { } id ? new PasskeyApprover(new WindowsHello(() => App.WindowHandle), KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals) : null,
+                        path, signed, SigningTime.Next(DateTimeOffset.UtcNow)),
+                    (path, signed, signature) => KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), signed, bearer, w.Language, signature: signature),
+                    () => reading == sessions, SessionStore.Why);
+                // The Card changed, and with the switch on the call went: Needs you and Home read again.
+                if (confirmed.Done && cloudRead is { } again) _ = ReadHomeAsync(again);
+                return confirmed;
+            },
+            HeldAnswers.Approves(session.Mode, session.PasskeyId), OpenPairing);
+        await AllowDialog.ShowAsync(Root.XamlRoot, Root.ActualTheme, call, calls);
     }
 
     /// <summary>
@@ -678,6 +739,8 @@ public sealed partial class MainWindow : Window
         mayAnswerHolds = true;
         listedSteps = [];
         managesCards = true;
+        capabilitiesRead = null;
+        AllowDialog.Close();
         lastingRefusals.Clear();
         sendingHolds.Clear();
         answeredSteps.Clear();

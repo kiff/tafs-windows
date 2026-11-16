@@ -40,8 +40,52 @@ As the iPad's `HeldCallCard.answers`, for how Windows signs (`HeldAnswers`, belo
   and the next steps.
 - While an answer is on its way, the card's answers are off. Taken, the call leaves Needs you and Home is read again.
   Not taken, why shows at the top of Needs you, in red.
-- **Not yet:** Allow this from now on (`AllowSheetView`); Change the limit in Coach mode, with improving a taf; installing
-  the version Coach's hold names; and asking tafs cloud to continue the run at once (KIFF's alert continues it).
+- **Allow this from now on**, below, for someone who manages Cards.
+- **Not yet:** Change the limit in Coach mode, with improving a taf; installing the version Coach's hold names; and asking
+  tafs cloud to continue the run at once (KIFF's alert continues it).
+
+## Allow this from now on (`HoldAllow`, `AllowSheet`, `AllowDialog`)
+
+As the iPad's `HoldAllow`, `AllowSheetView` and `AppModel`'s `openAllow`, `loadAllow` and `confirmAllow`:
+- **The button** ("Allow this from now on", outlined, under Approve once or Extra room) shows from the held call itself,
+  with no request (`HoldAllow.Offers`). It needs all of these:
+  - KIFF's `holds.allow` among the person's capabilities on `GET /v1/me`. No list means no button, so nobody taps into a
+    route that isn't there yet.
+  - `cards.manage`.
+  - A listed taf's hold, its taf found in tafs cloud by its agent.
+  - A KIFF hold whose every breach a Card change can lift: `per_action_exceeded`, `limit_reached` or
+    `resource_not_on_card`.
+  - Windows doesn't mark Coach's install hold yet, which the iPad leaves out (`call.install`). That waits for the install
+    step.
+- **The sheet**, a dialog:
+  - **Opening it** asks tafs cloud for the offer on that tap: `POST /v1/tafs/{taf}/holds/{exception}/allow` with `{}`.
+  - **No offer** (a `none`, whatever its reason): tafs cloud's words, and nothing to sign.
+  - **An offer** shows each change before → after in tafs cloud's words, then KIFF's own lines for each Card that changes,
+    then what it would have done.
+  - **KIFF's draft**, `GET /v1/me/agent-drafts/{id}`, is read by this PC and signed only when it's what was offered
+    (`HoldAllow.Matches`):
+    - it's the hold's agent's and, when KIFF says, made from this hold;
+    - it retires no Card and adds none;
+    - each changed Card is one the offer names and reads exactly as the Card in force with the one change made. That's a
+      cap on the held action or a total moved from its figure before to its figure after, in the same unit (and window
+      when named), or one value added to the held action's scope;
+    - every other term is the same, and so is a Card marked unchanged.
+    - Anything else reads "This change isn't what was offered.", with no button.
+  - **"Let this one go out too"**, on unless the offer says. With it off, the sheet says the call still waits for its own
+    answer.
+  - **Round up to {amount}**, when the offer names a rounded figure: tafs cloud makes that draft (`{"round": true}`),
+    shown and checked the same way, and the switch stays as it was. The app never rounds.
+  - **A read that fails** says "Couldn't read this version's Card." with why.
+- **One Windows Hello:** this PC's passkey asserts the draft's confirm itself (`KIFF-Passkey-Assertion` on
+  `POST /v1/me/agent-drafts/{id}/confirm`). It signs the version this PC read and, with the switch on,
+  `"hold": {"id", "accounting_version"}` at the version the person saw, which KIFF lets go under the same signature.
+  - With the switch on and no version, nothing is signed ("KIFF doesn't take your answer to this one.").
+  - A session that doesn't approve with this PC's passkey keeps the gate (why, and Add this Windows PC) where Approve would
+    be.
+  - Closing Windows Hello sends nothing and leaves the sheet as it was.
+- **Taken,** the sheet closes and Home and Needs you read again. **Refused,** why shows in the sheet in the app's plain
+  words for KIFF's status (`KiffErrors.Words`, as the iPad's `PlainError`), never KIFF's own text. A sign-out meanwhile
+  closes it.
 
 ## Your step (`YourSteps`, `YourStep`)
 

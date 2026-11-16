@@ -79,6 +79,9 @@ public sealed partial class NeedsYouPage : Page
     /// <summary>An answer chosen on a held call.</summary>
     public static event Action<HeldCall, HeldAnswer>? HeldAnswerChosen;
 
+    /// <summary>"Allow this from now on" chosen on a held call.</summary>
+    public static event Action<HeldCall>? AllowChosen;
+
     /// <summary>Who's answering and how this PC answers, for the held calls' answers; set by the window before it draws them.</summary>
     internal static HeldAnswering Answering { get; set; } = HeldAnswering.None;
 
@@ -175,6 +178,14 @@ public sealed partial class NeedsYouPage : Page
                 // Over a total the Card keeps across calls: approving once can't pass it; extra room can, for this call.
                 panel.Children.Add(Line(w.Get(a.ManagesCards ? "needs_you.over_total_manager" : "needs_you.over_total"), 13, "TafsSoftText"));
                 if (a.ManagesCards) panel.Children.Add(Approve(w, call, new HeldAnswer.ExtraRoom(), "needs_you.extra_room_with", sending));
+            }
+            // A third answer, for someone who manages Cards: change the Card so calls like this go on their own. Shown from
+            // the held call itself, as the iPad's offersAllow.
+            if (a.OffersAllow(call))
+            {
+                var allow = Button(w.Get("needs_you.allow_from_now_on"), "TafsOutlineButton", sending);
+                allow.Click += (_, _) => AllowChosen?.Invoke(call);
+                panel.Children.Add(allow);
             }
         }
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };

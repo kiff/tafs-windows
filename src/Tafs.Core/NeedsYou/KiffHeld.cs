@@ -281,6 +281,7 @@ public static class KiffHeld
             e.NextSteps ?? [], TafWords(e.TafAbout, 120), TafWords(e.TafReason, 280))
         {
             Details = Details(e), KiffId = e.Id, AccountingVersion = e.AccountingVersion, ApprovableOnce = e.CanApproveOnce ?? true,
+            Action = e.Action, Agent = e.Subject, BreachOutcomes = e.Breaches.Select(b => b.Outcome).ToList(),
             Install = InstallOf(e),
         };
     }
