@@ -31,6 +31,8 @@ public sealed partial class SignedOutPage : Page
     /// <summary>Continue: KIFF's device code, in this half, as the sign-in page starts it.</summary>
     void OnContinue(object sender, RoutedEventArgs e)
     {
+        // One at a time: the phone's half stops, its claim with it, so two sign-ins never land together.
+        Stop(RightFrame, RightIntro);
         LeftIntro.Visibility = Visibility.Collapsed;
         LeftFrame.Visibility = Visibility.Visible;
         LeftFrame.Navigate(typeof(SignInPage), SignInPage.StartNow);
@@ -39,9 +41,21 @@ public sealed partial class SignedOutPage : Page
     /// <summary>Show the code: the pairing page in this half, which asks Windows Hello once for this PC's passkey, then shows the QR.</summary>
     void OnShowCode(object sender, RoutedEventArgs e)
     {
+        // One at a time: KIFF's code in the other half stops, so two sign-ins never land together.
+        Stop(LeftFrame, LeftIntro);
         RightIntro.Visibility = Visibility.Collapsed;
         RightFrame.Visibility = Visibility.Visible;
         RightFrame.Navigate(typeof(PairingPage));
+    }
+
+    /// <summary>A half back to its start: its page goes (it cancels what it was waiting for as it unloads), and its button shows again.</summary>
+    static void Stop(Frame half, UIElement intro)
+    {
+        if (half.Content is null) return;
+        half.Content = null;
+        half.BackStack.Clear();
+        half.Visibility = Visibility.Collapsed;
+        intro.Visibility = Visibility.Visible;
     }
 
     /// <summary>Side by side, or stacked under a narrow width, as the mockup's two windows.</summary>

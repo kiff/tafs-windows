@@ -42,7 +42,7 @@ the `pairing` part.
 
 ## Signed out, the whole window (`SignedOut`, `SignedOutPage`, `ConnectedPage`)
 
-The owner's approved mockup (16 Nov, Drive `current/2026-11-16-watch-ios-tafs-sign-in-mockup`), as the iPad's and the
+The approved mockup (16 Nov), as the iPad's and the
 Mac's `SignInView` (tafs#1240), on tafs#1232's words.
 
 - **When:** with no session at launch, and after a sign-out, the whole window signs in, over the app; never the app with
@@ -53,6 +53,8 @@ Mac's `SignInView` (tafs#1240), on tafs#1232's words.
   - **Sign in with your phone,** with **Show the code** and "Scan with tafs". Windows only: the code waits for this tap, so
     Windows Hello asks for this PC's passkey then, never as the window opens. The tap opens the pairing page in this half
     ([pairing](pairing.md)): one Windows Hello, then the QR and its check code. A new code is a tap too.
+  - **One at a time:** starting one half stops the other (its page goes, and with it its code or its claim), so two
+    sign-ins never land together and one never replaces the other's session.
 - **The drawings** are shapes only, with no word, letter or number in them (rule 14): a screen with its button and a lock,
   and a phone scanning a code. Every word is a shared key.
 - **The celebration:** either way of signing in ends on it, over the app (`SignedOut.AfterSignIn`, the iPad's
