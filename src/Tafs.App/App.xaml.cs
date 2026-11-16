@@ -87,5 +87,43 @@ public partial class App : Application
         WindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(window);
         window.Activate();
         if (startedAt is not null) window.OpenHold(startedAt);
+        if (screenshot is null) ListenForReturns();
+    }
+
+    /// <summary>
+    /// planque's return from a vendor's sign-in (<c>tafs://planque/signed-in?…</c>), for whatever waits on it. Raised on the
+    /// window's thread; what isn't a sign-in's return is ignored.
+    /// </summary>
+    public static event Action<Tafs.Core.Kiff.PlanqueSignedIn>? SignedInReturned;
+
+    /// <summary>
+    /// The window as the one tafs: Windows hands it the <c>tafs:</c> scheme (registered for this user, as Windows App SDK
+    /// does for an app that isn't packaged), and every later start's activation, brought to the front. A start that was
+    /// itself a return passes it on.
+    /// </summary>
+    void ListenForReturns()
+    {
+        var me = Microsoft.Windows.AppLifecycle.AppInstance.GetCurrent();
+        try
+        {
+            Microsoft.Windows.AppLifecycle.ActivationRegistrationManager.RegisterForProtocolActivation(
+                Tafs.Core.Kiff.PlanqueSignIn.Scheme, "", "tafs", Environment.ProcessPath ?? "");
+        }
+        // A packaged build declares its scheme in its manifest instead; registering again is refused there.
+        catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException or UnauthorizedAccessException) { }
+        me.Activated += (_, activation) => window?.DispatcherQueue.TryEnqueue(() =>
+        {
+            window.Activate();
+            Returned(activation);
+        });
+        Returned(me.GetActivatedEventArgs());
+    }
+
+    static void Returned(Microsoft.Windows.AppLifecycle.AppActivationArguments activation)
+    {
+        if (activation.Kind == Microsoft.Windows.AppLifecycle.ExtendedActivationKind.Protocol
+            && activation.Data is Windows.ApplicationModel.Activation.IProtocolActivatedEventArgs protocol
+            && Tafs.Core.Kiff.PlanqueSignIn.Read(protocol.Uri) is { } signedIn)
+            SignedInReturned?.Invoke(signedIn);
     }
 }
