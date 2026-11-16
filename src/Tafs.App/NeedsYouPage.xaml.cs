@@ -88,6 +88,9 @@ public sealed partial class NeedsYouPage : Page
     /// <summary>Done (true) or Skip on a step.</summary>
     public static event Action<YourStep, bool>? StepAnswerChosen;
 
+    /// <summary>Check again, on a step while Windows Hello isn't ready: the window asks Hello again and draws the steps.</summary>
+    public static event Action? HelloCheckChosen;
+
     /// <summary>F5: Needs you read again, the Windows form of the iPad's pull-to-refresh.</summary>
     public static event Action? RefreshChosen;
 
@@ -245,7 +248,7 @@ public sealed partial class NeedsYouPage : Page
     /// vouched for its link, with its host under it, 12 mono dim; Done and Skip only when this PC can answer, off while
     /// answering.
     /// </summary>
-    internal void ShowSteps(IReadOnlyList<YourStep> listed, bool canAnswer, IReadOnlySet<string> answering)
+    internal void ShowSteps(IReadOnlyList<YourStep> listed, bool canAnswer, IReadOnlySet<string> answering, HelloReadiness hello = HelloReadiness.Ready)
     {
         steps = listed;
         Steps.Children.Clear();
@@ -273,7 +276,9 @@ public sealed partial class NeedsYouPage : Page
                 var host = new TextBlock { Text = link.Host, FontSize = 12, FontFamily = new FontFamily("Cascadia Mono, Consolas"), Style = (Style)Application.Current.Resources["TafsDimText"] };
                 lines.Children.Add(new StackPanel { Spacing = 4, Children = { open, host } });
             }
-            if (canAnswer)
+            // Answering confirms with Windows Hello: until it's ready, why, in place of Done and Skip, as the iPad's ApprovalNotReady.
+            if (canAnswer && YourSteps.NotReady(App.Words, hello) is { } notReady) lines.Children.Add(HelloNotReadyView(notReady));
+            else if (canAnswer)
             {
                 var busy = answering.Contains(step.Handoff);
                 // The iPad's PrimaryButtonStyle, and its look while off, as Coach's Send answers.
@@ -292,6 +297,34 @@ public sealed partial class NeedsYouPage : Page
             Steps.Children.Add(card);
         }
         ShowEmpty();
+    }
+
+    /// <summary>
+    /// Hello not ready, as the iPad's <c>ApprovalNotReady</c>: the line, then Open Settings (Windows' sign-in options) where
+    /// setting Hello up is the way, and Check again.
+    /// </summary>
+    UIElement HelloNotReadyView(HelloNotReady notReady)
+    {
+        var w = App.Words;
+        var box = new StackPanel { Spacing = 8 };
+        var line = Line(notReady.Line, 14, "TafsInkText");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(line, "approvalNotReady");
+        box.Children.Add(line);
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+        if (notReady.OpensSettings)
+        {
+            var open = new Button { Content = w.Get("voice.open_settings"), Style = (Style)Application.Current.Resources["TafsPrimary"] };
+            open.Click += (_, _) => _ = Windows.System.Launcher.LaunchUriAsync(YourSteps.HelloSettings);
+            buttons.Children.Add(open);
+        }
+        if (notReady.ChecksAgain)
+        {
+            var again = new Button { Content = w.Get("approval.check_again"), Style = (Style)Application.Current.Resources["TafsOutlineButton"] };
+            again.Click += (_, _) => HelloCheckChosen?.Invoke();
+            buttons.Children.Add(again);
+        }
+        if (buttons.Children.Count > 0) box.Children.Add(buttons);
+        return box;
     }
 
     /// <summary>

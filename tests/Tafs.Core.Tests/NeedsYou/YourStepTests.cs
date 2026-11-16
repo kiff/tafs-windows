@@ -192,4 +192,20 @@ public class YourStepTests
         Assert.Equal((StepAnswered.Stopped, null), await signedOut.Answer_(step, true));
         Assert.Null(signedOut.Posted);
     }
+
+    /// <summary>
+    /// As the iPad's <c>ApprovalNotReady</c>: while Hello can't confirm, the step says so in place of Done and Skip; Open
+    /// Settings only when Hello isn't set up, and Check again unless this PC has no Hello to use.
+    /// </summary>
+    [Fact]
+    public void A_step_says_Hello_isnt_ready_in_place_of_its_answers()
+    {
+        var w = WordBook.Load(SharedFiles.Strings, "en");
+        Assert.Null(YourSteps.NotReady(w, HelloReadiness.Ready));
+        const string line = "Set up Windows Hello (a PIN is enough) to answer here, or answer on your phone.";
+        Assert.Equal(new HelloNotReady(line, OpensSettings: true, ChecksAgain: true), YourSteps.NotReady(w, HelloReadiness.NotSetUp));
+        Assert.Equal(new HelloNotReady(line, OpensSettings: false, ChecksAgain: true), YourSteps.NotReady(w, HelloReadiness.Busy));
+        Assert.Equal(new HelloNotReady(line, OpensSettings: false, ChecksAgain: false), YourSteps.NotReady(w, HelloReadiness.Unsupported));
+        Assert.Equal("ms-settings:signinoptions", YourSteps.HelloSettings.OriginalString);
+    }
 }
