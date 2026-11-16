@@ -10,9 +10,18 @@ changed, over whatever is open. The core is `Tafs.Core.Coach.CoachScreen`; the w
   - It's on the background, with a soft shadow at its left edge (the iPad's: black at 18%, 24 out).
     A 16-wide strip down its left holds the handle. Coach's own wash is only under the intro, padded 20.
   - Behind it, a backdrop of black at 12% closes it on a tap, as Back and Escape do.
-  - ⤢ makes it full screen and brings it back to a third, its edge moving over the same 0.22 s.
+  - ⤢ makes it full screen and brings it back to the width it had, its edge moving over the same 0.22 s.
+  - **Its width,** as the iPad's handle: the left strip drags it wider (to the left) or narrower, never below a third, the
+    width it opens at. Ending within 40 of the window's width makes it full screen; ending more than 60 narrower than a
+    third closes it, and it opens again at the width it had. The arrow keys on the strip do the same, a tenth of the window
+    at a time, without closing it. Narrator reads it as "Coach mode's width" with "Drag to make it wider or narrower", and
+    the pointer shows a resize arrow over it (`CoachScreen.Dragged`, `CoachScreen.Dragging`).
+  - **Kept for the next time,** as the iPad's `coach.width` and `coach.full`: the share of the window and full screen, in
+    `%LOCALAPPDATA%\tafs\coach-width` (`CoachWidth`). Anything else there opens it at a third.
   - Focus moves to Back when it opens, and back to the sidebar's Coach when it closes.
 - **The toolbar:** on the background, as the iPad's bar. Full screen and Back, in Coach's blue, on a pill; the title "Coach" in the middle.
+  Back's tooltip says "Close Coach mode". Once Coach is there, for someone who may use it, New conversation (✎) and Coach's
+  conversations (⋯) on a pill on the right, as the iPad's.
 - **Before Coach starts,** the iPad's intro (`SetupChatView.introBefore`):
   - "Coach mode", 30 bold, in Coach's blue;
   - the line naming how this PC asks ("You approve with Windows Hello");
@@ -38,7 +47,8 @@ Ported from the iPad's `AppModel.startSetup`, which its Start calls (`SetupChatV
        full first (body and `signed_at`, `SigningTime.Next`'s, milliseconds kept as written in the message and in `t=`),
        as the iPad's prepared requests are. With Coach already there, it confirms over `tafs.setup.v1|{tenant}`, the
        iPad's message.
-     - Closing Windows Hello, or one that doesn't verify, stops quietly, as the iPad's failed Face ID.
+     - Closing Windows Hello sends nothing and says "Cancelled. Nothing changed." under the intro (`approval.cancelled`).
+       One that doesn't verify, or a sign-out meanwhile, stops quietly, as the iPad's failed Face ID.
   3. **planque**, unless this session set it up already (`planqueReady`, kept until sign-out): `PlanqueEnrolment` with
      the session's TPM key (`keys.md`).
   4. **Setup's draft**, as the iPad's `submitNoToolsDraft`: `POST /v1/me/agent-drafts` with
@@ -152,6 +162,9 @@ work, where the iPad's decoder fails the thread.
       `connecting`.
     - **Windows Hello's dialog** doesn't show tafs cloud's `reason`, which the iPad's Face ID prompt shows; it names the
       app and the passkey, as for Start.
+    - **Closed,** nothing is approved and the card says so: "Cancelled, so nothing was approved. The request is kept:
+      approve again when you're ready.", as Refuse and Your step do. Start Coach's closed prompt says "Cancelled. Nothing
+      changed." once that word is on the pin (kiff/tafs#1225); until then it says nothing.
     - **tafs cloud decides first.** This PC sends what the card showed (the grant, the digest and the Card's version
       shown, its conversation) with planque's read proof (`POST …/components/{card}/approval`). If tafs cloud answers
       Coach itself (`answered`) or the card is out of date (`read_again`), the card shows its note and the thread is read
@@ -195,6 +208,38 @@ work, where the iPad's decoder fails the thread.
 - `--home` with `--page coach` reads tafs cloud's contracts beside the Home file: `setup-coach.json`, `coach-chats.json`
   and `coach-conversation.json`. CI saves Coach's thread that way (`coach-home`), and `CoachContractTests` read them.
 
+## Conversations and writing to Coach (`CoachChats`, `CoachSend`)
+
+- **Which conversation shows,** as the iPad's `setupChat` and `setupFresh` (`CoachConversation`): at first the newest, by
+  when it was updated (`…/chats`, then `…/conversation/{session}`); one reopened from the list, read alone by its session;
+  or a new one, which has nothing to read until its first message.
+- **Once Coach is there,** its conversation shows in place of the intro when it has messages, once Start started it here,
+  or once a conversation is chosen. With nothing in it, what Coach is for: "Ask anything about your tafs" and "Set up a new
+  taf, connect an app, or change how one works."
+- **New conversation (✎),** as the iPad's `newConversation`: an empty one, its cards' state left behind. One that's already
+  empty stays, with what's typed. Focus goes to the box.
+- **Previous conversations (⋯),** as the iPad's `SetupChatsList`, in the panel with "‹ Back":
+  - each conversation by what was asked first (two lines at most) and when it was last updated ("16 Oct 2026, 14:01", in
+    this PC's zone and the app's language), the one shown marked; a click reopens it;
+  - **Archive** beside each asks first ("Archive this conversation?", with the iPad's line), then
+    `POST …/chats/{session}/archive`. The one shown, archived, gives way to a new conversation. Not taken: "Not archived."
+    and why, at the top;
+  - **Archived** at the end lists `…/chats/archived`, each reopened with a click or put back with **Put back**
+    (`…/unarchive`); not taken: "Not put back." and why;
+  - none: "No conversations yet." or "Nothing archived."; a list unread: "The conversation couldn't be loaded:" and why.
+- **The box,** as the iPad's composer, for someone who may use Coach: "Ask anything about your tafs" ("Write the next
+  message" while Coach works), and Send; Ctrl+Enter sends, Enter alone is a new line.
+  - Checked first, as a taf's chat: nothing to send says nothing; past 2000 characters, "That's longer than 2000 characters."
+  - Shown at once on the right, then `POST /v1/tafs/{coach}/messages` with `text`, and `session` for the conversation
+    shown or `new_chat: true` for a new one, always with `new_chat_after_handover: true` (the iPad's `setupTarget`).
+  - **Sent:** the conversation tafs cloud names (`session`) is the one shown from then on, a new one after a hand-over
+    included. The thread is read again, every 2 s while Coach works or a sent message waits, only while the panel is open.
+  - **Not taken:** it leaves the thread, its words go back in the box, and "The message wasn't sent." with why shows over it.
+- **Words handed to Coach** (`CoachPanel.Write`): Coach opens with them in its box to edit and send, and nothing is sent.
+  In a new conversation for a job's Try it with Coach (the iPad's `handRecipeToCoach`), in the one shown for a brief's
+  next move (its `startNextMove`).
+- **Signed out,** it's the newest conversation again, with nothing sent or chosen here.
+
 ## Reporting an answer (`AnswerReport`, `ReportAnswerDialog`)
 
 Ported from the iPad's `ReportAnswerSheet` and `reportable`, `AppModel.canReport`/`reportAnswer`/`ReportOutcome` and
@@ -215,7 +260,6 @@ a second reference.
 
 **Not yet:**
 - **Coach's words as Markdown:** they show as written until `MarkdownText` is ported.
-- **A Coach with an empty thread:** the iPad shows `starts` ("Ask anything"); here the intro stays until writing is ported.
 - **See version 3,** which opens the taf's Versions on the iPad: Versions aren't ported, so the made line shows instead,
   as the iPad does when it can't find the taf.
 - **Coach's other cards** (sign-ins), connecting an app from an approval, and the conversation read's proof and `?can=`
@@ -223,14 +267,15 @@ a second reference.
 - **After an answer:** the iPad follows the run's stream as it writes; here the thread is read again, until the stream is
   ported. The AI-data consent's screen isn't ported, so a refusal for it leaves the card as it was, with no line.
 - **A drive's end** (what Coach did in the app, `DriveRecap`), placed in the thread on the iPad: with drives.
-- **Writing to Coach:** the composer, sending, the stream, Stop, unsent and queued messages, steering, reading again.
+- **Writing to Coach, the rest:** the stream as Coach writes (here the thread is read again every 2 s), Stop, unsent and
+  queued messages with Edit and Retry, steering, files and dictation, `starts` and its recipes, and the AI-data consent's
+  screen on a refusal for it.
 - **Starting Coach, the rest of `startSetup`:**
   - the tools step for a first start without tafs cloud's words (`CoachToolsStep`), and its Not now;
   - KIFF's alerts (`keepKIFFAlerts`);
   - the tools step (`loadCoachTools`);
   - keeping planque's enrolment across launches (the iPad's Keychain `planqueTenant`). Here it's asked again after each
     sign-in, and planque keeps its key (`kept`), so nothing is minted;
-  - then the recipes, New conversation and the previous conversations (the iPad's ✎ and ⋯);
+  - then the recipes;
   - "Taking shape" beside a wide chat.
-- **Dragging the edge** to choose the panel's width, and keeping it and full screen for the next time.
 - **The backdrop as a button** for Narrator: it has its name, but a tap is the only way to use it. Back and Escape close Coach from the keyboard.

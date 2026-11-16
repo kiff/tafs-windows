@@ -142,7 +142,7 @@ public class CoachStartTests
     public async Task Windows_Hello_closed_or_refused_sends_nothing()
     {
         var stubs = new Stubs { Hello = () => throw new OperationCanceledException() };
-        Assert.Equal(new StartResult(StartOutcome.Cancelled), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
+        Assert.Equal(new StartResult(StartOutcome.Cancelled, "Cancelled. Nothing changed."), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
         Assert.Equal(["read"], stubs.Calls);
 
         stubs = new Stubs { Hello = () => throw new PasskeyRefusedException("Windows Hello didn't verify the person") };
@@ -150,7 +150,7 @@ public class CoachStartTests
         Assert.Equal(["read"], stubs.Calls);
 
         stubs = new Stubs { Setup = Json(HasCoach), Hello = () => throw new OperationCanceledException() };
-        Assert.Equal(new StartResult(StartOutcome.Cancelled), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
+        Assert.Equal(new StartResult(StartOutcome.Cancelled, "Cancelled. Nothing changed."), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
         Assert.Equal(["read"], stubs.Calls);
     }
 
@@ -271,7 +271,7 @@ public class CoachStartTests
     public async Task Closing_Hello_on_the_pair_and_an_undrawn_start_send_nothing()
     {
         var stubs = new Stubs { Setup = CloudRead.Of(Contract("setup-start.json")), Hello = () => throw new OperationCanceledException() };
-        Assert.Equal(new StartResult(StartOutcome.Cancelled), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
+        Assert.Equal(new StartResult(StartOutcome.Cancelled, "Cancelled. Nothing changed."), await stubs.Run(Session(ApprovalMode.Passkey, "AQI")));
         Assert.Equal(["read"], stubs.Calls);
 
         var json = Node(Contract("setup-start.json"));
