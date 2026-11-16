@@ -21,6 +21,8 @@ One sidebar for the whole app, as on the iPad ([the sidebar and the Overview](ho
 
 The chosen screen opens beside it. The colours are the iPad's `Theme.swift`, light and dark (`Theme.xaml`), and they follow Windows' setting. The chosen row is a rounded fill, as on the iPad.
 
+The app's icon is the mascot (`Assets/tafs.ico`, 16 to 160 px, made from `mascot.png`), in Start, the taskbar and the title bar.
+
 The shared controls are the iPad's:
 - **An outline button** (Pause, Connect, Add this Windows PC, Revoke) is the iPad's `OutlineLook`: its edge in the ink at 40% (`TafsInkLine`), 48 high. Revoke's edge is the red at 40% (`TafsNoLine`).
 - **A segmented control** (Day / Week / Month, Last / This period, Theme, a taf's tabs) is the system's: a capsule track in the system grey (radius 17), and a capsule segment (radius 15). In dark the chosen segment is the system's #636366, so it stands out from the track.
