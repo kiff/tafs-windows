@@ -160,6 +160,9 @@ work, where the iPad's decoder fails the thread.
       buttons, as the iPad's `requestRefused`; the refused digests it keeps aren't on this PC yet.
     - **One approval at a time:** while one goes through, every approval card's buttons are off, as the iPad's
       `connecting`.
+    - **A sign-in wider than the job** (kiff/tafs#1218): where tafs cloud marks the card `wider: {words}` (planque couldn't
+      narrow the sign-in, `usual_access`), its words show in amber after a warning mark, above the buttons, so they're read
+      before anyone approves. Blank, or of another shape, is no line.
     - **Windows Hello's dialog** doesn't show tafs cloud's `reason`, which the iPad's Face ID prompt shows; it names the
       app and the passkey, as for Start.
     - **Closed,** nothing is approved and the card says so: "Cancelled, so nothing was approved. The request is kept:
@@ -234,7 +237,8 @@ work, where the iPad's decoder fails the thread.
     shown or `new_chat: true` for a new one, always with `new_chat_after_handover: true` (the iPad's `setupTarget`).
   - **Sent:** the conversation tafs cloud names (`session`) is the one shown from then on, a new one after a hand-over
     included. The thread is read again, every 2 s while Coach works or a sent message waits, only while the panel is open.
-  - **Not taken:** it leaves the thread, its words go back in the box, and "The message wasn't sent." with why shows over it.
+  - **Not taken:** it stays after the thread as not sent, as a taf's chat does (`docs/taf.md`): "Not sent · why", Edit and
+    Retry, with Copy and Delete in its menu. Another conversation forgets it.
 - **Words handed to Coach** (`CoachPanel.Write`): Coach opens with them in its box to edit and send, and nothing is sent.
   In a new conversation for a job's Try it with Coach (the iPad's `handRecipeToCoach`), in the one shown for a brief's
   next move (its `startNextMove`).
@@ -267,8 +271,8 @@ a second reference.
 - **After an answer:** the iPad follows the run's stream as it writes; here the thread is read again, until the stream is
   ported. The AI-data consent's screen isn't ported, so a refusal for it leaves the card as it was, with no line.
 - **A drive's end** (what Coach did in the app, `DriveRecap`), placed in the thread on the iPad: with drives.
-- **Writing to Coach, the rest:** the stream as Coach writes (here the thread is read again every 2 s), Stop, unsent and
-  queued messages with Edit and Retry, steering, files and dictation, `starts` and its recipes, and the AI-data consent's
+- **Writing to Coach, the rest:** the stream as Coach writes (here the thread is read again every 2 s), Stop, queued
+  messages, a refusal for a halt with Resume on the unsent bubble, steering, files and dictation, `starts` and its recipes, and the AI-data consent's
   screen on a refusal for it.
 - **Starting Coach, the rest of `startSetup`:**
   - the tools step for a first start without tafs cloud's words (`CoachToolsStep`), and its Not now;

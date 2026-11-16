@@ -37,6 +37,50 @@ static class ChatViews
     };
 
     /// <summary>
+    /// A message that wasn't taken, kept where it was written, as the iPad's <c>UnsentBubble</c>: the person's bubble faded,
+    /// "Not sent · why" in red under it, then Edit (its words back in the box) and Retry (sent again once). Copy and Delete
+    /// in its menu. Narrator reads it as one line, with Retry and Edit as its actions' buttons.
+    /// </summary>
+    public static StackPanel UnsentBubble(Tafs.Core.Words.WordBook w, Tafs.Core.Taf.UnsentMessage m, Func<string, Brush> brush, bool busy,
+        Action retry, Action edit, Action delete)
+    {
+        var box = new StackPanel { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0) };
+        var bubble = OwnerBubble(m.Text, brush);
+        bubble.Opacity = 0.6;
+        box.Children.Add(bubble);
+        var why = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right };
+        why.Children.Add(new FontIcon { Glyph = "", FontSize = 13, Foreground = brush("TafsNo"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0) });
+        why.Children.Add(new TextBlock { Text = Tafs.Core.Taf.Unsent.Line(w, m), FontSize = 13, Foreground = brush("TafsNo"), TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Right, MaxWidth = 520 });
+        box.Children.Add(why);
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, HorizontalAlignment = HorizontalAlignment.Right };
+        var editButton = new HyperlinkButton { Content = w.Get("setup.edit"), FontSize = 14, Padding = new Thickness(0), Foreground = brush("TafsSoft") };
+        editButton.Click += (_, _) => edit();
+        var retryButton = new HyperlinkButton { Content = w.Get("chat.retry"), FontSize = 14, Padding = new Thickness(0), IsEnabled = !busy,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = brush("TafsInk") };
+        retryButton.Click += (_, _) => retry();
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(retryButton, "unsent.retry");
+        actions.Children.Add(editButton);
+        actions.Children.Add(retryButton);
+        box.Children.Add(actions);
+        var menu = new MenuFlyout();
+        var copy = new MenuFlyoutItem { Text = w.Get("common.copy") };
+        copy.Click += (_, _) =>
+        {
+            var data = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            data.SetText(m.Text);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(data);
+        };
+        var drop = new MenuFlyoutItem { Text = w.Get("chat.delete") };
+        drop.Click += (_, _) => delete();
+        menu.Items.Add(copy);
+        menu.Items.Add(drop);
+        box.ContextFlyout = menu;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(bubble, $"{m.Text}. {Tafs.Core.Taf.Unsent.Line(w, m)}");
+        return box;
+    }
+
+    /// <summary>
     /// A door's stamp, as the iPad's <c>DoorStamp</c>: mono 10 medium, two lines at most, blue, red when it wasn't sent back;
     /// over the person's side of the thread on the right, under the taf's answer on the left. Narrator reads it in lower case.
     /// </summary>

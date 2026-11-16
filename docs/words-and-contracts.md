@@ -7,13 +7,17 @@ Run `dotnet run --project tools/Tafs.Ci -- sync` first: they land in `shared/`, 
 
 `WordBook.Load(stringsRoot, language)` reads `app/strings/<language>/*.json`.
 
-- `Get(key, ("name", value)...)` fills `{name}` and `{name|possessive}`.
+- `Get(key, ("name", value)...)` fills `{name}`, `{name|possessive}`, and `{name|this}` or `{name|This}`
+  ("this" before the name, `This` to open a sentence). A form it doesn't read is an error, like a missing value.
 - `Count(key, n, ...)` picks the plural form the language gives `n` and fills `{count}` too.
 - A missing key or a missing value **throws**. There is no English fallback and no `{hole}` on screen.
 - `PluralRules` has the CLDR forms for whole numbers in the 8 shipped languages (Polish has
   one/few/many/other).
 - The possessive rule exists in English and German only. Other languages keep the name and word the
   line around it; a test fails if one of their lines uses `|possessive`.
+- The "this" rule exists in French only (`THIS` in the shared generate.py): "ce PC", "cet appareil". Other
+  languages write their own word; a test fails if one of their lines uses `|this`. Another fills every line
+  at the pin, in every language, and fails on any brace left, so a new form fails CI before the pin moves.
 
 The `strings` part checks, for each shipped language: every English key is there and no other, each
 line fills the same values as English, each count has the forms its numbers ask for.

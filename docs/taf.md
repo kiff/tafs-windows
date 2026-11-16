@@ -179,8 +179,12 @@ reference:
   (`POST /v1/tafs/{id}/messages`, `{text}`). One at a time: Send is off while it goes.
 - **Until the thread has it,** it stays on screen after the thread, matched once by its id, else its words, for two
   minutes at most.
-- **Not taken:** it leaves the thread, its words go back in the box, and "The message wasn't sent." with why shows
-  under the thread, in red.
+- **Not taken:** it stays in the thread where it was written, as the iPad's `UnsentBubble` (`Unsent`): the bubble faded,
+  "Not sent · Too busy." in red under it (tafs cloud's words for why, else not reached), then **Edit**, which puts its
+  words back in the box and takes it out of the thread, and **Retry**, which sends it again once. Its menu has Copy and
+  Delete. Not tried at all (another message going), Retry leaves it where it was.
+  - **Retry is a new send.** tafs cloud doesn't take an idempotency key for a message yet (kiff-admin's, in tafs cloud), so
+    a send that reached it but whose answer was lost can show twice after Retry.
 - **While the taf works,** or a sent message waits, the thread is read again every 2 s, only while Chat shows.
 - **Stop,** for whoever manages the taf (KIFF's `cards.manage` access, once read): the run at work is cancelled
   (`POST /v1/tafs/{id}/stop`, `{session}`), then "You stopped Refunds.", or "Not stopped." and why.

@@ -23,6 +23,14 @@ From the top:
   - **Its rows** are the tafs relevant now, as the iPad's one sidebar for the whole app (`Sidebar.RelevantNow`): a call
     of its waits, a step or a knock is open, or it ran or changed in the last 24 hours. All of them are on the
     Overview.
+  - **Their order** (`ListOrder`, the iPad's `listedTafs` and `byRecent`): a taf waiting on the person first (a call held
+    for an answer, or tafs cloud's own count), then the one used most recently (its latest call in the Record), then tafs
+    cloud's order. It's settled when the list's tafs change, the first time the Record is read, and when the window comes
+    back to the front, never on each read, so it doesn't move under the person; a taf that comes to wait still goes to the
+    top at once.
+  - **Shared with you** (`ListOrder.Split`, the iPad's `tafSections`): under its own heading, after the person's own, the
+    tafs KIFF says are shared with them to use, not manage. A taf whose answer isn't in yet counts as theirs, so nothing
+    moves under the heading and back.
   - **Each row:** the avatar (34), the name in 15 semibold, and what it's doing in 13 soft, on one line each. A row
     opens its taf's page.
   - **The sample's** are Deploys and Bill pay, the two a call waits on, as overview.png.
