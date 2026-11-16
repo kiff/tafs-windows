@@ -29,6 +29,31 @@ signed. Everyone else waits for the signed package.
   dotnet publish src/Tafs.App -c Release -p:Platform=x64 -r win-x64 --self-contained -o artifacts/zip/tafs-x64
   ```
 
+## The installer (what people will download)
+
+- **What it is:** `tafs-setup-<version>-x64.exe` and `tafs-setup-<version>-arm64.exe`, WiX's standard setup around one
+  MSI per platform (`installer/Bundle.wxs`, `installer/Package.wxs`). It installs the same self-contained publish as the
+  zip, for every user of the PC, under `Program Files	afs`, puts tafs in Start, and offers **Open tafs** on its last
+  page. It asks for administrator rights once. A newer version replaces an older one in place; uninstalling (Settings ›
+  Apps) removes the files, never what the app keeps for a person in `%LOCALAPPDATA%	afs`.
+- **Windows 10, version 1809 (build 17763) or later,** with a TPM to sign in (the session's key lives there) and Windows
+  Hello to approve.
+- **Built by CI** in the zip job, every run that builds the zip, with WiX v5.0.2 pinned in `.config/dotnet-tools.json`
+  and its standard bootstrapper extension at the same version. On x64, CI installs it quietly, starts tafs from where it
+  put it (its sign-in screen saved, or the job fails), and uninstalls it. Kept from main, the nightly run and on demand
+  as `tafs-windows-setup-x64` and `tafs-windows-setup-ARM64` (the setup .exe and its MSI).
+- **Building it yourself,** after the zip's publish:
+
+  ```bash
+  dotnet tool restore
+  dotnet wix extension add WixToolset.Bal.wixext/5.0.2
+  dotnet wix build installer/Package.wxs -arch x64 -d AppDir=artifacts/zip/tafs-x64 -d Version=0.1.0.0 -o artifacts/installer/tafs-x64.msi
+  dotnet wix build installer/Bundle.wxs -arch x64 -ext .wix/extensions/WixToolset.Bal.wixext/5.0.2/wixext5/WixToolset.BootstrapperApplications.wixext.dll     -d Msi=artifacts/installer/tafs-x64.msi -d Version=0.1.0.0 -o artifacts/installer/tafs-setup-0.1.0.0-x64.exe
+  ```
+- **Not yet:** signed (the setup's engine and the .exe, in CI's sign job once Azure exists), its words in the app's 8
+  languages (WiX's standard setup is in English), and the app's own icon (the app has no `.ico` yet, so Start shows
+  Windows' default).
+
 ## The MSIX (once it's signed)
 
 - **What it is:** `KIFF.tafs`, shown as "tafs" by KIFF, self-contained, one package per platform, with logos made from

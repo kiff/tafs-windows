@@ -1,0 +1,31 @@
+<!--
+  tafs for Windows, as one MSI per platform (docs/install.md): the self-contained app CI publishes, installed for every user
+  of the PC under Program Files\tafs, with tafs in Start. A newer version replaces an older one (MajorUpgrade, by the run's
+  version 0.1.<run>.0); uninstalling removes the files, never what the app keeps for a person (%LOCALAPPDATA%\tafs).
+  Built by `wix build` with -d AppDir=<the publish folder> -d Version=<0.1.n.0> -arch <x64|arm64>. The setup .exe wraps it
+  (Bundle.wxs). The UpgradeCode never changes.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="tafs" Manufacturer="KIFF" Version="$(Version)" UpgradeCode="EB8E1C18-AF7A-4FF0-A1E7-0A12B2DC6965"
+           Scope="perMachine" Compressed="yes">
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of tafs is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="tafs" />
+    </StandardDirectory>
+
+    <Feature Id="App">
+      <!-- The app itself, with tafs in Start. -->
+      <Component Directory="INSTALLFOLDER">
+        <File Source="$(AppDir)\Tafs.App.exe" KeyPath="yes">
+          <Shortcut Name="tafs" Directory="ProgramMenuFolder" WorkingDirectory="INSTALLFOLDER" Advertise="no" />
+        </File>
+      </Component>
+      <!-- Everything else the publish holds, as it is: .NET, the Windows App SDK, the words. -->
+      <Files Directory="INSTALLFOLDER" Include="$(AppDir)\**">
+        <Exclude Files="$(AppDir)\Tafs.App.exe" />
+      </Files>
+    </Feature>
+  </Package>
+</Wix>
