@@ -142,7 +142,9 @@ work, where the iPad's decoder fails the thread.
     doesn't; "Reading the request…" until it's read. A connection already connected says so in one line (tafs cloud's
     `connection`, else "Stripe is connected").
   - The taf's Card as KIFF drafted it (`KiffDrafts`), its title and lines; by tafs cloud's mark (`signs`), as the Card
-    approved next, under its words and dimmed.
+    approved next, under its words and dimmed. Until it's read, Approve waits and the card says "Reading KIFF's words for
+    this connection…"; when KIFF refuses the read, or answers what can't be read, it says why
+    (`coach.card_draft_not_read`) with **Try again**, as the iPad's `setupDraftErrors`. A draft read before stays drawn.
   - Where it stands (`ApprovalCard.State`): done only by its answer in the thread, never by planque's state alone;
     declined; didn't go through, with why, or planque's reason when it failed the grant.
   - Answered, one line ("Approved · Refunds' Card", "Declined · Stripe"), with the Card KIFF signed under it. A newer

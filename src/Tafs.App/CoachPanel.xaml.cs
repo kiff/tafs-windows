@@ -230,11 +230,14 @@ public sealed partial class CoachPanel : UserControl
 
     /// <summary>Coach's taf id, once its thread was read: what an approval's routes name.</summary>
     internal string? CoachId => coach;
-    public Func<string, Task<Tafs.Core.Approvals.AgentDraft?>>? Drafts { get; set; }
+    public Func<string, Task<(Tafs.Core.Approvals.AgentDraft? Draft, string? Why)>>? Drafts { get; set; }
 
     /// <summary>The grants and drafts the thread's approvals name, as last read (the iPad's <c>grants</c> and <c>setupDrafts</c>).</summary>
     IReadOnlyList<Tafs.Core.Kiff.PlanqueGrant>? grants;
     readonly Dictionary<string, Tafs.Core.Approvals.AgentDraft> drafts = [];
+
+    /// <summary>Why a draft wasn't read, by its id, as the iPad's <c>setupDraftErrors</c>: said on its card, with Try again.</summary>
+    readonly Dictionary<string, string> draftErrors = [];
 
     /// <summary>Which account the panel's state is for: each sign-out moves it on, so an answer or read in flight is dropped, as the iPad's <c>accountGeneration</c>.</summary>
     int generation;
@@ -250,6 +253,7 @@ public sealed partial class CoachPanel : UserControl
         homeAsked.Clear();
         grants = null;
         drafts.Clear();
+        draftErrors.Clear();
         approving = null;
         ThreadItems.Children.Clear();
         IntroError.Visibility = Visibility.Collapsed;
@@ -367,9 +371,51 @@ public sealed partial class CoachPanel : UserControl
         var approvals = loaded.Shown.Where(s => s.Card.Kind is "approval" or "sign_in").Select(s => s.Card).ToList();
         if (approvals.Count == 0) return;
         if (Grants is { } readGrants && await readGrants() is { } read && gen == generation) grants = read;
-        foreach (var id in approvals.Select(c => c.Draft).OfType<string>().Distinct())
-            if (Drafts is { } readDraft && await readDraft(id) is { } draft && gen == generation) drafts[id] = draft;
+        foreach (var id in approvals.Select(c => c.Draft).OfType<string>().Distinct()) await ReadDraftAsync(id, gen);
         if (gen == generation) Redraw();
+    }
+
+    /// <summary>
+    /// One draft, as the iPad's <c>readCardDraft</c>: read, it's kept and its error goes; not read, why is kept, and a draft
+    /// read before stays drawn.
+    /// </summary>
+    async Task ReadDraftAsync(string id, int gen)
+    {
+        if (Drafts is not { } readDraft) return;
+        var (draft, why) = await readDraft(id);
+        if (gen != generation) return;
+        if (draft is not null)
+        {
+            drafts[id] = draft;
+            draftErrors.Remove(id);
+        }
+        else if (why is not null) draftErrors[id] = why;
+    }
+
+    /// <summary>
+    /// A Card not read yet, as the iPad's: Approve waits, and the card says so, never a blank. KIFF's reason with Try again
+    /// when it wouldn't give it (<c>coach.card_draft_not_read</c>); until then, "Reading KIFF's words for this connection…".
+    /// </summary>
+    UIElement DraftNotRead(string id)
+    {
+        var w = App.Words;
+        if (draftErrors.GetValueOrDefault(id) is not { } why) return Words(w.Get("coach.reading_kiff_words"), 13, "TafsDimText");
+        var box = new StackPanel { Spacing = 6 };
+        box.Children.Add(Words(w.Get("coach.card_draft_not_read", ("why", why)), 13, "TafsNoText"));
+        var again = new HyperlinkButton
+        {
+            Content = w.Get("common.try_again"), FontSize = 13, Padding = new Thickness(0), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+        };
+        AutomationProperties.SetAutomationId(again, "approval.draft-try-again");
+        again.Click += async (_, _) =>
+        {
+            again.IsEnabled = false;
+            var gen = generation;
+            await ReadDraftAsync(id, gen);
+            if (gen == generation) Redraw();
+        };
+        box.Children.Add(again);
+        return box;
     }
 
     /// <summary>
@@ -845,6 +891,9 @@ public sealed partial class CoachPanel : UserControl
             foreach (var line in draft.CardLines(w).SelectMany(l => l)) card.Children.Add(Mono(line, 12, next ? "TafsDim" : "TafsInk"));
             box.Children.Add(new Border { Child = card, Padding = new Thickness(12), CornerRadius = new CornerRadius(12), Background = Brush("TafsRaised") });
         }
+        // Its Card not read yet, while the card waits: said, never a blank.
+        else if (c.Draft is { } wanted && draft is null && !(thread.CardFor(c.Id) is { } sent && answered.Contains(sent.Ref)))
+            box.Children.Add(DraftNotRead(wanted));
         else if (grant is not null && ApprovalCard.CardNextWords(c) is { } nextWords) box.Children.Add(Words(nextWords, 13, "TafsSoftText"));
         // A sign-in wider than the job, in tafs cloud's words, above the buttons (kiff/tafs#1218): read before anyone approves.
         if (c.Wider is { } wider) box.Children.Add(Wider(wider));
