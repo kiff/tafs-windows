@@ -77,6 +77,25 @@ Activity):
 - `--page taf-setup` with `--home` opens the first taf on Setup, from `taf-setup.json` beside the Home contract (CI's
   `taf-home` and `taf-setup-home`).
 
+**Starts when and Results go to** (P40, `TafKnob`, `ResultPlaces`, `TafPage.Starts.cs`; the iPad's `StartsWhenView`,
+`ResultsGoToView` and `KnobPendingPanel`): two rows under the job, each its own screen with Setup to go back, read from
+the taf's dial (`GET /v1/tafs/{id}/knob`, read as strictly as the iPad's decoder) each time one opens and after each change.
+- **Starts when:** its schedule (each line, its size, "Next run Fri 12:30 · UTC" unless paused, and If busy as set), or
+  "No schedule starts it." ("When you tell it, in its chat." for one that works from its chat); the app events it listens
+  to, "Listening" in green once approved; the follow-ups it set itself, each with Remove (`DELETE …/follow-ups/{id}`);
+  Change when it starts with Coach; then Pause every start or Resume every start (`POST …/pause`, `…/resume`), not for a
+  taf that works from its chat.
+- **Results go to:** "At least one place stays on."; tafs' own places (reply to the sender, alert our phones, email me),
+  switched at once (`PUT …/results`) from the live taf's (Home's `results`, then each answer's), the last one on never
+  off; then the places in the person's connected apps as the dial has them, and Add a place from a connected app with Coach.
+- **A change waiting as the next version:** "DRAFT · V4 · NOT LIVE" and its words, for whoever manages the taf.
+- **Not here yet:** what makes a next version (a schedule's − and +, If busy, an app event's Approve or Stop, an app's
+  place) and Make it live come with the versions' own change; the doors with the Doors tab (P13); Not sent with the taf's
+  work (S17).
+- Only whoever manages the taf changes anything; a change goes one at a time, and why one didn't go through is said in red.
+- `--page taf-starts` or `taf-results` with `--home` opens them as whoever manages the first taf, its dial from
+  `taf-knob.json` beside the Home file (`tests/fixtures/taf-knob`; CI's `taf-starts` and `taf-results`).
+
 **Setup**, as `taf-setup.png`:
 - **The job,** under "THE JOB".
 - **Starts when and Results go to:** shown, off until their screens are built.
