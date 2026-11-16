@@ -15,12 +15,60 @@ public sealed record WorkStep(string Tool, bool Error = false, bool NotMade = fa
 public sealed record ChatWork(int Ms, IReadOnlyList<WorkStep> Steps);
 
 /// <summary>
+/// Where a message came from through one of a taf's doors, as the iPad's <c>TafsCloud.DoorMark</c>: its app ("email"), who
+/// wrote it and about what; on the taf's answer, how it went back (<c>sent</c>, <c>not_sent</c> with why, or <c>pending</c>).
+/// </summary>
+public sealed record ChatDoor(string App, string? From = null, string? Subject = null, string? Reply = null, string? Why = null)
+{
+    /// <summary>The app's name as the doors say it, as the iPad's <c>DoorNames.label</c>: "email", "WhatsApp", else capitalised.</summary>
+    public static string Label(string app) => app switch
+    {
+        "email" => "email",
+        "whatsapp" => "WhatsApp",
+        _ => app.Length == 0 ? app : char.ToUpperInvariant(app[0]) + app[1..],
+    };
+
+    /// <summary>
+    /// Its stamp, as the iPad's <c>DoorStamp</c>: over the message, "BY EMAIL · who"; under the taf's answer, "↩ SENT BACK BY
+    /// EMAIL · SAME THREAD", "NOT SENT BACK · why", or "GOES BACK BY EMAIL WHEN DONE".
+    /// </summary>
+    public string Stamp(WordBook w, bool fromOwner)
+    {
+        var app = Label(App).ToUpperInvariant();
+        if (fromOwner) return w.Get("door.stamp.by", ("app", app)) + (From is { } from ? " · " + from : "");
+        return Reply switch
+        {
+            "sent" => w.Get("door.stamp.sent_back", ("app", app)),
+            "not_sent" => Why is { } why ? w.Get("door.stamp.not_sent_back") + " · " + why : w.Get("door.stamp.not_sent_back"),
+            _ => w.Get("door.stamp.goes_back", ("app", app)),
+        };
+    }
+
+    /// <summary>The stamp is in the failure colour when it wasn't sent back, else blue.</summary>
+    public bool NotSent => Reply == "not_sent";
+}
+
+/// <summary>A file the person attached to a message, as the thread names it (the iPad's <c>AttachmentRef</c>): never its bytes.</summary>
+public sealed record ChatFile(string Id, string Kind, string MediaType, string Name, int Size);
+
+/// <summary>
 /// One message of a chat, as the iPad's <c>TafsCloud.ChatMessage</c>: who wrote it, when, in which session, and tafs cloud's
-/// lines around a taf's words (where a run's result went, what it did, a connection it was refused).
+/// lines around a taf's words (where a run's result went, what it did, a connection it was refused); where it came from
+/// through a door, and the files sent with it.
 /// </summary>
 public sealed record ChatMessage(DateTimeOffset At, ChatFrom From, bool Kickoff, string Text, string Session, ChatWork? Work = null,
-    string? ServerId = null, string? Answers = null, string? Delivered = null, string? Counted = null, IReadOnlyList<string>? Refused = null)
+    string? ServerId = null, string? Answers = null, string? Delivered = null, string? Counted = null, IReadOnlyList<string>? Refused = null,
+    ChatDoor? Door = null, IReadOnlyList<ChatFile>? Files = null)
 {
+    /// <summary>
+    /// tafs cloud's lines around a taf's words, as the chat draws them (the iPad's <c>runLines</c>): where the run's result went
+    /// above, what it did under. A person's message and a run's start have none.
+    /// </summary>
+    public (string? Above, string? Under) RunLines => From == ChatFrom.Taf && !Kickoff ? (Delivered, Counted) : (null, null);
+
+    /// <summary>A refused connection's lines under a taf's words (the iPad's <c>refusedLines</c>): none on a person's message or a run's start.</summary>
+    public IReadOnlyList<string>? RefusedLines => From == ChatFrom.Taf && !Kickoff ? Refused : null;
+
     /// <summary>
     /// The same message while its text grows: a taf's by its session and time; an owner's by tafs cloud's id, else by its
     /// words, as the iPad's <c>id</c>.
@@ -78,7 +126,44 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
         var refused = Lenient.Field(m, "refused") ?? default;
         return new ChatMessage(at, from.Value, Lenient.Text(m, "kind") == "kickoff", text, session, Work(Lenient.Field(m, "work")),
             Lenient.Text(m, "id"), Lenient.Text(m, "answers"), Line(Lenient.Text(m, "delivered")), Line(Lenient.Text(m, "counted")),
-            new[] { Lenient.Text(refused, "words"), Lenient.Text(refused, "why"), Lenient.Text(refused, "next") }.Select(Line).OfType<string>().ToList() is { Count: > 0 } r ? r : null);
+            new[] { Lenient.Text(refused, "words"), Lenient.Text(refused, "why"), Lenient.Text(refused, "next") }.Select(Line).OfType<string>().ToList() is { Count: > 0 } r ? r : null,
+            Door(Lenient.Field(m, "door")), Files(Lenient.Field(m, "attachments")));
+    }
+
+    /// <summary>
+    /// A door's mark, as the iPad's <c>try? DoorMark</c>: its app a string, each other field a string or absent; one it can't
+    /// read leaves the message a plain one.
+    /// </summary>
+    static ChatDoor? Door(JsonElement? d)
+    {
+        if (d is not { ValueKind: JsonValueKind.Object } o || Lenient.Field(o, "app") is not { ValueKind: JsonValueKind.String } app) return null;
+        var keys = new[] { "from", "subject", "reply", "why" };
+        var fields = new string?[keys.Length];
+        for (var i = 0; i < keys.Length; i++)
+        {
+            if (Lenient.Field(o, keys[i]) is not { } v || v.ValueKind == JsonValueKind.Null) continue;
+            if (v.ValueKind != JsonValueKind.String) return null;
+            fields[i] = v.GetString();
+        }
+        return new ChatDoor(app.GetString()!, fields[0], fields[1], fields[2], fields[3]);
+    }
+
+    /// <summary>
+    /// The files sent with it, as the iPad's <c>try? [AttachmentRef]</c>: each with its id, kind, media type, name and whole
+    /// size; one that can't be read leaves the message with none.
+    /// </summary>
+    static IReadOnlyList<ChatFile>? Files(JsonElement? a)
+    {
+        if (a is not { ValueKind: JsonValueKind.Array } list) return null;
+        var files = new List<ChatFile>();
+        foreach (var f in list.EnumerateArray())
+        {
+            string? Text(string key) => Lenient.Field(f, key) is { ValueKind: JsonValueKind.String } v ? v.GetString() : null;
+            if (Text("id") is not { } id || Text("kind") is not { } kind || Text("media_type") is not { } type || Text("name") is not { } name
+                || Lenient.Field(f, "size") is not { ValueKind: JsonValueKind.Number } size || !size.TryGetInt32(out var bytes)) return null;
+            files.Add(new ChatFile(id, kind, type, name, bytes));
+        }
+        return files.Count > 0 ? files : null;
     }
 
     /// <summary>A run's work; one the app can't read leaves the message without it, as the iPad's <c>try?</c>.</summary>
