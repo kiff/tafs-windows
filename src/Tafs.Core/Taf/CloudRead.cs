@@ -13,6 +13,12 @@ namespace Tafs.Core.Taf;
 /// </summary>
 public sealed record CloudRead(JsonElement? Answer, string? Why = null, int Status = 0, string? Code = null, string? Words = null)
 {
+    /// <summary>
+    /// A refusal because of a halt, as tafs cloud says it (<c>halted</c>, the iPad's <c>CloudError.halted</c>): the whole
+    /// <c>account</c>, or the <c>taf</c> on its own; none for any other refusal, or a word it doesn't know.
+    /// </summary>
+    public string? Halted { get; init; }
+
     public static CloudRead Of(JsonElement answer) => new(answer, Status: 200);
 
     /// <summary>
@@ -26,7 +32,10 @@ public sealed record CloudRead(JsonElement? Answer, string? Why = null, int Stat
         catch (JsonException) { }
         return new(null, Lenient.Text(json, "words") ?? Lenient.Text(json, "error")
             ?? w.Get("error.cloud_answered", ("status", status.ToString(CultureInfo.InvariantCulture))), status, Lenient.Text(json, "code"),
-            Lenient.Text(json, "words"));
+            Lenient.Text(json, "words"))
+        {
+            Halted = Lenient.Text(json, "halted") is "account" or "taf" ? Lenient.Text(json, "halted") : null,
+        };
     }
 
     /// <summary>

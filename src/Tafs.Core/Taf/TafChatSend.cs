@@ -83,10 +83,10 @@ public static class TafChatSend
     /// The message to tafs cloud, as the session. Not taken: why, in tafs cloud's words, else not reached; the thread keeps it
     /// as not sent with that line (<see cref="Unsent"/>).
     /// </summary>
-    public static async Task<string?> SendAsync(WordBook w, string taf, string text, Func<string, byte[], Task<CloudRead>> send)
+    public static async Task<Refusal?> SendAsync(WordBook w, string taf, string text, Func<string, byte[], Task<CloudRead>> send)
     {
         var answer = await send(MessagesPath(taf), Body(text));
-        return answer.Answer is not null ? null : answer.Why ?? w.Get("error.offline");
+        return answer.Answer is not null ? null : Refusal.Of(answer, w.Get("error.offline"));
     }
 
     /// <summary>
