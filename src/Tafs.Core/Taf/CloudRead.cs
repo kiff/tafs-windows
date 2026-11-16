@@ -26,6 +26,9 @@ public sealed record CloudRead(JsonElement? Answer, string? Why = null, int Stat
     /// </summary>
     public AiConsent? Consent { get; init; }
 
+    /// <summary>For 409 <c>cards_in_force</c>: the Cards KIFF still holds in force, by id (the iPad's <c>CloudError.cards</c>).</summary>
+    public IReadOnlyList<string> Cards { get; init; } = [];
+
     /// <summary>tafs cloud's code for a model turn refused for want of the AI-data consent.</summary>
     public const string AiConsentRequired = "ai_consent_required";
 
@@ -56,6 +59,7 @@ public sealed record CloudRead(JsonElement? Answer, string? Why = null, int Stat
             Halted = Lenient.Text(json, "halted") is "account" or "taf" ? Lenient.Text(json, "halted") : null,
             // Read on its own: one that doesn't read leaves the rest of the refusal.
             Consent = AiConsent.Read(json) is { Drawable: true } consent ? consent : null,
+            Cards = Lenient.Array(json, "cards").Where(c => c.ValueKind == JsonValueKind.String).Select(c => c.GetString()!).ToList(),
         };
         if (read.AsksConsent) ConsentRequired?.Invoke(read.Consent!);
         return read;
