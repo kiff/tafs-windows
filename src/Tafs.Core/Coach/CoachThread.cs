@@ -290,6 +290,23 @@ public static class CoachChat
     /// and no error, as the iPad's <c>try?</c>; a list it can't read, or an empty one, is no list. A conversation that can't be read, or that
     /// doesn't decode, says "The conversation couldn't be loaded:" and why, as the iPad's <c>setupError</c>. Coach's id, to answer its cards.
     /// </summary>
+    /// <summary>Coach's conversation, the newest or one by its session: <c>GET /v1/tafs/{coach}/conversation[/{session}]</c>.</summary>
+    public static string ConversationPath(string coach, string? session) =>
+        $"/v1/tafs/{CloudRead.PathPart(coach)}/conversation" + (session is null ? "" : "/" + CloudRead.PathPart(session));
+
+    /// <summary>
+    /// Whether a read is Coach's conversation, which carries this PC's planque proof, as the iPad's thread read and the Mac's:
+    /// only with it does tafs cloud mark its approval and sign-in cards with <c>wider</c> (kiff/tafs <c>markSigns</c>,
+    /// <c>markWider</c>). The proof reads only, so it's signed with no prompt. Its chats list and anything else go without it.
+    /// </summary>
+    public static bool SignsRead(string path)
+    {
+        var bare = path.Split('?', 2)[0].Split('/');
+        // "", "v1", "tafs", {coach}, "conversation"[, {session}]
+        return bare.Length is 5 or 6 && bare[1] == "v1" && bare[2] == "tafs" && bare[3].Length > 0 && bare[4] == "conversation"
+            && (bare.Length == 5 || bare[5].Length > 0);
+    }
+
     public static async Task<(CoachThread? Thread, string? Error, string? Coach)> LoadAsync(WordBook w, Func<string, Task<CloudRead>> read)
     {
         var loaded = await LoadAsync(w, read, CoachConversation.Newest);
@@ -312,7 +329,7 @@ public static class CoachChat
             var chats = await read(CoachChats.ListPath(coach));
             session = chats.Answer is { } c && CoachChats.Read(c) is { Count: > 0 } list ? list[0].Session : null;
         }
-        var thread = await read($"/v1/tafs/{CloudRead.PathPart(coach)}/conversation" + (session is null ? "" : "/" + CloudRead.PathPart(session)));
+        var thread = await read(ConversationPath(coach, session));
         // A thread that doesn't decode: the iPad says the system's words for it; this app has its own.
         var decoded = thread.Answer is { } t ? CoachThread.Read(t) : null;
         var why = thread.Answer is null ? thread.Why : decoded is null ? w.Get("error.ours") : null;

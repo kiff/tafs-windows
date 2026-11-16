@@ -831,7 +831,16 @@ public sealed partial class MainWindow : Window
         // Given with the answers, once this person may use Coach (AllowCoachAsync).
         CoachMode.Approves = Tafs.Core.Coach.CoachStart.MayStart(session);
         CoachMode.Drafts = async id => Tafs.Core.Approvals.KiffDrafts.Read(App.Words, await KiffReadAsync(bearer, Tafs.Core.Approvals.KiffDrafts.Path(id)));
-        CoachMode.Read = path => CloudReadAsync(bearer, path);
+        // Coach's conversation carries this PC's planque proof, read-only and signed with no prompt, so tafs cloud marks its
+        // approval and sign-in cards with wider, as the iPad's and the Mac's thread reads. No proof, it reads unmarked.
+        CoachMode.Read = async path =>
+        {
+            string? proof = null;
+            if (Tafs.Core.Coach.CoachChat.SignsRead(path))
+                try { proof = await SetupProofAsync(session); }
+                catch (System.Security.Cryptography.CryptographicException) { }
+            return await CloudReadAsync(bearer, path, proof);
+        };
         haltSend = path => CloudSendAsync(bearer, path, "{}"u8.ToArray());
         cloudSend = (path, body) => CloudSendAsync(bearer, path, body);
         cloudStream = (path, body, cancel) => KiffHttp.PostStreamAsync(new Uri(HomeList.Api, path), body, bearer, App.Words.Language, cancel);
