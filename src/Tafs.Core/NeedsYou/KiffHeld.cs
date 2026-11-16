@@ -263,6 +263,16 @@ public static class KiffHeld
     /// its entity when KIFF kept no arguments), the amount, why, when it lapses (ten minutes after it was held when KIFF
     /// doesn't say), its next steps, what it's on, and the taf's own words.
     /// </summary>
+    /// <summary>
+    /// Coach's hold of a version to install, as the iPad's <c>KIFFMapping.install(of:coach:)</c>: Coach's own agent, the action
+    /// <c>version_install</c>, a <c>taf</c> argument and a version <c>n</c> above 0. Anything else is an ordinary held call.
+    /// </summary>
+    public static VersionInstall? InstallOf(KiffHold e) =>
+        e.Subject == SetupAgent && e.Action == "version_install" && e.Arguments is { } args
+        && args.TryGetValue("taf", out var taf) && taf.Length > 0
+        && args.TryGetValue("n", out var n) && int.TryParse(n, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var number) && number > 0
+            ? new VersionInstall(taf, number) : null;
+
     public static HeldCall ToHeldCall(WordBook w, KiffHold e, string taf, int tafColor)
     {
         var name = Says(e.Action, e.Title);
@@ -270,7 +280,8 @@ public static class KiffHeld
         return new(taf, tafColor, summary, Amount(e)?.Formatted(w), "", Reason(w, e), e.ExpiresAt ?? e.CreatedAt.AddMinutes(10),
             e.NextSteps ?? [], TafWords(e.TafAbout, 120), TafWords(e.TafReason, 280))
         {
-            Details = Details(e), KiffId = e.Id, ApprovableOnce = e.CanApproveOnce ?? true,
+            Details = Details(e), KiffId = e.Id, AccountingVersion = e.AccountingVersion, ApprovableOnce = e.CanApproveOnce ?? true,
+            Install = InstallOf(e),
         };
     }
 
