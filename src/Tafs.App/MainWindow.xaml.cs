@@ -280,6 +280,10 @@ public sealed partial class MainWindow : Window
         };
         this.screenshot = screenshot;
 
+        // A taf's work on the Calendar opens its page, when it's on Home.
+        CalendarPage.Opener = taf => home?.Tafs.Any(t => t.Id == taf) == true
+            ? () => OpenBeside(typeof(TafPage), OpenTaf(App.Words, taf, TafTab.Activity))
+            : null;
         AccountPage.ThemeChosen += chosen =>
         {
             Root.RequestedTheme = chosen;
@@ -325,6 +329,8 @@ public sealed partial class MainWindow : Window
                 (_, _) => Task.FromResult(CloudRead.Unreached(App.Words)),
                 (_, _) => Task.FromResult<string?>(null),
                 () => Task.FromResult(page == "usage-admin"));
+            // The Calendar from calendar.json beside the Home file, as tafs cloud answers it.
+            CalendarPage.Read = path => Task.FromResult(ContractRead(App.Words, homeFile, path));
             if (page == "record-search") RecordPage.Typed = "42";
             var export = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!, "receipts-export.json");
             RecordPage.ReadBytes = _ => Task.FromResult<(byte[]?, string?)>(File.Exists(export) ? (File.ReadAllBytes(export), null) : (null, CloudRead.Unreached(App.Words).Why));
@@ -895,6 +901,8 @@ public sealed partial class MainWindow : Window
         ReceiptSheet.Read = path => KiffBytesAsync(bearer, path);
         // The Record's search, across the person's tafs, as the session.
         RecordPage.Read = path => CloudReadAsync(bearer, path);
+        // The Calendar's work to come, as the session; a taf's work opens the taf when it's on Home.
+        CalendarPage.Read = path => CloudReadAsync(bearer, path);
         // Export receipts: tafs cloud's answer as it came, so KIFF's receipts are exactly as issued.
         RecordPage.ReadBytes = path => CloudBytesAsync(bearer, path);
         // Given before Coach's read, which reads them as it draws its approvals.
@@ -963,6 +971,7 @@ public sealed partial class MainWindow : Window
         ReceiptSheet.Read = null;
         RecordPage.Read = null;
         UsagePage.Calls = null;
+        CalendarPage.Read = null;
         RecordPage.ReadBytes = null;
         record = [];
         if (Pages.Content is RecordPage page)
@@ -1491,6 +1500,7 @@ public sealed partial class MainWindow : Window
                 : path.StartsWith("/v1/record/cases/", StringComparison.Ordinal) ? "record-case.json"
                 : path.StartsWith("/v1/record?", StringComparison.Ordinal) ? "record-search.json"
                 : path.StartsWith(Tafs.Core.Missions.Brief.Route, StringComparison.Ordinal) ? "brief.json"
+                : path.StartsWith("/v1/calendar?", StringComparison.Ordinal) ? "calendar.json"
                 : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json" : path.EndsWith("/knob") ? "taf-knob.json" : path.EndsWith("/work") ? "taf-work.json"
                 : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
         return File.Exists(file) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(file)) : CloudRead.Unreached(w);

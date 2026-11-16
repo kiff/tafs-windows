@@ -1,51 +1,93 @@
-<!-- Calendar (the iPad's CalendarView, compact, as in the reference set): the date's title, Today and the arrows,
-     the date, Day / Week / Month, the strip of days, then the hours (Day), the day's list (Week) or the month. -->
+<!-- Calendar (the iPad's CalendarView): wide, a month navigator on the left (280), the calendar beside it, an agenda under
+     them; compact, the strip of days and the selected day's list. The tafs' work to come is tafs cloud's (GET /v1/calendar). -->
 <Page x:Class="Tafs.App.CalendarPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-      Background="{ThemeResource TafsBackground}">
+      Background="{ThemeResource TafsBackground}" SizeChanged="OnSized">
   <ScrollViewer>
-    <StackPanel Padding="24,16,24,24" Spacing="14" MaxWidth="1180" HorizontalAlignment="Stretch">
-      <TextBlock x:Name="NavTitle" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource TafsInk}" />
-      <TextBlock x:Name="Title" FontSize="16" FontWeight="Bold" Margin="0,8,0,0" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
+    <Grid x:Name="Body" Padding="24,16,24,24" MaxWidth="1180" HorizontalAlignment="Stretch" RowSpacing="20">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition x:Name="NavColumn" Width="0" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
 
-      <Grid>
-        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-          <Button x:Name="TodayPill" Click="OnToday" />
-          <Button x:Name="Previous" Click="OnPrevious" Style="{StaticResource TafsArrow}"><FontIcon Glyph="&#xE76B;" FontSize="16" /></Button>
-          <Button x:Name="Next" Click="OnNext" Style="{StaticResource TafsArrow}"><FontIcon Glyph="&#xE76C;" FontSize="16" /></Button>
+      <!-- Wide: the month to choose a day from, with its marks; its own previous and next month. -->
+      <Border x:Name="Navigator" Margin="0,0,24,0" VerticalAlignment="Top" Visibility="Collapsed" Padding="14" CornerRadius="14"
+              Background="{ThemeResource TafsPanel}" AutomationProperties.AutomationId="calendar.navigator">
+        <StackPanel Spacing="10">
+          <Grid>
+            <TextBlock x:Name="NavMonth" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{ThemeResource TafsInk}" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+              <Button x:Name="NavPrevious" Click="OnNavPrevious" Style="{StaticResource TafsArrow}"><FontIcon Glyph="&#xE76B;" FontSize="14" /></Button>
+              <Button x:Name="NavNext" Click="OnNavNext" Style="{StaticResource TafsArrow}"><FontIcon Glyph="&#xE76C;" FontSize="14" /></Button>
+            </StackPanel>
+          </Grid>
+          <Grid x:Name="NavMonthGrid" RowSpacing="4" ColumnSpacing="4" />
         </StackPanel>
-        <!-- The date, on a raised pill, as the iPad's date picker. -->
-        <CalendarDatePicker x:Name="Picker" HorizontalAlignment="Right" DateChanged="OnPicked" FirstDayOfWeek="Monday"
-                            Background="{ThemeResource TafsRaised}" BorderThickness="0" CornerRadius="18" MinHeight="40" FontSize="17" Loaded="OnPickerLoaded">
-          <CalendarDatePicker.Resources>
-            <StaticResource x:Key="CalendarDatePickerBackgroundPointerOver" ResourceKey="TafsRaised" />
-            <StaticResource x:Key="CalendarDatePickerTextForeground" ResourceKey="TafsInk" />
-          </CalendarDatePicker.Resources>
-        </CalendarDatePicker>
-      </Grid>
-
-      <!-- Day / Week / Month: the iPad's segmented control. -->
-      <Border Style="{StaticResource TafsSegmentTrack}">
-        <Grid x:Name="Modes" ColumnSpacing="2" />
       </Border>
 
-      <ScrollViewer x:Name="DayStripScroll" HorizontalScrollBarVisibility="Hidden" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
-        <StackPanel x:Name="DayStrip" Orientation="Horizontal" Spacing="6" />
-      </ScrollViewer>
-      <Grid x:Name="WeekStrip" ColumnSpacing="6" />
+      <StackPanel Grid.Column="1" Spacing="14">
+        <TextBlock x:Name="NavTitle" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource TafsInk}" />
+        <TextBlock x:Name="Title" FontSize="16" FontWeight="Bold" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{ThemeResource TafsInk}"
+                   AutomationProperties.HeadingLevel="Level1" AutomationProperties.AutomationId="calendar.title" />
 
-      <!-- Day: the hours, opened at 08:00. No "nothing scheduled" before tafs cloud's calendar is read. -->
-      <ScrollViewer x:Name="HoursScroll" Height="520" VerticalScrollBarVisibility="Hidden">
-        <StackPanel x:Name="Hours" />
-      </ScrollViewer>
+        <Grid ColumnSpacing="8">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+            <Button x:Name="TodayPill" Click="OnToday" />
+            <Button x:Name="Previous" Click="OnPrevious" Style="{StaticResource TafsArrow}"><FontIcon Glyph="&#xE76B;" FontSize="16" /></Button>
+            <Button x:Name="Next" Click="OnNext" Style="{StaticResource TafsArrow}"><FontIcon Glyph="&#xE76C;" FontSize="16" /></Button>
+          </StackPanel>
+          <!-- The date, on a raised pill, as the iPad's date picker. -->
+          <CalendarDatePicker x:Name="Picker" Grid.Column="1" HorizontalAlignment="Right" DateChanged="OnPicked" FirstDayOfWeek="Monday"
+                              Background="{ThemeResource TafsRaised}" BorderThickness="0" CornerRadius="18" MinHeight="40" FontSize="17" Loaded="OnPickerLoaded">
+            <CalendarDatePicker.Resources>
+              <StaticResource x:Key="CalendarDatePickerBackgroundPointerOver" ResourceKey="TafsRaised" />
+              <StaticResource x:Key="CalendarDatePickerTextForeground" ResourceKey="TafsInk" />
+            </CalendarDatePicker.Resources>
+          </CalendarDatePicker>
+        </Grid>
 
-      <Grid x:Name="Month" RowSpacing="4" ColumnSpacing="4" />
+        <!-- Day / Week / Month: the iPad's segmented control (320 at most on a wide screen). -->
+        <Border x:Name="ModesTrack" Style="{StaticResource TafsSegmentTrack}">
+          <Grid x:Name="Modes" ColumnSpacing="2" />
+        </Border>
 
-      <!-- Week and Month: the selected day's list. -->
-      <StackPanel x:Name="DayList" Spacing="8">
-        <TextBlock x:Name="DayListHeading" Style="{StaticResource TafsEyebrow}" />
+        <!-- Reading, why it couldn't be read with Try again, or tafs cloud's words when halted or some were left out. -->
+        <StackPanel x:Name="ReadState" Orientation="Horizontal" Spacing="10" Visibility="Collapsed">
+          <ProgressRing x:Name="Reading" Width="16" Height="16" IsActive="False" />
+          <TextBlock x:Name="ReadWords" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <Button x:Name="TryAgain" Click="OnTryAgain" Style="{StaticResource TafsOutlineButton}" MinHeight="36" Padding="14,4" Visibility="Collapsed"
+                  AutomationProperties.AutomationId="calendar.retry" />
+        </StackPanel>
+
+        <ScrollViewer x:Name="DayStripScroll" HorizontalScrollBarVisibility="Hidden" HorizontalScrollMode="Enabled" VerticalScrollMode="Disabled">
+          <StackPanel x:Name="DayStrip" Orientation="Horizontal" Spacing="6" />
+        </ScrollViewer>
+        <Grid x:Name="WeekStrip" ColumnSpacing="6" />
+
+        <!-- Day, and Week when wide: the hours, each day's work in its hour, opened at its first hour of work, else 08:00. -->
+        <Grid x:Name="TimeHeads" ColumnSpacing="4" />
+        <ScrollViewer x:Name="HoursScroll" Height="520" VerticalScrollBarVisibility="Auto">
+          <StackPanel x:Name="Hours" AutomationProperties.AutomationId="calendar.slots" />
+        </ScrollViewer>
+        <TextBlock x:Name="TimeEmpty" FontSize="13" Foreground="{ThemeResource TafsDim}" Visibility="Collapsed" />
+
+        <Grid x:Name="Month" RowSpacing="4" ColumnSpacing="4" AutomationProperties.AutomationId="calendar.month" />
+
+        <!-- Compact, Week and Month: the selected day's list. -->
+        <StackPanel x:Name="DayList" Spacing="8" AutomationProperties.AutomationId="calendar.day" />
       </StackPanel>
-    </StackPanel>
+
+      <!-- Wide: the agenda of the days shown, each day's work in time order. -->
+      <StackPanel x:Name="Agenda" Grid.Row="1" Grid.ColumnSpan="2" Spacing="10" Visibility="Collapsed" AutomationProperties.AutomationId="calendar.agenda" />
+    </Grid>
   </ScrollViewer>
 </Page>
