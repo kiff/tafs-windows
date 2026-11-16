@@ -80,6 +80,8 @@ typed or tapped.
   tafs cloud's words (`end_words`).
 - **A case** (`GET /v1/record/cases/{about}`): a call's "Order 42 ›" opens every call about the same thing, oldest first,
   with the step that didn't go through first, in red, in tafs cloud's words. The Record never sends anything again itself.
+- **A session change** clears the search, what was typed and found; an answer, a hint or a case that lands after it
+  (read as another session than the one now) is dropped, and an open case closes.
 - For a screenshot, `--page record-search` with `--home` opens the Record with "42" searched, answered from a
   `record-search.json` beside the Home file (a case from `record-case.json`).
 

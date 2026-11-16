@@ -883,7 +883,12 @@ public sealed partial class MainWindow : Window
         ReceiptSheet.Read = null;
         RecordPage.Read = null;
         record = [];
-        if (Pages.Content is RecordPage page) page.ShowEntries(record);
+        if (Pages.Content is RecordPage page)
+        {
+            page.ShowEntries(record);
+            // The last account's search, its results and any case on its way go with it.
+            page.ClearSearch();
+        }
         if (!sampleHeld) ShowHeld([]);
         unproven = [];
         mayAnswerHolds = true;

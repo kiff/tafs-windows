@@ -83,11 +83,28 @@ public sealed partial class RecordPage : Page
     string? searchError;
     DispatcherQueueTimer? typing;
 
+    /// <summary>
+    /// The search forgotten, at a session change, as the iPad's <c>forgetSession</c> clears <c>recordSearch</c>: what was
+    /// typed, found and on its way goes, and the box shows only when there's a session to search as.
+    /// </summary>
+    public void ClearSearch()
+    {
+        typing?.Stop();
+        (searched, searching, searchError) = (null, false, null);
+        pages.Clear();
+        SearchBox.Text = "";
+        SearchBox.PlaceholderText = App.Words.Get("record.search_hint");
+        SearchBox.Visibility = Read is null ? Visibility.Collapsed : Visibility.Visible;
+        ShowSearch();
+    }
+
     /// <summary>tafs cloud's words for the box (<c>hint</c>), read once with an empty search, as the iPad's <c>loadRecordHint</c>.</summary>
     async Task ReadHintAsync()
     {
         if (Read is not { } read) return;
         var answer = (await read(RecordSearch.Path("", limit: 1))).Answer;
+        // Read as another session than the one now: dropped.
+        if (Read != read) return;
         if (answer is { } a && RecordSearch.ReadPage(a).Hint is { Length: > 0 } hint) SetHint(hint);
     }
 
@@ -156,7 +173,8 @@ public sealed partial class RecordPage : Page
         (searching, searchError) = (true, null);
         ShowSearch();
         var answer = await read(RecordSearch.Path(asked, more ? pages.Last().NextCursor : null));
-        if (searched != asked) return;
+        // Another search since, or another session: what was found for this one is never drawn.
+        if (searched != asked || Read != read) return;
         searching = false;
         if (answer.Answer is { } a)
         {
@@ -260,6 +278,12 @@ public sealed partial class RecordPage : Page
         };
         var shown = dialog.ShowAsync();
         var answer = await read(RecordSearch.CasePath(about));
+        // The account changed while it was read: its steps are never drawn, and the case closes.
+        if (Read != read)
+        {
+            dialog.Hide();
+            return;
+        }
         body.Children.Clear();
         if (answer.Answer is { } a && RecordSearch.ReadCase(a) is { } found)
         {
