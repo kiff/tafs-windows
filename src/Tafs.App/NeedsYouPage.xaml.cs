@@ -23,7 +23,8 @@ public sealed class HeldCallView : INotifyPropertyChanged
         Avatar = new SolidColorBrush(ColorHelper.FromArgb(0xFF, (byte)(rgb >> 16), (byte)(rgb >> 8), (byte)rgb));
         var gate = NeedsYouScreen.Gate(words);
         (GateLead, GateAdd) = (gate.Lead, gate.Add);
-        var answers = NeedsYouScreen.Answers(words, call, mayAnswerHolds, managesCards);
+        // The gate only while this PC can't approve: a view-only session, as the iPad's ApprovalGate.
+        var answers = NeedsYouScreen.Answers(words, call, mayAnswerHolds, managesCards, App.Sessions.Kept()?.Mode);
         (AnswerLine, GateShown) = (answers.Line, answers.Gate ? Visibility.Visible : Visibility.Collapsed);
         AvatarShown = call.Avatar ? Visibility.Visible : Visibility.Collapsed;
         DetailsHeading = words.Get("common.details");

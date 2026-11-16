@@ -6,7 +6,12 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
 - **The head:** the avatar (34, corners of 10, the name's first letter in white on the taf's colour), the name in 20
   bold, and its state's chip ("Working"), green on the same green at 15%.
 - **The tabs:** Chat, Activity, Card and Setup, in the iPad's order, on the system grey track (`taf.section.*`, named
-  "View"). Activity, the Card and Setup are built. Chat is shown, so the page has the iPad's shape, and is off.
+  "View"). Activity, the Card and Setup are built and open on every taf, as the iPad's: a real taf's Cards as Home
+  read them from KIFF (`TafCards.Shown`: with none listed, one merged from its rules, as `Taf.shownCards`), its Setup
+  read from tafs cloud; each sample taf with its own Card (its template's rules, as the iPad's `TafTemplates`) and job.
+  A real taf whose Card KIFF revoked (`card.active` false) opens revoked, as the iPad's `card.revoked`: every Card
+  says Revoked and fades, and the chip says Stopped. Chat is shown, so the page has the iPad's shape,
+  and is off.
   The Card bar is above the Activity, and its chevron opens the Card tab.
 - **The Card bar:** a small Card in the taf's colour with the Card's mark, its Card's figure and words ("€1,960 left
   today of €2,000"), and under it the Card's name, its environment when it isn't production, and "· 3 Cards" when the
@@ -128,7 +133,7 @@ rules and totals.
 - **The real Revoke:** `POST /v1/me/mandates/{id}/revoke` for each of its Cards, shown only to whoever KIFF says manages
   the taf, and Stopped only once KIFF has revoked them all (`card.revoke_failed` otherwise). How it's signed, and
   whether a view-only session may send it, is settled in its own PR with the security review. Today's Revoke reaches
-  nothing: the Card tab is only the sample's.
+  nothing, so it's shown on the sample's Card tab only, never on a real taf's.
 - A Card's pending use and unit words drawn, its totals for each item, and how KIFF counts
   each tool.
 - **The rest:** the head's second line (the version and Share); held calls, Card-unit exceptions, its work and its runs
