@@ -24,7 +24,8 @@ public sealed class HeldCallView : INotifyPropertyChanged
         var gate = NeedsYouScreen.Gate(words);
         (GateLead, GateAdd) = (gate.Lead, gate.Add);
         // The gate only while this PC can't approve: a view-only session, as the iPad's ApprovalGate.
-        var answers = NeedsYouScreen.Answers(words, call, mayAnswerHolds, managesCards, App.Sessions.Kept()?.Mode);
+        var answers = NeedsYouScreen.Answers(words, call, mayAnswerHolds, managesCards,
+            App.Sessions.Kept() is { } kept && HeldAnswers.Approves(kept.Mode, kept.PasskeyId));
         (AnswerLine, GateShown) = (answers.Line, answers.Gate ? Visibility.Visible : Visibility.Collapsed);
         AvatarShown = call.Avatar ? Visibility.Visible : Visibility.Collapsed;
         DetailsHeading = words.Get("common.details");
