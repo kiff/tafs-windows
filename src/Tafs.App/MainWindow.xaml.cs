@@ -29,6 +29,10 @@ public sealed partial class MainWindow : Window
     /// <summary>The held calls Needs you shows: KIFF's, read with each refresh of Home's list, or the iPad's samples.</summary>
     IReadOnlyList<HeldCall> held;
 
+    /// <summary>"Did this happen?": KIFF's money calls it can't prove, read when Needs you opens, and whether the person answers held calls.</summary>
+    IReadOnlyList<Unproven> unproven = [];
+    bool mayAnswerHolds = true;
+
     /// <summary>A screenshot's samples: they stay, and KIFF isn't read for them.</summary>
     readonly bool sampleHeld;
 
@@ -36,6 +40,24 @@ public sealed partial class MainWindow : Window
     NavigationViewItem? needsYouRow;
     string needsYouTitle = "";
     readonly List<object> heldRows = [];
+
+    /// <summary>The holds this session has read, so only one held since the last read is notified; none before the first read.</summary>
+    HashSet<string>? notified;
+
+    /// <summary>
+    /// The hold a clicked notification named, kept until Needs you shows its card, as the iPad's <c>requestedHold</c>: a
+    /// click that started tafs, or a hold not read yet, lands on it once it's listed.
+    /// </summary>
+    string? requestedHold;
+
+    /// <summary>
+    /// KIFF's held calls read again every minute while a session is in use: the iPad hears of a new hold by push, which
+    /// Windows doesn't have yet, so this is how a notification comes while tafs is open.
+    /// </summary>
+    readonly DispatcherTimer heldClock = new() { Interval = TimeSpan.FromMinutes(1) };
+
+    /// <summary>When the window was minimised, if it is: past ten minutes the minute's read stops (<see cref="HoldToast.Reads"/>).</summary>
+    DateTimeOffset? minimisedSince;
 
     /// <summary>The Record's lines: KIFF's activity once Home is read as the session, else none, or the iPad's sample.</summary>
     IReadOnlyList<RecordEntry> record;
@@ -121,8 +143,31 @@ public sealed partial class MainWindow : Window
 
         SignInPage.PairInsteadChosen += OpenPairing;
         NeedsYouPage.AddThisDeviceChosen += OpenPairing;
+        Toasts.HoldChosen += hold => DispatcherQueue.TryEnqueue(() => OpenHold(hold));
+        heldClock.Tick += (_, _) =>
+        {
+            if (home is { } listed && kiffRead is not null && HoldToast.Reads(minimisedSince, DateTimeOffset.UtcNow)) _ = ReadHeldAsync(listed, sessions);
+        };
+        // Minimised for more than ten minutes, the minute's read stops; the window coming back reads once.
+        AppWindow.Changed += (window, change) =>
+        {
+            var minimised = window.Presenter is Microsoft.UI.Windowing.OverlappedPresenter { State: Microsoft.UI.Windowing.OverlappedPresenterState.Minimized };
+            var now = DateTimeOffset.UtcNow;
+            if (minimised && minimisedSince is null) minimisedSince = now;
+            else if (!minimised && minimisedSince is { } since)
+            {
+                minimisedSince = null;
+                if (!HoldToast.Reads(since, now) && home is { } listed && kiffRead is not null) _ = ReadHeldAsync(listed, sessions);
+            }
+        };
         // F5 on Needs you: Home and KIFF's held calls read again, as the iPad's pull-to-refresh.
-        NeedsYouPage.RefreshChosen += () => { if (cloudRead is { } read) _ = ReadHomeAsync(read); };
+        NeedsYouPage.RefreshChosen += () =>
+        {
+            if (cloudRead is not { } read) return;
+            _ = ReadHomeAsync(read);
+            // Did this happen? read again too, as the iPad's refresh then loadUnproven.
+            _ = ReadUnprovenAsync(sessions);
+        };
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
         // Focus goes back to the sidebar's Coach when Coach mode has gone.
         CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
@@ -164,13 +209,17 @@ public sealed partial class MainWindow : Window
             if (screenshot is null) Keep(chosen);
         };
         AccountPage.SignInChosen += OpenSignIn;
-        AccountPage.AlertsChosen += () => OpenBeside(typeof(ComingPage), w.Get("settings.alerts"));
+        // The choices only for a KIFF account, as the iPad's mode == .kiff: never over the sample.
+        AccountPage.AlertsChosen += () => OpenBeside(typeof(AlertsPage), new AlertsOpening(sample ? null : App.Sessions.Kept()?.Tenant));
         AccountPage.DevicesChosen += () => OpenBeside(typeof(DevicesPage), new DevicesOpening(kiffRead));
+        AccountPage.PeopleChosen += () => OpenBeside(typeof(PeoplePage), new PeopleOpening(kiffRead,
+            agent => home?.Tafs.FirstOrDefault(t => t.Agent == agent)?.Name));
         AccountPage.AddThisDeviceChosen += OpenPairing;
         // As the iPad's sign-out (its forgetSession): everything read as the last session goes, and nothing reads as anyone.
         AccountPage.SignedOut += () =>
         {
             ViewOnly.IsOpen = false;
+            requestedHold = null;
             ForgetSession();
             OpenSignIn();
         };
@@ -249,6 +298,10 @@ public sealed partial class MainWindow : Window
         if ((await read(HomeList.Path)).Answer is not { } answer || reading != sessions) return;
         cloudRead = read;
         ShowHome(HomeList.Read(w, answer, TimeZoneInfo.Local));
+        ShowHaltAll();
+        // Who manages each taf and the account's capabilities, read with the list as the iPad's refreshAccess, then every
+        // taf's halt, now that tafs cloud can be read: whatever order KIFF's reads land in.
+        if (App.Sessions.Kept()?.AccessToken is { } bearer) _ = AllowCoachAsync(bearer);
         var listed = home!;
         _ = ReadRecordAsync(listed, reading);
         _ = ReadHeldAsync(listed, reading);
@@ -284,11 +337,58 @@ public sealed partial class MainWindow : Window
         // Who answers, and who manages Cards, as the iPad's mayAnswerHolds and canManageCards: KIFF's capabilities on /v1/me.
         var capabilities = Tafs.Core.Coach.CoachAccess.Capabilities((await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer);
         if (reading != sessions) return;
-        NeedsYouPage.Capabilities = (capabilities?.Contains("holds.answer") ?? true, capabilities?.Contains("cards.manage") ?? true);
+        NeedsYouPage.Capabilities = (HoldToast.Notifies(capabilities), capabilities?.Contains("cards.manage") ?? true);
         var answer = (await read(KiffHeld.Path)).Answer;
         if (reading != sessions || answer is not { } json || KiffHeld.Read(json) is not { } holds) return;
         var tafs = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => (g.First().Name, g.First().Colour));
-        ShowHeld(KiffHeld.Calls(App.Words, holds, agent => tafs.TryGetValue(agent, out var taf) ? taf : null));
+        var calls = KiffHeld.Calls(App.Words, holds, agent => tafs.TryGetValue(agent, out var taf) ? taf : null);
+        ShowHeld(calls);
+        // A hold KIFF has held since the last read gets its notification, as the iPad's hold alert, only for someone who
+        // answers held calls (canAnswerHolds) and turned alerts on for this account (Account › Alerts); one no longer held
+        // loses its notification (removeAlerts(forHold:)).
+        Toasts.Remove(HoldToast.Gone(notified, calls));
+        var alerts = Alerts.Prefs;
+        if (HoldToast.Notifies(capabilities) && App.Sessions.Kept()?.Tenant is { } tenant && alerts.IsOn(tenant))
+            foreach (var fresh in HoldToast.New(notified, calls))
+                if (HoldToast.Lines(App.Words, fresh, TimeZoneInfo.Local, Toasts.Locked()) is { } lines) Toasts.Show(lines, alerts.Sound);
+        notified = calls.Where(c => c.KiffId is not null).Select(c => c.KiffId!).ToHashSet();
+    }
+
+    /// <summary>
+    /// A hold's notification was clicked, as the iPad's <c>PushDelegate.open</c>: the window comes forward, and Needs you
+    /// opens with that hold's card in view. A hold no longer held just opens Needs you.
+    /// </summary>
+    internal void OpenHold(string hold)
+    {
+        requestedHold = hold;
+        Activate();
+        if (needsYouRow is { } row) Nav.SelectedItem = row;
+        ShowRequestedHold();
+        // Not listed yet: KIFF is read again, as the iPad's onHoldAlert. Before sign-in, the first read brings it.
+        if (requestedHold is not null && home is { } listed && kiffRead is not null) _ = ReadHeldAsync(listed, sessions);
+    }
+
+    /// <summary>The requested hold's card brought into view, once Needs you lists it; then it's forgotten.</summary>
+    void ShowRequestedHold()
+    {
+        if (requestedHold is { } hold && Pages.Content is NeedsYouPage page && page.ShowHold(hold)) requestedHold = null;
+    }
+
+    /// <summary>
+    /// "Did this happen?" read from KIFF when Needs you opens, as the iPad's <c>loadUnproven</c>: only for someone who answers
+    /// held calls (KIFF's <c>holds.answer</c>, from <c>GET /v1/me</c>), a plain read as the session. A read that fails keeps
+    /// the list; one that lands after another session began is dropped.
+    /// </summary>
+    async Task ReadUnprovenAsync(int reading)
+    {
+        if (kiffRead is not { } read || sampleHeld) return;
+        // Read into a local first: an answer from an earlier session never replaces this one's, as the iPad's accountGeneration.
+        var may = DidThisHappen.MayAnswerHolds(Tafs.Core.Coach.CoachAccess.Capabilities((await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer));
+        if (reading != sessions) return;
+        mayAnswerHolds = may;
+        if (mayAnswerHolds && (await read(DidThisHappen.Path)).Answer is { } json && reading == sessions && DidThisHappen.Read(json) is { } calls)
+            unproven = calls;
+        if (reading == sessions && Pages.Content is NeedsYouPage page) page.ShowUnproven(unproven, mayAnswerHolds);
     }
 
     /// <summary>The held calls drawn again: NEEDS YOU in the sidebar, Needs you's count, and Needs you or the Overview when open.</summary>
@@ -299,6 +399,7 @@ public sealed partial class MainWindow : Window
         AddHeldCalls(w);
         if (needsYouRow is { } row) ShowCount(row, w, needsYouTitle);
         if (Pages.Content is NeedsYouPage page) page.Show(held);
+        ShowRequestedHold();
         if (Pages.Content is OverviewPage overview) overview.ShowHeld(held);
     }
 
@@ -321,6 +422,20 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>Which session Home and Coach read as: each sign-in moves it on, so a read that lands after it is dropped.</summary>
+    /// <summary>
+    /// What KIFF says this person may do: which tafs they manage, by agent (<c>GET /v1/me/access</c>), and the account's
+    /// capabilities (<c>GET /v1/me</c>). None until read, which shows no halt.
+    /// </summary>
+    IReadOnlyDictionary<string, bool>? manage;
+    IReadOnlyList<string>? capabilities;
+
+    /// <summary>Every taf's halt, as last read, and its row in the sidebar (the iPad's <c>haltAllRow</c>).</summary>
+    Halt accountHalt = Halt.Running;
+    NavigationViewItem? haltAllRow;
+
+    /// <summary>A halt sent to tafs cloud as the session: none signed out.</summary>
+    Func<string, Task<CloudRead>>? haltSend;
+
     int sessions;
 
     /// <summary>
@@ -344,6 +459,7 @@ public sealed partial class MainWindow : Window
         CoachMode.Approves = Tafs.Core.Coach.CoachStart.MayStart(session);
         CoachMode.Drafts = async id => (await KiffReadAsync(bearer, Tafs.Core.Approvals.KiffDrafts.Path(id))).Answer is { } d ? Tafs.Core.Approvals.KiffDrafts.Read(d) : null;
         CoachMode.Read = path => CloudReadAsync(bearer, path);
+        haltSend = path => CloudSendAsync(bearer, path, "{}"u8.ToArray());
         // Start, as the iPad's: off for a session that can't approve.
         CoachMode.StartCoach = Tafs.Core.Coach.CoachStart.MayStart(session) ? () => StartCoachAsync(session) : null;
         // Signed in but can't approve: the iPad's gate line where Start would be.
@@ -352,6 +468,7 @@ public sealed partial class MainWindow : Window
         var reporting = sessions;
         CoachMode.Report = async (path, body) => await CloudSendAsync(bearer, path, body) is var r && reporting == sessions ? r : null;
         _ = ReadHomeAsync(path => CloudReadAsync(bearer, path));
+        heldClock.Start();
         _ = AllowCoachAsync(bearer);
     }
 
@@ -365,6 +482,8 @@ public sealed partial class MainWindow : Window
     void ForgetSession()
     {
         sessions++;
+        // The last export's files too, as the iPad's removeOpenedFiles: a person's chats never stay on this PC after them.
+        ChatsExport.Remove(ChatsExport.Folder);
         NeedsYouPage.Capabilities = (true, true);
         cloudRead = null;
         cloudReadWithProof = null;
@@ -375,9 +494,19 @@ public sealed partial class MainWindow : Window
         record = [];
         if (Pages.Content is RecordPage page) page.ShowEntries(record);
         if (!sampleHeld) ShowHeld([]);
+        unproven = [];
+        mayAnswerHolds = true;
+        if (Pages.Content is NeedsYouPage needsYou) needsYou.ShowUnproven(unproven, mayAnswerHolds);
+        notified = null;
+        // The requested hold is kept: a session starting (a cold start from a click, or signing in after one) forgets the
+        // last one's state first, and the click must still land once Needs you lists it. Only a sign-out drops it.
+        Toasts.RemoveAll();
+        heldClock.Stop();
         ShowHome(new HomeAnswer([], null));
         CoachMode.Read = null;
         CoachMode.Answer = null;
+        (manage, capabilities, accountHalt, haltSend) = (null, null, Halt.Running, null);
+        ShowHaltAll();
         CoachMode.StartCoach = null;
         CoachMode.StartGate = false;
         planqueReady = false;
@@ -472,14 +601,83 @@ public sealed partial class MainWindow : Window
     /// </summary>
     async Task AllowCoachAsync(string bearer)
     {
-        var setup = Tafs.Core.Coach.CoachAccess.SetupUse((await KiffReadAsync(bearer, Tafs.Core.Coach.CoachAccess.AccessPath)).Answer);
-        var capabilities = setup is null ? Tafs.Core.Coach.CoachAccess.Capabilities((await KiffReadAsync(bearer, Tafs.Core.Coach.CoachAccess.MePath)).Answer) : null;
-        // Signed out meanwhile: it's no one's to answer.
-        if (App.Sessions.Kept() is not { } session || session.AccessToken != bearer || !Tafs.Core.Coach.CoachAccess.MayUseCoach(setup, capabilities)) return;
+        var reading = sessions;
+        var access = (await KiffReadAsync(bearer, Tafs.Core.Coach.CoachAccess.AccessPath)).Answer;
+        var me = Tafs.Core.Coach.CoachAccess.Capabilities((await KiffReadAsync(bearer, Tafs.Core.Coach.CoachAccess.MePath)).Answer);
+        // Signed out meanwhile: it's no one's.
+        if (reading != sessions || App.Sessions.Kept() is not { } session || session.AccessToken != bearer) return;
+        var setup = Tafs.Core.Coach.CoachAccess.SetupUse(access);
+        // Kept as it was when it can't be read, as the iPad's refreshAccess.
+        manage = Tafs.Core.Coach.CoachAccess.Manage(access) ?? manage;
+        capabilities = me ?? capabilities;
+        _ = ReadAccountHaltAsync(reading);
+        if (!Tafs.Core.Coach.CoachAccess.MayUseCoach(setup, setup is null ? capabilities : null)) return;
         CoachMode.Answer = (path, body) => CloudSendAsync(bearer, path, body);
         // Approve, as the iPad's Coach cards, only for someone who may use Coach, and only a session that signs with its passkey.
         if (Tafs.Core.Coach.CoachStart.MayStart(session))
             CoachMode.Approve = (card, conversation, digest, version) => ApproveCardAsync(session, card, conversation, digest, version);
+    }
+
+    /// <summary>Every taf's halt, for someone who manages Cards (the iPad's <c>haltAllRow</c>'s <c>refreshHalt(nil)</c>), then its row.</summary>
+    async Task ReadAccountHaltAsync(int reading)
+    {
+        if (!Halt.ManagesCards(capabilities) || cloudRead is not { } read) { ShowHaltAll(); return; }
+        var answer = (await read(Halt.Path(null))).Answer;
+        if (reading != sessions) return;
+        if (answer is { } json && Halt.Read(json) is { } h) accountHalt = h;
+        ShowHaltAll();
+    }
+
+    /// <summary>
+    /// Every taf's halt in the sidebar, under the screens, as the iPad's <c>showsAccountHalt</c>: to someone who manages Cards,
+    /// while a taf runs, and whenever the account is halted or halting. The hand in red; under "Halt all", its state once it isn't running.
+    /// </summary>
+    void ShowHaltAll()
+    {
+        var w = App.Words;
+        var shows = haltSend is not null && Halt.ShowsAccountHalt(Halt.ManagesCards(capabilities), home?.Tafs.Count > 0, accountHalt);
+        if (!shows)
+        {
+            if (haltAllRow is not null) Nav.MenuItems.Remove(haltAllRow);
+            haltAllRow = null;
+            return;
+        }
+        var lines = new StackPanel { Spacing = 2 };
+        lines.Children.Add(new TextBlock { Text = w.Get("taf.halt.title_all") });
+        if (accountHalt.State != HaltState.Running)
+            lines.Children.Add(new TextBlock { Text = Halt.Headline(w, accountHalt), FontSize = 12, Style = (Style)Application.Current.Resources["TafsNoText"] });
+        if (haltAllRow is null)
+        {
+            haltAllRow = new NavigationViewItem
+            {
+                Tag = HaltAll,
+                Icon = new FontIcon { Glyph = ((char)0xE7E8).ToString(), Style = (Style)Application.Current.Resources["TafsSidebarIcon"],
+                    Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TafsNo"] },
+                Style = (Style)Application.Current.Resources["TafsSidebarItem"],
+            };
+            // Under the screens, as the iPad's first section: after the last of them.
+            var at = Nav.MenuItems.OfType<NavigationViewItem>().Where(i => i.Tag is Screen).Select(i => Nav.MenuItems.IndexOf(i)).DefaultIfEmpty(Nav.MenuItems.IndexOf(BrandItem)).Max() + 1;
+            Nav.MenuItems.Insert(at, haltAllRow);
+        }
+        haltAllRow.Content = lines;
+        AutomationProperties.SetName(haltAllRow, string.Join(". ", lines.Children.OfType<TextBlock>().Select(t => t.Text)));
+    }
+
+    /// <summary>The sidebar's tag for every taf's halt.</summary>
+    static readonly object HaltAll = new();
+
+    /// <summary>The Halt screen for a taf by its tafs cloud id, or every taf with none.</summary>
+    void OpenHalt(string? taf, string name)
+    {
+        if (cloudRead is not { } read || haltSend is not { } send) return;
+        var reading = sessions;
+        Pages.Navigate(typeof(HaltPage), new HaltOpening(taf, name, read, send, () =>
+        {
+            if (reading != sessions) return;
+            // The list reads it halted at once, not at its next read, as the iPad's refresh() after a halt.
+            _ = ReadHomeAsync(read);
+            _ = ReadAccountHaltAsync(reading);
+        }));
     }
 
     /// <summary>A read from KIFF as the session, answered as tafs cloud's are.</summary>
@@ -780,7 +978,14 @@ public sealed partial class MainWindow : Window
         ShowAccountChosen(false);
         if (item == BrandItem)
             Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, overviewRows));
-        else if (item.Tag is Screen.NeedsYou or HeldCall) Pages.Navigate(typeof(NeedsYouPage), held);
+        else if (item.Tag is Screen.NeedsYou or HeldCall)
+        {
+            Pages.Navigate(typeof(NeedsYouPage), held);
+            if (Pages.Content is NeedsYouPage page) page.ShowUnproven(unproven, mayAnswerHolds);
+            _ = ReadUnprovenAsync(sessions);
+            ShowRequestedHold();
+        }
+        else if (item.Tag == HaltAll) OpenHalt(null, "");
         else if (item.Tag is Screen.Record) Pages.Navigate(typeof(RecordPage), record);
         else if (item.Tag is Screen.Usage) Pages.Navigate(typeof(UsagePage), usage);
         else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof));
@@ -795,7 +1000,8 @@ public sealed partial class MainWindow : Window
     /// <summary>Account, at the very foot: it opens beside the sidebar, and its icon shows it's open.</summary>
     void OnAccount(object sender, RoutedEventArgs e)
     {
-        OpenBeside(typeof(AccountPage), new AccountOpening(sample, Root.RequestedTheme));
+        OpenBeside(typeof(AccountPage), new AccountOpening(sample, Root.RequestedTheme,
+            path => cloudRead is { } read ? read(path) : Task.FromResult(CloudRead.Unreached(App.Words))));
         ShowAccountChosen(true);
     }
 
@@ -819,8 +1025,20 @@ public sealed partial class MainWindow : Window
                 // Its Cards, as Home read them from KIFF: the Card tab opens on every taf, as the iPad's. Who manages each taf
                 // isn't read on this PC yet, so its issuer is the iPad's for anyone else: "The account".
                 Cards: taf.Cards, IssuedBy: w.Get("card.issued_by_account"), Revoked: taf.Revoked,
-                CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof)
+                CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof,
+                Halt: HaltFor(taf))
             : SampleTaf(w, key, opensOn);
+
+    /// <summary>
+    /// A taf's halt row, only for whoever manages it as KIFF says (the iPad's <c>manages</c>): nothing until that's read.
+    /// None for a revoked taf, as the iPad's (tafs cloud's "stopped", or any state it doesn't know), nor once it's revoked here.
+    /// </summary>
+    TafHalt? HaltFor(HomeTaf taf)
+    {
+        if (!Halt.HasRow(taf) || taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is not { } read || haltSend is null) return null;
+        return new(async () => (await read(Halt.Path(taf.Id))).Answer is { } a && Halt.Read(a) is { } h ? h : Halt.Running,
+            () => OpenHalt(taf.Id, taf.Name));
+    }
 
     /// <summary>
     /// A sample taf's page, opened from its Overview line: its head (Waiting when a call of its waits), its Card bar, its

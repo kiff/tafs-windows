@@ -37,6 +37,27 @@ iPad's `answers(refuseOnly:)`, with KIFF's capabilities from `GET /v1/me` (read 
 
 Words, never buttons that can't work.
 
+## Did this happen? (`DidThisHappen`, `Unproven`)
+
+Ported from the iPad's `DidThisHappenCard` (NeedsYouView.swift), `KIFFClient.Unproven`/`didThisHappen` and
+`AppModel.loadUnproven`/`mayAnswerHolds`. tafs-macos #76 is a second reference.
+- **What it is:** a money call whose outcome KIFF can't prove: its answer was lost, the app refused it with nothing
+  showing it had no effect, or it's one of the first calls of a new money operation. The person says whether it
+  happened.
+- **The read:** `GET /v1/me/did-this-happen`, a plain read as the session, when Needs you opens and with F5, as the iPad reads it on
+  open and on pull-to-refresh. Only for someone who answers held calls (KIFF's `holds.answer` in `GET /v1/me`'s capabilities; an account that
+  lists none may). A call needs its proposal; its title is "" and its status unknown when not said; any other field of
+  the wrong kind fails the read, which keeps the list. No `calls` is none. A sign-out clears it.
+- **Its card,** before the held calls: the amber edge; "Did this happen?" in amber, 13 semibold; KIFF's words for the
+  call, else its title, 15 semibold; the amount only without KIFF's words (two places unless KIFF says, and "725 (no
+  currency)" with no unit); why KIFF asks, in its words, 13 soft.
+- **"Nothing waiting"** only with no held call and no call to say about.
+- **The answers:** the iPad's Yes and No are signed like an approval (`tafs.happened.v1|…`). On a view-only PC, for
+  someone who answers held calls, the card says why it can't approve and offers **Add this Windows PC**, as the iPad's
+  `ApprovalGate` shows `ApprovalNotReady` only while a device can't approve. A PC that approves (a key or passkey
+  session) shows neither the line nor buttons until Yes and No are ported. The line about No goes with the buttons, so
+  it isn't shown.
+
 ## Where the calls come from
 
 **From KIFF** (`KiffHeld`), as the iPad's `KIFFClient.heldCalls` and `KIFFMapping.held`, with each read of Home's list:
@@ -82,3 +103,42 @@ tab bar's red pill). The row is named with it: "Needs you, 2".
 
 The page is capped at 760 wide, from the leading edge. The iPad's has no cap; on a wide window, cards
 that wide would put the amount far from the answers.
+
+## Notifications (`HoldToast`, `Toasts`)
+
+While tafs runs, a call KIFF holds gets a Windows notification, as the iPad's hold alert (`HoldNotification.words`,
+`PushDelegate.open`), for someone who answers held calls (KIFF's `holds.answer` on `GET /v1/me`, none listed allows, as
+the iPad's `canAnswerHolds`), once they turned alerts on for this account in Account › Alerts. With Sound off, it goes to
+Notification Center without a banner or sound, as the iPad's passive alert (tafs cloud's `push.ts` `quietFor`, and
+`PushDelegate.swift:81-82`):
+- **Its words:**
+  - "Rae needs you": a listed taf's name, "Coach" for Coach's own agent (`setup`), and "A taf needs you" for an agent no
+    taf has, as the iPad's `HoldNotification.fill`;
+  - then "Refund order 42, €150.00 · Over €50 each. Answer by 14:05. Nothing is sent until you approve.", answering by
+    this PC's time, as every screen here shows it.
+  - **While the PC is locked, only "A taf needs you"**, because Windows shows notifications on the lock screen by
+    default: no taf, amount, reason or deadline, as the iPad's alert with previews hidden and Android's while locked. It
+    still opens that hold. The PC counts as locked when the input desktop isn't the person's own, or can't be read.
+    Locked is read when the notification is made: one shown while the PC was unlocked keeps its details in Notification
+    Centre, and they show there if the PC is locked later, as a phone keeps an alert shown with previews on.
+- **When it's read:** with each refresh of Home's list, and every minute while a session is in use. The iPad hears of a
+  new hold by push instead, which Windows doesn't have yet. Minimised for more than ten minutes, the minute's read stops;
+  the window coming back reads once.
+- **Which holds:** one KIFF has held since the last read of Needs you. A session's first read notifies nothing, so opening
+  tafs doesn't announce what was already waiting: it's all in Needs you. A sample is never notified. A sign-out starts
+  again.
+- **One per hold:** each is tagged with the SHA-256 of the hold's id (Windows keeps 64 characters), so it's never shown
+  twice.
+- **Gone when the hold is:** a hold no longer held at a read, answered elsewhere or lapsed, loses its notification, as the
+  iPad's `removeAlerts(forHold:)`. A sign-out takes every notification of tafs's away, so the last account's calls never
+  stay on a shared PC.
+- **Clicking one** brings the window forward and opens Needs you with that hold's card in view, whether tafs was open or
+  the click started it. The hold is kept until Needs you lists it, as the iPad's `requestedHold`: a click that started
+  tafs lands on it after sign-in's first read, and one naming a hold not read yet reads KIFF again (`onHoldAlert`). A
+  session starting keeps it (a click while signed out lands after signing in); only a sign-out forgets it. Starting a
+  session clears tafs's notifications.
+- **How:** the Windows App SDK's `AppNotificationManager`, which works for an unpackaged app. It's registered at start
+  (never for a screenshot). On a PC that refuses it, there are no notifications, and Needs you still shows every hold.
+- **Not yet:**
+  - a notification while tafs is closed, which needs a push from tafs cloud, as the iPad's;
+  - Approve and Refuse on the notification itself;

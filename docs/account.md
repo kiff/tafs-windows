@@ -33,6 +33,66 @@ The sections, in the iPad's order:
     says "Sign out didn't go through" with Windows' error code only, and stays here to try again.
   - signed out: Sign in with KIFF.
 
+## Alerts (`AlertPrefs`, `AlertsScreen`, `AlertsPage`)
+
+Ported from the iPad's `NotificationSettingsView` and `LockScreenAlert`, for this PC's own alerts (the notifications a
+held call raises while tafs runs, `needs-you.md`). tafs-macos #68 is a second reference.
+- **What an alert looks like:** the iPad's two, on the raised colour with corners of 18. Each has the mascot, its title
+  and line, and the sound mark: "Chargebacks needs you" with sound, and "Refunds answered maria@…" silent. Narrator reads
+  "With sound: …" or "Silent: …".
+- **For a KIFF account:**
+  - **"Alerts on this Windows PC"** is on only when the person turned it on for this account and Windows allows tafs's
+    notifications.
+  - **Turning it on** checks Windows first, as the iPad asks the system. Refused, it says "Allow notifications for tafs in
+    Settings, then try again." with a link to Windows' notifications settings, and stays off.
+  - **The choice is kept for each account** (off until turned on, as the iPad's `alertsEnabledKey`), so an account never
+    inherits another's.
+  - Both choices are kept beside the session, in `alerts.json`.
+  - **Sound** ("For a hold or a halt only") is the PC's, on until turned off. It's off and greyed while alerts are off,
+    and keeps its choice for when they're back. With Sound off, it goes to Notification Center without a banner or sound,
+    as the iPad's passive alert (`PushDelegate.swift:81-82`).
+- **Not here, as on macOS:**
+  - the footer, which says this device tells you "even with tafs closed": on Windows an alert comes only while tafs
+    runs;
+  - "What alerts you", which tafs cloud keeps per phone's push token, and this PC has none;
+  - Haptics, the phone's.
+## People & groups (`People`, `PeoplePage`)
+
+Ported from the iPad's `PeopleGroupsView` and `refreshPeople`, first in **People & apps**. tafs-macos #67 is a second
+reference, read-only as here.
+- **The read:** `GET /v1/groups`, `GET /v1/tenant/members` and `GET /v1/me` as the session, when it opens and every 20
+  seconds while open. A group needs its id, name, members and agents; a person their subject, role and status. A field
+  of the wrong kind fails the read, which says "People and groups couldn't be read." with why, over what was shown.
+- **The account line:** "Acme · 2 people", counting only the people on the account now, or the count alone when the
+  account is named after the person's email.
+- **Each group:** KIFF's default group first, as "Everyone" in the app's language, then by name. Its name, 15 semibold,
+  over what it uses, 12 dim: "Uses Invoices and Refunds", only the agents that are the account's tafs, or "Uses no taf
+  yet".
+- **Each person:** managers first, then by email. Their initial on a raised circle, their email (else KIFF's id for
+  them), and "Manager" in amber or "Member".
+- "No groups yet." once read, with no groups and no error.
+- **Not yet:** the iPad's changes (a new group, renaming or deleting one, adding someone, making them the manager or
+  removing them). Each is an approval signed on the device (`changePeople`), as Devices' Sign out.
+
+## Export my chats (`ChatsExport`, `ShareFiles`)
+
+Ported from the iPad's `ExportChatsSection` (ExportChatsView.swift), `AppModel.exportChats` and `TafsCloud.exportChats`
+/ `splitExport`, for a KIFF account, after Language. tafs-macos #79 is a second reference.
+- **The read:** `GET /v1/me/chats/export` from tafs cloud, as the session. `readable` is the text file; the rest is the
+  JSON file, indented, its keys sorted at every level, slashes and letters left as they are. An answer that isn't an
+  object, or a read that fails, says "Your chats weren't exported. Check your connection and try again."
+- **The files:** `tafs-chats.json` and `tafs-chats.txt`, in tafs's folder under Windows' temporary folder. It's removed
+  and made again at each export, and removed at every session change (sign-in, pairing, sign-out), so a person's chats
+  don't stay on this PC after them. Files Windows won't write say "this Windows PC couldn't save the files."
+- **The row:** "Export my chats", with a spinner and "Preparing your chats…" while it's made, and "Try again" after a
+  failure, with why in red. Once made, Windows' share sheet opens with both files, and "Ready: tafs-chats.json,
+  tafs-chats.txt. Share again" opens it again. The footer says what's in it and that only they can export it.
+- **Differences:**
+  - The iPad's share and save sheet is Windows' share sheet, which shares to apps and nearby devices.
+  - The JSON's layout is .NET's indented one (`"key": value`), where Apple writes `"key" : value`; the content and key
+    order are the same.
+  - The iPad writes with iOS's file protection, which Windows has no counterpart for in the temporary folder.
+
 ## Devices (`Devices`, `DevicesPage`)
 
 Ported from the iPad's `DevicesView` and `KIFFClient.Device`, opened from **People & apps**, which shows for a KIFF account
@@ -62,4 +122,4 @@ Ported from the iPad's `DevicesView` and `KIFFClient.Device`, opened from **Peop
   - Signed in as (the email), as its own row, shown only when the account isn't named after it;
   - the plan, from `plan_line` in `plan_tone`'s colour.
 - **View only from `GET /v1/me`** itself: today it comes from the token's `approval_mode`, kept with the session.
-- **The KIFF-only sections:** the rest of People & apps (People & groups, Connect apps), Coach's suggestions, the AI-data consent, the time zone and Your chats.
+- **The KIFF-only sections:** the rest of People & apps (Connect apps), Coach's suggestions, the AI-data consent, the time zone and Your chats.
