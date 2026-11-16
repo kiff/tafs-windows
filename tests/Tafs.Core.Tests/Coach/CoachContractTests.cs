@@ -115,4 +115,17 @@ public class CoachContractTests
         Assert.Equal(["approval", "sign_in"], marked.Select(s => s.Card.Kind));
         Assert.All(marked, s => Assert.Equal(words, s.Card.Wider));
     }
+
+    /// <summary>
+    /// tafs cloud's own <c>coach-wider.json</c> (kiff/tafs#1263): the conversation as a proven read answers it, its approval
+    /// marked <c>wider</c>. Windows reads tafs cloud's words on the card, as sent.
+    /// </summary>
+    [Fact]
+    public void Tafs_cloud_s_wider_contract_reaches_the_approval_card()
+    {
+        var thread = CoachThread.Read(ContractFile.Answer(SharedFiles.Contract("coach-wider.json")))!;
+        var approval = Assert.Single(thread.Shown, s => s.Card.Kind == "approval");
+        Assert.Equal("The sign-in for Google Sheets can't be narrowed to this job: it asks for more access than the taf uses. The taf still uses only its own tools.",
+            approval.Card.Wider);
+    }
 }
