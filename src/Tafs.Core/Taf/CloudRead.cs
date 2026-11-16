@@ -8,9 +8,10 @@ namespace Tafs.Core.Taf;
 /// <summary>
 /// A read of tafs cloud: its answer, or why it didn't come in the person's words, as the iPad's
 /// <c>CloudError.errorDescription</c> (TafsCloud.swift), with the status it answered (0 when it wasn't reached), and
-/// tafs cloud's <c>code</c> for a refusal when it gives one (<c>ai_consent_required</c>).
+/// tafs cloud's <c>code</c> for a refusal when it gives one (<c>ai_consent_required</c>), and its <c>words</c> alone, written
+/// for the person (the iPad's <c>CloudError.words</c>), for a screen that says only those.
 /// </summary>
-public sealed record CloudRead(JsonElement? Answer, string? Why = null, int Status = 0, string? Code = null)
+public sealed record CloudRead(JsonElement? Answer, string? Why = null, int Status = 0, string? Code = null, string? Words = null)
 {
     public static CloudRead Of(JsonElement answer) => new(answer, Status: 200);
 
@@ -24,7 +25,8 @@ public sealed record CloudRead(JsonElement? Answer, string? Why = null, int Stat
         try { json = JsonDocument.Parse(body).RootElement.Clone(); }
         catch (JsonException) { }
         return new(null, Lenient.Text(json, "words") ?? Lenient.Text(json, "error")
-            ?? w.Get("error.cloud_answered", ("status", status.ToString(CultureInfo.InvariantCulture))), status, Lenient.Text(json, "code"));
+            ?? w.Get("error.cloud_answered", ("status", status.ToString(CultureInfo.InvariantCulture))), status, Lenient.Text(json, "code"),
+            Lenient.Text(json, "words"));
     }
 
     /// <summary>

@@ -15,9 +15,14 @@ and KIFF takes P-256 only.
   (approve once, extra room) with its assertion in the body, `"signature": {"signed_at", "passkey": {credential_id,
   client_data_json, authenticator_data, signature}}`, its challenge base64url(sha256) of that answer's `kiff.answer.v1`.
 
-The Windows WebAuthn calls are built (`WindowsHello`, below). Until the pairing screen makes this PC's
-passkey and puts it in the QR (its own change), this PC has no passkey to assert with, so its approvals
-go to the phone. Switched off, `PasskeyApprover` refuses before Windows Hello is asked.
+**Where this PC asks less than the iPad:** Windows Hello takes the PC's PIN as well as a face or a fingerprint, where the
+iPad's approvals that grant (`grants: true`) take biometrics only. Windows' platform passkey has no biometrics-only mode;
+the PIN is Windows Hello's own fallback, bound to this PC's TPM.
+
+The Windows WebAuthn calls are built (`WindowsHello`, below). A session paired with this PC's passkey keeps its credential
+id (`KeptSession.PasskeyId`). Two things assert with it: starting Coach, which signs Setup's draft with it (`coach.md`),
+and setting planque up. Until approving is wired, this PC asserts with it for nothing else, so its approvals go to the
+phone. Switched off, `PasskeyApprover` refuses before Windows Hello is asked.
 
 ## An approval (`PasskeyApprover`)
 

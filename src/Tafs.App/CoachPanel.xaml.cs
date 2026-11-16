@@ -48,6 +48,98 @@ public sealed partial class CoachPanel : UserControl
     Func<string, byte[], Task<CloudRead>>? answer;
 
     /// <summary>
+    /// Start, as the iPad's <c>startSetup</c>, for a session that can approve; none otherwise, and Start stays off, as the
+    /// iPad's behind its approval gate.
+    /// </summary>
+    public Func<Task<StartResult>>? StartCoach
+    {
+        get => startCoach;
+        set
+        {
+            startCoach = value;
+            firstStart = false;
+            ShowStart();
+        }
+    }
+
+    Func<Task<StartResult>>? startCoach;
+
+    /// <summary>
+    /// Signed in, but this PC can't approve (a view session, a key session, or a passkey session that doesn't know its
+    /// passkey): the iPad's gate line, <c>approval.device_can_not_approve_approve</c>, where Start would be (its
+    /// <c>ApprovalGate</c> in <c>introBefore</c>).
+    /// </summary>
+    public bool StartGate
+    {
+        get => startGate;
+        set
+        {
+            startGate = value;
+            ShowStart();
+        }
+    }
+
+    bool startGate;
+
+    /// <summary>While Start runs, as the iPad's <c>startingSetup</c>: Start says "Starting…" and is off.</summary>
+    bool starting;
+
+    /// <summary>tafs cloud has its own first start for this account, which isn't on this PC yet: Start stays off.</summary>
+    bool firstStart;
+
+    void ShowStart()
+    {
+        var on = startCoach is not null && !starting && !firstStart;
+        Start.Visibility = startGate ? Visibility.Collapsed : Visibility.Visible;
+        StartGateLine.Visibility = startGate ? Visibility.Visible : Visibility.Collapsed;
+        StartGateLine.Text = App.Words.Get("approval.device_can_not_approve_approve");
+        Start.IsEnabled = on;
+        Start.Style = (Style)Application.Current.Resources[on ? "TafsPrimary" : "TafsPrimaryOff"];
+        Start.Content = App.Words.Get(starting ? "common.starting" : "coach.start");
+    }
+
+    /// <summary>
+    /// Start, as the iPad's button: <c>startSetup</c> once, then Coach's thread read again, as its <c>loadSetupThread</c>.
+    /// Why it didn't start shows under the intro, as the iPad's <c>setupError</c>; closing Windows Hello says nothing.
+    /// </summary>
+    async void OnStart(object sender, RoutedEventArgs e)
+    {
+        if (startCoach is not { } start || starting) return;
+        var gen = generation;
+        starting = true;
+        IntroError.Visibility = Visibility.Collapsed;
+        ShowStart();
+        var result = await start();
+        if (gen != generation) return;
+        starting = false;
+        firstStart = result.Outcome == StartOutcome.FirstStart;
+        ShowStart();
+        if (result.Started) await LoadThreadAsync();
+        else if (result.Why is { } why)
+        {
+            IntroError.Text = why;
+            IntroError.Visibility = Visibility.Visible;
+        }
+    }
+
+    /// <summary>
+    /// How the panel sends a report of one of Coach's answers to tafs cloud (path and body), as the session, for a KIFF
+    /// account: none for the sample or a screenshot, and no answer offers it. An answer that comes after the person signed
+    /// out is none. Given while it's open, the thread is drawn again.
+    /// </summary>
+    public Func<string, byte[], Task<CloudRead?>>? Report
+    {
+        get => report;
+        set
+        {
+            report = value;
+            Redraw();
+        }
+    }
+
+    Func<string, byte[], Task<CloudRead?>>? report;
+
+    /// <summary>
     /// How the panel reads planque's grants, signed as this device, and a KIFF draft by its id, for the approval cards: the
     /// session's; none signed out or for a screenshot, and the cards then say they're reading the request.
     /// </summary>
@@ -76,6 +168,8 @@ public sealed partial class CoachPanel : UserControl
         IntroError.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Collapsed;
         Intro.Visibility = Visibility.Visible;
+        starting = false;
+        ShowStart();
     }
 
     /// <summary>Coach's id, its thread as last read, and each card's state here, as the iPad's model keeps them.</summary>
@@ -94,6 +188,7 @@ public sealed partial class CoachPanel : UserControl
         Heading.Text = intro.Heading;
         LineText.Text = intro.Line;
         Start.Content = intro.Start;
+        AutomationProperties.SetAutomationId(Start, "coach-start");
         Footnote.Text = intro.Footnote;
         AutomationProperties.SetName(Back, w.Get("common.back"));
         AutomationProperties.SetName(FullScreen, w.Get("coach.full_screen"));
@@ -220,6 +315,8 @@ public sealed partial class CoachPanel : UserControl
                     var text = Words(m.Text, 16, "TafsInkText");
                     text.IsTextSelectionEnabled = true;
                     said.Children.Add(text);
+                    // The answer's menu, Report this answer, on an answer the person can report (the iPad's reportable).
+                    if (AnswerReport.Can(m, kiff: report is not null)) text.ContextFlyout = said.ContextFlyout = ReportMenu(m);
                 }
                 ThreadItems.Children.Add(said);
             }
@@ -237,6 +334,23 @@ public sealed partial class CoachPanel : UserControl
         }
         foreach (var line in thread.Lines.Where(l => !l.Away))
             ThreadItems.Children.Add(Words($"↳ {line.Taf}: {line.Said}", 13, "TafsSoftText"));
+    }
+
+    /// <summary>
+    /// The answer's menu, as the iPad's <c>reportable</c>: Report this answer, with its flag, opening the report. Copy stays
+    /// for a selection (Ctrl+C), as the iPad's text selection does beside its menu.
+    /// </summary>
+    MenuFlyout ReportMenu(ChatMessage m)
+    {
+        var w = App.Words;
+        var item = new MenuFlyoutItem { Text = w.Get("report.menu"), Icon = new FontIcon { Glyph = "" } };
+        item.Click += async (_, _) =>
+        {
+            if (report is not { } send) return;
+            var shownFor = coach;
+            await new ReportAnswerDialog(XamlRoot, (reason, note) => AnswerReport.SendAsync(w, send, shownFor, m, reason, note)).ShowAsync();
+        };
+        return new MenuFlyout { Items = { item } };
     }
 
     /// <summary>

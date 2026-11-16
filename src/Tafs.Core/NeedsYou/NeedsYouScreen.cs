@@ -124,12 +124,16 @@ public static class NeedsYouScreen
     /// Where the answers go, as the iPad's <c>answers(refuseOnly:)</c>: someone without <c>holds.answer</c> reads who answers,
     /// and no gate; a call approving once can pass has the gate where Approve would be; one over a Card total says so
     /// ("Extra room lets only this call through." for someone with <c>cards.manage</c>), the gate only where a manager's Extra
-    /// room would be.
+    /// room would be. The gate stands only while this PC can't approve, as the iPad's <c>ApprovalGate</c>: a view-only session,
+    /// or none (<paramref name="mode"/> null); a PC that approves reads the line with no gate.
     /// </summary>
-    public static HeldAnswerLines Answers(WordBook w, HeldCall call, bool mayAnswerHolds, bool managesCards) =>
-        !mayAnswerHolds ? new(w.Get("needs_you.someone_answers"), false)
-        : call.ApprovableOnce ? new(null, true)
-        : new(w.Get(managesCards ? "needs_you.over_total_manager" : "needs_you.over_total"), managesCards);
+    public static HeldAnswerLines Answers(WordBook w, HeldCall call, bool mayAnswerHolds, bool managesCards, Kiff.ApprovalMode? mode)
+    {
+        var gate = mode is null or Kiff.ApprovalMode.View;
+        return !mayAnswerHolds ? new(w.Get("needs_you.someone_answers"), false)
+            : call.ApprovableOnce ? new(null, gate)
+            : new(w.Get(managesCards ? "needs_you.over_total_manager" : "needs_you.over_total"), managesCards && gate);
+    }
 
     /// <summary>The letter on a taf's avatar: its name's first, in capitals.</summary>
     public static string Initial(string name) =>

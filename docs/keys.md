@@ -91,10 +91,16 @@ tafs cloud, the agent or KIFF. Ported from the iPad's `setUpPlanque` and `enrolP
 4. **What else stops it:** KIFF's 403 on the mint says only an admin can connect apps; planque's 409 on the second
    enrolment, with no code, says another device connects them; with a code, or anything else, it says why.
 
-This change is the flow and its signatures only. Who may set planque up, and behind what, comes with its wiring:
-a passkey session behind a Windows Hello assertion over `tafs.planque.v1|{tenant}` (`GateMessage`), a key session with
-no prompt, like its other setup calls, and a view session never. It's held from merging until it has run once against a
-real account.
+**Who may set planque up, before anything is sent** (`PlanqueEnrolment.GateAsync`), as the iPad's one Face ID:
+- **a passkey session:** behind one Windows Hello assertion with this PC's passkey (`PasskeyApprover.ConfirmAsync`), its
+  challenge sha256(`tafs.planque.v1|{tenant}`) (`GateMessage`), checked as an approval's is (verified, kiff.dev, a passkey
+  that can't leave this PC). Closing Windows Hello, or one that doesn't verify, stops quietly, as the iPad's Face ID;
+- **any other session,** a key session included (its TPM device key asks no one, where the iPad's Face ID never skips),
+  a view session, or a passkey session that doesn't know its passkey: never ("This device can't approve. Approve on
+  another device signed in to your account.").
+
+The passkey's credential id is kept with a passkey session (`KeptSession.PasskeyId`, base64url) when it's paired: the one
+the QR offered. It's an id, not a secret. The calls to planque and KIFF come with the step that first runs this.
 
 The approval key isn't here. On Windows it's a Windows Hello passkey (see [approvals](approvals.md)).
 
