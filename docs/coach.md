@@ -234,6 +234,9 @@ work, where the iPad's decoder fails the thread.
   - **Sent:** the conversation tafs cloud names (`session`) is the one shown from then on, a new one after a hand-over
     included. The thread is read again, every 2 s while Coach works or a sent message waits, only while the panel is open.
   - **Not taken:** it leaves the thread, its words go back in the box, and "The message wasn't sent." with why shows over it.
+- **Words handed to Coach** (`CoachPanel.Write`): Coach opens with them in its box to edit and send, and nothing is sent.
+  In a new conversation for a job's Try it with Coach (the iPad's `handRecipeToCoach`), in the one shown for a brief's
+  next move (its `startNextMove`).
 - **Signed out,** it's the newest conversation again, with nothing sent or chosen here.
 
 ## Reporting an answer (`AnswerReport`, `ReportAnswerDialog`)

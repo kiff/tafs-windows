@@ -151,6 +151,34 @@ public sealed partial class CoachPanel
     /// </summary>
     void OnNewChat(object sender, RoutedEventArgs e)
     {
+        StartNewConversation();
+        CoachDraft.Focus(FocusState.Programmatic);
+    }
+
+    /// <summary>
+    /// Coach with words in its box for the person to edit and send, nothing sent: in a new conversation, as the iPad's
+    /// <c>handRecipeToCoach</c> (a job's Try it with Coach), or in the one shown, as its <c>startNextMove</c> (a brief's Start).
+    /// </summary>
+    public void Write(string words, bool newConversation)
+    {
+        Open();
+        if (newConversation)
+        {
+            StartNewConversation();
+            // Coach's id, so the new conversation and its box show, even when the panel hadn't read it yet.
+            _ = LoadThreadAsync();
+        }
+        CoachDraft.Text = words;
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            CoachDraft.Focus(FocusState.Programmatic);
+            CoachDraft.SelectionStart = CoachDraft.Text.Length;
+        });
+    }
+
+    /// <summary>A new, empty conversation; one that's already empty stays, with what's typed.</summary>
+    void StartNewConversation()
+    {
         var empty = conversation.Fresh && coachSent.Count == 0 && !coachSending;
         if (!empty)
         {
@@ -164,7 +192,6 @@ public sealed partial class CoachPanel
             drafts.Clear();
             ShowConversation();
         }
-        CoachDraft.Focus(FocusState.Programmatic);
     }
 
     /// <summary>A conversation from the list, reopened: shown alone, and messages go on in it, as the iPad's <c>openSetupChat</c>.</summary>
