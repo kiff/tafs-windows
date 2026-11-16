@@ -18,7 +18,8 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     Func<string, Task<CloudRead>>? Read = null, Func<string, string?, Task<CloudRead>>? ReadWithProof = null,
     Func<Task<string?>>? SetupProof = null, bool Revoked = false, IReadOnlyList<Tafs.Core.Coach.ChatMessage>? SampleChat = null,
     TafHalt? Halt = null, Func<string, byte[], Task<CloudRead>>? Send = null, bool Manages = false, TafStream? Stream = null,
-    TafRemove? Remove = null);
+    TafRemove? Remove = null, Func<HttpMethod, string, byte[]?, Task<CloudRead>>? Change = null, TafStarts? Starts = null,
+    bool Paused = false, string? Email = null, string? TimeZone = null, Action? AskCoach = null, SetupScreen SetupOn = SetupScreen.Main);
 
 /// <summary>
 /// Remove for good, for whoever manages the taf on a PC that signs with its passkey: what goes with it, in tafs cloud's words,
@@ -94,6 +95,9 @@ public sealed partial class TafPage : Page
         notes = [.. opening.Setup?.Notes ?? []];
         // A taf whose Card KIFF revoked opens revoked, as the iPad's taf.card.revoked: its Cards say Revoked and fade.
         revoked = opening.Revoked;
+        // Paused, as Home says: its chip, and Resume every start on Setup › Starts when.
+        paused = opening.Paused;
+        liveResults = opening.Starts?.Results;
         tab = Built(opening.OpensOn) ? opening.OpensOn : TafTab.Activity;
 
         if (opening.Card is { } card)
@@ -110,6 +114,7 @@ public sealed partial class TafPage : Page
         _ = LoadActivityAsync();
         _ = LoadSetupAsync();
         if (tab == TafTab.Chat) _ = LoadChatAsync();
+        if (opening.SetupOn != SetupScreen.Main) OpenSetupScreen(opening.SetupOn);
     }
 
     /// <summary>
@@ -521,7 +526,9 @@ public sealed partial class TafPage : Page
         SetupPane.Children.Clear();
         if (opening.CloudId is not null)
         {
-            ShowCloudSetup(setup);
+            if (setupScreen == SetupScreen.StartsWhen) ShowStartsWhen();
+            else if (setupScreen == SetupScreen.ResultsGoTo) ShowResultsGoTo();
+            else ShowCloudSetup(setup);
             return;
         }
         SetupPane.Children.Add(Panel(Eyebrow("setup.job"), Words(setup.Job, 15, "TafsInkText")));
@@ -583,6 +590,7 @@ public sealed partial class TafPage : Page
             SetupPane.Children.Add(Panel(title, Words(ask.Words, 14, "TafsSoftText"), Words(ask.History, 12, "TafsDimText")));
         }
         SetupPane.Children.Add(Panel(Eyebrow("setup.job"), Words(setup.Job, 15, "TafsInkText")));
+        AddSetupLinks();
 
         // ConnectedToolsRing: why its connections couldn't be read, with Try again; a read going; else the ring and workflow.
         var tools = new StackPanel { Spacing = 10 };

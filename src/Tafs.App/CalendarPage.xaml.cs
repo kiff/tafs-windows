@@ -31,6 +31,8 @@ public sealed partial class CalendarPage : Page
     CalendarRead? read;
     string? readWhy;
     (DateOnly, DateOnly)? reading;
+    /// <summary>The session the kept read is for: another one starts from nothing.</summary>
+    Func<string, Task<CloudRead>>? readFor;
 
     public CalendarPage() => InitializeComponent();
 
@@ -68,11 +70,13 @@ public sealed partial class CalendarPage : Page
     async Task LoadAsync()
     {
         if (Read is not { } cloud) return;
+        if (!ReferenceEquals(readFor, cloud)) (read, readWhy, reading, readFor) = (null, null, null, cloud);
         var range = CalendarWork.Range(state.Selected);
         if (CalendarWork.Current(read, state.Selected) is not null || reading == range) return;
         (reading, readWhy) = (range, null);
         var answer = await cloud(CalendarRead.Path(range.From, range.To));
-        if (reading != range) return;
+        // Another range asked since, or another session: the last account's work is never drawn for the next.
+        if (!CalendarWork.Lands(range, reading, cloud, Read)) return;
         reading = null;
         if (answer.Answer is { } a && CalendarRead.Read(a) is { } r) read = r;
         else readWhy = answer.Why ?? App.Words.Get("kiff.kiff_did_not_answer_expected");

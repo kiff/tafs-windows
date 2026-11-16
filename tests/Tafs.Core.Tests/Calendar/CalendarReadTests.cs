@@ -47,6 +47,18 @@ public class CalendarReadTests
         Assert.Null(CalendarWork.Current(null, Mon));
     }
 
+    /// <summary>An answer landing after another range was asked, or after another account signed in, is dropped.</summary>
+    [Fact]
+    public void A_late_answer_lands_only_for_its_range_and_session()
+    {
+        var range = CalendarWork.Range(Mon);
+        object session = new(), next = new();
+        Assert.True(CalendarWork.Lands(range, range, session, session));
+        Assert.False(CalendarWork.Lands(range, CalendarWork.Range(Mon.AddMonths(1)), session, session));
+        Assert.False(CalendarWork.Lands(range, range, session, next));
+        Assert.False(CalendarWork.Lands(range, range, session, null));
+    }
+
     [Fact]
     public void A_day_s_work_by_hour_counts_each_taf_once_with_its_firings()
     {

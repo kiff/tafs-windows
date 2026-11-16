@@ -61,6 +61,13 @@ public static class CalendarWork
     public static CalendarRead? Current(CalendarRead? read, DateOnly selected) =>
         read is not null && (read.From, read.To) == Range(selected) ? read : null;
 
+    /// <summary>
+    /// Whether an answer still applies when it lands: the range asked is still the one being read, by the same session.
+    /// Another range asked since, or another account signed in meanwhile, drops it: one account's work is never drawn for another.
+    /// </summary>
+    public static bool Lands((DateOnly, DateOnly) asked, (DateOnly, DateOnly)? reading, object askedBy, object? sessionNow) =>
+        reading == asked && ReferenceEquals(askedBy, sessionNow);
+
     /// <summary>The dates a view shows: the day, its week, or the month's own days.</summary>
     public static IReadOnlyList<DateOnly> Shown(CalendarState s) => s.Mode switch
     {

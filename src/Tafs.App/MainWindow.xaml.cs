@@ -375,6 +375,12 @@ public sealed partial class MainWindow : Window
             // The first taf's page, its Activity from taf-activity.json beside the Home contract, its Chat from taf-conversation.json.
             if (page is "taf" or "taf-setup" or "taf-chat" && home?.Tafs.FirstOrDefault() is { } first)
                 OpenBeside(typeof(TafPage), OpenTaf(w, first.Id, page switch { "taf-setup" => TafTab.Setup, "taf-chat" => TafTab.Chat, _ => TafTab.Activity }));
+            // Setup › Starts when or Results go to, its dial from taf-knob.json beside the Home file, as whoever manages the taf.
+            if (page is "taf-starts" or "taf-results" && home?.Tafs.FirstOrDefault() is { } shown)
+                OpenBeside(typeof(TafPage), OpenTaf(w, shown.Id, TafTab.Setup) with
+                {
+                    Manages = true, SetupOn = page == "taf-starts" ? SetupScreen.StartsWhen : SetupScreen.ResultsGoTo,
+                });
             // Connect apps from connect-apps.json beside the Home contract, as tafs cloud's list.
             // With planque-grants.json beside it, the account's connections too, ended with nothing confirmed.
             if (page is "connect-apps" or "connect-connections")
@@ -833,6 +839,8 @@ public sealed partial class MainWindow : Window
     Func<string, byte[], Task<CloudRead>>? cloudSend;
     /// <summary>A POST to tafs cloud as the session whose answer streams: a message to a taf.</summary>
     TafStream? cloudStream;
+    /// <summary>A change to a taf as the session (Setup's dial: a follow-up removed, every start paused, tafs' places set); none signed out.</summary>
+    Func<HttpMethod, string, byte[]?, Task<CloudRead>>? cloudChange;
 
     int sessions;
 
@@ -875,6 +883,7 @@ public sealed partial class MainWindow : Window
         };
         haltSend = path => CloudSendAsync(bearer, path, "{}"u8.ToArray());
         cloudSend = (path, body) => CloudSendAsync(bearer, path, body);
+        cloudChange = (method, path, body) => CloudChangeAsync(bearer, method, path, body);
         cloudStream = (path, body, cancel) => KiffHttp.PostStreamAsync(new Uri(HomeList.Api, path), body, bearer, App.Words.Language, cancel);
         // Start, as the iPad's: off for a session that can't approve.
         CoachMode.StartCoach = Tafs.Core.Coach.CoachStart.MayStart(session) ? () => StartCoachAsync(session) : null;
@@ -958,7 +967,7 @@ public sealed partial class MainWindow : Window
         CoachMode.Read = null;
         CoachMode.Answer = null;
         ShowNewTaf();
-        (manage, capabilities, accountHalt, haltSend, cloudSend, cloudStream) = (null, null, Halt.Running, null, null, null);
+        (manage, capabilities, accountHalt, haltSend, cloudSend, cloudStream, cloudChange) = (null, null, Halt.Running, null, null, null, null);
         ShowHaltAll();
         CoachMode.StartCoach = null;
         CoachMode.StartGate = false;
@@ -1280,6 +1289,23 @@ public sealed partial class MainWindow : Window
         return status is < 200 or > 299 ? (null, CloudRead.Refused(w, status, body).Why) : (System.Text.Encoding.UTF8.GetBytes(body), null);
     }
 
+    /// <summary>A change sent to tafs cloud as the session (<c>PUT</c>, <c>DELETE</c> or <c>POST</c>), answered as a read is.</summary>
+    static async Task<CloudRead> CloudChangeAsync(string bearer, HttpMethod method, string path, byte[]? body)
+    {
+        var w = App.Words;
+        var url = new Uri(HomeList.Api, path);
+        int status;
+        string answer;
+        try
+        {
+            (status, answer) = method == HttpMethod.Put ? await KiffHttp.PutAsync(url, body ?? "{}"u8.ToArray(), bearer, w.Language)
+                : method == HttpMethod.Delete ? await KiffHttp.DeleteAsync(url, bearer, w.Language)
+                : await KiffHttp.PostAsync(url, body ?? "{}"u8.ToArray(), bearer, w.Language);
+        }
+        catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
+        return Answered(w, status, answer);
+    }
+
     /// <summary>A stand-in Home (<c>--home</c>) shows Export receipts, answered from its own file.</summary>
     bool standInSeesEveryTaf;
 
@@ -1430,7 +1456,7 @@ public sealed partial class MainWindow : Window
                 : path.StartsWith("/v1/record?", StringComparison.Ordinal) ? "record-search.json"
                 : path.StartsWith(Tafs.Core.Missions.Brief.Route, StringComparison.Ordinal) ? "brief.json"
                 : path.StartsWith("/v1/calendar?", StringComparison.Ordinal) ? "calendar.json"
-                : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json"
+                : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json" : path.EndsWith("/knob") ? "taf-knob.json"
                 : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
         return File.Exists(file) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(file)) : CloudRead.Unreached(w);
     }
@@ -1653,6 +1679,9 @@ public sealed partial class MainWindow : Window
                 Cards: taf.Cards, IssuedBy: w.Get("card.issued_by_account"), Revoked: taf.Revoked,
                 CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof,
                 Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream, Remove: RemoveFor(taf),
+                // Setup › Starts when and Results go to: when it starts and where results go, as Home says, and the changes made at once.
+                Change: cloudChange, Starts: taf.Starts, Paused: taf.State == "paused", Email: kiffAccount?.Email, TimeZone: kiffAccount?.TimeZone,
+                AskCoach: mayUseCoach ? () => CoachMode.Open() : null,
                 // Stop is for whoever manages the taf (cards.manage), as KIFF says, once read.
                 Manages: taf.Agent is { } agent && manage?.GetValueOrDefault(agent) == true)
             : SampleTaf(w, key, opensOn);
