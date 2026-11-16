@@ -65,8 +65,10 @@ public sealed partial class TafPage : Page
     /// Each taf's Setup as last read in this session, by its id: opened again, its page draws at once and is read again
     /// underneath. Another session starts from nothing (<see cref="setupsFor"/> is that session's read).
     /// </summary>
-    static readonly Dictionary<string, SetupRead> setups = [];
-    static object? setupsFor;
+    static readonly Tafs.Core.Kiff.SessionScoped<string, SetupRead> setups = new();
+
+    /// <summary>Signed out: every taf's Setup kept goes, connections included.</summary>
+    public static void ForgetSetups() => setups.Forget();
     /// <summary>Its thread, as tafs cloud last answered it, and why the last read didn't come (the iPad's chatErrors).</summary>
     Tafs.Core.Coach.CoachThread? chat;
     string? chatError;
@@ -433,12 +435,7 @@ public sealed partial class TafPage : Page
     async Task LoadSetupAsync()
     {
         if (opening is not { CloudId: { } id, Read: { } read }) return;
-        if (!ReferenceEquals(setupsFor, read))
-        {
-            setups.Clear();
-            setupsFor = read;
-        }
-        if (!setups.TryGetValue(id, out var kept)) setups[id] = kept = new SetupRead();
+        var kept = setups.Get(read, id, () => new SetupRead());
         setupRead = kept;
         if (tab == TafTab.Setup && kept.Page is not null) ShowSetup();
         // Drawn as soon as the quick read lands; the connections when planque's signed read does.

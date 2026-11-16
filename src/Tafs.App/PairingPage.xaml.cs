@@ -76,7 +76,8 @@ public sealed partial class PairingPage : Page
         Steps.Visibility = CheckCard.Visibility = QrCard.Visibility = NewCode.Visibility = Visibility.Collapsed;
         Busy.IsActive = false;
         Status.Text = "";
-        WhyArt.Child ??= Illustrations.PasskeyKey();
+        // An already-approved board, unchanged (board 6): no new drawing for this card.
+        WhyArt.Child ??= Illustrations.NothingWaiting();
         (WhyTitle.Text, WhyBody.Text, WhyGo.Content) = (title, body, go);
         WhyCard.Visibility = Visibility.Visible;
     }
