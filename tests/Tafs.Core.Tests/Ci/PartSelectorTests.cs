@@ -22,6 +22,33 @@ public class PartSelectorTests
         Assert.Equal(new[] { "app", "ci", "home" }, Config.Parts.Keys.Except(
             ["pairing", "approvals", "coach", "record", "connections", "calendar", "account", "strings", "contracts"]).Order());
 
+    /// <summary>
+    /// Every test class runs in CI when its own file changes: the part its <c>[Part]</c> names is one its path selects. A
+    /// signing test tagged <c>approvals</c> in another part's folder would otherwise never run.
+    /// </summary>
+    [Fact]
+    public void Each_test_s_part_is_one_its_path_selects()
+    {
+        var tests = Path.Combine(RepoFiles.Root, "tests", "Tafs.Core.Tests");
+        var unrun = new List<string>();
+        foreach (var file in Directory.EnumerateFiles(tests, "*.cs", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(RepoFiles.Root, file).Replace('\\', '/');
+            if (relative.Contains("/bin/") || relative.Contains("/obj/")) continue;
+            var selected = Select(relative);
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(file), "\\[Part\\(\"([a-z]+)\"\\)\\]"))
+                if (!selected.Contains(m.Groups[1].Value)) unrun.Add($"{relative}: {m.Groups[1].Value}");
+        }
+        Assert.Empty(unrun);
+    }
+
+    /// <summary>The signing in Coach (Start, its first start, the approval cards) runs in the approvals part.</summary>
+    [Fact]
+    public void Coach_s_signing_runs_with_the_approvals() =>
+        Assert.All(new[] { "src/Tafs.Core/Coach/CoachApproval.cs", "tests/Tafs.Core.Tests/Coach/CoachApprovalTests.cs",
+            "src/Tafs.Core/Coach/CoachStart.cs", "tests/Tafs.Core.Tests/Coach/CoachStartTests.cs", "src/Tafs.Core/Coach/FirstStart.cs" },
+            f => Assert.Contains("approvals", Select(f)));
+
     [Fact]
     public void A_change_to_the_app_builds_it_on_Windows_and_runs_no_core_part_but_the_always_ones() =>
         Assert.Equal(new[] { "strings", "contracts", "app" }.Order(), Select("src/Tafs.App/MainWindow.xaml").Order());
