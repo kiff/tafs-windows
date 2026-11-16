@@ -235,4 +235,13 @@ public sealed partial class NeedsYouPage : Page
         Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, Style = (Style)Application.Current.Resources[style],
         FontWeight = semibold ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal,
     };
+    /// <summary>Brings a hold's card into view, once it's laid out: the one a notification named.</summary>
+    internal bool ShowHold(string hold)
+    {
+        var index = views.ToList().FindIndex(v => v.Call.KiffId == hold);
+        if (index < 0) return false;
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+            (Calls.ContainerFromIndex(index) as FrameworkElement)?.StartBringIntoView());
+        return true;
+    }
 }
