@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using Tafs.Core.Account;
 using Tafs.Core.Words;
 
 namespace Tafs.Core.Taf;
@@ -19,6 +20,24 @@ public sealed record CloudRead(JsonElement? Answer, string? Why = null, int Stat
     /// </summary>
     public string? Halted { get; init; }
 
+    /// <summary>
+    /// The AI-data consent's screen, when the refusal carries one the app can draw (the iPad's <c>CloudError.consent</c>): a
+    /// turn refused for want of it, or an older screen's yes refused with the new words (409).
+    /// </summary>
+    public AiConsent? Consent { get; init; }
+
+    /// <summary>tafs cloud's code for a model turn refused for want of the AI-data consent.</summary>
+    public const string AiConsentRequired = "ai_consent_required";
+
+    /// <summary>A model turn refused for want of the AI-data consent, with its screen to put up.</summary>
+    public bool AsksConsent => Code == AiConsentRequired && Consent is not null;
+
+    /// <summary>
+    /// A turn refused for want of the consent, from any route, as the iPad's <c>.aiConsentRequired</c>: said once here, so
+    /// its screen shows wherever the person tried, with nothing wired per call.
+    /// </summary>
+    public static event Action<AiConsent>? ConsentRequired;
+
     public static CloudRead Of(JsonElement answer) => new(answer, Status: 200);
 
     /// <summary>
@@ -30,12 +49,16 @@ public sealed record CloudRead(JsonElement? Answer, string? Why = null, int Stat
         JsonElement json = default;
         try { json = JsonDocument.Parse(body).RootElement.Clone(); }
         catch (JsonException) { }
-        return new(null, Lenient.Text(json, "words") ?? Lenient.Text(json, "error")
+        var read = new CloudRead(null, Lenient.Text(json, "words") ?? Lenient.Text(json, "error")
             ?? w.Get("error.cloud_answered", ("status", status.ToString(CultureInfo.InvariantCulture))), status, Lenient.Text(json, "code"),
             Lenient.Text(json, "words"))
         {
             Halted = Lenient.Text(json, "halted") is "account" or "taf" ? Lenient.Text(json, "halted") : null,
+            // Read on its own: one that doesn't read leaves the rest of the refusal.
+            Consent = AiConsent.Read(json) is { Drawable: true } consent ? consent : null,
         };
+        if (read.AsksConsent) ConsentRequired?.Invoke(read.Consent!);
+        return read;
     }
 
     /// <summary>

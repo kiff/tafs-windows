@@ -1,6 +1,10 @@
 using System.Text;
 using System.Text.Json;
 using Tafs.Core.Account;
+using ContractFile = Tafs.Core.Contracts.ContractFile;
+using Tafs.Core.Taf;
+using Tafs.Core.Tests.Strings;
+using Tafs.Core.Words;
 
 namespace Tafs.Core.Tests.Account;
 
@@ -25,6 +29,41 @@ public class AccountSettingsTests
         Assert.False(AiConsent.Read(J("""{"consent":{"given":true,"version":"v"}}"""))!.Drawable);
         Assert.False(AiConsent.Read(J("""{"consent":{"given":false,"words":{"title":"t","allow":"a"}}}"""))!.Drawable);
         Assert.Null(AiConsent.Read(J("""{"consent":"yes"}""")));
+    }
+
+    /// <summary>
+    /// As the iPad's <c>TafsCloud.refusal</c>: a turn refused for want of the consent carries its screen and says so once, for
+    /// the window to put it up; an older screen's refused yes carries the new words, with no screen of its own.
+    /// </summary>
+    [Fact]
+    public void A_turn_refused_for_the_consent_asks_for_it_once()
+    {
+        var en = WordBook.Load(SharedFiles.Strings, "en");
+        var cases = ContractFile.Cases(SharedFiles.Contract("ai-consent.json"));
+        var asked = new List<AiConsent>();
+        void Ask(AiConsent c) => asked.Add(c);
+        CloudRead.ConsentRequired += Ask;
+        try
+        {
+            var turn = cases.First(c => c.Status == 403);
+            var refused = CloudRead.Refused(en, turn.Status, turn.Body.GetRawText());
+            Assert.True(refused.AsksConsent);
+            Assert.Equal(("1", "Your data and the AI"), (refused.Consent!.Version, refused.Consent.Words.Title));
+            Assert.Equal("Allow AI use first: Coach and your tafs need it to answer.", refused.Why);
+            Assert.Equal(new Refusal(refused.Why!, null, Consent: true), Refusal.Of(refused, "x"));
+            Assert.Equal("1", Assert.Single(asked, c => c == refused.Consent).Version);
+
+            var older = cases.First(c => c.Status == 409);
+            var newer = CloudRead.Refused(en, older.Status, older.Body.GetRawText());
+            Assert.Equal("1", newer.Consent?.Version);
+            Assert.False(newer.AsksConsent);
+            Assert.DoesNotContain(newer.Consent, asked);
+
+            // A consent it can't draw, or none, asks nothing.
+            Assert.False(CloudRead.Refused(en, 403, """{"code":"ai_consent_required","consent":{"given":false}}""").AsksConsent);
+            Assert.False(Refusal.Of(CloudRead.Refused(en, 403, """{"code":"ai_consent_required"}"""), "x").Consent);
+        }
+        finally { CloudRead.ConsentRequired -= Ask; }
     }
 
     [Fact]

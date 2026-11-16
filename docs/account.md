@@ -41,6 +41,15 @@ The sections, in the iPad's order:
 - **Your data and the AI,** after Theme, once read (`AiConsent`, `GET /v1/me/ai-consent`), every word tafs cloud's: given,
   its line and Withdraw in red (`DELETE`); not given, its title, which opens its screen (its lines, Allow for the version
   read with `POST {version}`, and Not now). A change that isn't taken says why in red.
+- **The consent's screen, outside Account** (`ConsentDialog`, as the iPad's `AIConsentView`):
+  - **Read with each session:** not given, its screen is put up, unless Not now was answered this session (the iPad's
+    `loadAIConsent` and `aiConsentPutOff`). A tafs cloud without the route asks nothing.
+  - **On a refused turn:** any route tafs cloud refuses with `ai_consent_required` and a consent it can draw
+    (`CloudRead.ConsentRequired`, the iPad's `.aiConsentRequired`) puts the screen up there and then, whatever was put off.
+    This covers a message to a taf or to Coach, and a card's answer.
+  - **Allow** sends the version on the screen. An older screen's yes is refused (409) with the new words, which show in
+    its place. Any other refusal says why.
+  - **One at a time:** a screen already up, or another dialog, leaves the next one to the next turn that asks.
 - **Alerts:** a row that opens. The alerts themselves aren't built yet.
 - **Theme:** Light, Dark or System, the iPad's segmented control. It sets the window's theme, and it's kept for the
   next launch (`ThemeChoices`), as the iPad keeps `tafs.theme`.
