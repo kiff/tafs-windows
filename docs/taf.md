@@ -185,13 +185,20 @@ reference:
 - **Stop,** for whoever manages the taf (KIFF's `cards.manage` access, once read): the run at work is cancelled
   (`POST /v1/tafs/{id}/stop`, `{session}`), then "You stopped Refunds.", or "Not stopped." and why.
 - A sample taf has no composer yet; the iPad's answers its own words in sample mode.
+- **The answer as it comes** (`TafChatStream`, `ServerSentEvents`, `LiveAnswer`): a message goes with its answer streamed
+  (`POST /v1/tafs/{id}/messages/stream`). Under it, the live line with a spinner: tafs cloud's `state` ("Thinking…", the
+  step's words or Coach's note with "…", "Waiting for you"), and before that the step at work, else "Thinking…". The
+  steps follow, a failed one in red with tafs cloud's why, then the words as they come. The model's thinking text is
+  never drawn. At the end the thread is read again and its stored answer takes the live one's place; a stop with words
+  (an `ai_unavailable` stop, say) says them, whole. A stream that doesn't open (not reached) sends the message plainly; a
+  refusal is said and never sent again; a stream that breaks leaves the rest to the thread. Narrator reads the live line
+  politely as it changes.
 
 **Not yet:**
 - **Resuming** (`ResumeConfirmation`), with the approvals.
 - **The revision as If-None-Match:** the server's ETag is the quoted form of `revision`; each read is whole for now. Its
   days are titled as sent, in 12 semibold, not in the sample's capitals. Pull to refresh has no Windows gesture yet.
-- **Chat's streamed answer:** the taf's words as it writes them (`/messages/stream`), Retry on a message kept unsent,
-  and steering a run at work. Until then, the thread is read again every 2 s while the taf works.
+- **Chat's Retry** on a message kept unsent, and steering a run at work (`/steer`).
 - **Chat's other items:** held calls in the thread and the Needs you pill, what became of an approved call, a door's
   knocks, a setting handed to Coach, a run stopped at its cap, the answer's Report menu, opening a sent file full size
   (it's named only, until its bytes are read), and a connected tool's title

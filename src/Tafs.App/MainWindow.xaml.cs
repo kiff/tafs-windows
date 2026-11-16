@@ -538,6 +538,8 @@ public sealed partial class MainWindow : Window
     Func<string, Task<CloudRead>>? haltSend;
     /// <summary>A POST to tafs cloud as the session, with its body: writing to a taf and Stop.</summary>
     Func<string, byte[], Task<CloudRead>>? cloudSend;
+    /// <summary>A POST to tafs cloud as the session whose answer streams: a message to a taf.</summary>
+    TafStream? cloudStream;
 
     int sessions;
 
@@ -564,6 +566,7 @@ public sealed partial class MainWindow : Window
         CoachMode.Read = path => CloudReadAsync(bearer, path);
         haltSend = path => CloudSendAsync(bearer, path, "{}"u8.ToArray());
         cloudSend = (path, body) => CloudSendAsync(bearer, path, body);
+        cloudStream = (path, body, cancel) => KiffHttp.PostStreamAsync(new Uri(HomeList.Api, path), body, bearer, App.Words.Language, cancel);
         // Start, as the iPad's: off for a session that can't approve.
         CoachMode.StartCoach = Tafs.Core.Coach.CoachStart.MayStart(session) ? () => StartCoachAsync(session) : null;
         // Signed in but can't approve: the iPad's gate line where Start would be.
@@ -614,7 +617,7 @@ public sealed partial class MainWindow : Window
         ShowHome(new HomeAnswer([], null));
         CoachMode.Read = null;
         CoachMode.Answer = null;
-        (manage, capabilities, accountHalt, haltSend, cloudSend) = (null, null, Halt.Running, null, null);
+        (manage, capabilities, accountHalt, haltSend, cloudSend, cloudStream) = (null, null, Halt.Running, null, null, null);
         ShowHaltAll();
         CoachMode.StartCoach = null;
         CoachMode.StartGate = false;
@@ -1136,7 +1139,7 @@ public sealed partial class MainWindow : Window
                 // isn't read on this PC yet, so its issuer is the iPad's for anyone else: "The account".
                 Cards: taf.Cards, IssuedBy: w.Get("card.issued_by_account"), Revoked: taf.Revoked,
                 CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof,
-                Halt: HaltFor(taf), Send: cloudSend,
+                Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream,
                 // Stop is for whoever manages the taf (cards.manage), as KIFF says, once read.
                 Manages: taf.Agent is { } agent && manage?.GetValueOrDefault(agent) == true)
             : SampleTaf(w, key, opensOn);
