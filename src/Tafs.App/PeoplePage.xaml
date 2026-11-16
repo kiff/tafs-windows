@@ -1,0 +1,17 @@
+<!-- People & groups, as the iPad's PeopleGroupsView: the account's groups, each with its people and the tafs it uses. -->
+<Page x:Class="Tafs.App.PeoplePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{ThemeResource TafsBackground}">
+  <ScrollViewer>
+    <StackPanel Margin="40,32" Spacing="12" MaxWidth="760" HorizontalAlignment="Left">
+      <TextBlock x:Name="Heading" FontSize="28" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
+      <TextBlock x:Name="Error" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
+      <ProgressRing x:Name="Spinner" IsActive="True" Width="24" Height="24" HorizontalAlignment="Left" />
+      <TextBlock x:Name="AccountLine" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" Visibility="Collapsed" />
+      <!-- Each group: its name and what it uses, over its people. Drawn in code. -->
+      <StackPanel x:Name="Groups" Spacing="16" />
+      <TextBlock x:Name="NoGroups" FontSize="14" Foreground="{ThemeResource TafsDim}" Visibility="Collapsed" />
+    </StackPanel>
+  </ScrollViewer>
+</Page>

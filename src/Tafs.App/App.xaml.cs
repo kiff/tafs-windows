@@ -40,9 +40,14 @@ public partial class App : Application
             : Windows.System.UserProfile.GlobalizationPreferences.Languages.Append(CultureInfo.CurrentUICulture.Name);
         Words = WordBook.Load(strings, AppLanguage.Pick(wanted, shipped));
 
-        window = new MainWindow(Option("--screenshot"), Option("--theme"), Option("--page"), options.Contains("--view-only"),
+        // Notifications for held calls, registered before the window: a click on one can be what started tafs.
+        var screenshot = Option("--screenshot");
+        var startedAt = screenshot is null ? Toasts.Start() : null;
+
+        window = new MainWindow(screenshot, Option("--theme"), Option("--page"), options.Contains("--view-only"),
             options.Contains("--sample"), Option("--home"));
         WindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(window);
         window.Activate();
+        if (startedAt is not null) window.OpenHold(startedAt);
     }
 }

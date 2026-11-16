@@ -47,11 +47,20 @@ public static class CoachAccess
     /// slug are words, its name, email and time zone absent, null or words, its capabilities absent, null or a list of words.
     /// None when it doesn't read, or doesn't say.
     /// </summary>
+    /// <remarks>The shape is <see cref="IsAccount"/>'s.</remarks>
     public static IReadOnlyList<string>? Capabilities(JsonElement? answer)
     {
-        if (answer is not { } a || !Shape.Required(a, "tenant_id", Shape.Text) || !Shape.Required(a, "tenant_slug", Shape.Text)
-            || !((string[])["tenant_display_name", "email", "time_zone"]).All(f => Shape.Optional(a, f, Shape.Text))
-            || !Shape.Optional(a, "capabilities", v => Shape.List(v, Shape.Text))) return null;
+        if (answer is not { } a || !IsAccount(a)) return null;
         return a.TryGetProperty("capabilities", out var c) && c.ValueKind == JsonValueKind.Array ? c.EnumerateArray().Select(x => x.GetString()!).ToList() : null;
     }
+
+    /// <summary>
+    /// <c>GET /v1/me</c> as the iPad's <c>KIFFClient.Account</c> decodes it (ios/Tafs/KIFF/KIFFClient.swift:659-677): its tenant's
+    /// id and slug are words; its name, email and time zone absent, null or words; its capabilities absent, null or a list
+    /// of words. Anything else isn't the account, and nothing is drawn from it.
+    /// </summary>
+    public static bool IsAccount(JsonElement a) =>
+        Shape.Required(a, "tenant_id", Shape.Text) && Shape.Required(a, "tenant_slug", Shape.Text)
+        && ((string[])["tenant_display_name", "email", "time_zone"]).All(f => Shape.Optional(a, f, Shape.Text))
+        && Shape.Optional(a, "capabilities", v => Shape.List(v, Shape.Text));
 }
