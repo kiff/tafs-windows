@@ -11,7 +11,9 @@ and KIFF takes P-256 only.
 
 **On** (`Features.WindowsPasskeyApprovals`) since KIFF accepts a computer's own passkey:
 - a Windows sign-in asks for a passkey-only session (`"approval": "passkey"`), and KIFF refuses a Windows start with neither approval key nor that flag;
-- a passkey session approves only with `KIFF-Passkey-Assertion`.
+- a passkey session approves only with its passkey: a request with `KIFF-Passkey-Assertion`, and a held call's answer
+  (approve once, extra room) with its assertion in the body, `"signature": {"signed_at", "passkey": {credential_id,
+  client_data_json, authenticator_data, signature}}`, its challenge base64url(sha256) of that answer's `kiff.answer.v1`.
 
 **Where this PC asks less than the iPad:** Windows Hello takes the PC's PIN as well as a face or a fingerprint, where the
 iPad's approvals that grant (`grants: true`) take biometrics only. Windows' platform passkey has no biometrics-only mode;

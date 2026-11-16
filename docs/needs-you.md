@@ -22,20 +22,26 @@ Top to bottom, as on the iPad:
 
 The card has the iPad's amber edge (40%) and corners of 18, on the panel colour.
 
-## The answers, for now
+## The answers
 
-This PC doesn't approve yet: the Windows Hello calls are their own change. Where the answers go, the card follows the
-iPad's `answers(refuseOnly:)`, with KIFF's capabilities from `GET /v1/me` (read with the held calls; none listed allows):
-- **Someone without `holds.answer`** reads "Someone who approves on this account answers this. Their answer shows
-  here.", and no gate.
-- **A call approving once can pass** has the gate where Approve would be: why this PC can't approve, and **Add this
-  Windows PC**, as the iPad's `ApprovalGate` when a device can't approve.
-- **A call over a Card total** (`can_approve_once: false`) says so ("Extra room lets only this call through." for
-  someone with `cards.manage`), with the gate only where a manager's Extra room would be.
-- **The gate stands only while this PC can't approve** (a view-only session, or none), as the iPad's `ApprovalGate`. A
-  Key or Passkey session reads the line with no gate until its buttons come.
-
-Words, never buttons that can't work.
+As the iPad's `HeldCallCard.answers`, for how Windows signs (`HeldAnswers`, below):
+- **Approve once with Windows Hello**, for a session that approves with this PC's passkey. Over a Card total, approving
+  once can't pass it: the card says so ("Extra room lets only this call through." for someone who manages Cards, KIFF's
+  `cards.manage`) and offers **Extra room with Windows Hello** to them.
+- **The Card's next steps and Refuse**, in a row, outlined, Refuse in red. Windows Hello asks for the person first (the
+  iPad's Face ID or passcode for the device key), then the device key signs.
+- **A PC that doesn't approve** keeps the gate where Approve would be: why it can't, and **Add this Windows PC**. Only a
+  Passkey session that knows its passkey approves (`HeldAnswers.Approves`); a Key session, a passkey session with no id
+  and a view session keep the gate. Refuse and the next steps stay.
+- **Someone without `holds.answer`** reads "Someone who approves on this account answers this." and no answers.
+- **A hold this PC can't answer** (no device key, or no version from KIFF) says to answer in KIFF, with **Answer in KIFF**
+  opening its page at app.kiff.dev in the app's language.
+- **KIFF's lasting refusal** takes the answers away, with its words. `self_review` ("You asked for this…") leaves Refuse
+  and the next steps.
+- While an answer is on its way, the card's answers are off. Taken, the call leaves Needs you and Home is read again.
+  Not taken, why shows at the top of Needs you, in red.
+- **Not yet:** Allow this from now on (`AllowSheetView`); Change the limit in Coach mode, with improving a taf; installing
+  the version Coach's hold names; and asking tafs cloud to continue the run at once (KIFF's alert continues it).
 
 ## Your step (`YourSteps`, `YourStep`)
 
@@ -86,6 +92,27 @@ Ported from the iPad's `DidThisHappenCard` (NeedsYouView.swift), `KIFFClient.Unp
   `ApprovalGate` shows `ApprovalNotReady` only while a device can't approve. A PC that approves (a key or passkey
   session) shows neither the line nor buttons until Yes and No are ported. The line about No goes with the buttons, so
   it isn't shown.
+
+## Answering a held call (`HeldAnswers`), the signing
+
+Ported from the iPad's `AppModel.answer(_:with:)`, `kiffAnswer`, `canAnswer`, `lastingRefusal`, `refusesOnly` and
+`KIFFClient.answerMessage`/`approveOnce`/`reject`/`changeCard`, signed as KIFF's desktop spec says (§2.5, §2.6). The
+card's buttons come with the passkey's wiring; this is what they send.
+- **The message:** `kiff.answer.v1`: tenant, the hold's id, `approve-once`, `reject` (a next step too) or
+  `change-card`, the next step or empty, sha256 of the note in hex or empty, KIFF's accounting version for the hold, and
+  signed-at.
+- **Which key:** approving once and extra room grant authority, so this PC's passkey signs them. One fresh Windows Hello
+  assertion, its challenge base64url(sha256) of the message, checked before anything is sent: kiff.dev, the person
+  verified, a passkey that can't leave this PC. It goes as `"signature": {"signed_at", "passkey": {credential_id,
+  client_data_json, authenticator_data, signature}}`. A refusal, with a next step or not, grants nothing: the device key
+  (TPM) signs it, as `"signature": {"signed_at", "value"}`.
+- **The routes:** `POST /v1/me/card-exceptions/{id}/approve-once`, `…/reject` (with `next_step`) and `…/change-card`.
+- **Who answers here:** the hold came from KIFF with its version, the tenant is known, and the session's device key is
+  here. Approving takes a passkey session with this PC's own passkey besides.
+- **What it comes to:** closing Windows Hello is "Cancelled, so nothing was approved…"; an assertion KIFF would refuse is
+  "Not sent: it wasn't confirmed."; either way nothing is sent and the call stays. KIFF's refusal is worded as the iPad's
+  (`self_review`, `role_forbidden`…), and a lasting one is kept for the card: `self_review` leaves Refuse and the next
+  steps, any other takes the answers away. A sign-out at any point sends nothing more.
 
 ## Where the calls come from
 

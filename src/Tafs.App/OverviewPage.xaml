@@ -46,6 +46,13 @@
         </ItemsControl>
       </StackPanel>
 
+      <!-- The account's labels, as the iPad's LabelChips: All, two labels, then "+N"; a chip filters the table below. None
+           when no taf is labelled. -->
+      <ScrollViewer x:Name="LabelRow" HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Hidden"
+                    VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" Visibility="Collapsed">
+        <StackPanel x:Name="Chips" Orientation="Horizontal" Spacing="6" AutomationProperties.AutomationId="labels" />
+      </ScrollViewer>
+
       <!-- One grid, so each heading sits over its column: four equal columns, a line between rows, on the ground. -->
       <Grid x:Name="Table" ColumnSpacing="16" RowSpacing="12">
         <Grid.ColumnDefinitions>
