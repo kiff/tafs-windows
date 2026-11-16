@@ -166,7 +166,7 @@ public sealed partial class CoachPanel : UserControl
 
     /// <summary>
     /// Start, as the iPad's button: <c>startSetup</c> once, then Coach's thread read again, as its <c>loadSetupThread</c>.
-    /// Why it didn't start shows under the intro, as the iPad's <c>setupError</c>; closing Windows Hello says nothing.
+    /// Why it didn't start shows under the intro, as the iPad's <c>setupError</c>; closing Windows Hello says "Cancelled. Nothing changed."
     /// </summary>
     async void OnStart(object sender, RoutedEventArgs e)
     {

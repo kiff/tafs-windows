@@ -38,7 +38,8 @@ Ported from the iPad's `AppModel.startSetup`, which its Start calls (`SetupChatV
        full first (body and `signed_at`, `SigningTime.Next`'s, milliseconds kept as written in the message and in `t=`),
        as the iPad's prepared requests are. With Coach already there, it confirms over `tafs.setup.v1|{tenant}`, the
        iPad's message.
-     - Closing Windows Hello, or one that doesn't verify, stops quietly, as the iPad's failed Face ID.
+     - Closing Windows Hello sends nothing and says "Cancelled. Nothing changed." under the intro (`approval.cancelled`).
+       One that doesn't verify, or a sign-out meanwhile, stops quietly, as the iPad's failed Face ID.
   3. **planque**, unless this session set it up already (`planqueReady`, kept until sign-out): `PlanqueEnrolment` with
      the session's TPM key (`keys.md`).
   4. **Setup's draft**, as the iPad's `submitNoToolsDraft`: `POST /v1/me/agent-drafts` with
