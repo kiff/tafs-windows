@@ -16,6 +16,8 @@ public sealed partial class MainWindow
     /// <summary>The gallery as last read; none, no rows.</summary>
     Gallery? gallery;
 
+    bool galleryFollowsTheme;
+
     /// <summary>The gallery asked for on the command line, opened once it's read.</summary>
     string? galleryAsked;
 
@@ -41,6 +43,12 @@ public sealed partial class MainWindow
     /// <summary>The gallery's rows, drawn again after Your tafs: none without a gallery or tafs cloud's words.</summary>
     void ShowGalleryRows()
     {
+        // The strip's colours are the window's theme's: drawn again when it changes.
+        if (!galleryFollowsTheme)
+        {
+            galleryFollowsTheme = true;
+            Root.ActualThemeChanged += (_, _) => ShowGalleryRows();
+        }
         foreach (var old in Nav.MenuItems.OfType<FrameworkElement>().Where(i => i.Tag is GalleryRow).ToList()) Nav.MenuItems.Remove(old);
         if (gallery is not { } g) return;
         if (g.Explore is { } explore)
