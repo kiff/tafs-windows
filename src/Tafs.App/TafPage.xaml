@@ -90,6 +90,8 @@
       <!-- Chat: a taf's thread, in a readable column on a wide window, as the iPad's (720). -->
       <StackPanel x:Name="ChatPane" Spacing="12" MaxWidth="720" Visibility="Collapsed" />
       <StackPanel x:Name="ActivityPane" Spacing="10">
+        <!-- A taf tafs cloud runs: its work and its runs, above its record (the iPad's WorkPanel and RunsPanel). Drawn in code. -->
+        <StackPanel x:Name="WorkHost" Spacing="12" />
         <StackPanel x:Name="FilterChips" Orientation="Horizontal" Spacing="6" />
         <TextBlock x:Name="Empty" FontSize="14" Foreground="{ThemeResource TafsDim}" Margin="0,8,0,0" Visibility="Collapsed" />
         <ItemsControl x:Name="Days">
