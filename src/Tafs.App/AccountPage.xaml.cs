@@ -72,8 +72,8 @@ public sealed partial class AccountPage : Page
         Section(w.Get("sign_in.how_works"), [Words(AccountScreen.HowItWorks(w), "TafsSoftText", 15)]);
         Section(w.Get("settings.legal"),
         [
-            Action(AccountScreen.Legal(w, "settings.terms"), "TafsAccentText", () => _ = Windows.System.Launcher.LaunchUriAsync(SignInScreen.Terms)),
-            Action(AccountScreen.Legal(w, "settings.privacy_policy"), "TafsAccentText", () => _ = Windows.System.Launcher.LaunchUriAsync(SignInScreen.Privacy)),
+            Action(AccountScreen.Legal(w, "settings.terms"), "TafsAccentText", () => _ = Windows.System.Launcher.LaunchUriAsync(SignInScreen.Terms(w.Language))),
+            Action(AccountScreen.Legal(w, "settings.privacy_policy"), "TafsAccentText", () => _ = Windows.System.Launcher.LaunchUriAsync(SignInScreen.Privacy(w.Language))),
         ]);
         Section(w.Get("settings.about"),
         [

@@ -1,4 +1,5 @@
 using Tafs.Core.Kiff;
+using Tafs.Core.SignIn;
 using Tafs.Core.Words;
 
 namespace Tafs.Core.Account;
@@ -43,9 +44,12 @@ public static class AccountScreen
         _ => [new(w.Get("sign_in.with_kiff"), AccountAction.SignIn, false)],
     };
 
-    /// <summary>tafs's legal pages are in English only for now: outside English the row says so ("Terms (in English)").</summary>
+    /// <summary>A legal row's label. kiff.dev has tafs's legal pages in the app's languages; in one it doesn't, the row says
+    /// they open in English ("Terms (in English)").</summary>
     public static string Legal(WordBook w, string key) =>
-        w.Language == "en" ? w.Get(key) : w.Get("settings.legal_in_english", ("label", w.Get(key)));
+        w.Language == "en" || SignInScreen.LegalLanguages.Contains(w.Language)
+            ? w.Get(key)
+            : w.Get("settings.legal_in_english", ("label", w.Get(key)));
 
     /// <summary>How it works, for this Windows PC.</summary>
     public static string HowItWorks(WordBook w) => w.Get("sign_in.every_action_taf_takes_goes", ("device", w.Get("device.windows")));

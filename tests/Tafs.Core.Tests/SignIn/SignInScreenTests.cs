@@ -67,8 +67,35 @@ public class SignInScreenTests
         var parts = SignInScreen.Agreement(En);
         Assert.Equal("By signing in, you agree to KIFF's Terms, which cover tafs, and its Privacy policy.",
             string.Concat(parts.Select(p => p.Text)));
-        Assert.Equal(new[] { SignInScreen.Terms, SignInScreen.Privacy }, parts.Where(p => p.Link is not null).Select(p => p.Link));
-        Assert.Equal("Terms", parts.Single(p => p.Link == SignInScreen.Terms).Text);
+        Assert.Equal(new[] { new Uri("https://kiff.dev/tafs/terms"), new Uri("https://kiff.dev/tafs/privacy") },
+            parts.Where(p => p.Link is not null).Select(p => p.Link));
+        Assert.Equal("Terms", parts.Single(p => p.Link == SignInScreen.Terms("en")).Text);
+    }
+
+    [Theory]
+    [InlineData("de")]
+    [InlineData("es")]
+    [InlineData("fr")]
+    [InlineData("it")]
+    [InlineData("nl")]
+    [InlineData("pl")]
+    [InlineData("pt")]
+    public void The_legal_pages_open_in_the_app_s_language(string language)
+    {
+        Assert.Equal($"https://kiff.dev/{language}/tafs/terms", SignInScreen.Terms(language).AbsoluteUri);
+        Assert.Equal($"https://kiff.dev/{language}/tafs/privacy", SignInScreen.Privacy(language).AbsoluteUri);
+        var parts = SignInScreen.Agreement(WordBook.Load(SharedFiles.Strings, language));
+        Assert.Equal(new[] { SignInScreen.Terms(language), SignInScreen.Privacy(language) }, parts.Where(p => p.Link is not null).Select(p => p.Link));
+    }
+
+    [Theory]
+    [InlineData("en")]
+    [InlineData("ja")]
+    [InlineData("")]
+    public void English_and_any_language_kiff_dev_lacks_open_the_English_pages(string language)
+    {
+        Assert.Equal("https://kiff.dev/tafs/terms", SignInScreen.Terms(language).AbsoluteUri);
+        Assert.Equal("https://kiff.dev/tafs/privacy", SignInScreen.Privacy(language).AbsoluteUri);
     }
 
     [Theory]
