@@ -1,0 +1,51 @@
+<!-- The celebration, as the owner's approved mockup (16 Nov) and the iPad's ConnectedView: the computer and the phone joined
+     by a check, "You're connected. Let's build great things together.", and Let's go. Either way of signing in ends here.
+     Shapes only, with no word in the drawing (rule 14). -->
+<Page x:Class="Tafs.App.ConnectedPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{ThemeResource TafsBackground}">
+  <Page.Resources>
+    <SolidColorBrush x:Key="GateAmber" Color="#B35500" />
+  </Page.Resources>
+  <Grid>
+    <!-- A few soft shapes around it, as the mockup's. -->
+    <Canvas AutomationProperties.AccessibilityView="Raw" IsHitTestVisible="False">
+      <Ellipse x:Name="Dot1" Width="22" Height="22" Fill="#D4A46A" />
+      <Rectangle x:Name="Dot2" Width="16" Height="16" RadiusX="4" RadiusY="4" Fill="#8EA9F2" />
+      <Ellipse x:Name="Dot3" Width="12" Height="12" Fill="#EE7A95" />
+      <Rectangle x:Name="Dot4" Width="16" Height="16" RadiusX="4" RadiusY="4" Fill="#F08AA0" />
+      <Ellipse x:Name="Dot5" Width="26" Height="26" Fill="#E3C49E" />
+    </Canvas>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+      <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="32" Padding="24,40" MaxWidth="900">
+        <Viewbox Width="460" Height="240" AutomationProperties.AccessibilityView="Raw">
+          <Canvas Width="720" Height="360">
+            <Border Canvas.Left="0" Canvas.Top="48" Width="470" Height="312" CornerRadius="26" Background="White"
+                    BorderBrush="#1B1726" BorderThickness="5">
+              <Canvas>
+                <Border Canvas.Left="34" Canvas.Top="34" Width="62" Height="62" CornerRadius="16" Background="{StaticResource TafsBrand}" />
+                <Rectangle Canvas.Left="34" Canvas.Top="116" Width="234" Height="16" RadiusX="8" RadiusY="8" Fill="#4A4855" />
+                <Rectangle Canvas.Left="34" Canvas.Top="150" Width="170" Height="16" RadiusX="8" RadiusY="8" Fill="#D9D9D9" />
+              </Canvas>
+            </Border>
+            <Border Canvas.Left="530" Canvas.Top="0" Width="186" Height="360" CornerRadius="40" Background="White"
+                    BorderBrush="#1B1726" BorderThickness="5" />
+            <Line X1="418" Y1="162" X2="578" Y2="162" Stroke="{StaticResource GateAmber}" StrokeThickness="5" StrokeDashArray="2,1.5" />
+            <Ellipse Canvas.Left="446" Canvas.Top="114" Width="96" Height="96" Fill="{StaticResource GateAmber}" />
+            <FontIcon Canvas.Left="472" Canvas.Top="140" Glyph="&#xE73E;" FontSize="44" Foreground="White" />
+          </Canvas>
+        </Viewbox>
+        <StackPanel Spacing="4">
+          <TextBlock x:Name="Connected" FontSize="44" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center"
+                     Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
+          <TextBlock x:Name="Together" FontSize="44" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center"
+                     Foreground="{ThemeResource TafsInk}" />
+        </StackPanel>
+        <Button x:Name="LetsGo" Click="OnLetsGo" HorizontalAlignment="Center" MinWidth="300" MinHeight="54" Padding="32,0"
+                CornerRadius="27" BorderThickness="0" Background="{StaticResource GateAmber}" Foreground="White" FontSize="17"
+                FontWeight="SemiBold" AutomationProperties.AutomationId="signin.lets_go" />
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Page>

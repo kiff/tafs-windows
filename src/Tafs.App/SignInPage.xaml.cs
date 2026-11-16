@@ -23,8 +23,13 @@ public sealed partial class SignInPage : Page
     /// <summary>Add this PC with the phone instead.</summary>
     public static event Action? PairInsteadChosen;
 
+    /// <summary>Navigated to with this, from the signed-out window's Continue: the code is asked for at once, in its half.</summary>
+    public const string StartNow = "start";
+
     CancellationTokenSource cancel = new();
     SignInStep step = SignInStep.Welcome;
+    /// <summary>In the signed-out window's half: no welcome (the half says it) and no "with your phone" (the other half is that).</summary>
+    bool inHalf;
     SignInCode? code;
 
     public SignInPage()
@@ -53,7 +58,9 @@ public sealed partial class SignInPage : Page
             agreement.Inlines.Add(hyperlink);
         }
         Agreement.Blocks.Add(agreement);
+        inHalf = e.Parameter is StartNow;
         Show(SignInStep.Welcome);
+        if (inHalf) _ = SignInAsync();
     }
 
     void Show(SignInStep next, string? why = null, string? status = null)
@@ -61,7 +68,7 @@ public sealed partial class SignInPage : Page
         step = next;
         var lines = SignInScreen.Lines(App.Words, next, code, why);
         Heading.Text = lines.Title;
-        Welcome.Visibility = Seen(next == SignInStep.Welcome);
+        Welcome.Visibility = Seen(next == SignInStep.Welcome && !inHalf);
         Lead.Text = lines.Lead ?? "";
         Lead.Visibility = Seen(lines.Lead is not null);
         CodeLabel.Text = lines.CodeLabel ?? "";
@@ -78,7 +85,7 @@ public sealed partial class SignInPage : Page
         Link.Text = lines.Link ?? "";
         Other.Visibility = Seen(lines.Link is not null);
         PairInstead.Content = lines.PairInstead;
-        PairInstead.Visibility = Seen(lines.PairInstead is not null);
+        PairInstead.Visibility = Seen(lines.PairInstead is not null && !inHalf);
         Agreement.Visibility = Seen(next != SignInStep.Waiting);
     }
 
