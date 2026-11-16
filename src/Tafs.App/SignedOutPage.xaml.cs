@@ -15,7 +15,12 @@ public sealed partial class SignedOutPage : Page
     /// <summary>Under this width, the halves stack, as the mockup's narrow window.</summary>
     const double Narrow = 860;
 
-    public SignedOutPage() => InitializeComponent();
+    public SignedOutPage()
+    {
+        InitializeComponent();
+        // Board 1 on the KIFF half, as iOS's welcome and the Mac's sign-in: the owner's approved art replaces the old drawing.
+        KiffArt.Child = Illustrations.FirstRun();
+    }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {

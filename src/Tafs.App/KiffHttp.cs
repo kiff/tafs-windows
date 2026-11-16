@@ -90,11 +90,14 @@ static class KiffHttp
 
     /// <summary>A DELETE as the session to tafs cloud or KIFF (a halt released), in the app's language, the same hosts as a read.</summary>
     /// <exception cref="HttpRequestException">It wasn't reached, or isn't a host the session's token may go to.</exception>
-    public static async Task<(int Status, string Body)> DeleteAsync(Uri url, string bearer, string language, CancellationToken cancel = default)
+    public static async Task<(int Status, string Body)> DeleteAsync(Uri url, string bearer, string language, CancellationToken cancel = default,
+        (string Header, string Value)? signature = null)
     {
         if (!Tafs.Core.Kiff.KeptSessions.MaySendTo(url, DeviceSignIn.Api)) throw new HttpRequestException("not a host the session goes to");
         using var request = new HttpRequestMessage(HttpMethod.Delete, url);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        // A removal's signature (KIFF-Passkey-Assertion), when it's signed.
+        if (signature is { } signed) request.Headers.Add(signed.Header, signed.Value);
         request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         return await SendAsync(request, cancel, Patient);

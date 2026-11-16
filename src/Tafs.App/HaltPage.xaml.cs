@@ -135,6 +135,9 @@ public sealed partial class HaltPage : Page
         var running = halt.State == HaltState.Running;
         TafName.Foreground = Brush(running ? "TafsDim" : "TafsNo");
         Headline.Text = Halt.Headline(w, halt);
+        var allHalted = opening.Taf is null && halt.State == HaltState.Halted;
+        Art.Visibility = allHalted ? Visibility.Visible : Visibility.Collapsed;
+        if (allHalted) Art.Child ??= Illustrations.AllHalted();
         Explanation.Text = Halt.Explanation(w, halt, opening.Taf is null, TimeZoneInfo.Local);
 
         Holds.Visibility = running ? Visibility.Collapsed : Visibility.Visible;

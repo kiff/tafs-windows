@@ -84,6 +84,8 @@
           </Grid.RowDefinitions>
           <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Spacing="14" VerticalAlignment="Center">
+            <!-- Board 9, Coach starting for the first time, above its own words: shapes only, hidden from Narrator. -->
+            <Border x:Name="IntroArt" HorizontalAlignment="Center" />
             <TextBlock x:Name="Heading" FontSize="30" FontWeight="Bold" TextWrapping="Wrap" Foreground="{ThemeResource TafsCoach}"
                        AutomationProperties.HeadingLevel="Level1" />
             <TextBlock x:Name="LineText" FontSize="16" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />

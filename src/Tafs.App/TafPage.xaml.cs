@@ -17,7 +17,14 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     TafTab OpensOn = TafTab.Activity, IReadOnlyList<TafCard>? Cards = null, string IssuedBy = "", string? CloudId = null,
     Func<string, Task<CloudRead>>? Read = null, Func<string, string?, Task<CloudRead>>? ReadWithProof = null,
     Func<Task<string?>>? SetupProof = null, bool Revoked = false, IReadOnlyList<Tafs.Core.Coach.ChatMessage>? SampleChat = null,
-    TafHalt? Halt = null, Func<string, byte[], Task<CloudRead>>? Send = null, bool Manages = false, TafStream? Stream = null);
+    TafHalt? Halt = null, Func<string, byte[], Task<CloudRead>>? Send = null, bool Manages = false, TafStream? Stream = null,
+    TafRemove? Remove = null);
+
+/// <summary>
+/// Remove for good, for whoever manages the taf on a PC that signs with its passkey: what goes with it, in tafs cloud's words,
+/// for the confirmation, and the removal itself (<see cref="TafRemoval.RemoveAsync"/>).
+/// </summary>
+public sealed record TafRemove(Func<Task<string?>> Goes, Func<Task<RemovalResult>> Run);
 
 /// <summary>A POST to tafs cloud whose answer streams: its status, its body when refused, and the open answer when not.</summary>
 public delegate Task<(int Status, string Body, System.Net.Http.HttpResponseMessage? Open)> TafStream(string path, byte[] body, CancellationToken cancel);
@@ -841,9 +848,16 @@ public sealed partial class TafPage : Page
         }
         if (shown.Rules.Count > 0) CardPane.Children.Add(Panel(lines));
 
-        if (revoked) return;
+        // A revoked taf can't be halted, but it can still be removed for good.
+        if (revoked)
+        {
+            if (opening.Remove is { } gone) CardPane.Children.Add(RemoveButton(gone));
+            return;
+        }
         // Halting is a job of its own too, for whoever manages the taf: its row opens its screen (the iPad's HaltRow).
         if (opening.Halt is { } halt) CardPane.Children.Add(HaltRow(halt));
+        // Remove for good, last, in red, as the iPad's: what goes with it first, then Windows Hello.
+        if (opening.Remove is { } remove) CardPane.Children.Add(RemoveButton(remove));
         // Revoke reaches nothing yet, so it's the sample's only: on a real taf it would look done when KIFF revoked nothing.
         if (opening?.CloudId is not null) return;
         var revoke = new Button { Content = w.Get("taf.revoke"), Style = Look("TafsOutlineNo"), HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -855,6 +869,47 @@ public sealed partial class TafPage : Page
     /// The row that opens the taf's halt, with where it stands (the iPad's <c>HaltRow</c>, framed): the hand in red, "Halt",
     /// "Stop it until you resume" or its state in red, and the caret. The whole row opens it.
     /// </summary>
+    /// <summary>Done, for the window: the taf is gone, so Home is read again and the Overview opens.</summary>
+    public static event Action? Removed;
+
+    /// <summary>
+    /// "Remove Rae", outlined in red, as the iPad's: its confirmation names what goes ("Remove Rae for good?", what always
+    /// goes, then tafs cloud's words for its apps), Remove asks Windows Hello, and what came of it is said in its own
+    /// dialog. Off while it goes.
+    /// </summary>
+    Button RemoveButton(TafRemove remove)
+    {
+        var w = App.Words;
+        var name = opening!.Head.Name;
+        var button = new Button
+        {
+            Content = w.Get("taf.remove_named", ("taf", name)), Style = Look("TafsOutlineNo"), HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(button, "taf.remove");
+        button.Click += async (_, _) =>
+        {
+            button.IsEnabled = false;
+            try
+            {
+                var goes = await remove.Goes();
+                var ask = new ContentDialog
+                {
+                    XamlRoot = XamlRoot, Title = w.Get("taf.remove_title", ("taf", name)),
+                    Content = new TextBlock { Text = TafRemoval.ConfirmText(w, goes), TextWrapping = TextWrapping.Wrap },
+                    PrimaryButtonText = w.Get("taf.remove.button"), CloseButtonText = w.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
+                };
+                if (await ask.ShowAsync() != ContentDialogResult.Primary) return;
+                var result = await remove.Run();
+                if (result.Words is { } said)
+                    await new ContentDialog { XamlRoot = XamlRoot, Content = said, CloseButtonText = w.Get("common.ok") }.ShowAsync();
+                if (result.Done) Removed?.Invoke();
+            }
+            catch (System.Runtime.InteropServices.COMException) { }
+            finally { button.IsEnabled = true; }
+        };
+        return button;
+    }
+
     Button HaltRow(TafHalt halt)
     {
         var w = App.Words;

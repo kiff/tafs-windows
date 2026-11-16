@@ -42,6 +42,29 @@ Built so far:
 
 Signing in is the only screen that reaches KIFF so far. Other screens show only their title until they're built, in the order of the desktop spec. 
 
+## Illustrations
+
+The owner's approved boards (kiff/work#10, rows S37–S48), drawn in code from iOS's `Illustrations.swift`, number for
+number, on each board's own grid (`Illustrations`). Rule 14: shapes only, never a letter, a number or a word; the
+screen's own shared words say what it means, and every drawing is hidden from Narrator (`IllustrationsRuleTests`). Each
+paints itself in its own theme once it's in the window, and again when the theme changes. A card's shadow is a hairline
+in the theme's line colour on Windows.
+
+| Board | Where on Windows | Shown when |
+|---|---|---|
+| 1 First run | the KIFF half of the signed-out window, in place of its old drawing | signed out |
+| 2 No tafs yet | the Overview, above the empty table's words | no taf, and tafs cloud lists no recipes |
+| 3 Brief, nothing to decide | Your brief, where decisions go | the brief has none |
+| 4 All halted | the Halt screen for every taf | every taf reads halted |
+| 6 Needs you, nothing waiting | Needs you's empty panel | nothing waits |
+| 7 Coach, nothing or one taf | Coach's empty conversation | the account has no taf or one |
+| 8 New taf, small | the gallery's create mode, in Say it in your own words | Start a new taf |
+| 9 Coach starting | Coach's start, above its words | before Coach is started |
+| 10 Overview | the Overview, under its title | always (a desktop is the iPad's regular width) |
+
+- **Board 5 (an app connected):** drawn, and placed once connecting an app with a key
+  comes to Windows. **Boards 11 and 12** are the watches'.
+
 ## One tafs, and its scheme
 
 - **One window holds the session** (`Program.cs`, as Windows App SDK's single-instance guide): a second start hands its
