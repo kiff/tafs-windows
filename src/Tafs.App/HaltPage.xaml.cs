@@ -9,13 +9,17 @@ namespace Tafs.App;
 /// What the Halt screen opens on: a taf by its tafs cloud id and name, or every taf with none; how it reads and sends a
 /// halt as the session; and what reads the list again once a halt is sent, as the iPad's <c>refresh()</c>.
 /// </summary>
-public sealed record HaltOpening(string? Taf, string Name, Func<string, Task<CloudRead>> Read, Func<string, Task<CloudRead>> Send, Action Halted);
+/// <param name="Resume">Resume behind one Windows Hello (<see cref="HaltResume.ResumeAsync"/>), for a PC that resumes; none
+/// for any other, which reads why it can't and approves on another device.</param>
+public sealed record HaltOpening(string? Taf, string Name, Func<string, Task<CloudRead>> Read, Func<string, Task<CloudRead>> Send, Action Halted,
+    Func<Task<(Halt? Halt, string? Why)>>? Resume = null);
 
 /// <summary>
 /// A halt of one taf or, with none, of every taf, as the iPad's <c>HaltScreen</c>. Halting is one click with no Windows
 /// Hello: it only takes authority away. It reads Halted only once kiff/agents, KIFF and planque all hold it, Halting… until
 /// then, and is read again every 2 seconds while halting, for up to 2 minutes. Resuming gives authority back, so it's
-/// signed: until this PC can sign it, the screen says to approve on another device.
+/// signed by this PC's passkey behind Windows Hello ("Resume with Windows Hello"); a PC that can't sign it says to approve
+/// on another device.
 /// </summary>
 public sealed partial class HaltPage : Page
 {
@@ -39,6 +43,7 @@ public sealed partial class HaltPage : Page
         AgainButton.Content = w.Get("halt.again");
         WaitingText.Text = w.Get("taf.halt.halting_wait");
         ResumeElsewhere.Text = w.Get("approval.device_can_not_approve_approve");
+        ResumeButton.Content = w.Get("taf.halt.resume_with", ("biometry", Tafs.Core.Coach.CoachScreen.Biometry));
         Show();
         var at = ++shown;
         await RefreshAsync(at);
@@ -96,6 +101,33 @@ public sealed partial class HaltPage : Page
         await FollowAsync(at);
     }
 
+    /// <summary>
+    /// Resume, as the iPad's: one Windows Hello, then KIFF, then tafs cloud. Taken, it reads Running, and the list and the
+    /// sidebar are read again; not, why shows in red, and the halt stays.
+    /// </summary>
+    async void OnResume(object sender, RoutedEventArgs e)
+    {
+        if (opening?.Resume is not { } resume || busy) return;
+        var at = shown;
+        busy = true;
+        Error.Visibility = Visibility.Collapsed;
+        Show();
+        var (h, why) = await resume();
+        if (at != shown) return;
+        busy = false;
+        if (h is not null)
+        {
+            halt = h;
+            opening.Halted();
+        }
+        else if (why is not null)
+        {
+            Error.Text = why;
+            Error.Visibility = Visibility.Visible;
+        }
+        Show();
+    }
+
     void Show()
     {
         if (opening is null) return;
@@ -123,7 +155,12 @@ public sealed partial class HaltPage : Page
         AgainButton.Visibility = Waiting.Visibility;
         AgainButton.IsEnabled = !busy;
         // A taf halted with every taf is resumed from every taf's screen, as the iPad's.
-        ResumeElsewhere.Visibility = halt.State == HaltState.Halted && !(halt.Account && opening.Taf is not null) ? Visibility.Visible : Visibility.Collapsed;
+        var resumable = halt.State == HaltState.Halted && !(halt.Account && opening.Taf is not null);
+        ResumeButton.Visibility = resumable && opening.Resume is not null ? Visibility.Visible : Visibility.Collapsed;
+        ResumeButton.IsEnabled = !busy;
+        if (busy && resumable) ResumeButton.Content = w.Get("taf.halt.resuming");
+        else ResumeButton.Content = w.Get("taf.halt.resume_with", ("biometry", Tafs.Core.Coach.CoachScreen.Biometry));
+        ResumeElsewhere.Visibility = resumable && opening.Resume is null ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>One part of the halt (the iPad's <c>HoldRow</c>): a check once it holds it, its words, and Done or Waiting.</summary>

@@ -18,11 +18,29 @@ public sealed record HeldCall(
     /// <summary>KIFF's id for the hold, when it came from KIFF.</summary>
     public string? KiffId { get; init; }
 
+    /// <summary>KIFF's accounting version for the hold, signed with the answer.</summary>
+    public int? AccountingVersion { get; init; }
+
     /// <summary>
     /// Whether approving it once can pass it (the iPad's <c>approvableOnce</c>, KIFF's <c>can_approve_once ?? true</c>): not when
     /// it's over a total the Card keeps across calls.
     /// </summary>
     public bool ApprovableOnce { get; init; } = true;
+
+    /// <summary>KIFF's action for the call (the iPad's <c>proposed.action</c>), when it came from KIFF.</summary>
+    public string? Action { get; init; }
+
+    /// <summary>The agent in KIFF the call is held for, KIFF's <c>subject</c> (the iPad's <c>agent</c>).</summary>
+    public string? Agent { get; init; }
+
+    /// <summary>Each breach's outcome, in KIFF's order (the iPad's <c>breachOutcomes</c>); none for a call not from KIFF.</summary>
+    public IReadOnlyList<string>? BreachOutcomes { get; init; }
+
+    /// <summary>
+    /// Coach's own hold of a version to install (the iPad's <c>install</c>): approving it once isn't how it goes live, so it's
+    /// installed from its card. None for any other held call.
+    /// </summary>
+    public VersionInstall? Install { get; init; }
 
     /// <summary>Whether it's a listed taf's: only those are in the sidebar's NEEDS YOU. Coach's and an unknown agent's aren't.</summary>
     public bool Listed { get; init; } = true;
@@ -36,6 +54,9 @@ public sealed record HeldCall(
 /// yet: a line, and whether the gate (why, and Add this Windows PC) stands where the iPad's <c>ApprovalGate</c> would.
 /// </summary>
 public sealed record HeldAnswerLines(string? Line, bool Gate);
+
+/// <summary>The version a hold of Coach's would install, as the iPad's <c>VersionInstall</c>: the taf and its version's number.</summary>
+public sealed record VersionInstall(string Taf, int N);
 
 /// <summary>What a held call's card says, top to bottom, as the iPad's HeldCallCard.</summary>
 public sealed record HeldCallLines(
@@ -112,12 +133,13 @@ public static class NeedsYouScreen
     /// Where the answers go, as the iPad's <c>answers(refuseOnly:)</c>: someone without <c>holds.answer</c> reads who answers,
     /// and no gate; a call approving once can pass has the gate where Approve would be; one over a Card total says so
     /// ("Extra room lets only this call through." for someone with <c>cards.manage</c>), the gate only where a manager's Extra
-    /// room would be. The gate stands only while this PC can't approve, as the iPad's <c>ApprovalGate</c>: a view-only session,
-    /// or none (<paramref name="mode"/> null); a PC that approves reads the line with no gate.
+    /// room would be. The gate stands exactly while this PC can't approve, as the iPad's <c>ApprovalGate</c>:
+    /// <paramref name="approves"/> is <see cref="HeldAnswers.Approves"/>, a Passkey session that knows its passkey. A Key session,
+    /// a passkey session with no id, a view-only one or none keep the gate.
     /// </summary>
-    public static HeldAnswerLines Answers(WordBook w, HeldCall call, bool mayAnswerHolds, bool managesCards, Kiff.ApprovalMode? mode)
+    public static HeldAnswerLines Answers(WordBook w, HeldCall call, bool mayAnswerHolds, bool managesCards, bool approves)
     {
-        var gate = mode is null or Kiff.ApprovalMode.View;
+        var gate = !approves;
         return !mayAnswerHolds ? new(w.Get("needs_you.someone_answers"), false)
             : call.ApprovableOnce ? new(null, gate)
             : new(w.Get(managesCards ? "needs_you.over_total_manager" : "needs_you.over_total"), managesCards && gate);

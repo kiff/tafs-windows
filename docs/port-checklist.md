@@ -12,6 +12,9 @@ their lines here are d14217f's.
 | iPad file | Lines | What | Models | Windows |
 | :- | -: | :- | :- | :- |
 | QuestionsCard.swift | 121 | Several questions Coach asks at once: each question's choices, Something else…, Send answers, Chat about this, the answered line | QuestionAnswers, SetupComponent | `QuestionsCardView.cs`, `WrapRow.cs`, `Tafs.Core/Coach/CoachCards.cs` |
+| ExportChatsView.swift | 82 | Export my chats | | Account › Export my chats: tafs cloud's export as the JSON and text files, Windows' share sheet, removed at every session change (`ChatsExport`, `ShareFiles`, #74) |
+| HaltScreen.swift | 176 | A halt of one taf or every taf | | A taf's halt row and the sidebar's Halt all, each opening the Halt screen with its state and words (`HaltPage`, `Tafs.Core/Taf/Halt.cs`, #70) |
+| NotificationSettingsView.swift | 138 | Account › Alerts | | Alerts on this PC per account, Sound, the two sample alerts (`AlertsPage`, `AlertPrefs`, #72). Not for Windows: "even with tafs closed", What alerts you (a phone's push token) and Haptics |
 
 ## Partial
 
@@ -38,6 +41,8 @@ their lines here are d14217f's.
 | DevicesView.swift | 69 | Account › Devices | The title, each device's name or "A device", Last used or Not used yet, This device, the footer, and a failed read in plain words (`DevicesPage.xaml.cs`, `Tafs.Core/Account/Devices.cs`) | Sign out for another device (`settings.devices.signout_needs_approver` shows in its place until this PC can sign the approval); refreshing. Pairing a computer from here is the phone's (`PairComputerView`) |
 | ReportAnswerSheet.swift | 124 | Report an answer | The reasons, the note and its limit, Send, the thanks or already reported, and not sent with why, from Coach's answers (`ReportAnswerDialog.cs`, `Tafs.Core/Coach/AnswerReport.cs`, `CoachPanel.xaml.cs`) | A taf's or a trial's answers, which wait on the taf's chat |
 | ApprovalSetupView.swift | 102 | This device's approval readiness, and the gate in place of an approval's button | In place of an approval's buttons, why this PC can't approve and Add this Windows PC (`NeedsYouScreen.Gate`, `NeedsYouPage.xaml.cs`); Coach's Start off for a session that can't approve (`CoachStart.MayStart`) | Reading readiness (Windows Hello not set up) and its words; Open Settings and Check again; `ApprovalNotice`; the gate's button once this PC can approve |
+| PeopleViews.swift | 291 | People & groups, naming a group, adding someone | Groups and people, read-only, every 20 s while open (`PeoplePage`, `People`, #73) | The changes: a new group, renaming or deleting one, adding someone, making them the manager or removing them, each signed on the device |
+| TafChatView.swift | 826 | A taf's chat | Reading and showing a taf's thread (`TafChat`, the Chat tab, #83) | Sending, attachments, the mic, and the rest of the thread's actions (part 2) |
 
 ## Not started
 
@@ -51,17 +56,12 @@ their lines here are d14217f's.
 | DiscardSettingUp.swift | 35 | Discard a taf being set up | |
 | DoorsView.swift | 923 | A taf's Doors tab | DoorsModel, PlanqueClient |
 | DriveViews.swift | 73 | Coach asks to drive the app, and what it did | DriveSession |
-| ExportChatsView.swift | 82 | Export my chats (#74, open) | |
-| HaltScreen.swift | 176 | A halt of one taf or every taf (#70, open) | |
 | HomeRecipes.swift | 242 | Home with no taf: the recipes | |
 | MicButton.swift | 122 | The mic in a chat's message bar | Dictation |
-| NotificationSettingsView.swift | 138 | Account › Alerts (#72, open) | |
-| PeopleViews.swift | 291 | People & groups, naming a group, adding someone (#73, open, read-only) | |
 | PlanViews.swift | 268 | Buying credits and Solo, asking an admin, declining a request. `BuyCreditsView` and `SoloView` buy through the App Store, so Windows needs its own store or KIFF's web flow; `AskAdminView` and `DeclineRequestView` are plain tafs cloud calls | Purchases |
 | RecipeGallery.swift | 135 | The jobs' gallery | |
 | RecordSearchViews.swift | 192 | The Record's search | |
 | SetupShapePanel.swift | 130 | What Coach has made so far | SetupShape |
-| TafChatView.swift | 826 | A taf's chat (#83, open: reading and showing its thread) | |
 | TafDialPanel.swift | 228 | The dial's requests and confirmation | KnobNavigation, DoorsModel |
 | TafKnobRemote.swift | 64 | The remote's buttons: back, lower, pause, raise, next | KnobNavigation |
 | TafKnobView.swift | 377 | The taf's remote | KnobNavigation |

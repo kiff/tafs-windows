@@ -15,10 +15,34 @@ static class KiffHttp
     /// <summary>For a card's answer, which can take tafs cloud a while: 70 seconds, as the iPad's <c>sendData</c>.</summary>
     static readonly HttpClient Patient = new() { Timeout = TimeSpan.FromSeconds(70) };
 
+    /// <summary>For an answer that streams while a taf works: no overall timeout, ended by its own end or a cancel.</summary>
+    static readonly HttpClient Streaming = new() { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
+
     static KiffHttp()
     {
         Client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("tafs-windows", "0.1"));
         Patient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("tafs-windows", "0.1"));
+        Streaming.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("tafs-windows", "0.1"));
+    }
+
+    /// <summary>
+    /// A JSON POST as the session to tafs cloud whose answer streams as server-sent events (a message to a taf): the same
+    /// hosts as <see cref="PostAsync(Uri, byte[], string, string, CancellationToken, (string Header, string Value)?, (string Header, string Value)?)"/>.
+    /// A 2xx gives the open answer to read events from, which the caller disposes; anything else, its status and body.
+    /// </summary>
+    /// <exception cref="HttpRequestException">It wasn't reached, or isn't a host the session's token may go to.</exception>
+    public static async Task<(int Status, string Body, HttpResponseMessage? Open)> PostStreamAsync(Uri url, byte[] body, string bearer, string language,
+        CancellationToken cancel = default)
+    {
+        if (!Tafs.Core.Kiff.KeptSessions.MaySendTo(url, DeviceSignIn.Api)) throw new HttpRequestException("not a host the session goes to");
+        using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = new ByteArrayContent(body) };
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+        var answer = await Streaming.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancel);
+        if (answer.IsSuccessStatusCode) return ((int)answer.StatusCode, "", answer);
+        using (answer) return ((int)answer.StatusCode, await answer.Content.ReadAsStringAsync(cancel), null);
     }
 
     /// <exception cref="HttpRequestException">KIFF wasn't reached.</exception>
@@ -46,6 +70,34 @@ static class KiffHttp
         request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
         if (deviceSignature is not null) request.Headers.Add("Planque-Device-Signature", deviceSignature);
         return await SendAsync(request, cancel);
+    }
+
+    /// <summary>A JSON PUT as the session to tafs cloud or KIFF (a setting changed), the same hosts as a read.</summary>
+    /// <exception cref="HttpRequestException">It wasn't reached, or isn't a host the session's token may go to.</exception>
+    public static async Task<(int Status, string Body)> PutAsync(Uri url, byte[] body, string bearer, string language, CancellationToken cancel = default,
+        (string Header, string Value)? signature = null)
+    {
+        if (!Tafs.Core.Kiff.KeptSessions.MaySendTo(url, DeviceSignIn.Api)) throw new HttpRequestException("not a host the session goes to");
+        using var request = new HttpRequestMessage(HttpMethod.Put, url) { Content = new ByteArrayContent(body) };
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        // A signed setup call's header (KIFF-Device-Signature), when it is one.
+        if (signature is { } signed) request.Headers.Add(signed.Header, signed.Value);
+        return await SendAsync(request, cancel, Patient);
+    }
+
+    /// <summary>A DELETE as the session to tafs cloud or KIFF (a halt released), in the app's language, the same hosts as a read.</summary>
+    /// <exception cref="HttpRequestException">It wasn't reached, or isn't a host the session's token may go to.</exception>
+    public static async Task<(int Status, string Body)> DeleteAsync(Uri url, string bearer, string language, CancellationToken cancel = default)
+    {
+        if (!Tafs.Core.Kiff.KeptSessions.MaySendTo(url, DeviceSignIn.Api)) throw new HttpRequestException("not a host the session goes to");
+        using var request = new HttpRequestMessage(HttpMethod.Delete, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        return await SendAsync(request, cancel, Patient);
     }
 
     /// <summary>
@@ -108,6 +160,17 @@ static class KiffHttp
         if (!Tafs.Core.Kiff.PlanqueProof.IsPlanque(url)) throw new HttpRequestException("not planque");
         using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = new ByteArrayContent(body) };
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
+        request.Headers.Add("Planque-Device-Signature", deviceSignature);
+        return await SendAsync(request, cancel);
+    }
+
+    /// <summary>A DELETE to planque as this device (erasing the account's connections), signed with <c>Planque-Device-Signature</c>.</summary>
+    /// <exception cref="HttpRequestException">It wasn't reached, or isn't planque.</exception>
+    public static async Task<(int Status, string Body)> PlanqueDeleteAsync(Uri url, string deviceSignature, string language, CancellationToken cancel = default)
+    {
+        if (!Tafs.Core.Kiff.PlanqueProof.IsPlanque(url)) throw new HttpRequestException("not planque");
+        using var request = new HttpRequestMessage(HttpMethod.Delete, url);
         request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
         request.Headers.Add("Planque-Device-Signature", deviceSignature);
         return await SendAsync(request, cancel);

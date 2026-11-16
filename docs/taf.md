@@ -171,12 +171,46 @@ reference:
   `halted_at` and `stopped` absent or null when not given. There's no halt fixture at the pin yet, so the shape is the
   iPad's reader.
 
+**Writing to the taf** (`TafChatSend`, ported from the iPad's `sendChat`, `SentMessages` and `stopChat`):
+- **The composer** sits under the thread for a taf tafs cloud runs: "Message Refunds", or "Send to Refunds while it
+  works" while a run of its is at work. Ctrl+Enter sends; Enter is a new line.
+- **Sending:** an empty message sends nothing and says nothing; one over 2000 characters says "That's longer than 2000
+  characters…" and sends nothing. Otherwise it shows at once, never above the thread's latest, and goes to tafs cloud
+  (`POST /v1/tafs/{id}/messages`, `{text}`). One at a time: Send is off while it goes.
+- **Until the thread has it,** it stays on screen after the thread, matched once by its id, else its words, for two
+  minutes at most.
+- **Not taken:** it leaves the thread, its words go back in the box, and "The message wasn't sent." with why shows
+  under the thread, in red.
+- **While the taf works,** or a sent message waits, the thread is read again every 2 s, only while Chat shows.
+- **Stop,** for whoever manages the taf (KIFF's `cards.manage` access, once read): the run at work is cancelled
+  (`POST /v1/tafs/{id}/stop`, `{session}`), then "You stopped Refunds.", or "Not stopped." and why.
+- A sample taf has no composer yet; the iPad's answers its own words in sample mode.
+- **The answer as it comes** (`TafChatStream`, `ServerSentEvents`, `LiveAnswer`): a message goes with its answer streamed
+  (`POST /v1/tafs/{id}/messages/stream`). Under it, the live line with a spinner: tafs cloud's `state` ("Thinking…", the
+  step's words or Coach's note with "…", "Waiting for you"), and before that the step at work, else "Thinking…". The
+  steps follow, a failed one in red with tafs cloud's why, then the words as they come. The model's thinking text is
+  never drawn. At the end the thread is read again and its stored answer takes the live one's place; a stop with words
+  (an `ai_unavailable` stop, say) says them, whole. A stream that doesn't open (not reached) sends the message plainly; a
+  refusal is said and never sent again; a stream that breaks leaves the rest to the thread. Narrator reads the live line
+  politely as it changes.
+
+**Resume** (`HaltResume`, ported from the iPad's `resumeHalt`), on a taf's Halt screen or every taf's:
+- **Who:** only a passkey session that knows its passkey, the same rule as Approve once (`HeldAnswers.Approves`). Any other
+  session reads "This device can't approve. Approve on another device signed in to your account." in its place.
+- **One Windows Hello:** "Resume with Windows Hello". This PC's passkey asserts KIFF's resume itself
+  (`KIFF-Passkey-Assertion` over `kiff.request.v1`, `POST /v1/agents/{agent}/resume`, or `/v1/resume` for every taf),
+  since resuming gives authority back and KIFF takes it only signed by the approval key.
+- **Then tafs cloud** releases its halt (`DELETE` on the halt), which lets the taf run only once KIFF says it's resumed.
+  Taken, the screen reads Running, and the list and the sidebar are read again.
+- **Not taken:** closing Windows Hello says "Cancelled, so nothing was approved…"; any other failure to sign, "Not resumed:
+  it wasn't confirmed."; KIFF not taking it, "KIFF didn't resume Rae." with the app's line for its status; tafs cloud not
+  taking it after KIFF did, "KIFF resumed Rae, but tafs cloud didn't yet." with why. A sign-out meanwhile sends nothing
+  more. A taf halted with every taf is resumed from every taf's screen.
+
 **Not yet:**
-- **Resuming** (`ResumeConfirmation`), with the approvals.
 - **The revision as If-None-Match:** the server's ETag is the quoted form of `revision`; each read is whole for now. Its
   days are titled as sent, in 12 semibold, not in the sample's capitals. Pull to refresh has no Windows gesture yet.
-- **Chat's composer:** writing to the taf, its answer as it streams, Stop, Retry, a message not sent, and what's
-  written while it works. They come in the next change, with reading the thread again while an answer is awaited.
+- **Chat's Retry** on a message kept unsent, and steering a run at work (`/steer`).
 - **Chat's other items:** held calls in the thread and the Needs you pill, what became of an approved call, a door's
   knocks, a setting handed to Coach, a run stopped at its cap, the answer's Report menu, opening a sent file full size
   (it's named only, until its bytes are read), and a connected tool's title

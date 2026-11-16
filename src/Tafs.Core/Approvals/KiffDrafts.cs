@@ -10,18 +10,34 @@ namespace Tafs.Core.Approvals;
 /// <summary>One cap on each call of a grant: the quantity it caps (<c>sum(amount)</c>, or a count), its most, and its unit and scale.</summary>
 public sealed record DraftCap(string Quantity, long Max, string? Unit = null, int? Scale = null);
 
-/// <summary>One action a draft's Card grants: its action, its title for people, and its caps on each call.</summary>
-public sealed record DraftGrant(string Action, string? Title = null, IReadOnlyList<DraftCap>? PerActionMax = null);
+/// <summary>What a grant may act on, as the iPad's <c>DraftCard.Grant.Resources</c>: only these values of one parameter.</summary>
+public sealed record DraftResources(string Parameter, IReadOnlyList<string>? Values = null);
 
-/// <summary>A total over a window: the quantity, its limit, KIFF's window, and its unit and scale.</summary>
-public sealed record DraftTotal(string Quantity, long Limit, string Window, string? Unit = null, int? Scale = null);
+/// <summary>
+/// One action a draft's Card grants: its action, its title for people, and its caps on each call; and, read so a draft can be
+/// compared with the Card in force (the iPad's <c>HoldAllow</c>), its scope, the states it applies in, and its next steps.
+/// </summary>
+public sealed record DraftGrant(string Action, string? Title = null, IReadOnlyList<DraftCap>? PerActionMax = null,
+    DraftResources? Resources = null, IReadOnlyList<string>? EntityStates = null, IReadOnlyList<string>? NextSteps = null);
+
+/// <summary>
+/// A total over a window: the quantity, its limit, KIFF's window, and its unit and scale; what it counts (attempts or effects,
+/// KIFF's default when left out), and the parameter it's kept for each value of, when it's per item.
+/// </summary>
+public sealed record DraftTotal(string Quantity, long Limit, string Window, string? Unit = null, int? Scale = null,
+    string? Measure = null, string? Per = null);
 
 /// <summary>
 /// A Card's terms as the person reads them before confirming, as the iPad's <c>DraftCard</c>: each action and its caps, the
 /// totals, what KIFF does past a limit (<c>owner</c> asks, <c>refuse</c> refuses), and KIFF's own lines when it sends them.
+/// Its other terms, as KIFF writes them, are read so a draft can be compared with the Card in force (the iPad's
+/// <c>HoldAllow</c>): who holds it, where it applies, when it starts and ends, and a draft's own <c>hold_expiry</c> and
+/// <c>revoked_at</c>.
 /// </summary>
 public sealed record DraftCard(IReadOnlyList<DraftGrant>? Grants, IReadOnlyList<DraftTotal>? Totals, string? OnExceed = null,
-    IReadOnlyList<string>? KiffLines = null, string? Revises = null, DraftCard? Current = null, bool? Unchanged = null)
+    IReadOnlyList<string>? KiffLines = null, string? Revises = null, DraftCard? Current = null, bool? Unchanged = null,
+    string? Subject = null, IReadOnlyList<string>? Subjects = null, string? Domain = null, string? Environment = null,
+    string? Location = null, string? ValidFrom = null, string? ValidUntil = null, string? HoldExpiry = null, string? RevokedAt = null)
 {
     public bool AsksPastLimits => OnExceed == "owner";
     public bool IsUnchanged => Unchanged == true && Current is not null;
@@ -157,18 +173,22 @@ public static class KiffDrafts
 
     static DraftCard Card(JsonElement c)
     {
-        IReadOnlyList<T>? List<T>(string n, Func<JsonElement, T> each) =>
-            Lenient.Field(c, n) is { ValueKind: JsonValueKind.Array } a ? a.EnumerateArray().Select(each).ToList() : null;
+        static IReadOnlyList<T>? List<T>(JsonElement o, string n, Func<JsonElement, T> each) =>
+            Lenient.Field(o, n) is { ValueKind: JsonValueKind.Array } a ? a.EnumerateArray().Select(each).ToList() : null;
+        static IReadOnlyList<string>? Texts(JsonElement o, string n) => List(o, n, t => t.GetString()!);
+        string? T(string n) => Lenient.Text(c, n);
         return new DraftCard(
-            List("grants", g => new DraftGrant(Lenient.Text(g, "action")!, Lenient.Text(g, "title"),
-                Lenient.Field(g, "per_action_max") is { ValueKind: JsonValueKind.Array } caps
-                    ? caps.EnumerateArray().Select(x => new DraftCap(Lenient.Text(x, "quantity")!, Lenient.Long(x, "max") ?? (long)x.GetProperty("max").GetDouble(),
-                        Lenient.Text(x, "unit"), Lenient.Int(x, "scale"))).ToList()
-                    : null)),
-            List("aggregates", a => new DraftTotal(Lenient.Text(a, "quantity")!, Lenient.Long(a, "limit") ?? (long)a.GetProperty("limit").GetDouble(),
-                Lenient.Text(a, "window")!, Lenient.Text(a, "unit"), Lenient.Int(a, "scale"))),
-            Lenient.Text(c, "on_exceed"), List("lines", l => l.GetString()!), Lenient.Text(c, "revises"),
+            List(c, "grants", g => new DraftGrant(Lenient.Text(g, "action")!, Lenient.Text(g, "title"),
+                List(g, "per_action_max", x => new DraftCap(Lenient.Text(x, "quantity")!, Lenient.Long(x, "max") ?? (long)x.GetProperty("max").GetDouble(),
+                    Lenient.Text(x, "unit"), Lenient.Int(x, "scale"))),
+                Lenient.Field(g, "resources") is { ValueKind: JsonValueKind.Object } r ? new DraftResources(Lenient.Text(r, "parameter")!, Texts(r, "values")) : null,
+                Texts(g, "entity_states"), Texts(g, "next_steps"))),
+            List(c, "aggregates", a => new DraftTotal(Lenient.Text(a, "quantity")!, Lenient.Long(a, "limit") ?? (long)a.GetProperty("limit").GetDouble(),
+                Lenient.Text(a, "window")!, Lenient.Text(a, "unit"), Lenient.Int(a, "scale"), Lenient.Text(a, "measure"), Lenient.Text(a, "per"))),
+            T("on_exceed"), Texts(c, "lines"), T("revises"),
             Lenient.Field(c, "current") is { ValueKind: JsonValueKind.Object } cur ? Card(cur) : null,
-            Lenient.Field(c, "unchanged") is { ValueKind: JsonValueKind.True or JsonValueKind.False } u ? u.GetBoolean() : null);
+            Lenient.Field(c, "unchanged") is { ValueKind: JsonValueKind.True or JsonValueKind.False } u ? u.GetBoolean() : null,
+            T("subject"), Texts(c, "subjects"), T("domain"), T("environment"), T("location"), T("valid_from"), T("valid_until"),
+            T("hold_expiry"), T("revoked_at"));
     }
 }

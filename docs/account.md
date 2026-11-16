@@ -6,7 +6,34 @@ Account is the iPad's `SettingsView`, as in the reference set's `account.png`. T
 
 The sections, in the iPad's order:
 - **Your account:** Mode, as Sample data, Signed in with KIFF, or Signed out.
+  - **The KIFF account**, once `GET /v1/me` is read (`KiffAccount`, as the iPad's `KIFFClient.Account` and `AccountView`):
+    KIFF account (its name, else its slug), Account id (only when it differs from the name), Signed in as (the email,
+    left out when the account is named after it, as `AccountLines.signedInAs`), and Time zone (KIFF's, else UTC).
+  - **Use this Windows PC: Europe/Paris,** under Time zone when the account's differs from this PC's (Windows' zone as its
+    IANA name), for a session KIFF lets change it (`account.settings`, or a KIFF that lists none) and never a view-only
+    one (`KiffAccount.Offered`), as the iPad's "Use this iPad": Windows Hello asks first ("Set your account's time zone to Europe/Paris"),
+    then this session's TPM key signs KIFF's `PUT /v1/me/time-zone` as a signed setup call (`KIFF-Device-Signature` over
+    `kiff.request.v1`). Closed or failing, nothing is sent ("The time zone didn't change."); KIFF refusing says the app's
+    line; taken, the account is read again. The iPad's full list of zones isn't here yet.
+  - **Delete account…,** in red, for someone KIFF lets delete it (`account.delete`, or a KIFF that lists none) on a session
+    that isn't view-only, as the
+    iPad's `DeleteAccountView` (App Store guideline 5.1.1(v)): its warning, what goes (tafs, runs, chats and notes; Cards
+    and keys; app sign-ins; KIFF records after 30 days), and "You confirm with Windows Hello. Other devices sign out too."
+    Then, in the iPad's order (`AccountDeletion`): Windows Hello ("Delete your account"); tafs cloud erases every taf
+    (`POST /v1/account/delete`, `{done}`); planque forgets the connections (`DELETE /v1/accounts/{tenant}`, signed by this
+    device); KIFF, last (`POST /v1/me/delete`, signed by the TPM key as a setup call). Each step that fails says which part
+    is left (only the owner can, not erased yet, connections left, KIFF didn't delete), and trying again goes on from
+    there. Deleted, this PC forgets the session as a sign-out does and opens sign-in.
+  - **In the sidebar,** under Account: the person's email, else the account's name, once read. Narrator reads both.
   - **View only**, with Add this Windows PC, shows exactly when the kept session's `approval_mode` says view ([the session](session.md)).
+- **People & apps,** for a KIFF account: People & groups, Devices, and Connect apps, which opens the sidebar's screen.
+- **Plan:** Plan & usage, which opens its screen.
+- **Coach,** once tafs cloud's setting is read (`Suggestions`, `GET /v1/me/suggestions`): Show suggestions, a switch with
+  tafs cloud's words for what it does now. Only someone who manages the account's tafs (`cards.manage`) can change it
+  (`PUT {show}`); refused, why shows in red.
+- **Your data and the AI,** after Theme, once read (`AiConsent`, `GET /v1/me/ai-consent`), every word tafs cloud's: given,
+  its line and Withdraw in red (`DELETE`); not given, its title, which opens its screen (its lines, Allow for the version
+  read with `POST {version}`, and Not now). A change that isn't taken says why in red.
 - **Alerts:** a row that opens. The alerts themselves aren't built yet.
 - **Theme:** Light, Dark or System, the iPad's segmented control. It sets the window's theme, and it's kept for the
   next launch (`ThemeChoices`), as the iPad keeps `tafs.theme`.
@@ -15,8 +42,15 @@ The sections, in the iPad's order:
   - **What can't be read** is the system's. A theme that can't be kept still shows now.
   - **At launch,** `--theme light|dark` wins, for CI's screenshots. A screenshot never reads what this PC kept, so the
     same command gives the same picture anywhere.
-- **Language:** the app's language, by its own name ("Français"), and Change language. That opens Windows' language
-  settings, which the app follows, as the iPad opens iOS's.
+- **Language:** the app's language, by its own name ("Français"), and Change language, which opens the app's own picker,
+  as Android's (tafs#1214):
+  - **"Language"**, with "This Windows PC's language" first (`settings.language_device`), then English, Deutsch, Français,
+    Español, Italiano, Português, Nederlands and Polski, each named in itself (`AppLanguage.Named`), the current one marked.
+  - **Choosing one** keeps it in `%LOCALAPPDATA%\tafs\language` (a bare code; this PC's language removes it) and starts tafs
+    again at once in it (`AppInstance.Restart`, else a new process), still signed in, since the session is kept. The one in
+    use changes nothing. A choice that can't be kept says so and changes nothing.
+  - **At launch,** `--lang` wins (screenshots), then the kept choice, then Windows' languages (`AppLanguage.Resolve`). A
+    kept code tafs doesn't ship is ignored. tafs cloud and KIFF follow at once, through `Accept-Language`.
 - **How it works:** the sign-in's line, for this Windows PC.
 - **Legal:** Terms and Privacy policy. They open tafs's pages, which are in English only for now, so outside English each
   row says so ("Conditions (en anglais)", from `settings.legal_in_english`).
