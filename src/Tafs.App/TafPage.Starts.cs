@@ -80,7 +80,9 @@ public sealed partial class TafPage
     {
         if (knobBusy || opening?.Change is not { } change) return null;
         (knobBusy, knobSaid) = (true, null);
-        ShowSetup();
+        // Drawn again once the click is over: rebuilding the screen under a switch while it's still being pressed passed the
+        // press to the switch that took its place, so a second place turned too.
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, ShowSetup);
         var sent = await change(method, path, body);
         knobBusy = false;
         if (sent.Answer is null) knobSaid = sent.Why ?? App.Words.Get("error.ours");
@@ -223,7 +225,7 @@ public sealed partial class TafPage
             SetupPane.Children.Add(Panel([.. panel]));
         }
 
-        if (manages && opening?.AskCoach is { } ask)
+        if (manages && opening?.Improve is { } ask)
         {
             var coach = new Button { Content = w.Get("setup.change_starts"), Style = Look("TafsOutlineButton"), HorizontalAlignment = HorizontalAlignment.Stretch };
             coach.Click += (_, _) => ask();
@@ -282,7 +284,7 @@ public sealed partial class TafPage
 
         var apps = new List<UIElement> { Eyebrow("setup.in_apps") };
         foreach (var item in k.AppPlaces) apps.Add(PlaceRow(item.Label, item.Words, item.On, false, item.Id, null));
-        if (manages && opening?.AskCoach is { } ask)
+        if (manages && opening?.Improve is { } ask)
         {
             var add = new HyperlinkButton { Content = w.Get("setup.add_place"), Padding = new Thickness(0), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
             add.Click += (_, _) => ask();
@@ -306,7 +308,13 @@ public sealed partial class TafPage
         var toggle = new ToggleSwitch { IsOn = on, IsEnabled = canSwitch, OnContent = "", OffContent = "", MinWidth = 0, VerticalAlignment = VerticalAlignment.Top };
         AutomationProperties.SetName(toggle, title);
         AutomationProperties.SetAutomationId(toggle, "place." + id);
-        if (set is not null) toggle.Toggled += (_, _) => { if (toggle.IsOn != on) set(toggle.IsOn); };
+        // Only the person's own switch acts, once: the page drawing it again never does.
+        if (set is not null) toggle.Toggled += (_, _) =>
+        {
+            if (toggle.IsOn == on || !toggle.IsEnabled) return;
+            toggle.IsEnabled = false;
+            set(toggle.IsOn);
+        };
         Grid.SetColumn(toggle, 1);
         row.Children.Add(toggle);
         return row;

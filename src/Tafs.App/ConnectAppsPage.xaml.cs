@@ -74,7 +74,7 @@ public sealed record ConnectionsCalls(Func<Task<IReadOnlyList<Tafs.Core.Kiff.Pla
 /// signed grants read (the proof, as Setup sends it); with neither, only its title.
 /// </summary>
 public sealed record ConnectAppsOpening(ConnectAppsList? Sample, Func<string, string?, Task<Tafs.Core.Taf.CloudRead>>? Read, Func<Task<string?>>? Proof,
-    ConnectionsCalls? Connections = null, bool OpenFirst = false);
+    ConnectionsCalls? Connections = null, bool OpenFirst = false, Action? Back = null);
 
 /// <summary>
 /// Connect apps: tafs cloud's list read as the session, searched as the person types, More apps for its next page; or the
@@ -93,6 +93,8 @@ public sealed partial class ConnectAppsPage : Page
     public static event Action? AskCoachChosen;
 
     public ConnectAppsPage() => InitializeComponent();
+
+    void OnBackToAccount(object sender, RoutedEventArgs e) => opening?.Back?.Invoke();
 
     /// <summary>Each sign-out moves it on: the kept page then starts from nothing, even on Back, never with the last account's apps.</summary>
     static int forgotten;
@@ -116,6 +118,9 @@ public sealed partial class ConnectAppsPage : Page
         if (e.NavigationMode == NavigationMode.Back && shown is not null && seen == forgotten) return;
         var before = opening;
         opening = e.Parameter as ConnectAppsOpening;
+        // From Account: Back to it.
+        BackToAccount.Content = "‹ " + w.Get("common.back");
+        BackToAccount.Visibility = opening?.Back is null ? Visibility.Collapsed : Visibility.Visible;
         // Opened again in the same session: the list kept shows at once, and is read again quietly over it. Another
         // session, or the sample, starts from nothing: one account's apps never show for another.
         var same = before?.Read is not null && ReferenceEquals(before.Read, opening?.Read) && shown is not null && query.Length == 0 && seen == forgotten;

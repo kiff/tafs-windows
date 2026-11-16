@@ -65,6 +65,9 @@
 
   <ScrollViewer>
     <StackPanel Padding="24" Spacing="10" MaxWidth="1100" HorizontalAlignment="Stretch">
+      <!-- Back to Account, when opened from it. -->
+      <Button x:Name="BackToAccount" Click="OnBackToAccount" Style="{StaticResource TafsQuietButton}" FontSize="15" Foreground="{ThemeResource TafsCoach}"
+              Padding="0" Visibility="Collapsed" AutomationProperties.AutomationId="back" />
       <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
       <!-- Searched as the person types, as the iPad's .searchable; only with tafs cloud's list. -->
       <TextBox x:Name="Search" Visibility="Collapsed" TextChanged="OnSearch" MaxWidth="420" HorizontalAlignment="Left" Width="420" />

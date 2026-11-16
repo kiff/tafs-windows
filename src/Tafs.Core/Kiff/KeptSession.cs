@@ -55,13 +55,20 @@ public static class KeptSessions
     public static readonly Uri TafsCloud = new("https://cloud.tafs.kiff.dev");
 
     /// <summary>
-    /// Whether the session's token may go to <paramref name="url"/>: https, on exactly KIFF's API host or tafs cloud's, on
-    /// the default port, with no user in it. No other subdomain, so a wrong base URL or a link from an answer never
-    /// carries the token elsewhere.
+    /// tafs cloud's streaming function, where a message whose answer comes as it's written goes (<c>…/messages/stream</c>), as
+    /// the iPad's <c>TafsCloud.defaultStreamURL</c>: tafs cloud's own, behind the same session check. tafs cloud's main host
+    /// has no such route, and answered 404 ("not found") to every message sent from Windows.
+    /// </summary>
+    public static readonly Uri TafsCloudStream = new("https://ghjfunc5ppretjo22bl5izlnya0zrocm.lambda-url.eu-west-1.on.aws");
+
+    /// <summary>
+    /// Whether the session's token may go to <paramref name="url"/>: https, on exactly KIFF's API host, tafs cloud's or tafs
+    /// cloud's streaming function's, on the default port, with no user in it. No other subdomain, so a wrong base URL or a
+    /// link from an answer never carries the token elsewhere.
     /// </summary>
     public static bool MaySendTo(Uri url, Uri api) =>
         url.IsAbsoluteUri && url.Scheme == Uri.UriSchemeHttps && url.UserInfo.Length == 0 && url.IsDefaultPort
-        && new[] { api.Host, TafsCloud.Host }.Contains(url.Host, StringComparer.OrdinalIgnoreCase);
+        && new[] { api.Host, TafsCloud.Host, TafsCloudStream.Host }.Contains(url.Host, StringComparer.OrdinalIgnoreCase);
 
     public static byte[] Write(KeptSession s) => JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, object?>
     {

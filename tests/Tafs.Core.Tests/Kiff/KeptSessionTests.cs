@@ -20,6 +20,10 @@ public class KeptSessionTests
     [InlineData("https://docs.kiff.dev/v1/home", false)]
     [InlineData("https://kiff.dev/v1/home", false)]
     [InlineData("https://cloud.tafs.kiff.dev.example.com/v1/home", false)]
+    // tafs cloud's streaming function, exactly: a message's streamed answer.
+    [InlineData("https://ghjfunc5ppretjo22bl5izlnya0zrocm.lambda-url.eu-west-1.on.aws/v1/tafs/t1/messages/stream", true)]
+    [InlineData("https://other.lambda-url.eu-west-1.on.aws/v1/tafs/t1/messages/stream", false)]
+    [InlineData("http://ghjfunc5ppretjo22bl5izlnya0zrocm.lambda-url.eu-west-1.on.aws/v1/tafs/t1/messages/stream", false)]
     public void The_token_goes_only_to_KIFF_s_API_and_tafs_cloud(string url, bool may) =>
         Assert.Equal(may, KeptSessions.MaySendTo(new Uri(url), Api));
 

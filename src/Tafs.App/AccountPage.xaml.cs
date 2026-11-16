@@ -31,6 +31,11 @@ public sealed partial class AccountPage : Page
     public static event Action? DevicesChosen;
     public static event Action? PeopleChosen;
     public static event Action? ConnectAppsChosen;
+
+    /// <summary>Close: Account goes, and what was open before it shows again.</summary>
+    public static event Action? CloseChosen;
+
+    void OnClose(object sender, RoutedEventArgs e) => CloseChosen?.Invoke();
     public static event Action? UsageChosen;
 
     AccountOpening opening = new(false, ElementTheme.Default);
@@ -45,6 +50,7 @@ public sealed partial class AccountPage : Page
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
+        AutomationProperties.SetName(CloseButton, App.Words.Get("common.close"));
         opening = e.Parameter as AccountOpening ?? opening;
         Show();
         _ = ReadSettingsAsync();
@@ -330,10 +336,18 @@ public sealed partial class AccountPage : Page
         return g;
     }
 
+    /// <summary>
+    /// A row's hover in a grouped list: a rounded rectangle reaching 12 into the list's margin on each side, its words where
+    /// they were, never a square tint in the list's rounded panel.
+    /// </summary>
+    static readonly CornerRadius RowCorners = new(12);
+    static readonly Thickness RowReach = new(-12, 0, -12, 0);
+    static readonly Thickness RowInset = new(12, 0, 12, 0);
+
     /// <summary>A row that opens a screen, as the iPad's NavigationLink: the whole row, with its chevron.</summary>
     static Button Opens(Grid row, string name, Action open)
     {
-        var b = new Button { Content = row, Style = Look("TafsBox"), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        var b = new Button { Content = row, Style = Look("TafsBox"), CornerRadius = RowCorners, Margin = RowReach, Padding = RowInset, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
         AutomationProperties.SetName(b, name);
         b.Click += (_, _) => open();
         return b;
@@ -355,7 +369,7 @@ public sealed partial class AccountPage : Page
         line.Children.Add(chevron);
         var b = new Button
         {
-            Content = line, Style = Look("TafsBox"), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Content = line, Style = Look("TafsBox"), CornerRadius = RowCorners, Margin = RowReach, Padding = RowInset, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
         };
         AutomationProperties.SetName(b, $"{label}: {value}");
         b.Click += (_, _) => act();
@@ -390,7 +404,7 @@ public sealed partial class AccountPage : Page
                 Grid.SetColumn(mark, 1);
                 row.Children.Add(mark);
             }
-            var b = new Button { Content = row, Style = Look("TafsBox"), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+            var b = new Button { Content = row, Style = Look("TafsBox"), CornerRadius = RowCorners, Margin = RowReach, Padding = RowInset, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
             AutomationProperties.SetName(b, title);
             if (id == current) AutomationProperties.SetItemStatus(b, "selected");
             b.Click += (_, _) => { chosen = id; dialog?.Hide(); };
@@ -447,7 +461,7 @@ public sealed partial class AccountPage : Page
         var b = new Button
         {
             Content = new TextBlock { Text = words, FontSize = 17, Style = Look(style) },
-            Style = Look("TafsBox"), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
+            Style = Look("TafsBox"), CornerRadius = RowCorners, Margin = RowReach, Padding = RowInset, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
             MinHeight = 52,
         };
         AutomationProperties.SetName(b, words);
