@@ -868,6 +868,9 @@ public sealed partial class MainWindow : Window
     {
         sessions++;
         consentPutOff = false;
+        // A Discard of the last session's says nothing more, and its Cards left are the next account's to read.
+        discarding.Clear();
+        discardLeft.Clear();
         // The next session asks Windows Hello again before its first step.
         (hello, helloChecked) = (HelloReadiness.Ready, false);
         // The last export's files too, as the iPad's removeOpenedFiles: a person's chats never stay on this PC after them.
