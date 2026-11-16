@@ -119,7 +119,32 @@ An answer that can't be read, or isn't a 200, leaves the Overview as it was. A s
 `--home shared/contracts/home.json` reads the contracts instead: Home's from that file, and each taf's runs and report
 from `taf-runs.json` and `taf-run-report.json` beside it (CI's `overview-home`).
 
+## The jobs' gallery (`Gallery`, `GalleryPage`)
+
+The iPad's `RecipeGallerySheet`, `RecipeStrip`, `RecipeRow` and `RecipeSheet`, read with Home's list from tafs cloud's
+`GET /v1/recipes/gallery`. Every word, order and colour is tafs cloud's; the app has none of its own here.
+
+- **In the sidebar,** under Your tafs, as the iPad's `HomeSplitView`:
+  - **Explore jobs** (tafs cloud's `words.explore`), with or without tafs, and for anyone, since browsing creates nothing.
+    None when tafs cloud sends no words or no job.
+  - With tafs, **the strip** (`strip.shown`): its title, then a few jobs the account doesn't run yet, in tafs cloud's order,
+    each led by the problem it ends on an edge in its category's colour; an id the gallery doesn't list is skipped.
+    Then **See all jobs** (`words.see_all`, else `words.all`), unless the strip already shows every job.
+- **The gallery,** opened from Explore jobs or See all jobs, titled "Explore jobs": "All jobs", a chip per category
+  (in its colour, filled once picked; picked again, every job shows), then each category's jobs. A job's card has the
+  problem it ends (else its title), its line, and its apps, each after its logo where tafs cloud serves one.
+  - **Logos** load only from tafs cloud's own `/v1/logos/` and 32 lowercase hex (`Gallery.IsLogo`), so no one else sees
+    this PC's address. A logo that doesn't load leaves the name alone.
+  - **A colour** is tafs cloud's `#RRGGBB` for light and for dark, as the window's theme is; one it can't read is none.
+- **A job's sheet** (a strip job opens on it): what it ends, what that costs today, its Card in zones (does on its own,
+  asks first, never does; an empty zone left out), tafs cloud's line for a passed proof run and what the job reported,
+  then **Try it with Coach** (`words.try`, else `labels.hand`) for someone who may use Coach. As the iPad's
+  `handRecipeToCoach`, it starts a new Coach conversation with the job's `say` in the box, to edit and send; nothing is sent.
+- **Signed out,** the rows go.
+
 ## Not yet
+
+- **+ New's gallery** (the iPad's create mode, with "Say it in your own words"), and Home's recipes with no taf.
 
 - **+ New**, above Coach on the iPad, comes with Coach: on Windows it would have nothing to open yet.
 - **Where a held call opens.** On the iPad, a held call opens its taf's page, from the sidebar and from
