@@ -16,7 +16,7 @@ namespace Tafs.App;
 public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, ActivityPage> Activity, SetupOpening? Setup = null,
     TafTab OpensOn = TafTab.Activity, IReadOnlyList<TafCard>? Cards = null, string IssuedBy = "", string? CloudId = null,
     Func<string, Task<CloudRead>>? Read = null, Func<string, string?, Task<CloudRead>>? ReadWithProof = null,
-    Func<Task<string?>>? SetupProof = null, bool Revoked = false);
+    Func<Task<string?>>? SetupProof = null, bool Revoked = false, IReadOnlyList<Tafs.Core.Coach.ChatMessage>? SampleChat = null);
 
 /// <summary>The sample's Setup, as taf-setup.png: its job and the notes it keeps.</summary>
 public sealed record SetupOpening(string Job, IReadOnlyList<MemoryNote> Notes);
@@ -37,7 +37,7 @@ public sealed record TafLineView(string Title, string Time, string Detail, strin
     }
 }
 
-/// <summary>A taf's page, on its Activity, its Card or its Setup. Chat is shown, and comes in its own change.</summary>
+/// <summary>A taf's page, on its Chat, its Activity, its Card or its Setup.</summary>
 public sealed partial class TafPage : Page
 {
     TafOpening? opening;
@@ -46,6 +46,9 @@ public sealed partial class TafPage : Page
     readonly Dictionary<string, ActivityPages> cloudPages = [];
     /// <summary>tafs cloud's Setup for this taf, as last read.</summary>
     readonly SetupRead setupRead = new();
+    /// <summary>Its thread, as tafs cloud last answered it, and why the last read didn't come (the iPad's chatErrors).</summary>
+    Tafs.Core.Coach.CoachThread? chat;
+    string? chatError;
     TafTab tab;
     List<MemoryNote> notes = [];
     bool paused;
@@ -85,6 +88,86 @@ public sealed partial class TafPage : Page
         Show();
         _ = LoadActivityAsync();
         _ = LoadSetupAsync();
+        if (tab == TafTab.Chat) _ = LoadChatAsync();
+    }
+
+    /// <summary>
+    /// Its thread, read each time the Chat shows, as the iPad's <c>.task(id: tafID)</c> on its chat: a sample taf's is its
+    /// greeting, kept here. A read that doesn't come keeps the thread there was and says why under it.
+    /// </summary>
+    async Task LoadChatAsync()
+    {
+        if (opening is not { CloudId: { } id, Read: { } read } mine) return;
+        var (thread, error) = await TafChat.LoadAsync(App.Words, id, read);
+        // An answer for a page since opened on another taf is dropped.
+        if (opening != mine) return;
+        if (thread is not null) chat = thread;
+        chatError = error;
+        if (tab == TafTab.Chat) ShowChat();
+    }
+
+    /// <summary>
+    /// The thread, as the iPad's <c>TafChatView.thread</c>: a time between parts an hour apart; the person's words on the right
+    /// in a brand bubble, "Answered the card above" under an answer; the taf's full width, with "Worked for 12 s" above them,
+    /// which opens its steps, where its result went above and what it did under, and a refused connection's lines; a run's
+    /// start as a line. With nothing in it, what the chat is for; a read that didn't come, why, in red.
+    /// </summary>
+    void ShowChat()
+    {
+        var w = App.Words;
+        ChatPane.Children.Clear();
+        Microsoft.UI.Xaml.Media.Brush Brush(string key) => ChatViews.ThemeBrush(ActualTheme, key);
+        IReadOnlyList<Tafs.Core.Coach.ThreadItem> items = chat is { } thread ? TafChat.Items(thread)
+            : (opening?.SampleChat ?? []).Select(m => new Tafs.Core.Coach.ThreadItem(m, null)).ToList();
+        if (items.Count == 0)
+        {
+            var empty = CoachPanel.Words(TafChat.Empty(w, opening?.Head.Name), 14, "TafsDimText", HorizontalAlignment.Center);
+            empty.Margin = new Thickness(0, 30, 0, 30);
+            ChatPane.Children.Add(empty);
+        }
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (Tafs.Core.Coach.CoachChat.GapTime(w, items, i, DateTimeOffset.Now, TimeZoneInfo.Local) is { } gap)
+            {
+                var time = CoachPanel.Words(gap, 12, "TafsDimText", HorizontalAlignment.Center);
+                time.Margin = new Thickness(0, 6, 0, 0);
+                ChatPane.Children.Add(time);
+            }
+            var m = items[i].Message!;
+            if (m is { From: Tafs.Core.Coach.ChatFrom.Owner, Kickoff: false })
+            {
+                var said = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0) };
+                if (m.Text.Length > 0) said.Children.Add(ChatViews.OwnerBubble(m.Text, Brush));
+                // Written while a card waited: these words were its answer.
+                if (m.Answers is not null) said.Children.Add(ChatViews.AnsweredCardLine());
+                if (said.Children.Count > 0) ChatPane.Children.Add(said);
+                continue;
+            }
+            var lines = new StackPanel { Spacing = 6 };
+            // What it did before writing it, folded.
+            if (m is { From: Tafs.Core.Coach.ChatFrom.Taf, Work: { } work })
+                lines.Children.Add(ChatViews.WorkSummary(TafChat.WorkRows(w, work), work.Ms, Brush));
+            // Where the run's result went: tafs cloud's line, above the taf's words.
+            if (m.Delivered is { } delivered) lines.Children.Add(ChatViews.RunLine(delivered));
+            if (m.Kickoff) lines.Children.Add(ChatViews.Kickoff(m));
+            else
+            {
+                var text = CoachPanel.Words(m.Text, 16, "TafsInkText");
+                text.IsTextSelectionEnabled = true;
+                lines.Children.Add(text);
+            }
+            // What the run did, counted from the record: tafs cloud's line, under them.
+            if (m.Counted is { } counted) lines.Children.Add(ChatViews.RunLine(counted));
+            // A connection its work asked for that was refused: tafs cloud's lines, never folded.
+            if (m.Refused is { } refused) lines.Children.Add(ChatViews.RefusedLines(refused, Brush));
+            ChatPane.Children.Add(lines);
+        }
+        if (chatError is { } why)
+        {
+            var error = CoachPanel.Words(why, 13, "TafsSoftText");
+            error.Foreground = Brush("TafsNo");
+            ChatPane.Children.Add(error);
+        }
     }
 
     /// <summary>Its Setup, read as the page opens and on Try again, as the iPad's <c>.task(id: tafID)</c> on its page.</summary>
@@ -150,7 +233,12 @@ public sealed partial class TafPage : Page
             var b = new Button { Content = title, Style = Look(each == tab ? "TafsSegmentChosen" : "TafsSegment") };
             if (each == tab) AutomationProperties.SetItemStatus(b, "selected");
             if (Built(each))
-                b.Click += (_, _) => { tab = each; ShowTab(); };
+                b.Click += (_, _) =>
+                {
+                    tab = each;
+                    ShowTab();
+                    if (each == TafTab.Chat) _ = LoadChatAsync();
+                };
             else
             {
                 b.IsEnabled = false;
@@ -162,9 +250,12 @@ public sealed partial class TafPage : Page
         ActivityPane.Visibility = tab == TafTab.Activity ? Visibility.Visible : Visibility.Collapsed;
         SetupPane.Visibility = tab == TafTab.Setup ? Visibility.Visible : Visibility.Collapsed;
         CardPane.Visibility = tab == TafTab.Card ? Visibility.Visible : Visibility.Collapsed;
-        CardBar.Visibility = tab == TafTab.Activity && opening?.Card is not null ? Visibility.Visible : Visibility.Collapsed;
+        ChatPane.Visibility = tab == TafTab.Chat ? Visibility.Visible : Visibility.Collapsed;
+        // Over the Chat and the Activity, as the iPad's (section < 2).
+        CardBar.Visibility = tab is TafTab.Chat or TafTab.Activity && opening?.Card is not null ? Visibility.Visible : Visibility.Collapsed;
         if (tab == TafTab.Setup) ShowSetup();
         if (tab == TafTab.Card) ShowCards();
+        if (tab == TafTab.Chat) ShowChat();
     }
 
     /// <summary>
@@ -414,10 +505,14 @@ public sealed partial class TafPage : Page
         ShowSetup();
     }
 
-    /// <summary>Activity is always built; Setup and the Card when the taf has them. Chat comes in its own change.</summary>
+    /// <summary>
+    /// Activity is always built; Setup and the Card when the taf has them; Chat, as the iPad's <c>canChat</c>, for a sample taf
+    /// and for one tafs cloud runs.
+    /// </summary>
     bool Built(TafTab each) => each switch
     {
         TafTab.Activity => true,
+        TafTab.Chat => opening is { CloudId: not null, Read: not null } || opening?.SampleChat is not null,
         TafTab.Setup => opening?.Setup is not null,
         TafTab.Card => opening?.Cards is { Count: > 0 },
         _ => false,
