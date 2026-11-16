@@ -56,7 +56,35 @@ public sealed partial class PairingPage : Page
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
-        offline = e.Parameter is true;
+        // "why": the card for a screenshot (--page pair-why), offline as every screenshot is.
+        offline = e.Parameter is true or "why";
+        // First, why: the card says what the passkey is for, and its button asks Windows Hello. Never a prompt out of nowhere.
+        if (e.Parameter is "why" || PairingScreen.AsksWhyFirst(App.Sessions.Kept(), WindowsHello.IsAvailable(), offline))
+        {
+            ShowWhy();
+            return;
+        }
+        await ShowNewCodeAsync();
+    }
+
+    /// <summary>The card before Windows Hello: the illustration, why, and the button. Nothing else of the pairing yet.</summary>
+    void ShowWhy()
+    {
+        var w = App.Words;
+        var (title, body, go) = PairingScreen.PasskeyWhy(w);
+        Heading.Text = w.Get("pair.title", ("device", PairingScreen.Device(w)));
+        Steps.Visibility = CheckCard.Visibility = QrCard.Visibility = NewCode.Visibility = Visibility.Collapsed;
+        Busy.IsActive = false;
+        Status.Text = "";
+        WhyArt.Child ??= Illustrations.PasskeyKey();
+        (WhyTitle.Text, WhyBody.Text, WhyGo.Content) = (title, body, go);
+        WhyCard.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>The card's button: now Windows Hello asks, and the code follows.</summary>
+    async void OnWhyGo(object sender, RoutedEventArgs e)
+    {
+        WhyCard.Visibility = Visibility.Collapsed;
         await ShowNewCodeAsync();
     }
 

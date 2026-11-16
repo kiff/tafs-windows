@@ -318,6 +318,7 @@ public sealed partial class MainWindow : Window
         }
 
         if (page == "pair") OpenPairing();
+        else if (page == "pair-why") OpenBeside(typeof(PairingPage), "why");
         else if (page == "account") OnAccount(this, new RoutedEventArgs());
         else if (page == "sign-in") OpenSignIn();
         else if (page is "calendar" or "calendar-week" or "calendar-month")

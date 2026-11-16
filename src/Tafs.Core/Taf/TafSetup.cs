@@ -28,17 +28,53 @@ public sealed class SetupRead
     public SetupPage? Page { get; private set; }
     public string? Error { get; private set; }
 
+    /// <summary>The page is drawn from the quick read while the signed one, which reads planque's connections, is still on its way.</summary>
+    public bool ConnectionsPending { get; private set; }
+
     /// <summary>
     /// <c>GET /v1/tafs/{id}/setup</c>, as the iPad's <c>loadTafSetup</c>: with planque's signed grants read
     /// (<c>Planque-Device-Signature</c>) when <paramref name="proof"/> gives one, and without it when it gives none or fails,
     /// as the iPad's <c>try?</c>. <paramref name="read"/> takes the path and the proof, none when there's none.
+    /// With a proof to make, the page doesn't wait for planque: a quick read without it goes at the same time, and draws the
+    /// job, the plan, what it remembers and the asks at once (<paramref name="drawn"/>), keeping the connections already shown
+    /// while the signed read brings them; that one's answer replaces it. A read that fails keeps the page read before.
     /// </summary>
-    public async Task LoadAsync(string taf, Func<string, string?, Task<CloudRead>> read, Func<Task<string?>>? proof = null)
+    public async Task LoadAsync(string taf, Func<string, string?, Task<CloudRead>> read, Func<Task<string?>>? proof = null, Action? drawn = null)
+    {
+        var path = TafSetup.Path(taf);
+        if (proof is null)
+        {
+            Take(await read(path, null));
+            return;
+        }
+        ConnectionsPending = true;
+        var quick = read(path, null);
+        var signed = SignedAsync(path, read, proof, quick);
+        var first = await Task.WhenAny(quick, signed);
+        if (first == quick && !signed.IsCompleted && quick.Result.Answer is { } json)
+        {
+            var page = TafSetup.Read(json);
+            // The connections need planque's proof: those already shown stay until the signed answer replaces them.
+            Page = page with { Connections = Page?.Connections ?? [], ConnectionsError = Page?.ConnectionsError, ConnectAgain = Page?.ConnectAgain };
+            Error = null;
+            drawn?.Invoke();
+        }
+        var answer = await signed;
+        ConnectionsPending = false;
+        Take(answer);
+    }
+
+    /// <summary>The signed read; when no proof could be made, it's the quick read itself, never the same read twice.</summary>
+    static async Task<CloudRead> SignedAsync(string path, Func<string, string?, Task<CloudRead>> read, Func<Task<string?>> proof, Task<CloudRead> quick)
     {
         string? signature = null;
-        try { signature = proof is null ? null : await proof(); }
+        try { signature = await proof(); }
         catch (Exception e) when (e is not OperationCanceledException) { }
-        var answer = await read(TafSetup.Path(taf), signature);
+        return signature is null ? await quick : await read(path, signature);
+    }
+
+    void Take(CloudRead answer)
+    {
         if (answer.Answer is { } json)
         {
             Page = TafSetup.Read(json);

@@ -104,8 +104,20 @@ public sealed partial class ConnectAppsPage : Page
         More.Content = w.Get("connect.more_apps");
         Search.PlaceholderText = w.Get("connect.apps.search");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(Search, w.Get("connect.apps.search"));
+        // Kept in memory (the page is cached): back from an app's connections, the list is as it was, never read again
+        // from the top; an ending there reads it itself.
+        if (e.NavigationMode == NavigationMode.Back && shown is not null) return;
+        var before = opening;
         opening = e.Parameter as ConnectAppsOpening;
-        Show(opening?.Sample);
+        // Opened again in the same session: the list kept shows at once, and is read again quietly over it. Another
+        // session, or the sample, starts from nothing: one account's apps never show for another.
+        var same = before?.Read is not null && ReferenceEquals(before.Read, opening?.Read) && shown is not null && query.Length == 0;
+        if (!same)
+        {
+            (grants, grantsRead, query) = ([], false, "");
+            Search.Text = "";
+            Show(opening?.Sample);
+        }
         if (opening?.Read is not null)
         {
             Search.Visibility = Visibility.Visible;

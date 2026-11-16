@@ -31,6 +31,28 @@ static class Illustrations
             d.Place(d.Dot(d.Tint("TafsAmberText", 0.35)), 330, 320, 20, 20);
     });
 
+    /// <summary>
+    /// Before Windows Hello makes this PC's passkey: a computer's screen with the app's mark on it, and a key beside it, in
+    /// the amber. Shapes only (rule 14); the card's words say what it's for.
+    /// </summary>
+    public static FrameworkElement PasskeyKey() => Make(340, 260, 170, d =>
+    {
+            d.Place(d.Halo(), 40, 0, 250, 250);
+            d.Place(d.Sheet(18), 40, 50, 200, 140);
+            d.Place(d.Mark(46), 70, 80, 46, 46);
+            d.Place(d.Bar(90, 0.85), 128, 88, 90, 10);
+            d.Place(d.Bar(70, 0.18), 128, 108, 70, 10);
+            d.Place(d.Capsule(d.Tint("TafsInk", 0.25)), 105, 200, 70, 10);
+            // The key: its ring, its hole, its shaft and two teeth.
+            d.Place(d.Dot(d.Tint("TafsAmber", 1)), 200, 120, 64, 64);
+            d.Place(d.Dot(d.Tint("TafsPanel", 1)), 220, 140, 24, 24);
+            d.Place(d.Capsule(d.Tint("TafsAmber", 1)), 250, 145, 80, 14);
+            d.Place(d.Rounded(d.Tint("TafsAmber", 1), 3), 300, 152, 9, 24);
+            d.Place(d.Rounded(d.Tint("TafsAmber", 1), 3), 315, 152, 9, 16);
+            d.Place(d.Chip(d.Tint("TafsBlue", 0.55), 20), 20, 30, 16, 16);
+            d.Place(d.Dot(d.Tint("TafsAmberText", 0.4)), 300, 40, 18, 18);
+    });
+
     /// <summary>Board 2, no tafs yet: an empty card's outline, a plus in it.</summary>
     public static FrameworkElement NoTafs() => Make(360, 320, 200, d =>
     {

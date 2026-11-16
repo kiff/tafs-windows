@@ -4,7 +4,7 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:local="using:Tafs.App"
-      Background="{ThemeResource TafsBackground}">
+      Background="{ThemeResource TafsBackground}" NavigationCacheMode="Required">
   <Page.Resources>
     <!-- A row, and the columns' names, 14 above and below, as the iPad's inset list adds around a 52-high row. -->
     <DataTemplate x:Key="Row" x:DataType="local:ConnectRowView">

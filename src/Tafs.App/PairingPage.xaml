@@ -15,6 +15,17 @@
         <TextBlock x:Name="Heading" FontSize="28" FontWeight="Bold" TextWrapping="Wrap" Foreground="{ThemeResource TafsInk}" />
         <TextBlock x:Name="Steps" FontSize="15" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
 
+        <!-- Before Windows Hello's prompt: why this PC makes a passkey, with an illustration, and the button that asks Windows. -->
+        <Border x:Name="WhyCard" Visibility="Collapsed" Background="{ThemeResource TafsPanel}" CornerRadius="18"
+                BorderBrush="{ThemeResource TafsLine}" BorderThickness="1" Padding="24" MaxWidth="520" HorizontalAlignment="Left">
+          <StackPanel Spacing="14">
+            <Border x:Name="WhyArt" HorizontalAlignment="Center" />
+            <TextBlock x:Name="WhyTitle" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{ThemeResource TafsInk}" />
+            <TextBlock x:Name="WhyBody" FontSize="15" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+            <Button x:Name="WhyGo" Click="OnWhyGo" Style="{StaticResource TafsPrimary}" AutomationProperties.AutomationId="pair.passkey_go" />
+          </StackPanel>
+        </Border>
+
         <Border x:Name="CheckCard" Margin="0,10,0,0" Background="{ThemeResource TafsPanel}" CornerRadius="14"
                 BorderBrush="{ThemeResource TafsLine}" BorderThickness="1" Padding="20,16">
           <StackPanel Spacing="8">
