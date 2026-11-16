@@ -18,7 +18,8 @@ public sealed record HeldLine(string Title, string AnswerBy)
 /// What the Overview opens with: the held calls, the tafs' lines (none until tafs cloud lists them, or the sample's), and
 /// the account's labels.
 /// </summary>
-public sealed record OverviewOpening(IReadOnlyList<HeldCall> Held, IReadOnlyList<OverviewRow> Rows, HomeLabels? Labels = null);
+public sealed record OverviewOpening(IReadOnlyList<HeldCall> Held, IReadOnlyList<OverviewRow> Rows, HomeLabels? Labels = null,
+    GalleryOpening? Recipes = null);
 
 public sealed partial class OverviewPage : Page
 {
@@ -60,6 +61,21 @@ public sealed partial class OverviewPage : Page
         NeedsYouLabel.Text = Sidebar.Eyebrow(w, "needs_you.title");
         ShowHeld(opening?.Held ?? []);
         ShowRows(opening?.Rows ?? [], opening?.Labels);
+        ShowRecipes(opening?.Rows.Count == 0 ? opening.Recipes : null);
+    }
+
+    /// <summary>
+    /// With no taf, the recipes tafs cloud lists, in place of the empty table and its footnote, as the iPad's HomeRecipes; none,
+    /// the table as before.
+    /// </summary>
+    internal void ShowRecipes(GalleryOpening? recipes)
+    {
+        var shown = recipes is not null;
+        Table.Visibility = shown ? Visibility.Collapsed : Visibility.Visible;
+        Footnote.Visibility = shown ? Visibility.Collapsed : Visibility.Visible;
+        Recipes.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
+        if (recipes is not null) Recipes.Navigate(typeof(GalleryPage), recipes);
+        else Recipes.Content = null;
     }
 
     /// <summary>NEEDS YOU's lines, drawn again with each read of KIFF's held calls; none, no section.</summary>

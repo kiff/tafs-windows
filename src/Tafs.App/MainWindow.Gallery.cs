@@ -36,7 +36,8 @@ public sealed partial class MainWindow
         if (galleryAsked is { } asked && gallery is { } g)
         {
             galleryAsked = null;
-            OpenGallery(new GalleryRow(asked == "gallery-job" ? g.Recipes.FirstOrDefault()?.Id : null));
+            if (asked == "new-taf") OnNewTaf(this, new RoutedEventArgs());
+            else OpenGallery(new GalleryRow(asked == "gallery-job" ? g.Recipes.FirstOrDefault()?.Id : null));
         }
     }
 
@@ -103,6 +104,55 @@ public sealed partial class MainWindow
         if (glyph is not null) row.Icon = new FontIcon { Glyph = glyph, Style = (Style)Application.Current.Resources["TafsSidebarIcon"] };
         AutomationProperties.SetName(row, words);
         return row;
+    }
+
+    /// <summary>Home's recipes, as tafs cloud listed them for no taf; none when it doesn't (a taf, suggestions off, or no read).</summary>
+    Gallery? homeRecipes;
+
+    /// <summary>Home's recipes, read with Home's list while there's no taf, as the iPad's <c>recipes()</c>.</summary>
+    async Task ReadHomeRecipesAsync(Func<string, Task<CloudRead>> read, int reading)
+    {
+        if (home is not { Tafs.Count: 0 })
+        {
+            homeRecipes = null;
+            return;
+        }
+        var answer = (await read(Gallery.HomePath)).Answer;
+        if (reading != sessions) return;
+        homeRecipes = answer is { } json && Gallery.ReadForHome(json) is { Lists: true } listed ? listed.Jobs : null;
+        if (Pages.Content is OverviewPage overview) overview.ShowRecipes(HomeRecipesOpening());
+    }
+
+    /// <summary>
+    /// Home's recipes as the Overview draws them: a job's sheet hands it to Coach in a new conversation, and "Say it in your own
+    /// words" opens Coach with an empty box, both for someone who may use Coach (the iPad's <c>mayUseCoach</c>).
+    /// </summary>
+    GalleryOpening? HomeRecipesOpening() =>
+        homeRecipes is { } g && home is { Tafs.Count: 0 }
+            ? new GalleryOpening(g, Browse: false, Hand: CoachMode.Answer is not null ? job => CoachMode.Write(job.Say, newConversation: true) : null,
+                Logos: HomeList.Api, OwnWords: CoachMode.Answer is not null ? () => CoachMode.Write("", newConversation: true) : null, OnHome: true)
+            : null;
+
+    /// <summary>Start a new taf, as the iPad's <c>canStartTafs</c>: for someone who may use Coach, never over the sample.</summary>
+    void ShowNewTaf()
+    {
+        NewTafText.Text = App.Words.Get("home.start_new_taf");
+        NewTaf.Visibility = !sample && CoachMode.Answer is not null ? Visibility.Visible : Visibility.Collapsed;
+        // Home's recipes hand jobs to Coach only for someone who may use it: drawn again once that's known.
+        if (Pages.Content is OverviewPage overview) overview.ShowRecipes(HomeRecipesOpening());
+    }
+
+    /// <summary>
+    /// Start a new taf, as the iPad's <c>startNewTaf</c>: every ready-made job where tafs cloud sends the gallery, with "Say it
+    /// in your own words" first; without one, Coach in a new conversation, its box empty.
+    /// </summary>
+    void OnNewTaf(object sender, RoutedEventArgs e)
+    {
+        if (gallery is { } g)
+            Pages.Navigate(typeof(GalleryPage), new GalleryOpening(g, Browse: false,
+                Hand: CoachMode.Answer is not null ? job => CoachMode.Write(job.Say, newConversation: true) : null, Logos: HomeList.Api,
+                OwnWords: () => CoachMode.Write("", newConversation: true)));
+        else CoachMode.Write("", newConversation: true);
     }
 
     /// <summary>

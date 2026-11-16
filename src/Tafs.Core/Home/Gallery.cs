@@ -80,6 +80,25 @@ public sealed record Gallery(IReadOnlyList<RecipeCategory> Categories, IReadOnly
                 B(r, "connected"), B(r, "running"), T(r, "proved") ?? "", T(r, "sample") ?? "")
             : null;
 
+    /// <summary>Home's recipes with no taf yet: <c>GET /v1/recipes</c>, its jobs in the gallery's shapes.</summary>
+    public const string HomePath = "/v1/recipes";
+
+    /// <summary>
+    /// Home's recipes, as the iPad's <c>Recipes</c> and <c>homeListsRecipes</c>: the jobs, categories and the sheet's words read as
+    /// the gallery's; Home's line (<c>home.words</c>) as its title, and "Say it in your own words" (<c>home.own_words</c>) as its
+    /// own words. Listed only when tafs cloud says so (<c>home.shown</c>), the sheet's words came, and a category has a job.
+    /// </summary>
+    public static (Gallery Jobs, bool Lists)? ReadForHome(JsonElement a)
+    {
+        if (Read(a) is not { } jobs) return null;
+        var home = Obj(a, "home");
+        var own = home is { } h ? Obj(h, "own_words") : null;
+        var words = new GalleryWords(home is { } h1 ? T(h1, "words", false) ?? "" : "", "", own is { } o ? T(o, "title", false) ?? "" : "",
+            own is { } o2 ? T(o2, "line", false) ?? "" : "", "", "", "", "");
+        var listed = jobs with { Words = words };
+        return (listed, home is { } h2 && B(h2, "shown") && listed.Labels is not null && listed.ByCategory.Count > 0);
+    }
+
     /// <summary>Home's row that opens the jobs to browse ("Explore jobs"); none when tafs cloud sends no words or no job.</summary>
     public string? Explore => Recipes.Count == 0 ? null : Said(Words.Explore);
 

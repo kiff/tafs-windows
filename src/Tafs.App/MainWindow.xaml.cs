@@ -309,7 +309,7 @@ public sealed partial class MainWindow : Window
             CoachMode.Open(animate: false);
             if (page == "coach-chats") CoachMode.ShowPreviousChats();
         }
-        else if (page is "gallery" or "gallery-job") galleryAsked = page;
+        else if (page is "gallery" or "gallery-job" or "new-taf") galleryAsked = page;
         else if (page == "connect-apps") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
         else if (page == "record") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
         else if (page == "needs-you") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
@@ -407,6 +407,7 @@ public sealed partial class MainWindow : Window
         ShowSteps();
         ShowHaltAll();
         _ = ReadGalleryAsync(read, reading);
+        _ = ReadHomeRecipesAsync(read, reading);
         // Who manages each taf and the account's capabilities, read with the list as the iPad's refreshAccess, then every
         // taf's halt, now that tafs cloud can be read: whatever order KIFF's reads land in.
         if (App.Sessions.Kept()?.AccessToken is { } bearer) _ = AllowCoachAsync(bearer);
@@ -861,6 +862,7 @@ public sealed partial class MainWindow : Window
         ShowHome(new HomeAnswer([], null));
         CoachMode.Read = null;
         CoachMode.Answer = null;
+        ShowNewTaf();
         (manage, capabilities, accountHalt, haltSend, cloudSend, cloudStream) = (null, null, Halt.Running, null, null, null);
         ShowHaltAll();
         CoachMode.StartCoach = null;
@@ -972,6 +974,8 @@ public sealed partial class MainWindow : Window
         mayUseCoach = Tafs.Core.Coach.CoachAccess.MayUseCoach(setup, setup is null ? capabilities : null);
         if (!mayUseCoach) return;
         CoachMode.Answer = (path, body) => CloudSendAsync(bearer, path, body);
+        // Someone who may use Coach starts tafs: Start a new taf, above Coach.
+        ShowNewTaf();
         // Approve, as the iPad's Coach cards, only for someone who may use Coach, and only a session that signs with its passkey.
         if (Tafs.Core.Coach.CoachStart.MayStart(session))
             CoachMode.Approve = (card, conversation, digest, version) => ApproveCardAsync(session, card, conversation, digest, version);
@@ -1310,7 +1314,7 @@ public sealed partial class MainWindow : Window
             : path.EndsWith("/conversation", StringComparison.Ordinal) && File.Exists(tafThread) ? tafThread
             : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!,
                 path.StartsWith(ConnectAppsScreen.ListPath, StringComparison.Ordinal) ? "connect-apps.json"
-                : path == Gallery.Path ? "gallery.json"
+                : path == Gallery.Path ? "gallery.json" : path == Gallery.HomePath ? "recipes-home.json"
                 : path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "setup-coach.json"
                 : path.StartsWith(Tafs.Core.Missions.Brief.Route, StringComparison.Ordinal) ? "brief.json"
                 : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json"
@@ -1481,7 +1485,7 @@ public sealed partial class MainWindow : Window
         // Another screen chosen: Needs you's row opens the brief again.
         if (item != needsYouRow) needsYouUnderBrief = false;
         if (item == BrandItem)
-            Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, overviewRows, home?.Labels));
+            Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, overviewRows, home?.Labels, HomeRecipesOpening()));
         else if (item.Tag is Screen.NeedsYou) ShowNeedsYouOrBrief();
         else if (item.Tag is HeldCall) ShowNeedsYou();
         else if (item.Tag == HaltAll) OpenHalt(null, "");

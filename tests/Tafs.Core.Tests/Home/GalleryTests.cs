@@ -107,4 +107,26 @@ public class GalleryTests
     [InlineData("/v1/other/0123456789abcdef0123456789abcdef", false)]
     [InlineData(null, false)]
     public void A_logo_loads_only_from_tafs_cloud_s_logos(string? path, bool loads) => Assert.Equal(loads, Gallery.IsLogo(path));
+
+    /// <summary>
+    /// Home's recipes with no taf (GET /v1/recipes, the iPad's homeListsRecipes): Home's line and own words from <c>home</c>,
+    /// listed only when tafs cloud shows them, the sheet's words came, and a category has a job.
+    /// </summary>
+    [Fact]
+    public void Home_s_recipes_are_listed_only_when_tafs_cloud_shows_them()
+    {
+        const string Answer = """
+            {"shown": true, "categories": [{"id": "money", "title": "Money"}],
+             "recipes": [{"id": "r", "title": "Refunds", "category": "money"}],
+             "home": {"shown": true, "words": "Pick a job for your first taf.", "own_words": {"title": "Say it in your own words", "line": "Coach builds the taf with you."}},
+             "labels": {"allows": "Does on its own", "holds": "Asks you first", "never": "Never does", "hand": "Hand it to Coach"}}
+            """;
+        var (jobs, lists) = Gallery.ReadForHome(JsonDocument.Parse(Answer).RootElement)!.Value;
+        Assert.True(lists);
+        Assert.Equal(("Pick a job for your first taf.", "Say it in your own words", "Coach builds the taf with you."), (jobs.Words.Title, jobs.Words.OwnWords, jobs.Words.OwnWordsLine));
+        Assert.Equal("Hand it to Coach", jobs.HandWords(browse: false));
+        Assert.False(Gallery.ReadForHome(JsonDocument.Parse(Answer.Replace("\"home\": {\"shown\": true", "\"home\": {\"shown\": false")).RootElement)!.Value.Lists);
+        Assert.False(Gallery.ReadForHome(JsonDocument.Parse("""{"home": {"shown": true}, "labels": {"hand": "x"}}""").RootElement)!.Value.Lists);
+        Assert.False(Gallery.ReadForHome(JsonDocument.Parse("""{"home": {"shown": true}, "categories": [{"id": "m", "title": "M"}], "recipes": [{"id": "r", "title": "R", "category": "m"}]}""").RootElement)!.Value.Lists);
+    }
 }
