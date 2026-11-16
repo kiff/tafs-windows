@@ -30,8 +30,9 @@ As the iPad's `HeldCallCard.answers`, for how Windows signs (`HeldAnswers`, belo
   `cards.manage`) and offers **Extra room with Windows Hello** to them.
 - **The Card's next steps and Refuse**, in a row, outlined, Refuse in red. Windows Hello asks for the person first (the
   iPad's Face ID or passcode for the device key), then the device key signs.
-- **A PC that doesn't approve** (a view session) keeps the gate where Approve would be: why it can't, and **Add this
-  Windows PC**. Refuse and the next steps stay.
+- **A PC that doesn't approve** keeps the gate where Approve would be: why it can't, and **Add this Windows PC**. Only a
+  Passkey session that knows its passkey approves (`HeldAnswers.Approves`); a Key session, a passkey session with no id
+  and a view session keep the gate. Refuse and the next steps stay.
 - **Someone without `holds.answer`** reads "Someone who approves on this account answers this." and no answers.
 - **A hold this PC can't answer** (no device key, or no version from KIFF) says to answer in KIFF, with **Answer in KIFF**
   opening its page at app.kiff.dev in the app's language.

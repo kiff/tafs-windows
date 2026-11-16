@@ -210,6 +210,21 @@ public sealed partial class CoachPanel : UserControl
     /// session's; none signed out or for a screenshot, and the cards then say they're reading the request.
     /// </summary>
     public Func<Task<IReadOnlyList<Tafs.Core.Kiff.PlanqueGrant>?>>? Grants { get; set; }
+
+    /// <summary>
+    /// Approve on an approval card, as the iPad's <c>approve</c> (<see cref="CoachApproval.ApproveAsync"/>): the card, its
+    /// conversation, and the digest and draft version it showed. None signed out, for the sample or a screenshot.
+    /// </summary>
+    public Func<CoachCard, string?, string?, string?, Task<ApproveResult>>? Approve { get; set; }
+
+    /// <summary>A session that approves with this PC's passkey: else the approval cards keep the iPad's gate line where Approve is.</summary>
+    public bool Approves { get; set; }
+
+    /// <summary>The card whose approval is going through, as the iPad's <c>connecting</c>: one at a time.</summary>
+    string? approving;
+
+    /// <summary>Coach's taf id, once its thread was read: what an approval's routes name.</summary>
+    internal string? CoachId => coach;
     public Func<string, Task<Tafs.Core.Approvals.AgentDraft?>>? Drafts { get; set; }
 
     /// <summary>The grants and drafts the thread's approvals name, as last read (the iPad's <c>grants</c> and <c>setupDrafts</c>).</summary>
@@ -230,6 +245,7 @@ public sealed partial class CoachPanel : UserControl
         homeAsked.Clear();
         grants = null;
         drafts.Clear();
+        approving = null;
         ThreadItems.Children.Clear();
         IntroError.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Collapsed;
@@ -367,15 +383,8 @@ public sealed partial class CoachPanel : UserControl
                 var said = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0) };
                 var words = CoachChat.OwnerWords(w, m.Text, thread.Shown);
                 if (m.Kickoff) said.Children.Add(Kickoff(m));
-                else if (words.Length > 0)
-                    said.Children.Add(new Border
-                    {
-                        Background = Brush("TafsBrand"), CornerRadius = new CornerRadius(18),
-                        Padding = new Thickness(14, 10, 14, 10), HorizontalAlignment = HorizontalAlignment.Right,
-                        Child = new TextBlock { Text = words, FontSize = 15, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
-                            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White) },
-                    });
-                if (m.Answers is not null) said.Children.Add(Words(w.Get("chat.answered_card_above"), 12, "TafsDimText", HorizontalAlignment.Right));
+                else if (words.Length > 0) said.Children.Add(ChatViews.OwnerBubble(words, Brush));
+                if (m.Answers is not null) said.Children.Add(ChatViews.AnsweredCardLine());
                 if (said.Children.Count > 0) ThreadItems.Children.Add(said);
             }
             else
@@ -741,21 +750,59 @@ public sealed partial class CoachPanel : UserControl
         }
         else if (grant is not null && ApprovalCard.CardNextWords(c) is { } nextWords) box.Children.Add(Words(nextWords, 13, "TafsSoftText"));
         if (failed) box.Children.Add(Words(why is null ? w.Get("coach.did_not_go_through_nothing") : w.Get("coach.answer.failed_why", ("value", why)), 14, "TafsNoText"));
-        // Off until approving is ported: what would be signed is shown, nothing is.
+        // A request planque refused, sent again unchanged, would fail the same way: Coach mode has to change it first, in
+        // place of the buttons, as the iPad's requestRefused (the refused digests it keeps aren't on this PC yet).
+        if (failed && grant is { Status: "failed" })
+        {
+            box.Children.Add(Words(w.Get("coach.coach_mode_has_change_request"), 13, "TafsSoftText"));
+            return Framed(box, failed);
+        }
+        // Decline, the card's own answer, and Approve, as the iPad's: off on every card while an approval goes through, and
+        // on this one while its answer is on its way.
+        var shown = thread.CardFor(c.Id);
+        var busy = approving is not null || (shown is not null && answered.Contains(shown.Ref) && !failed);
         var buttons = new Grid { ColumnSpacing = 10 };
         buttons.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         buttons.ColumnDefinitions.Add(new ColumnDefinition());
-        buttons.Children.Add(new Button { Content = w.Get("coach.approval.decline"), Style = (Style)Application.Current.Resources["TafsOutlineButton"], IsEnabled = false });
-        var approve = new Button { Content = w.Get("coach.answer.approve"), Style = (Style)Application.Current.Resources["TafsPrimaryOff"], IsEnabled = false };
-        Grid.SetColumn(approve, 1);
-        buttons.Children.Add(approve);
-        box.Children.Add(buttons);
-        return new Border
+        var decline = new Button { Content = w.Get("coach.approval.decline"), Style = (Style)Application.Current.Resources["TafsOutlineButton"],
+            IsEnabled = answer is not null && !busy };
+        decline.Click += (_, _) => _ = AnswerAsync(thread, c.Id, "declined");
+        buttons.Children.Add(decline);
+        if (Approves)
         {
-            Child = box, Padding = new Thickness(14), CornerRadius = new CornerRadius(14), Background = Brush("TafsPanel"),
-            BorderBrush = Brush(failed ? "TafsNo" : "TafsAmber"), BorderThickness = new Thickness(1),
-        };
+            // What's signed is seen first: a card with the taf's Card waits until that Card is read and drawn above.
+            var connected = grant?.Connected == true;
+            // KIFF's words for a profile aren't read on this PC, so a grant that has one isn't approved here until it's connected.
+            var ready = grant is not null && (connected || grant.DigestMatches) && (c.Draft is null || draft is not null) && !(connected && draft is null)
+                && !(!connected && grant.Profile is not null);
+            var on = Approve is not null && answer is not null && ready && !busy;
+            var approve = new Button
+            {
+                Content = w.Get(approving == c.Id ? "approval.approving" : failed ? "common.try_again" : "coach.answer.approve"),
+                Style = (Style)Application.Current.Resources[on ? "TafsPrimary" : "TafsPrimaryOff"], IsEnabled = on,
+            };
+            approve.Click += (_, _) => _ = ApproveAsync(c, grant?.Digest, draft?.Version);
+            Grid.SetColumn(approve, 1);
+            buttons.Children.Add(approve);
+        }
+        else
+        {
+            // The iPad's ApprovalGate: this PC doesn't approve, and says so where Approve would be.
+            var gate = Words(w.Get("approval.device_can_not_approve_approve"), 13, "TafsSoftText");
+            Grid.SetColumn(gate, 1);
+            buttons.Children.Add(gate);
+        }
+        box.Children.Add(buttons);
+        if (notes.GetValueOrDefault(c.Id) is { } note) box.Children.Add(QuestionsCardView.Note(note, Brush));
+        return Framed(box, failed);
     }
+
+    /// <summary>An approval's frame: the panel's colour, amber while it needs the person, red once it didn't go through.</summary>
+    Border Framed(UIElement box, bool failed) => new()
+    {
+        Child = box, Padding = new Thickness(14), CornerRadius = new CornerRadius(14), Background = Brush("TafsPanel"),
+        BorderBrush = Brush(failed ? "TafsNo" : "TafsAmber"), BorderThickness = new Thickness(1),
+    };
 
     TextBlock Mono(string text, double size, string colour) => new()
     {
@@ -793,6 +840,34 @@ public sealed partial class CoachPanel : UserControl
         else Redraw();
     }
 
+    /// <summary>
+    /// Approve tapped, as the iPad's <c>approve</c>: one approval at a time, the card's note cleared, then what it came to in
+    /// its note, and the thread read again when tafs cloud says so. Signed out meanwhile, nothing is shown.
+    /// </summary>
+    async Task ApproveAsync(CoachCard c, string? shownDigest, string? shownDraft)
+    {
+        if (Approve is not { } approve || thread is not { } shownThread) return;
+        if (approving is not null)
+        {
+            notes[c.Id] = App.Words.Get("connect.another_approval");
+            Redraw();
+            return;
+        }
+        var gen = generation;
+        approving = c.Id;
+        notes.Remove(c.Id);
+        Redraw();
+        ApproveResult result;
+        // Whatever goes wrong, the card never stays "Approving…": it says why.
+        try { result = await approve(c, shownThread.CardFor(c.Id)?.Session, shownDigest, shownDraft); }
+        catch (Exception e) { result = new(App.Words.Get("coach.answer_not_reached", ("why", $"0x{e.HResult:X8}")), ReadAgain: true); }
+        finally { if (gen == generation) approving = null; }
+        if (gen != generation || result.Stop) return;
+        if (result.Note is { } note) notes[c.Id] = note;
+        if (result.ReadAgain) await LoadThreadAsync();
+        else Redraw();
+    }
+
     /// <summary>The thread drawn again: after an answer, and when Home's list changes, so a result card finds its taf.</summary>
     public void Redraw()
     {
@@ -800,56 +875,10 @@ public sealed partial class CoachPanel : UserControl
     }
 
     /// <summary>A run's start, as the iPad's kickoff line: "Run started 09:00 · …", centred, two lines at most.</summary>
-    static TextBlock Kickoff(ChatMessage m)
-    {
-        var line = Words(App.Words.Get("chat.run_started_with", ("time", TimeZoneInfo.ConvertTime(m.At, TimeZoneInfo.Local).ToString("HH:mm",
-            System.Globalization.CultureInfo.InvariantCulture)), ("text", m.Text)), 12, "TafsDimText", HorizontalAlignment.Center);
-        line.MaxLines = 2;
-        line.TextTrimming = TextTrimming.CharacterEllipsis;
-        return line;
-    }
+    static TextBlock Kickoff(ChatMessage m) => ChatViews.Kickoff(m);
 
-    /// <summary>
-    /// A finished answer's work, folded, as the iPad's <c>WorkSummary(coach: true)</c>: "Worked for 12 s ›", which opens its
-    /// steps, each with its mark, in Coach's words, "2 tries" after a step tried again.
-    /// </summary>
-    StackPanel WorkSummary(ChatWork work)
-    {
-        var w = App.Words;
-        var rows = WorkLog.CoachRows(w, work);
-        var took = WorkLog.Duration(w, work.Ms);
-        var chevron = new FontIcon { Glyph = "\uE76C", FontSize = 11, Foreground = Brush("TafsDim") };
-        var label = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
-        label.Children.Add(Words(w.Get("chat.work.worked_for", ("ms", took)), 13, "TafsDimText"));
-        label.Children.Add(chevron);
-        var toggle = new Button { Content = label, Style = (Style)Application.Current.Resources["TafsQuietButton"], Padding = new Thickness(0) };
-        AutomationProperties.SetName(toggle, w.Count("chat.work.worked_for_steps", rows.Count, ("took", took)));
-        AutomationProperties.SetHelpText(toggle, w.Get("chat.work.shows_steps"));
-        var steps = new StackPanel { Spacing = 4, Padding = new Thickness(6, 0, 0, 0), Margin = new Thickness(4, 0, 0, 0), Visibility = Visibility.Collapsed,
-            BorderThickness = new Thickness(1, 0, 0, 0), BorderBrush = Brush("TafsLine") };
-        foreach (var row in rows)
-        {
-            var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-            line.Children.Add(new FontIcon { Glyph = row.Status switch { StepStatus.Error => "\uE783", StepStatus.NotMade => "\uE7A7", _ => "\uE73E" }, FontSize = 11, Width = 14,
-                Foreground = Brush(row.Status == StepStatus.Error ? "TafsNo" : "TafsDim") });
-            line.Children.Add(Words(WorkLog.Past(row.Words), 13, "TafsSoftText"));
-            if (row.Status == StepStatus.NotMade) line.Children.Add(Words(w.Get("chat.work.not_made_read_first"), 12, "TafsDimText"));
-            else if (row.Tries > 1) line.Children.Add(Words(w.Count("chat.work.tries", row.Tries), 12, "TafsDimText"));
-            steps.Children.Add(line);
-        }
-        toggle.Click += (_, _) =>
-        {
-            var open = steps.Visibility != Visibility.Visible;
-            steps.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
-            chevron.Rotation = open ? 90 : 0;
-            AutomationProperties.SetHelpText(toggle, w.Get(open ? "chat.work.hides_steps" : "chat.work.shows_steps"));
-        };
-        chevron.CenterPoint = new System.Numerics.Vector3(5.5f, 5.5f, 0);
-        var summary = new StackPanel { Spacing = 6 };
-        summary.Children.Add(toggle);
-        summary.Children.Add(steps);
-        return summary;
-    }
+    /// <summary>A finished answer's work, folded, as the iPad's <c>WorkSummary(coach: true)</c>: its steps in Coach's words.</summary>
+    StackPanel WorkSummary(ChatWork work) => ChatViews.WorkSummary(WorkLog.CoachRows(App.Words, work), work.Ms, Brush);
 
     /// <summary>
     /// A theme brush in this panel's theme: Theme.xaml's dictionaries are merged into the app's, so they're looked for there;

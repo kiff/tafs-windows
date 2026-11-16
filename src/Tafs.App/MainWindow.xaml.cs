@@ -231,8 +231,11 @@ public sealed partial class MainWindow : Window
         else if (page == "connect-apps") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
         else if (page == "record") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
         else if (page == "needs-you") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
-        else if (page is "taf" or "taf-setup" or "taf-card" && sample)
-            OpenBeside(typeof(TafPage), SampleTaf(w, page switch { "taf-setup" => TafTab.Setup, "taf-card" => TafTab.Card, _ => TafTab.Activity }));
+        else if (page is "taf" or "taf-setup" or "taf-card" or "taf-chat" && sample)
+            OpenBeside(typeof(TafPage), SampleTaf(w, page switch
+            {
+                "taf-setup" => TafTab.Setup, "taf-card" => TafTab.Card, "taf-chat" => TafTab.Chat, _ => TafTab.Activity,
+            }));
         else Nav.SelectedItem = BrandItem;
         if (screenshot is not null) Root.Loaded += async (_, _) => await SaveAndQuitAsync(screenshot);
         // From files, every read is done before the window first draws, so the screenshot has them.
@@ -253,9 +256,9 @@ public sealed partial class MainWindow : Window
             CoachMode.Drafts = _ => Task.FromResult(File.Exists(Path.Combine(beside, "kiff-draft.json"))
                 ? Tafs.Core.Approvals.KiffDrafts.Read(Tafs.Core.Contracts.ContractFile.Answer(Path.Combine(beside, "kiff-draft.json"))) : null);
             CoachMode.Read = path => Task.FromResult(ContractRead(w, homeFile, path));
-            // The first taf's page, its Activity from taf-activity.json beside the Home contract.
-            if (page is "taf" or "taf-setup" && home?.Tafs.FirstOrDefault() is { } first)
-                OpenBeside(typeof(TafPage), OpenTaf(w, first.Id, page == "taf-setup" ? TafTab.Setup : TafTab.Activity));
+            // The first taf's page, its Activity from taf-activity.json beside the Home contract, its Chat from taf-conversation.json.
+            if (page is "taf" or "taf-setup" or "taf-chat" && home?.Tafs.FirstOrDefault() is { } first)
+                OpenBeside(typeof(TafPage), OpenTaf(w, first.Id, page switch { "taf-setup" => TafTab.Setup, "taf-chat" => TafTab.Chat, _ => TafTab.Activity }));
             // Connect apps from connect-apps.json beside the Home contract, as tafs cloud's list.
             if (page == "connect-apps")
                 Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(null, (path, _) => Task.FromResult(ContractRead(w, homeFile, path)), null));
@@ -602,6 +605,9 @@ public sealed partial class MainWindow : Window
         ReceiptSheet.Read = path => KiffBytesAsync(bearer, path);
         // Given before Coach's read, which reads them as it draws its approvals.
         CoachMode.Grants = () => GrantsAsync(session);
+        // Approve on Coach's approval cards: only a passkey session that knows its passkey signs; any other keeps the gate.
+        // Given with the answers, once this person may use Coach (AllowCoachAsync).
+        CoachMode.Approves = Tafs.Core.Coach.CoachStart.MayStart(session);
         CoachMode.Drafts = async id => (await KiffReadAsync(bearer, Tafs.Core.Approvals.KiffDrafts.Path(id))).Answer is { } d ? Tafs.Core.Approvals.KiffDrafts.Read(d) : null;
         CoachMode.Read = path => CloudReadAsync(bearer, path);
         // Start, as the iPad's: off for a session that can't approve.
@@ -655,6 +661,8 @@ public sealed partial class MainWindow : Window
         planqueReady = false;
         CoachMode.Report = null;
         CoachMode.Grants = null;
+        CoachMode.Approve = null;
+        CoachMode.Approves = false;
         CoachMode.Drafts = null;
         CoachMode.Forget();
     }
@@ -745,8 +753,11 @@ public sealed partial class MainWindow : Window
         var setup = Tafs.Core.Coach.CoachAccess.SetupUse((await KiffReadAsync(bearer, Tafs.Core.Coach.CoachAccess.AccessPath)).Answer);
         var capabilities = setup is null ? Tafs.Core.Coach.CoachAccess.Capabilities((await KiffReadAsync(bearer, Tafs.Core.Coach.CoachAccess.MePath)).Answer) : null;
         // Signed out meanwhile: it's no one's to answer.
-        if (App.Sessions.Kept()?.AccessToken != bearer || !Tafs.Core.Coach.CoachAccess.MayUseCoach(setup, capabilities)) return;
+        if (App.Sessions.Kept() is not { } session || session.AccessToken != bearer || !Tafs.Core.Coach.CoachAccess.MayUseCoach(setup, capabilities)) return;
         CoachMode.Answer = (path, body) => CloudSendAsync(bearer, path, body);
+        // Approve, as the iPad's Coach cards, only for someone who may use Coach, and only a session that signs with its passkey.
+        if (Tafs.Core.Coach.CoachStart.MayStart(session))
+            CoachMode.Approve = (card, conversation, digest, version) => ApproveCardAsync(session, card, conversation, digest, version);
     }
 
     /// <summary>A read from KIFF as the session, answered as tafs cloud's are.</summary>
@@ -817,6 +828,63 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
+    /// Approve on one of Coach's approval cards, as the iPad's <c>approve</c> (<see cref="Tafs.Core.Coach.CoachApproval.ApproveAsync"/>):
+    /// tafs cloud's ask with planque's read proof, one Windows Hello (this PC's passkey asserting KIFF's confirm), the confirm,
+    /// and the report signed by the TPM device key, which asks no one, with a fresh proof.
+    /// </summary>
+    async Task<Tafs.Core.Coach.ApproveResult> ApproveCardAsync(KeptSession session, Tafs.Core.Coach.CoachCard card, string? conversation,
+        string? shownDigest, string? shownDraft)
+    {
+        var w = App.Words;
+        var bearer = session.AccessToken;
+        var gen = sessions;
+        if (CoachMode.CoachId is not { } coach || session.PasskeyId is not { } passkeyId) return new(null);
+        // As the iPad's approveAsked: planque set up by this session first, before anything is sent. It isn't kept across
+        // launches here yet, so after one the person starts again from Coach's Start or Connected apps.
+        if (!planqueReady) return new(w.Get("connect.start_connected_tools_first", ("device", w.Get("device.windows"))));
+        var calls = new Tafs.Core.Coach.ApproveCalls(
+            async () => { try { return await SetupProofAsync(session); } catch (System.Security.Cryptography.CryptographicException) { return null; } },
+            async (path, body, proof) =>
+            {
+                try
+                {
+                    var (status, answer) = await KiffHttp.PostAsync(new Uri(HomeList.Api, path), body, bearer, w.Language,
+                        signature: proof is null ? null : ("Planque-Device-Signature", proof));
+                    return Answered(w, status, answer);
+                }
+                catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
+            },
+            async (path, body) =>
+            {
+                var passkey = new PasskeyApprover(new WindowsHello(() => App.WindowHandle), KiffSigning.FromBase64Url(passkeyId), Features.WindowsPasskeyApprovals);
+                return (PasskeyApprover.HeaderName, await passkey.ApproveAsync(session.Tenant, "POST", path, body, SigningTime.Next(DateTimeOffset.UtcNow)));
+            },
+            (path, body, signature) => KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), body, bearer, w.Language, signature: signature),
+            async message =>
+            {
+                using var key = TpmKey.Open(session.KeyName);
+                return await key.SignDerAsync(message);
+            },
+            async (path, body, signature, proof) =>
+            {
+                try
+                {
+                    var (status, answer) = await KiffHttp.PostAsync(new Uri(HomeList.Api, path), body, bearer, w.Language,
+                        signature: ("KIFF-Device-Signature", signature), extra: proof is null ? null : ("Planque-Device-Signature", proof));
+                    return Answered(w, status, answer);
+                }
+                catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
+            },
+            () => SigningTime.Next(DateTimeOffset.UtcNow), () => gen == sessions, SessionStore.Why);
+        try { return await Tafs.Core.Coach.CoachApproval.ApproveAsync(w, coach, card, session.Tenant, conversation, shownDigest, shownDraft, calls); }
+        // A kept passkey id that can't be read, or anything else unforeseen: the card says why, and never stays waiting.
+        catch (Exception e) when (e is FormatException or System.Security.Cryptography.CryptographicException)
+        {
+            return gen == sessions ? new(w.Get("coach.answer_not_reached", ("why", SessionStore.Why(e)))) : Tafs.Core.Coach.ApproveResult.Stopped;
+        }
+    }
+
+    /// <summary>
     /// planque's grants for the approval cards, as the iPad's <c>refreshConnections</c>: read on planque as this device, with
     /// the same signature as Setup's proof (it signs this very read), never with KIFF's token. None without the proof, or when
     /// planque isn't reached, answers otherwise, or sends what can't be read.
@@ -840,7 +908,10 @@ public sealed partial class MainWindow : Window
     /// </summary>
     static CloudRead ContractRead(Tafs.Core.Words.WordBook w, string homeFile, string path)
     {
+        // A taf's whole thread, when there's a stand-in for it; Coach's is read by its conversation's session.
+        var tafThread = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!, "taf-conversation.json");
         var file = path == HomeList.Path ? homeFile
+            : path.EndsWith("/conversation", StringComparison.Ordinal) && File.Exists(tafThread) ? tafThread
             : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!,
                 path.StartsWith(ConnectAppsScreen.ListPath, StringComparison.Ordinal) ? "connect-apps.json"
                 : path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "setup-coach.json"
@@ -1025,7 +1096,7 @@ public sealed partial class MainWindow : Window
     /// A taf's page from its line: from Home's answer, its head (its state in the app's words) and its Card bar; its
     /// Activity, Setup and Cards come with their reads. Otherwise the sample's.
     /// </summary>
-    TafOpening OpenTaf(Tafs.Core.Words.WordBook w, string key, TafTab opensOn = TafTab.Activity) =>
+    TafOpening OpenTaf(Tafs.Core.Words.WordBook w, string key, TafTab opensOn = TafTab.Chat) =>
         home?.Tafs.FirstOrDefault(t => t.Id == key) is { } taf
             ? new(TafScreen.Head(w, taf.Name, taf.Colour, taf.StateKey), taf.Cards.FirstOrDefault()?.Bar(w, taf.Cards.Count),
                 filter => new ActivityPage([], [], filter, null, null), new SetupOpening(taf.Job, []), opensOn,
@@ -1033,7 +1104,7 @@ public sealed partial class MainWindow : Window
                 // isn't read on this PC yet, so its issuer is the iPad's for anyone else: "The account".
                 Cards: taf.Cards, IssuedBy: w.Get("card.issued_by_account"), Revoked: taf.Revoked,
                 CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof)
-            : SampleTaf(w, key, TafTab.Activity);
+            : SampleTaf(w, key, opensOn);
 
     /// <summary>
     /// A sample taf's page, opened from its Overview line: its head (Waiting when a call of its waits), its Card bar, its
@@ -1045,11 +1116,14 @@ public sealed partial class MainWindow : Window
         var taf = SampleTafs.All(w).First(t => t.Key == key);
         var head = TafScreen.Head(w, taf.Name, taf.Colour, held.Any(h => h.Taf == taf.Name) ? "waiting" : "working");
         var activity = (Func<string, ActivityPage>)(filter => TafActivity.Sample(w, taf.Name, filter, now, TimeZoneInfo.Local));
+        // Its Chat, as the iPad's sample: its greeting, with what it's doing as its Overview line says it.
+        var chat = TafChat.Sample(w, taf.Name, OverviewScreen.SampleRows(w, now).FirstOrDefault(r => r.Key == key)?.Now ?? "", now);
         return key == "refunds"
             ? new(head, TafScreen.SampleCard(w), activity, new SetupOpening(TafSetup.SampleJob(w), TafSetup.SampleNotes(w, now)), opensOn,
-                TafScreen.SampleCards(w), w.Get("common.you"))
-            // The others with their own Card and job, so every tab but Chat opens on each, as the iPad's.
-            : new(head, taf.Card.Bar(w, 1), activity, new SetupOpening(w.Get($"sample.{key}.job"), []), opensOn, [taf.Card], w.Get("common.you"));
+                TafScreen.SampleCards(w), w.Get("common.you"), SampleChat: chat)
+            // The others with their own Card and job, so every tab opens on each, as the iPad's.
+            : new(head, taf.Card.Bar(w, 1), activity, new SetupOpening(w.Get($"sample.{key}.job"), []), opensOn, [taf.Card], w.Get("common.you"),
+                SampleChat: chat);
     }
 
     /// <summary>Where Account's theme is kept, beside the session: one word, as the iPad keeps tafs.theme.</summary>
