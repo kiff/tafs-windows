@@ -24,6 +24,8 @@
       <SolidColorBrush x:Key="TafsOnFill" Color="#FFFFFF" />
       <!-- Done and refused, as on the iPad (Theme.ok, Theme.no). -->
       <SolidColorBrush x:Key="TafsOk" Color="#198056" />
+      <!-- A door's stamp, as the iPad's Theme.blue. -->
+      <SolidColorBrush x:Key="TafsBlue" Color="#2A64F5" />
       <SolidColorBrush x:Key="TafsInkLine" Color="#661B1726" />
       <SolidColorBrush x:Key="TafsInkFaint" Color="#331B1726" />
       <SolidColorBrush x:Key="TafsSegmentFill" Color="#FFFFFF" />
@@ -70,6 +72,7 @@
       <SolidColorBrush x:Key="NavigationViewContentBackground" Color="#141311" />
       <SolidColorBrush x:Key="TafsOnFill" Color="#141311" />
       <SolidColorBrush x:Key="TafsOk" Color="#4CC38A" />
+      <SolidColorBrush x:Key="TafsBlue" Color="#7FA2FF" />
       <SolidColorBrush x:Key="TafsInkLine" Color="#66F2EFE9" />
       <SolidColorBrush x:Key="TafsInkFaint" Color="#33F2EFE9" />
       <!-- The system's dark selected segment, #636366: it stands out from the track, as the iPad's. -->

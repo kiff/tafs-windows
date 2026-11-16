@@ -11,7 +11,9 @@
   "code_roots": ["src/", "tests/", "tools/"],
   "parts": {
     "pairing": ["src/*/Pairing/**", "tests/*/Pairing/**", "src/*/SignIn/**", "tests/*/SignIn/**", "src/*/Kiff/**", "tests/*/Kiff/**"],
-    "approvals": ["src/*/Approvals/**", "tests/*/Approvals/**", "src/*/NeedsYou/**", "tests/*/NeedsYou/**", "src/*/Kiff/**", "tests/*/Kiff/**"],
+    "approvals": ["src/*/Approvals/**", "tests/*/Approvals/**", "src/*/NeedsYou/**", "tests/*/NeedsYou/**", "src/*/Kiff/**", "tests/*/Kiff/**",
+      "src/*/Coach/CoachApproval*", "tests/*/Coach/CoachApproval*", "src/*/Coach/CoachStart*", "tests/*/Coach/CoachStart*",
+      "src/*/Coach/FirstStart*", "tests/*/Coach/PasskeyPair*"],
     "home": ["src/*/Home/**", "tests/*/Home/**"],
     "coach": ["src/*/Coach/**", "tests/*/Coach/**"],
     "record": ["src/*/Record/**", "tests/*/Record/**", "src/*/Taf/**", "tests/*/Taf/**"],

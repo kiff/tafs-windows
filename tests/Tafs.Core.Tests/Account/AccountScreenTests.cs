@@ -48,12 +48,12 @@ public class AccountScreenTests
     }
 
     [Fact]
-    public void Legal_pages_say_they_re_in_English_outside_English()
+    public void Legal_rows_are_plain_where_kiff_dev_has_the_pages_in_the_app_s_language()
     {
         Assert.Equal("Terms", AccountScreen.Legal(En, "settings.terms"));
         var fr = WordBook.Load(SharedFiles.Strings, "fr");
-        Assert.Equal(fr.Get("settings.legal_in_english", ("label", fr.Get("settings.terms"))), AccountScreen.Legal(fr, "settings.terms"));
-        Assert.NotEqual(fr.Get("settings.terms"), AccountScreen.Legal(fr, "settings.terms"));
+        Assert.Equal(fr.Get("settings.terms"), AccountScreen.Legal(fr, "settings.terms"));
+        Assert.Equal(fr.Get("settings.privacy_policy"), AccountScreen.Legal(fr, "settings.privacy_policy"));
     }
 
     [Theory]
