@@ -22,12 +22,31 @@ iPad. `Tafs.Core.Calendar` (`CalendarScreen`, the `calendar` part) says and coun
 - **Month:** six weeks under the weekdays; other months' days dim, the selected one on amber at 18%,
   today ringed. Then the selected day's list.
 
-Weeks start on Monday, on the Gregorian calendar. The tafs' scheduled work comes from tafs cloud
-(`GET /v1/calendar`) in its own change. Until it's read, no day says it has nothing scheduled.
+Weeks start on Monday, on the Gregorian calendar.
 
-## Not yet
+## The work to come (`CalendarRead`, `CalendarWork`)
 
-- **The scheduled work:** its chips in the hours (several in an hour stack), its dots on the days, a tap
-  that opens the taf, and tafs cloud's line when work was left out (`more`).
-- **The wide layout** a large window calls for (the month beside the calendar, Week's seven columns of
-  hours, the agenda): the rule is in (`CalendarScreen.LayoutOf`); the page stays compact until next.
+As the iPad's `TafsCloud.CalendarRead` and `CalendarMath`: `GET /v1/calendar?from=&to=` as the session, one read for the
+selected month's six weeks (`CalendarWork.Range`), which draws its day, its week, the month and the navigator's marks.
+tafs cloud gives each event its day, time and minute in the account's zone, so nothing here converts a zone. An event
+this app can't read is left out, never the read.
+- **Until the range is read,** "Reading the calendar…", and no day says it has nothing (`CalendarWork.Current`). A read
+  that fails says why, with Try again. Halted, or with work left out (`more`), tafs cloud's line.
+- **Marks:** each day's tafs with work, three colours at most, under its number, white on the selected amber.
+- **Day (and Week when wide):** the hours, each day's work in its hour as a chip in its taf's colour ("08:00 · Morning
+  inbox"; the name alone in a week), ×4 for a dense schedule's folded firings, opened at the first hour with work, else
+  08:00. "Nothing scheduled on this day." or "this week." once read.
+- **The day's list (compact Week and Month):** each piece of work's time (13 mono), its colour's dot, its name and tafs
+  cloud's words, on a panel. A tap opens the taf, when it's on Home.
+
+## Wide
+
+From 700 across, wider than tall and 600 high (`CalendarScreen.LayoutOf`), as an iPad in landscape:
+- **The month navigator** on the left, 280 wide on a panel: the month's name, its own previous and next month, the six
+  weeks with each day's marks; a tap selects the day.
+- **Beside it:** the title, Today and the arrows, the date, Day / Week / Month (320 wide), then Day and Week as hours
+  (Week's seven columns under their days, a tap on one opens it in Day) and Month as a large grid, each day 64 high with
+  how many firings it has.
+- **The agenda** under them: the days shown, each day's heading (today in amber) over its work; tafs cloud's words when
+  there's none.
+- `--home` reads a `calendar.json` beside the Home file as tafs cloud's answer, for screenshots.

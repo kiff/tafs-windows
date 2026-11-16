@@ -443,6 +443,7 @@
     <Setter Property="BorderThickness" Value="1.5" />
   </Style>
   <Style x:Key="TafsHourLine" TargetType="Border"><Setter Property="BorderBrush" Value="{ThemeResource TafsLine}" /></Style>
+  <Style x:Key="TafsHourGrid" TargetType="Grid"><Setter Property="BorderBrush" Value="{ThemeResource TafsLine}" /></Style>
 
   <!-- The sidebar's rows: 15 semibold, 52 apart, as the iPad's items, on a rounded fill when chosen. -->
   <Style x:Key="TafsSidebarItem" TargetType="NavigationViewItem">
