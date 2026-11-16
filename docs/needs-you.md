@@ -32,8 +32,9 @@ iPad's `answers(refuseOnly:)`, with KIFF's capabilities from `GET /v1/me` (read 
   Windows PC**, as the iPad's `ApprovalGate` when a device can't approve.
 - **A call over a Card total** (`can_approve_once: false`) says so ("Extra room lets only this call through." for
   someone with `cards.manage`), with the gate only where a manager's Extra room would be.
-- **The gate stands only while this PC can't approve** (a view-only session, or none), as the iPad's `ApprovalGate`. A
-  Key or Passkey session reads the line with no gate until its buttons come.
+- **The gate stands exactly while this PC can't approve**, as the iPad's `ApprovalGate`: only a Passkey session that
+  knows its passkey approves (`HeldAnswers.Approves`), so a Key session, a passkey session with no id, a view-only one or
+  none keep it.
 
 Words, never buttons that can't work.
 
