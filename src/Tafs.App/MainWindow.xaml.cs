@@ -295,6 +295,7 @@ public sealed partial class MainWindow : Window
             Nav.SelectedItem = BrandItem;
             CoachMode.Open(animate: false);
         }
+        else if (page is "gallery" or "gallery-job") galleryAsked = page;
         else if (page == "connect-apps") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
         else if (page == "record") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Record);
         else if (page == "needs-you") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
@@ -354,6 +355,7 @@ public sealed partial class MainWindow : Window
         if (YourSteps.Read(answer) is { } listedNow) listedSteps = listedNow;
         ShowSteps();
         ShowHaltAll();
+        _ = ReadGalleryAsync(read, reading);
         // Who manages each taf and the account's capabilities, read with the list as the iPad's refreshAccess, then every
         // taf's halt, now that tafs cloud can be read: whatever order KIFF's reads land in.
         if (App.Sessions.Kept()?.AccessToken is { } bearer) _ = AllowCoachAsync(bearer);
@@ -771,6 +773,9 @@ public sealed partial class MainWindow : Window
         if (!sampleHeld) ShowHeld([]);
         unproven = [];
         mayAnswerHolds = true;
+        // The gallery is the account's: its rows go.
+        gallery = null;
+        ShowGalleryRows();
         listedSteps = [];
         managesCards = true;
         capabilitiesRead = null;
@@ -1229,6 +1234,7 @@ public sealed partial class MainWindow : Window
             : path.EndsWith("/conversation", StringComparison.Ordinal) && File.Exists(tafThread) ? tafThread
             : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!,
                 path.StartsWith(ConnectAppsScreen.ListPath, StringComparison.Ordinal) ? "connect-apps.json"
+                : path == Gallery.Path ? "gallery.json"
                 : path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "setup-coach.json"
                 : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json"
                 : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
@@ -1406,6 +1412,7 @@ public sealed partial class MainWindow : Window
         else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof));
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
         else if (item.Tag is TafRow taf) Pages.Navigate(typeof(TafPage), OpenTaf(App.Words, taf.Key));
+        else if (item.Tag is GalleryRow job) OpenGallery(job);
         else Pages.Navigate(typeof(ComingPage), item.Content);
     }
 
