@@ -628,6 +628,9 @@ public sealed partial class TafPage : Page
         }
         else memory.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Left });
         SetupPane.Children.Add(Panel(memory));
+
+        // Remove for good, last on Setup, in red, as the iPad's: what goes with it first, then Windows Hello. A revoked taf too.
+        if (opening?.Remove is { } remove) SetupPane.Children.Add(RemoveButton(remove));
     }
 
     /// <summary>
@@ -856,16 +859,10 @@ public sealed partial class TafPage : Page
         }
         if (shown.Rules.Count > 0) CardPane.Children.Add(Panel(lines));
 
-        // A revoked taf can't be halted, but it can still be removed for good.
-        if (revoked)
-        {
-            if (opening.Remove is { } gone) CardPane.Children.Add(RemoveButton(gone));
-            return;
-        }
+        // A revoked taf can't be halted. Remove for good is on Setup, as the iPad's.
+        if (revoked) return;
         // Halting is a job of its own too, for whoever manages the taf: its row opens its screen (the iPad's HaltRow).
         if (opening.Halt is { } halt) CardPane.Children.Add(HaltRow(halt));
-        // Remove for good, last, in red, as the iPad's: what goes with it first, then Windows Hello.
-        if (opening.Remove is { } remove) CardPane.Children.Add(RemoveButton(remove));
         // Revoke reaches nothing yet, so it's the sample's only: on a real taf it would look done when KIFF revoked nothing.
         if (opening?.CloudId is not null) return;
         var revoke = new Button { Content = w.Get("taf.revoke"), Style = Look("TafsOutlineNo"), HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -891,9 +888,11 @@ public sealed partial class TafPage : Page
         var name = opening!.Head.Name;
         var button = new Button
         {
-            Content = w.Get("taf.remove_named", ("taf", name)), Style = Look("TafsOutlineNo"), HorizontalAlignment = HorizontalAlignment.Stretch,
+            Content = w.Get("setup.remove_for_good"), Style = Look("TafsOutlineNo"), HorizontalAlignment = HorizontalAlignment.Stretch,
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(button, "taf.remove");
+        // Narrator names the taf it removes: "Remove Refunds".
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, w.Get("taf.remove_named", ("taf", name)));
         button.Click += async (_, _) =>
         {
             button.IsEnabled = false;
