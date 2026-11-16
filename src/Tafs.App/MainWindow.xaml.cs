@@ -192,6 +192,7 @@ public sealed partial class MainWindow : Window
         SignInPage.PairInsteadChosen += OpenPairing;
         NeedsYouPage.AddThisDeviceChosen += OpenPairing;
         NeedsYouPage.StepAnswerChosen += (step, done) => _ = AnswerStepAsync(step, done);
+        NeedsYouPage.HelloCheckChosen += () => _ = CheckHelloAsync();
         NeedsYouPage.HeldAnswerChosen += (call, answer) => _ = AnswerHeldAsync(call, answer);
         NeedsYouPage.AllowChosen += call => _ = OpenAllowAsync(call);
         Toasts.HoldChosen += hold => DispatcherQueue.TryEnqueue(() => OpenHold(hold));
@@ -649,9 +650,37 @@ public sealed partial class MainWindow : Window
         steps = YourSteps.Shown(listedSteps, answeredSteps);
         if (Pages.Content is NeedsYouPage page)
         {
-            page.ShowSteps(steps, CanAnswerSteps(App.Sessions.Kept()), answeringSteps);
+            page.ShowSteps(steps, CanAnswerSteps(App.Sessions.Kept()), answeringSteps, hello);
             page.ShowError(needsYouError);
+            // Asked once there's a step this PC answers, and again on Check again: never before it's needed.
+            if (steps.Count > 0 && !helloChecked) _ = CheckHelloAsync();
         }
+    }
+
+    /// <summary>Whether Windows Hello can confirm a step's answer, as last asked; ready until asked.</summary>
+    HelloReadiness hello = HelloReadiness.Ready;
+    bool helloChecked;
+
+    /// <summary>
+    /// Asks Windows whether Hello can confirm here (<c>UserConsentVerifier.CheckAvailabilityAsync</c>), as the iPad's
+    /// <c>ApprovalReadiness</c> reads LocalAuthentication, then draws the steps again with it.
+    /// </summary>
+    async Task CheckHelloAsync()
+    {
+        helloChecked = true;
+        try
+        {
+            hello = await Windows.Security.Credentials.UI.UserConsentVerifier.CheckAvailabilityAsync() switch
+            {
+                Windows.Security.Credentials.UI.UserConsentVerifierAvailability.Available => HelloReadiness.Ready,
+                Windows.Security.Credentials.UI.UserConsentVerifierAvailability.NotConfiguredForUser => HelloReadiness.NotSetUp,
+                Windows.Security.Credentials.UI.UserConsentVerifierAvailability.DeviceBusy => HelloReadiness.Busy,
+                _ => HelloReadiness.Unsupported,
+            };
+        }
+        // Not asked: as before, each answer says what came of Hello.
+        catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException) { hello = HelloReadiness.Ready; }
+        ShowSteps();
     }
 
     /// <summary>
