@@ -193,36 +193,75 @@ public sealed partial class TafPage : Page
 
     /// <summary>
     /// Send, as the iPad's <c>sendChat</c>: checked first (nothing to send says nothing; too long says so), shown at once,
-    /// then sent. Not taken, it leaves the thread and its words go back in the box, with why under the thread.
+    /// then sent. Not taken, it stays in the thread as not sent, with why, Edit and Retry (<see cref="Unsent"/>).
     /// </summary>
     async void OnSend(object sender, RoutedEventArgs e)
     {
-        if (sending || opening is not { CloudId: { } id, Send: { } send } mine) return;
-        var w = App.Words;
-        var (text, why) = TafChatSend.Check(w, Draft.Text);
+        var (text, why) = TafChatSend.Check(App.Words, Draft.Text);
         if (text is null)
         {
             (chatNote, chatNoteIsError) = (why, why is not null);
             ShowChat();
             return;
         }
+        // Out of the box at once, as it shows in the thread; not tried at all, back in the box unless something new is there.
+        Draft.Text = "";
+        if (await SendTextAsync(text) is null && Draft.Text.Length == 0) Draft.Text = text;
+    }
+
+    /// <summary>
+    /// A message to the taf: null when it wasn't tried (already sending, or nothing to send it to); true once sent; false
+    /// when tafs cloud didn't take it, and the thread keeps it as not sent.
+    /// </summary>
+    async Task<bool?> SendTextAsync(string text)
+    {
+        if (sending || opening is not { CloudId: { } id, Send: { } send } mine) return null;
+        var w = App.Words;
         var pending = TafChatSend.Pending(text, chat?.Messages ?? [], DateTimeOffset.UtcNow);
         sent.Add(pending);
-        Draft.Text = "";
+        // The box is the Send button's to clear: Retry leaves what's being typed there alone, as the iPad's submitChat.
         (sending, chatNote) = (true, null);
         ShowChat();
         var refused = mine.Stream is { } stream ? await StreamAsync(w, id, text, stream, send, mine) : await TafChatSend.SendAsync(w, id, text, send);
-        if (opening != mine) return;
+        if (opening != mine) return null;
         (sending, live) = (false, null);
         if (refused is not null)
         {
             sent.Remove(pending);
-            if (Draft.Text.Length == 0) Draft.Text = text;
-            (chatNote, chatNoteIsError) = (refused, true);
+            unsent.Add(UnsentMessage.Of(text, refused, DateTimeOffset.UtcNow));
             ShowChat();
-            return;
+            return false;
         }
         await LoadChatAsync();
+        return true;
+    }
+
+    /// <summary>Messages tafs cloud didn't take, kept after the thread until Retry, Edit or Delete takes them.</summary>
+    List<UnsentMessage> unsent = [];
+
+    /// <summary>Retry, as the iPad's <c>retryChat</c>: sent again once; not tried at all, it goes back in its place.</summary>
+    async void RetryUnsent(UnsentMessage m)
+    {
+        if (sending) return;
+        (unsent, var at) = Unsent.Take(unsent, m.Id);
+        if (await SendTextAsync(m.Text) is null) unsent = Unsent.PutBack(unsent, m, at);
+        ShowChat();
+    }
+
+    /// <summary>Edit, as the iPad's <c>editUnsentChat</c>: out of the thread, its words in the box to change.</summary>
+    void EditUnsent(UnsentMessage m)
+    {
+        unsent = Unsent.Take(unsent, m.Id).Left;
+        Draft.Text = m.Text;
+        Draft.Focus(FocusState.Programmatic);
+        Draft.SelectionStart = Draft.Text.Length;
+        ShowChat();
+    }
+
+    void DeleteUnsent(UnsentMessage m)
+    {
+        unsent = Unsent.Take(unsent, m.Id).Left;
+        ShowChat();
     }
 
     /// <summary>The answer as it comes, drawn under the sent message until the thread has it; none when nothing streams.</summary>
@@ -240,7 +279,7 @@ public sealed partial class TafPage : Page
         try { answer = await stream(TafChatStream.Path(id), TafChatSend.Body(text), CancellationToken.None); }
         catch (System.Net.Http.HttpRequestException) { return await TafChatSend.SendAsync(w, id, text, send); }
         if (answer.Open is not { } open)
-            return w.Get("chat.not_sent", ("why", CloudRead.Refused(w, answer.Status, answer.Body).Why ?? w.Get("error.ours")));
+            return CloudRead.Refused(w, answer.Status, answer.Body).Why ?? w.Get("error.ours");
         using (open)
         {
             live = LiveAnswer.Start;
@@ -294,7 +333,7 @@ public sealed partial class TafPage : Page
             : (opening?.SampleChat ?? []).Select(m => new Tafs.Core.Coach.ThreadItem(m, null)).ToList();
         // What the person sent that the thread doesn't have yet, after it, in the order sent.
         if (sent.Count > 0) items = [.. items, .. sent.Select(m => new Tafs.Core.Coach.ThreadItem(m, null))];
-        if (items.Count == 0)
+        if (items.Count == 0 && unsent.Count == 0)
         {
             var empty = CoachPanel.Words(TafChat.Empty(w, opening?.Head.Name), 14, "TafsDimText", HorizontalAlignment.Center);
             empty.Margin = new Thickness(0, 30, 0, 30);
@@ -342,6 +381,9 @@ public sealed partial class TafPage : Page
             if (m.RefusedLines is { } refused) lines.Children.Add(ChatViews.RefusedLines(refused, Brush));
             ChatPane.Children.Add(lines);
         }
+        // What tafs cloud didn't take, after the thread, where it was written.
+        foreach (var m in unsent)
+            ChatPane.Children.Add(ChatViews.UnsentBubble(w, m, Brush, sending, () => RetryUnsent(m), () => EditUnsent(m), () => DeleteUnsent(m)));
         if (chatError is { } why)
         {
             var error = CoachPanel.Words(why, 13, "TafsSoftText");
