@@ -5,8 +5,8 @@ using Tafs.Core.Words;
 
 namespace Tafs.Core.NeedsYou;
 
-/// <summary>A held call's notification: its two lines, and the hold it opens.</summary>
-public sealed record ToastLines(string Title, string Body, string Hold);
+/// <summary>A held call's notification: its lines (only the first while this PC is locked), and the hold it opens.</summary>
+public sealed record ToastLines(string Title, string? Body, string Hold);
 
 /// <summary>
 /// A held call's notification while tafs runs, worded as the iPad's <c>HoldNotification.words</c>: "Rae needs you" / "Refund
@@ -21,10 +21,14 @@ public static class HoldToast
     /// <summary>
     /// The two lines: the taf that needs the person, then what it asks (with the amount), why, and when to answer by, in this
     /// PC's time, which is the time every screen here shows. None for a call with no KIFF id: a sample is never notified.
+    /// While this PC is <paramref name="locked"/>, where Windows shows notifications on the lock screen, only "A taf needs
+    /// you": no taf, amount, reason or deadline, as the iPad's alert with previews hidden and Android's while locked. It
+    /// still opens that hold.
     /// </summary>
-    public static ToastLines? Lines(WordBook w, HeldCall call, TimeZoneInfo zone)
+    public static ToastLines? Lines(WordBook w, HeldCall call, TimeZoneInfo zone, bool locked = false)
     {
         if (call.KiffId is not { } hold) return null;
+        if (locked) return new(w.Get("alert.needs_you"), null, hold);
         var what = string.Join(", ", new[] { call.Summary, call.Amount }.Where(s => !string.IsNullOrEmpty(s)));
         var by = TimeZoneInfo.ConvertTime(call.ExpiresAt, zone).ToString("HH:mm", CultureInfo.InvariantCulture);
         return new(

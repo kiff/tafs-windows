@@ -334,7 +334,7 @@ public sealed partial class MainWindow : Window
         var alerts = Alerts.Prefs;
         if (HoldToast.Notifies(capabilities) && App.Sessions.Kept()?.Tenant is { } tenant && alerts.IsOn(tenant))
             foreach (var fresh in HoldToast.New(notified, calls))
-                if (HoldToast.Lines(App.Words, fresh, TimeZoneInfo.Local) is { } lines) Toasts.Show(lines, alerts.Sound);
+                if (HoldToast.Lines(App.Words, fresh, TimeZoneInfo.Local, Toasts.Locked()) is { } lines) Toasts.Show(lines, alerts.Sound);
         notified = calls.Where(c => c.KiffId is not null).Select(c => c.KiffId!).ToHashSet();
     }
 
