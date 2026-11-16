@@ -19,7 +19,8 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     Func<Task<string?>>? SetupProof = null, bool Revoked = false, IReadOnlyList<Tafs.Core.Coach.ChatMessage>? SampleChat = null,
     TafHalt? Halt = null, Func<string, byte[], Task<CloudRead>>? Send = null, bool Manages = false, TafStream? Stream = null,
     TafRemove? Remove = null, Func<HttpMethod, string, byte[]?, Task<CloudRead>>? Change = null, TafStarts? Starts = null,
-    bool Paused = false, string? Email = null, string? TimeZone = null, Action? AskCoach = null, SetupScreen SetupOn = SetupScreen.Main);
+    bool Paused = false, string? Email = null, string? TimeZone = null, Action? AskCoach = null, SetupScreen SetupOn = SetupScreen.Main,
+    TafHealth? Health = null, Action<string>? AskCoachWith = null, Action? OpenUsage = null);
 
 /// <summary>
 /// Remove for good, for whoever manages the taf on a PC that signs with its passkey: what goes with it, in tafs cloud's words,
@@ -113,6 +114,9 @@ public sealed partial class TafPage : Page
         Show();
         _ = LoadActivityAsync();
         _ = LoadSetupAsync();
+        // Its work and its runs, above its record, for a taf tafs cloud runs.
+        ShowWork();
+        _ = LoadWorkAsync();
         if (tab == TafTab.Chat) _ = LoadChatAsync();
         if (opening.SetupOn != SetupScreen.Main) OpenSetupScreen(opening.SetupOn);
     }
