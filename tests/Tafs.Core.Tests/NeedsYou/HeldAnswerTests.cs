@@ -109,6 +109,7 @@ public class HeldAnswerTests
     {
         public (int, string) Answer = (200, "{}");
         public Exception? PasskeyThrows;
+        public Exception? DeviceThrows;
         public bool Current = true;
         public ApprovalMode Mode = ApprovalMode.Passkey;
         public string? PasskeyId = "AQI";
@@ -122,9 +123,40 @@ public class HeldAnswerTests
             Mode, PasskeyId,
             prompt => { Calls.Add("confirm"); Prompt = prompt; return Task.FromResult(Confirmed); },
             message => { Calls.Add("passkey"); Signed = message; return PasskeyThrows is { } e ? Task.FromException<JsonObject>(e) : Task.FromResult(new JsonObject { ["credential_id"] = "Y3I" }); },
-            message => { Calls.Add("device key"); Signed = message; return Task.FromResult("MEU="); },
+            message => { Calls.Add("device key"); Signed = message; return DeviceThrows is { } e ? Task.FromException<string>(e) : Task.FromResult("MEU="); },
             (path, body) => { Calls.Add("POST " + path); Posted = Encoding.UTF8.GetString(body); return Task.FromResult(Answer); },
             () => { Calls.Add("time"); return At; }, () => Current);
+    }
+
+    /// <summary>
+    /// A key that fails in any of the ways Windows fails it, the passkey's or the device key's, says nothing was sent and
+    /// posts nothing: authenticator data too short to read, Windows Hello's own failure, a refused passkey, a key that can't sign.
+    /// </summary>
+    [Theory]
+    [InlineData("data")]
+    [InlineData("com")]
+    [InlineData("refused")]
+    [InlineData("crypto")]
+    [InlineData("invalid")]
+    public async Task A_key_that_fails_sends_nothing_and_says_so(string how)
+    {
+        Exception Fail() => how switch
+        {
+            "data" => new InvalidDataException("authenticator data too short"),
+            "com" => new System.Runtime.InteropServices.COMException("Windows Hello failed", unchecked((int)0x80090027)),
+            "refused" => new Tafs.Core.Approvals.PasskeyRefusedException("not verified"),
+            "crypto" => new System.Security.Cryptography.CryptographicException("no key"),
+            _ => new InvalidOperationException("no key"),
+        };
+        var notSent = new HeldAnswers.Answered(false, En.Get("common.not_sent_unconfirmed"));
+        var passkey = new Kiff { PasskeyThrows = Fail() };
+        Assert.Equal(notSent, await passkey.Answer_(new HeldAnswer.ApproveOnce()));
+        Assert.Equal(["time", "passkey"], passkey.Calls);
+        Assert.Null(passkey.Posted);
+        var device = new Kiff { DeviceThrows = Fail() };
+        Assert.Equal(notSent, await device.Answer_(new HeldAnswer.Refuse()));
+        Assert.Equal(["confirm", "time", "device key"], device.Calls);
+        Assert.Null(device.Posted);
     }
 
     /// <summary>Approving takes the passkey and refusing the device key, each over its own kiff.answer.v1, then KIFF takes it.</summary>
