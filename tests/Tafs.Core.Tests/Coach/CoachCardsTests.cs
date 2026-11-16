@@ -348,4 +348,28 @@ public class CoachCardsTests
         Assert.Null(CoachChat.AnswerRequest("taf-coach", shown, ""));
         Assert.Equal("Live money", CoachChat.OwnerWords(En, "[confirm c1] live", [shown]));
     }
+
+    /// <summary>
+    /// As the iPad's answerValue for an approval: "approved" whatever follows "approved,", "declined", one signed earlier
+    /// ("already approved: …") or "failed: why" as written; anything else isn't an answer.
+    /// </summary>
+    [Fact]
+    public void An_approval_s_answer_is_its_outcome()
+    {
+        var shown = Assert.Single(Thread(Shown("""{"type": "approval", "id": "connect-stripe", "grant": "g_01"}""")).Shown);
+        string? Answer(string text) => CoachChat.AnswerRequest("taf-coach", shown, text) is { } r
+            ? JsonDocument.Parse(r.Body).RootElement.GetProperty("answer").GetString() : null;
+
+        var (path, body) = CoachChat.AnswerRequest("taf-coach", shown, "declined")!.Value;
+        Assert.Equal("/v1/tafs/taf-coach/components/connect-stripe/answer", path);
+        Assert.Equal("""{"answer":"declined","session":"s1"}""", Encoding.UTF8.GetString(body));
+
+        Assert.Equal("approved", Answer("approved"));
+        Assert.Equal("approved", Answer("approved, signed in"));
+        Assert.Equal("declined", Answer("declined"));
+        Assert.Equal("already approved: Stripe is connected", Answer("already approved: Stripe is connected"));
+        Assert.Equal("failed: planque didn't answer", Answer("failed: planque didn't answer"));
+        foreach (var text in new[] { "", "approve", "approvedx", "Approved", "Declined", "declined, later", "not now", "signed in", "failed", "already approved" })
+            Assert.Null(Answer(text));
+    }
 }

@@ -210,6 +210,21 @@ public sealed partial class CoachPanel : UserControl
     /// session's; none signed out or for a screenshot, and the cards then say they're reading the request.
     /// </summary>
     public Func<Task<IReadOnlyList<Tafs.Core.Kiff.PlanqueGrant>?>>? Grants { get; set; }
+
+    /// <summary>
+    /// Approve on an approval card, as the iPad's <c>approve</c> (<see cref="CoachApproval.ApproveAsync"/>): the card, its
+    /// conversation, and the digest and draft version it showed. None signed out, for the sample or a screenshot.
+    /// </summary>
+    public Func<CoachCard, string?, string?, string?, Task<ApproveResult>>? Approve { get; set; }
+
+    /// <summary>A session that approves with this PC's passkey: else the approval cards keep the iPad's gate line where Approve is.</summary>
+    public bool Approves { get; set; }
+
+    /// <summary>The card whose approval is going through, as the iPad's <c>connecting</c>: one at a time.</summary>
+    string? approving;
+
+    /// <summary>Coach's taf id, once its thread was read: what an approval's routes name.</summary>
+    internal string? CoachId => coach;
     public Func<string, Task<Tafs.Core.Approvals.AgentDraft?>>? Drafts { get; set; }
 
     /// <summary>The grants and drafts the thread's approvals name, as last read (the iPad's <c>grants</c> and <c>setupDrafts</c>).</summary>
@@ -230,6 +245,7 @@ public sealed partial class CoachPanel : UserControl
         homeAsked.Clear();
         grants = null;
         drafts.Clear();
+        approving = null;
         ThreadItems.Children.Clear();
         IntroError.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Collapsed;
@@ -734,21 +750,59 @@ public sealed partial class CoachPanel : UserControl
         }
         else if (grant is not null && ApprovalCard.CardNextWords(c) is { } nextWords) box.Children.Add(Words(nextWords, 13, "TafsSoftText"));
         if (failed) box.Children.Add(Words(why is null ? w.Get("coach.did_not_go_through_nothing") : w.Get("coach.answer.failed_why", ("value", why)), 14, "TafsNoText"));
-        // Off until approving is ported: what would be signed is shown, nothing is.
+        // A request planque refused, sent again unchanged, would fail the same way: Coach mode has to change it first, in
+        // place of the buttons, as the iPad's requestRefused (the refused digests it keeps aren't on this PC yet).
+        if (failed && grant is { Status: "failed" })
+        {
+            box.Children.Add(Words(w.Get("coach.coach_mode_has_change_request"), 13, "TafsSoftText"));
+            return Framed(box, failed);
+        }
+        // Decline, the card's own answer, and Approve, as the iPad's: off on every card while an approval goes through, and
+        // on this one while its answer is on its way.
+        var shown = thread.CardFor(c.Id);
+        var busy = approving is not null || (shown is not null && answered.Contains(shown.Ref) && !failed);
         var buttons = new Grid { ColumnSpacing = 10 };
         buttons.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         buttons.ColumnDefinitions.Add(new ColumnDefinition());
-        buttons.Children.Add(new Button { Content = w.Get("coach.approval.decline"), Style = (Style)Application.Current.Resources["TafsOutlineButton"], IsEnabled = false });
-        var approve = new Button { Content = w.Get("coach.answer.approve"), Style = (Style)Application.Current.Resources["TafsPrimaryOff"], IsEnabled = false };
-        Grid.SetColumn(approve, 1);
-        buttons.Children.Add(approve);
-        box.Children.Add(buttons);
-        return new Border
+        var decline = new Button { Content = w.Get("coach.approval.decline"), Style = (Style)Application.Current.Resources["TafsOutlineButton"],
+            IsEnabled = answer is not null && !busy };
+        decline.Click += (_, _) => _ = AnswerAsync(thread, c.Id, "declined");
+        buttons.Children.Add(decline);
+        if (Approves)
         {
-            Child = box, Padding = new Thickness(14), CornerRadius = new CornerRadius(14), Background = Brush("TafsPanel"),
-            BorderBrush = Brush(failed ? "TafsNo" : "TafsAmber"), BorderThickness = new Thickness(1),
-        };
+            // What's signed is seen first: a card with the taf's Card waits until that Card is read and drawn above.
+            var connected = grant?.Connected == true;
+            // KIFF's words for a profile aren't read on this PC, so a grant that has one isn't approved here until it's connected.
+            var ready = grant is not null && (connected || grant.DigestMatches) && (c.Draft is null || draft is not null) && !(connected && draft is null)
+                && !(!connected && grant.Profile is not null);
+            var on = Approve is not null && answer is not null && ready && !busy;
+            var approve = new Button
+            {
+                Content = w.Get(approving == c.Id ? "approval.approving" : failed ? "common.try_again" : "coach.answer.approve"),
+                Style = (Style)Application.Current.Resources[on ? "TafsPrimary" : "TafsPrimaryOff"], IsEnabled = on,
+            };
+            approve.Click += (_, _) => _ = ApproveAsync(c, grant?.Digest, draft?.Version);
+            Grid.SetColumn(approve, 1);
+            buttons.Children.Add(approve);
+        }
+        else
+        {
+            // The iPad's ApprovalGate: this PC doesn't approve, and says so where Approve would be.
+            var gate = Words(w.Get("approval.device_can_not_approve_approve"), 13, "TafsSoftText");
+            Grid.SetColumn(gate, 1);
+            buttons.Children.Add(gate);
+        }
+        box.Children.Add(buttons);
+        if (notes.GetValueOrDefault(c.Id) is { } note) box.Children.Add(QuestionsCardView.Note(note, Brush));
+        return Framed(box, failed);
     }
+
+    /// <summary>An approval's frame: the panel's colour, amber while it needs the person, red once it didn't go through.</summary>
+    Border Framed(UIElement box, bool failed) => new()
+    {
+        Child = box, Padding = new Thickness(14), CornerRadius = new CornerRadius(14), Background = Brush("TafsPanel"),
+        BorderBrush = Brush(failed ? "TafsNo" : "TafsAmber"), BorderThickness = new Thickness(1),
+    };
 
     TextBlock Mono(string text, double size, string colour) => new()
     {
@@ -783,6 +837,34 @@ public sealed partial class CoachPanel : UserControl
         if (sent != CardSent.Sent) answered.Remove(shown.Ref);
         if (sent == CardSent.NotReached) notes[id] = App.Words.Get("coach.answer_did_not_reach_setup");
         if (sent is CardSent.Sent or CardSent.ReadAgain) await LoadThreadAsync();
+        else Redraw();
+    }
+
+    /// <summary>
+    /// Approve tapped, as the iPad's <c>approve</c>: one approval at a time, the card's note cleared, then what it came to in
+    /// its note, and the thread read again when tafs cloud says so. Signed out meanwhile, nothing is shown.
+    /// </summary>
+    async Task ApproveAsync(CoachCard c, string? shownDigest, string? shownDraft)
+    {
+        if (Approve is not { } approve || thread is not { } shownThread) return;
+        if (approving is not null)
+        {
+            notes[c.Id] = App.Words.Get("connect.another_approval");
+            Redraw();
+            return;
+        }
+        var gen = generation;
+        approving = c.Id;
+        notes.Remove(c.Id);
+        Redraw();
+        ApproveResult result;
+        // Whatever goes wrong, the card never stays "Approving…": it says why.
+        try { result = await approve(c, shownThread.CardFor(c.Id)?.Session, shownDigest, shownDraft); }
+        catch (Exception e) { result = new(App.Words.Get("coach.answer_not_reached", ("why", $"0x{e.HResult:X8}")), ReadAgain: true); }
+        finally { if (gen == generation) approving = null; }
+        if (gen != generation || result.Stop) return;
+        if (result.Note is { } note) notes[c.Id] = note;
+        if (result.ReadAgain) await LoadThreadAsync();
         else Redraw();
     }
 
