@@ -58,6 +58,42 @@ Ported from the iPad's `AppModel.startSetup`, which its Start calls (`SetupChatV
   - an answer with no claim secret, "KIFF didn't answer as expected";
   - tafs cloud's refusal.
 - **While it runs,** Start says "Starting…" and is off, as the iPad's `startingSetup`. A sign-out meanwhile drops it.
+
+**tafs cloud's first start** (`FirstStart`, from `/v1/setup`'s `start` before Coach exists), as the iPad's
+`TafsCloud.CoachStart`, `startCoachTogether` and `sendTogether`, with `RequestsTogether`:
+- **Start's own screen** (`SetupChatView.startScreen`, the iPad's `oneScreen`), when tafs cloud gives its words (`lead`
+  and `start`):
+  - "Coach mode";
+  - tafs cloud's line;
+  - what's signed, as `CoachToolsGiven(start: true)`: Coach's Cards in KIFF's words (the card title, then each Card's
+    title and lines), then every group and tool under the step's details, folded at first, or the batch's lines;
+  - Start in tafs cloud's word;
+  - `does` under it.
+- **Startable, as the iPad's `startable`:**
+  - it's `to_give`;
+  - the draft is a `POST` to `/v1/me/agent-drafts`, not for the gateway;
+  - it has KIFF's words for its Cards. Never Cards the person hasn't read;
+  - and either the batch (`POST /v1/connections/batch`, for the gateway) with `kiff.requests.v1`, or the draft alone with
+    `kiff.request.v1`.
+- **Signed only as Start's screen draws it.** A first start without tafs cloud's words opens the iPad's tools step, which
+  isn't on this PC yet. Here it asks and sends nothing, and Start turns off.
+- **The pair** (`kiff.requests.v1`): the iPad signs it only with its approval key under a biometric Face ID, and this
+  PC's only such key is its passkey. Its header is KIFF's passkey form for two requests under one approval,
+  `KIFF-Passkey-Assertion: t=…,a=…,with=sha256:…`: the pair's `v3` header (`docs/secure-connection.md`) in its passkey
+  form, its challenge base64url(sha256) of the same `kiff.requests.v1`, which KIFF's API and gateway both take. `PasskeyPairContractTests` checks each header the way
+  KIFF does. How it goes:
+  - Both requests are built in full, with one `signed_at` (`SigningTime.Next`'s, milliseconds kept as written), before
+    anything is sent. Each body is exactly the bytes tafs cloud wrote (`GetRawText`).
+  - One Windows Hello assertion signs once, its challenge base64url(sha256) of the scheme, the account, `signed_at` and
+    the two `kiff.request.v1` messages' hashes, sorted. Each request carries it with the other's hash. Anything but a
+    passkey session that knows its passkey fails closed.
+  - Then planque, then the batch to KIFF's gateway (`https://mcp.kiff.dev`, the session's token on exactly that host),
+    then the draft once the batch answered, then tafs cloud's claim. A sign-out after the signature, the enrolment, the
+    batch or the draft sends nothing more.
+  - A refused batch says why, read as KIFF's (`error`, else "KIFF answered 502"), and the draft isn't sent.
+- **The draft alone** (every tool already connected): tafs cloud's draft in place of Setup's, signed and sent as Setup's
+  is, so the one Windows Hello is its assertion. A draft with no claim secret says "Couldn't start. KIFF didn't answer as
+  expected. Try again."
 - **Not for Windows:** the iPad's separate approval key (`registerApprovalKey`, `approvalKeyUnheld`). A Windows session
   signs with one key.
 
@@ -158,9 +194,7 @@ a second reference.
 - **A drive's end** (what Coach did in the app, `DriveRecap`), placed in the thread on the iPad: with drives.
 - **Writing to Coach:** the composer, sending, the stream, Stop, unsent and queued messages, steering, reading again.
 - **Starting Coach, the rest of `startSetup`:**
-  - **tafs cloud's first start** (`start` in `/v1/setup`, `CoachStart.Startable`, as the iPad's `startable`): the tools
-    batch and Coach's Cards signed together (`kiff.requests.v1`, `startCoachTogether`), or the Cards' draft alone. Until
-    it's ported, Start reads it, asks and sends nothing, and turns off.
+  - the tools step for a first start without tafs cloud's words (`CoachToolsStep`), and its Not now;
   - KIFF's alerts (`keepKIFFAlerts`);
   - the tools step (`loadCoachTools`);
   - keeping planque's enrolment across launches (the iPad's Keychain `planqueTenant`). Here it's asked again after each

@@ -84,8 +84,11 @@ public sealed partial class CoachPanel : UserControl
     /// <summary>While Start runs, as the iPad's <c>startingSetup</c>: Start says "Starting…" and is off.</summary>
     bool starting;
 
-    /// <summary>tafs cloud has its own first start for this account, which isn't on this PC yet: Start stays off.</summary>
+    /// <summary>tafs cloud has its own first start for this account that this PC can't sign: Start stays off.</summary>
     bool firstStart;
+
+    /// <summary>tafs cloud's first start, as last read, when Start's own screen draws it (the iPad's <c>oneScreen</c>).</summary>
+    FirstStart? shown;
 
     void ShowStart()
     {
@@ -95,8 +98,71 @@ public sealed partial class CoachPanel : UserControl
         StartGateLine.Text = App.Words.Get("approval.device_can_not_approve_approve");
         Start.IsEnabled = on;
         Start.Style = (Style)Application.Current.Resources[on ? "TafsPrimary" : "TafsPrimaryOff"];
-        Start.Content = App.Words.Get(starting ? "common.starting" : "coach.start");
+        Start.Content = starting ? App.Words.Get("common.starting") : shown?.Words?.Start ?? App.Words.Get("coach.start");
     }
+
+    /// <summary>
+    /// Start's own screen, as the iPad's <c>SetupChatView.startScreen</c>: tafs cloud's line, then what's signed
+    /// (<c>CoachToolsGiven(start: true)</c>: Coach's Cards in KIFF's words, then every group and tool under the step's
+    /// details, or the batch's lines), then Start in its words and what it does. Without it, the intro as before.
+    /// </summary>
+    void ShowFirstStart(FirstStart? first)
+    {
+        shown = first is { OneScreen: true } ? first : null;
+        var intro = CoachScreen.Intro(App.Words);
+        LineText.Text = shown?.Words!.Lead ?? intro.Line;
+        LineText.Foreground = Brush(shown is null ? "TafsSoft" : "TafsInk");
+        Footnote.Text = shown is null ? intro.Footnote : shown.Words!.Does;
+        Footnote.Visibility = Footnote.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        Given.Children.Clear();
+        Given.Visibility = shown is null ? Visibility.Collapsed : Visibility.Visible;
+        if (shown is { } s)
+        {
+            if (s.Draft!.CardTitle is { Length: > 0 } title) Given.Children.Add(Said(title, 14, "TafsInk", bold: true));
+            foreach (var card in s.Draft.Cards)
+            {
+                if (card.Title.Length > 0) Given.Children.Add(Said(card.Title, 13, "TafsInk", bold: true));
+                foreach (var line in card.Lines) Given.Children.Add(Said(line, 13, "TafsSoft"));
+            }
+            var tools = new StackPanel { Spacing = 8 };
+            foreach (var group in s.Groups)
+            {
+                if (group.Tools.Count > 0) tools.Children.Add(Said(group.Name, 13, "TafsInk", bold: true));
+                foreach (var tool in group.Tools)
+                {
+                    tools.Children.Add(Said(tool.Name, 14, "TafsInk", bold: true));
+                    if (tool.Does.Length > 0) tools.Children.Add(Said(tool.Does, 13, "TafsInk"));
+                    if (tool.Why.Length > 0) tools.Children.Add(Said(tool.Why, 13, "TafsSoft"));
+                }
+            }
+            if (s.Groups.Count > 0 && s.Details.Length > 0)
+            {
+                // The step's details, folded at first, as the iPad's.
+                var fold = new Button { Content = s.Details + " ⌄", MinHeight = 44, Padding = new Thickness(0), FontSize = 14,
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = Brush("TafsAmberText"),
+                    Style = (Style)Application.Current.Resources["TafsQuietButton"] };
+                AutomationProperties.SetAutomationId(fold, "coach-start-details");
+                tools.Visibility = Visibility.Collapsed;
+                fold.Click += (_, _) =>
+                {
+                    var open = tools.Visibility == Visibility.Collapsed;
+                    tools.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+                    fold.Content = s.Details + (open ? " ⌃" : " ⌄");
+                };
+                Given.Children.Add(fold);
+                Given.Children.Add(tools);
+            }
+            else if (s.Groups.Count > 0) Given.Children.Add(tools);
+            else foreach (var line in s.Connect?.Lines ?? []) Given.Children.Add(Said(line, 14, "TafsInk"));
+        }
+        ShowStart();
+    }
+
+    TextBlock Said(string text, double size, string brush, bool bold = false) => new()
+    {
+        Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, Foreground = Brush(brush),
+        FontWeight = bold ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal,
+    };
 
     /// <summary>
     /// Start, as the iPad's button: <c>startSetup</c> once, then Coach's thread read again, as its <c>loadSetupThread</c>.
@@ -169,7 +235,7 @@ public sealed partial class CoachPanel : UserControl
         ThreadView.Visibility = Visibility.Collapsed;
         Intro.Visibility = Visibility.Visible;
         starting = false;
-        ShowStart();
+        ShowFirstStart(null);
     }
 
     /// <summary>Coach's id, its thread as last read, and each card's state here, as the iPad's model keeps them.</summary>
@@ -233,8 +299,15 @@ public sealed partial class CoachPanel : UserControl
     {
         if (read is not { } reader) return;
         var gen = generation;
-        var (loaded, error, id) = await CoachChat.LoadAsync(App.Words, reader);
+        CloudRead? setup = null;
+        var (loaded, error, id) = await CoachChat.LoadAsync(App.Words, async path =>
+        {
+            var r = await reader(path);
+            if (path == CoachStart.SetupPath) setup = r;
+            return r;
+        });
         if (gen != generation) return;
+        ShowFirstStart(setup?.Answer is { } answer ? FirstStart.Read(answer) : null);
         IntroError.Text = error ?? "";
         IntroError.Visibility = error is null ? Visibility.Collapsed : Visibility.Visible;
         coach = id;

@@ -370,6 +370,10 @@ public sealed partial class MainWindow : Window
             ReadSetup: () => CloudReadAsync(bearer, Tafs.Core.Coach.CoachStart.SetupPath),
             Confirm: (credential, message) => new PasskeyApprover(hello, credential, Features.WindowsPasskeyApprovals).ConfirmAsync(message),
             SignDraft: (body, at) => Tafs.Core.Coach.CoachStart.SignDraftAsync(session, passkey, body, at),
+            // The pair only by this PC's passkey: anything else fails closed and signs nothing.
+            SignTogether: (connect, draft, at) => passkey is not null && session.Mode == ApprovalMode.Passkey
+                ? Tafs.Core.Coach.RequestsTogether.SignAsync(passkey, session.Tenant, connect, draft, at)
+                : throw new PasskeyRefusedException("only this PC's passkey signs the pair"),
             Enrol: () => PlanqueEnrolment.EnrolAsync(w, key.PublicKeyDer,
                 async body =>
                 {
@@ -387,6 +391,8 @@ public sealed partial class MainWindow : Window
                 },
                 // Signed out between planque's ask, KIFF's mint and the enrolment: nothing more is sent.
                 () => gen == sessions),
+            SendBatch: (body, signature) => KiffHttp.GatewayPostAsync(new Uri(Tafs.Core.Coach.CoachStart.Gateway, "/v1/connections/batch"), body,
+                bearer, w.Language, signature),
             SubmitDraft: (body, signature) => KiffHttp.PostAsync(new Uri(kiff, Tafs.Core.Coach.CoachStart.DraftPath), body, bearer, w.Language,
                 signature: signature),
             Claim: body => CloudSendAsync(bearer, Tafs.Core.Coach.CoachStart.SetupPath, body),
