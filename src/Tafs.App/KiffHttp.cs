@@ -68,7 +68,7 @@ static class KiffHttp
     /// </summary>
     /// <exception cref="HttpRequestException">It wasn't reached, or isn't a host the session's token may go to.</exception>
     public static async Task<(int Status, string Body)> PostAsync(Uri url, byte[] body, string bearer, string language, CancellationToken cancel = default,
-        (string Header, string Value)? signature = null)
+        (string Header, string Value)? signature = null, (string Header, string Value)? extra = null)
     {
         if (!Tafs.Core.Kiff.KeptSessions.MaySendTo(url, DeviceSignIn.Api)) throw new HttpRequestException("not a host the session goes to");
         using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = new ByteArrayContent(body) };
@@ -77,6 +77,26 @@ static class KiffHttp
         request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         if (signature is { } signed) request.Headers.Add(signed.Header, signed.Value);
+        // planque's read proof beside KIFF's signature, as the iPad's approvalReport sends both.
+        if (extra is { } more) request.Headers.Add(more.Header, more.Value);
+        return await SendAsync(request, cancel, Patient);
+    }
+
+    /// <summary>
+    /// Coach's tools batch to KIFF's gateway as the session, as the iPad's <c>connectBatch</c>: its bytes as tafs cloud wrote
+    /// them, signed with <paramref name="signature"/>. Only the gateway's exact host gets the token this way.
+    /// </summary>
+    /// <exception cref="HttpRequestException">It wasn't reached, or isn't the gateway.</exception>
+    public static async Task<(int Status, string Body)> GatewayPostAsync(Uri url, byte[] body, string bearer, string language,
+        (string Header, string Value) signature, CancellationToken cancel = default)
+    {
+        if (!Tafs.Core.Coach.CoachStart.IsGateway(url)) throw new HttpRequestException("not KIFF's gateway");
+        using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = new ByteArrayContent(body) };
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        request.Headers.Add(signature.Header, signature.Value);
         return await SendAsync(request, cancel, Patient);
     }
 

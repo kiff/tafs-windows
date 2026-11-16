@@ -47,7 +47,7 @@ the `pairing` part.
   - it asks for a passkey-only session, because on Windows the approval key is a Windows Hello passkey (`Features.WindowsPasskeyApprovals`). The button shows only with that flag on.
 - **A refused start** shows KIFF's status and error code only (`KIFF answered 400 invalid_device_name`), never free text from the answer.
 - **The code:** the browser opens on the link, the code is shown to check, and Open KIFF to approve opens it again.
-- **The terms line** links tafs's Terms and Privacy policy (`kiff.dev/tafs/terms`, `/tafs/privacy`), as on the iPad.
+- **The terms line** links tafs's Terms and Privacy policy in the app's language (`kiff.dev/<lang>/tafs/terms`, `/<lang>/tafs/privacy` for de, es, fr, it, nl, pl and pt), and in English otherwise (`kiff.dev/tafs/terms`, `/tafs/privacy`). Account's Legal rows open the same pages.
 - **Signed in:**
   - the window opens the Overview, with the view-only notice when `approval_mode` says view (or says nothing it knows);
   - **the session is kept** across launches, sealed for this Windows user ([the session](session.md)). A session it replaces is signed out at KIFF.

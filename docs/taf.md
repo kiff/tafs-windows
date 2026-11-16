@@ -10,9 +10,25 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
   read them from KIFF (`TafCards.Shown`: with none listed, one merged from its rules, as `Taf.shownCards`), its Setup
   read from tafs cloud; each sample taf with its own Card (its template's rules, as the iPad's `TafTemplates`) and job.
   A real taf whose Card KIFF revoked (`card.active` false) opens revoked, as the iPad's `card.revoked`: every Card
-  says Revoked and fades, and the chip says Stopped. Chat is shown, so the page has the iPad's shape,
-  and is off.
-  The Card bar is above the Activity, and its chevron opens the Card tab.
+  says Revoked and fades, and the chip says Stopped. Chat opens on a sample taf and on one tafs cloud runs, as the
+  iPad's `canChat`, and a taf's page opens on it, as the iPad's, unless it's opened on another tab.
+  The Card bar is above the Chat and the Activity, and its chevron opens the Card tab.
+- **The Chat** (`TafChat`, the iPad's `TafChatView`): the taf's thread, read from tafs cloud each time it shows
+  (`GET /v1/tafs/{id}/conversation`, Coach's thread's shape, so `CoachThread.Read` reads it), in a column 720 wide.
+  Each message once, by time. A time between parts an hour or more apart (`CoachChat.GapTime`). The person's words on
+  the right in the brand bubble, with "Answered the card above" under an answer; the taf's full width at 16, with
+  "Worked for 12 s ›" above them, which opens its steps in the taf's words (`TafChat.ActivityWords`, the iPad's
+  `tafActivityWords`: "Reading its notes…", "Asking KIFF to run stripe refund…"); where its result went above its words
+  and what the run did under them, tafs cloud's lines in 13 soft; a refused connection's lines, the first in red. A
+  run's start is a centred line, "Run started 08:00 · …"; tafs cloud's lines are only ever around the taf's own words
+  (`ChatMessage.RunLines`, `RefusedLines`, the iPad's `runLines`, `refusedLines`). A message through one of the taf's
+  doors keeps its stamp (`ChatDoor`, the iPad's `DoorMark` and `DoorStamp`, mono 10, blue, red when not sent back): "BY
+  EMAIL · who" over it, on the right, and under the taf's answer how it went back ("↩ SENT BACK BY EMAIL · SAME
+  THREAD", "NOT SENT BACK · why", "GOES BACK BY EMAIL WHEN DONE"). The files sent with a message are drawn above its
+  words, each its name with its kind's mark, as `MessageFiles`; a message with only files keeps them. With nothing in it, `chat.empty_named`; a read that doesn't
+  come keeps the thread there was and says "The thread couldn't be loaded." and why, in red at 13. A sample taf's
+  thread is its greeting (`sample.hello`), with what it's doing as its Overview line says it. Coach's thread draws
+  its bubbles, run starts and work the same way (`ChatViews`).
 - **The Card bar:** a small Card in the taf's colour with the Card's mark, its Card's figure and words ("€1,960 left
   today of €2,000"), and under it the Card's name, its environment when it isn't production, and "· 3 Cards" when the
   taf holds more than one (`TafCard.Bar`).
@@ -159,7 +175,13 @@ reference:
 - **Resuming** (`ResumeConfirmation`), with the approvals.
 - **The revision as If-None-Match:** the server's ETag is the quoted form of `revision`; each read is whole for now. Its
   days are titled as sent, in 12 semibold, not in the sample's capitals. Pull to refresh has no Windows gesture yet.
-- **Chat,** in its own change.
+- **Chat's composer:** writing to the taf, its answer as it streams, Stop, Retry, a message not sent, and what's
+  written while it works. They come in the next change, with reading the thread again while an answer is awaited.
+- **Chat's other items:** held calls in the thread and the Needs you pill, what became of an approved call, a door's
+  knocks, a setting handed to Coach, a run stopped at its cap, the answer's Report menu, opening a sent file full size
+  (it's named only, until its bytes are read), and a connected tool's title
+  in its steps ("Asking KIFF: Create refund…", from planque's grants). The taf's words are drawn as written, not as
+  Markdown, as Coach's are.
 - **What acts in Setup:** a connected app's sheet, the + to connect one, a Card-unit exception's Coach and Dismiss
   (signed), the taf's own Connect again, Improve in Coach, Change the workflow with Coach, the memory's See all, Starts
   when, Results go to, and Remove. They need Coach, signing or sign-in, and whether the person manages the taf. The

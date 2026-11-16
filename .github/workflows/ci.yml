@@ -161,6 +161,83 @@ jobs:
       - name: The TPM key and Windows Hello's native calls, on Windows
         run: dotnet test tests/Tafs.Core.Tests -c Release --filter "FullyQualifiedName~TpmKey|FullyQualifiedName~WindowsHello" --logger "console;verbosity=normal"
 
+  # The team's download (docs/install.md): the unpackaged app, self-contained, for x64 and ARM64. Unzip and run: no
+  # install, no setting. Kept only from main, the nightly run and on demand, once the tests and the app build passed (a
+  # part this run skipped counts as passed). A PR that changes the app only checks that it publishes and starts: a PR from
+  # a fork runs its own code, so nothing of it is kept under the download's name.
+  zip:
+    needs: [plan, test, app]
+    if: >-
+      always() && needs.plan.result == 'success'
+      && (needs.test.result == 'success' || needs.test.result == 'skipped')
+      && (needs.app.result == 'success' || needs.app.result == 'skipped')
+      && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' || contains(needs.plan.outputs.parts, '"app"') || contains(needs.plan.outputs.parts, '"all"'))
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x64, ARM64]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup
+      - name: Words and contracts at the pin
+        run: dotnet run --project tools/Tafs.Ci -- sync
+      - name: The app, self-contained
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          rid=win-$(echo "$PLATFORM" | tr '[:upper:]' '[:lower:]')
+          # The run's version, as the MSIX's, and its commit: a report names the build it came from. No debug symbols.
+          dotnet publish src/Tafs.App -c Release -p:Platform="$PLATFORM" -r "$rid" --self-contained -o "artifacts/zip/tafs-$PLATFORM" \
+            -p:DebugType=none -p:Version=0.1.${{ github.run_number }}.0 -p:SourceRevisionId=${{ github.sha }}
+          test -f "artifacts/zip/tafs-$PLATFORM/Tafs.App.exe"
+      # The x64 build opens its sign-in screen and saves it, or the job fails: a download that doesn't start never ships.
+      - name: It starts
+        if: matrix.platform == 'x64'
+        run: timeout 120 artifacts/zip/tafs-x64/Tafs.App.exe --page sign-in --screenshot zip-start.png && test -s zip-start.png
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: github.event_name != 'pull_request'
+        with:
+          name: tafs-windows-${{ matrix.platform }}
+          path: artifacts/zip/tafs-${{ matrix.platform }}/
+          if-no-files-found: error
+
+  # The MSIX (docs/install.md), kept for the day it's signed: Windows installs no unsigned package that holds an app.
+  # x64 and ARM64, from main and on demand only until then. Each build's version is 0.1.<run number>.0.
+  msix:
+    needs: plan
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x64, ARM64]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup
+      - name: Words and contracts at the pin
+        run: dotnet run --project tools/Tafs.Ci -- sync
+      - name: This build's version
+        run: sed -i "s/Version=\"0.1.0.0\"/Version=\"0.1.${{ github.run_number }}.0\"/" src/Tafs.App/Package.appxmanifest
+      - name: MSIX, unsigned
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          rid=win-$(echo "$PLATFORM" | tr '[:upper:]' '[:lower:]')
+          dotnet build src/Tafs.App -c Release -p:Platform="$PLATFORM" -p:RuntimeIdentifier="$rid" -p:TafsMsix=true
+          ls artifacts/msix/*/*.msix
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tafs-msix-${{ matrix.platform }}
+          path: artifacts/msix/*/*.msix
+          if-no-files-found: error
+
   # Fails when the pin is more than 7 days or 20 commits behind the shared repository's main.
   pin-drift:
     runs-on: ubuntu-latest

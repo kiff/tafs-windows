@@ -7,3 +7,5 @@ TestResults/
 shared/
 # Local screenshot runs (CI uploads its own as an artifact).
 screenshots/
+# The team's zip and MSIX, built locally.
+artifacts/
