@@ -360,6 +360,7 @@ public sealed partial class MainWindow : Window
         var listed = home!;
         _ = ReadRecordAsync(listed, reading);
         _ = ReadHeldAsync(listed, reading);
+        _ = ReadBriefAsync(read, reading);
         var reports = await Task.WhenAll(listed.Tafs.Select(t => TafRuns.LoadReportAsync(w, t.Id, read)));
         if (reading != sessions) return;
         overviewRows = HomeList.Rows(w, listed, TimeZoneInfo.Local, listed.Tafs.Select((t, i) => (t.Id, Report: reports[i])).ToDictionary(r => r.Id, r => r.Report));
@@ -417,7 +418,13 @@ public sealed partial class MainWindow : Window
     {
         requestedHold = hold;
         Activate();
-        if (needsYouRow is { } row) Nav.SelectedItem = row;
+        // The hold's card is in Needs you, under the brief when there is one.
+        needsYouUnderBrief = true;
+        if (needsYouRow is { } row)
+        {
+            if (ReferenceEquals(Nav.SelectedItem, row) && Pages.Content is not NeedsYouPage) ShowNeedsYou();
+            Nav.SelectedItem = row;
+        }
         ShowRequestedHold();
         // Not listed yet: KIFF is read again, as the iPad's onHoldAlert. Before sign-in, the first read brings it.
         if (requestedHold is not null && home is { } listed && kiffRead is not null) _ = ReadHeldAsync(listed, sessions);
@@ -664,7 +671,7 @@ public sealed partial class MainWindow : Window
         held = calls;
         NeedsYouPage.Answering = HeldAnsweringNow();
         AddHeldCalls(w);
-        if (needsYouRow is { } row) ShowCount(row, w, needsYouTitle);
+        if (needsYouRow is { } row) ShowCount(row, w, NeedsYouTitle);
         if (Pages.Content is NeedsYouPage page) page.Show(held);
         ShowRequestedHold();
         if (Pages.Content is OverviewPage overview) overview.ShowHeld(held);
@@ -772,6 +779,9 @@ public sealed partial class MainWindow : Window
         unproven = [];
         mayAnswerHolds = true;
         listedSteps = [];
+        // The brief is the account's: Needs you is back in its place.
+        (brief, briefLabel, needsYouUnderBrief, mayUseCoach) = (null, null, false, false);
+        if (needsYouRow is { } briefRow) ShowCount(briefRow, App.Words, NeedsYouTitle);
         managesCards = true;
         capabilitiesRead = null;
         AllowDialog.Close();
@@ -896,7 +906,8 @@ public sealed partial class MainWindow : Window
         manage = Tafs.Core.Coach.CoachAccess.Manage(access) ?? manage;
         capabilities = me ?? capabilities;
         _ = ReadAccountHaltAsync(reading);
-        if (!Tafs.Core.Coach.CoachAccess.MayUseCoach(setup, setup is null ? capabilities : null)) return;
+        mayUseCoach = Tafs.Core.Coach.CoachAccess.MayUseCoach(setup, setup is null ? capabilities : null);
+        if (!mayUseCoach) return;
         CoachMode.Answer = (path, body) => CloudSendAsync(bearer, path, body);
         // Approve, as the iPad's Coach cards, only for someone who may use Coach, and only a session that signs with its passkey.
         if (Tafs.Core.Coach.CoachStart.MayStart(session))
@@ -1230,6 +1241,7 @@ public sealed partial class MainWindow : Window
             : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!,
                 path.StartsWith(ConnectAppsScreen.ListPath, StringComparison.Ordinal) ? "connect-apps.json"
                 : path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "setup-coach.json"
+                : path.StartsWith(Tafs.Core.Missions.Brief.Route, StringComparison.Ordinal) ? "brief.json"
                 : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json"
                 : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
         return File.Exists(file) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(file)) : CloudRead.Unreached(w);
@@ -1390,16 +1402,12 @@ public sealed partial class MainWindow : Window
     {
         if (args.SelectedItem is not NavigationViewItem item) return;
         ShowAccountChosen(false);
+        // Another screen chosen: Needs you's row opens the brief again.
+        if (item != needsYouRow) needsYouUnderBrief = false;
         if (item == BrandItem)
             Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, overviewRows, home?.Labels));
-        else if (item.Tag is Screen.NeedsYou or HeldCall)
-        {
-            Pages.Navigate(typeof(NeedsYouPage), held);
-            if (Pages.Content is NeedsYouPage page) page.ShowUnproven(unproven, mayAnswerHolds);
-            ShowSteps();
-            _ = ReadUnprovenAsync(sessions);
-            ShowRequestedHold();
-        }
+        else if (item.Tag is Screen.NeedsYou) ShowNeedsYouOrBrief();
+        else if (item.Tag is HeldCall) ShowNeedsYou();
         else if (item.Tag == HaltAll) OpenHalt(null, "");
         else if (item.Tag is Screen.Record) Pages.Navigate(typeof(RecordPage), record);
         else if (item.Tag is Screen.Usage) Pages.Navigate(typeof(UsagePage), usage);

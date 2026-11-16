@@ -40,7 +40,13 @@ public sealed partial class BriefPage : Page
     /// <summary>The next move, dismissed here.</summary>
     bool moveDismissed;
 
-    public BriefPage() => InitializeComponent();
+    public BriefPage()
+    {
+        InitializeComponent();
+        // Its colours are the window's theme's, known once it's in the window: drawn again then, and when the theme changes.
+        Loaded += (_, _) => Show();
+        ActualThemeChanged += (_, _) => Show();
+    }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {

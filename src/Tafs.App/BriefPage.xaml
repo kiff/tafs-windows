@@ -5,7 +5,13 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       Background="{ThemeResource TafsBackground}">
   <ScrollViewer>
-    <StackPanel Padding="24" Spacing="16" MaxWidth="1100" HorizontalAlignment="Left" AutomationProperties.AutomationId="brief">
+    <!-- The window's width, up to 1100, from the left: the two columns share it. -->
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" MaxWidth="1100" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+    <StackPanel Padding="24" Spacing="16" AutomationProperties.AutomationId="brief">
       <StackPanel Spacing="8">
         <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
         <StackPanel x:Name="When" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
@@ -32,5 +38,6 @@
 
       <TextBlock x:Name="Credits" FontSize="12" HorizontalAlignment="Center" Foreground="{ThemeResource TafsDim}" Visibility="Collapsed" />
     </StackPanel>
+    </Grid>
   </ScrollViewer>
 </Page>
