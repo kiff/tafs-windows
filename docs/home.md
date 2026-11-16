@@ -50,8 +50,8 @@ From the top:
        Refused while KIFF still holds Cards in force (409 `cards_in_force`), "KIFF didn't revoke 1 of its Cards: revoke
        them in KIFF.", and the Cards it named are revoked on the next Discard. Any other refusal says tafs cloud's words.
     - While it goes, the button reads Loading… and is off. A sign-out ends it quietly.
-    - tafs cloud reads `KIFF-Passkey-Assertion` on this route once kiff/tafs takes the passkey on signed removals; until
-      then it logs the Discard as unsigned, as it does every unsigned one while `TAFS_SIGNED_REMOVE` is off.
+    - tafs cloud reads `KIFF-Passkey-Assertion` on this route from kiff/tafs#1247 on, and asks KIFF whether this PC's
+      passkey signed it.
   - **Each row:** the avatar (34), the name in 15 semibold, and what it's doing in 13 soft, on one line each. A row
     opens its taf's page.
   - **The sample's** are Deploys and Bill pay, the two a call waits on, as overview.png.

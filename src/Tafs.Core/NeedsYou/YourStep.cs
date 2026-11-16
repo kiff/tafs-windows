@@ -46,10 +46,6 @@ public enum StepAnswered
 public enum StepConfirmed { Yes, Cancelled, Failed }
 
 /// <summary>
-/// Reading and answering Your step, as the iPad's <c>YourStep</c>, <c>KIFFClient.handoffMessage</c>/<c>handoff</c>/<c>answerHandoff</c>
-/// and <c>AppModel.showSteps</c>/<c>canAnswerSteps</c>/<c>answerYourStep</c>/<c>answerRefusedWords</c>.
-/// </summary>
-/// <summary>
 /// Whether Windows Hello can confirm on this PC, as the iPad's <c>ApprovalReadiness</c>: ready; not set up for this person
 /// (Settings opens it); busy just now; or not here at all (no Hello this PC can use, or turned off by policy).
 /// </summary>
@@ -58,6 +54,10 @@ public enum HelloReadiness { Ready, NotSetUp, Busy, Unsupported }
 /// <summary>What a step says in place of Done and Skip while Hello isn't ready, as the iPad's <c>ApprovalNotReady</c>.</summary>
 public sealed record HelloNotReady(string Line, bool OpensSettings, bool ChecksAgain);
 
+/// <summary>
+/// Reading and answering Your step, as the iPad's <c>YourStep</c>, <c>KIFFClient.handoffMessage</c>/<c>handoff</c>/<c>answerHandoff</c>
+/// and <c>AppModel.showSteps</c>/<c>canAnswerSteps</c>/<c>answerYourStep</c>/<c>answerRefusedWords</c>.
+/// </summary>
 public static class YourSteps
 {
     /// <summary>
