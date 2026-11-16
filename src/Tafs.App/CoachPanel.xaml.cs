@@ -363,7 +363,8 @@ public sealed partial class CoachPanel : UserControl
     /// </summary>
     async Task ReadApprovalsAsync(CoachThread loaded, int gen)
     {
-        var approvals = loaded.Shown.Where(s => s.Card.Kind == "approval").Select(s => s.Card).ToList();
+        // Sign-in cards read the same grants: a connection already connected, or signed out, says so on the card.
+        var approvals = loaded.Shown.Where(s => s.Card.Kind is "approval" or "sign_in").Select(s => s.Card).ToList();
         if (approvals.Count == 0) return;
         if (Grants is { } readGrants && await readGrants() is { } read && gen == generation) grants = read;
         foreach (var id in approvals.Select(c => c.Draft).OfType<string>().Distinct())
@@ -398,6 +399,7 @@ public sealed partial class CoachPanel : UserControl
                 else if (shown.Card.Kind == "result") ThreadItems.Children.Add(Result(thread, shown));
                 else if (shown.Card.Kind == "confirm") ThreadItems.Children.Add(Confirm(thread, shown.Card));
                 else if (shown.Card.Kind == "approval") ThreadItems.Children.Add(Approval(thread, shown.Card));
+                else if (shown.Card.Kind == "sign_in") ThreadItems.Children.Add(SignIn(thread, shown.Card));
                 continue;
             }
             var m = items[i].Message!;
@@ -711,7 +713,59 @@ public sealed partial class CoachPanel : UserControl
     }
 
     /// <summary>The kinds of card drawn so far: the others come in their own changes, their answers in bubbles until then.</summary>
-    static readonly string[] Kinds = ["questions", "notice", "result", "confirm", "approval"];
+    static readonly string[] Kinds = ["questions", "notice", "result", "confirm", "approval", "sign_in"];
+
+    /// <summary>
+    /// A sign-in, as the iPad's <c>SetupChatView.signIn</c>: "Needs you · sign in", "Sign in at Gmail", the line that the vendor's
+    /// own page opens, tafs cloud's line when the sign-in is wider than the job, the button and where it goes, then Not now.
+    /// Answered, one line. The button opens the vendor's sign-in once connecting apps comes to Windows: until then it's off,
+    /// and Not now answers the card.
+    /// </summary>
+    UIElement SignIn(CoachThread thread, CoachCard c)
+    {
+        var w = App.Words;
+        var grant = c.Grant is { } id ? grants?.FirstOrDefault(g => g.Id == id) : null;
+        var (state, why) = SignInCard.State(thread, c, grant);
+        if (state is ApprovalState.Done or ApprovalState.Declined)
+            return QuestionsCardView.Outcome(SignInCard.Outcome(w, c, grant, state), Brush,
+                state == ApprovalState.Done ? "\uEC61" : "\uECC9", state == ApprovalState.Done ? "TafsOk" : "TafsDim");
+        var failed = state == ApprovalState.Failed;
+        var box = new StackPanel { Spacing = 10 };
+        var upper = new System.Globalization.CultureInfo(w.Language);
+        var eyebrow = Words(w.Get(failed ? "coach.did_not_go_through_sign" : "coach.sign_in.eyebrow").ToUpper(upper), 11, "TafsEyebrow");
+        eyebrow.Foreground = Brush(failed ? "TafsNo" : "TafsAmber");
+        box.Children.Add(eyebrow);
+        var title = Words(SignInCard.Title(w, c, grant), 20, "TafsInkText");
+        title.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
+        box.Children.Add(title);
+        if (failed) box.Children.Add(Words(why is null ? w.Get("coach.answer.failed") : w.Get("coach.answer.failed_why", ("value", why)), 14, "TafsNoText"));
+        box.Children.Add(Words(w.Get("coach.sign_in_note"), 14, "TafsSoftText"));
+        // A sign-in wider than the job, in tafs cloud's words, before the button (kiff/tafs#1218).
+        if (c.Wider is { } wider) box.Children.Add(Wider(wider));
+        var open = new Button
+        {
+            Content = SignInCard.Button(w, c, grant, failed), IsEnabled = false, HorizontalAlignment = HorizontalAlignment.Stretch,
+            Style = (Style)Application.Current.Resources["TafsPrimaryOff"],
+        };
+        AutomationProperties.SetAutomationId(open, "coach.sign_in.open");
+        box.Children.Add(open);
+        var opens = Mono(SignInCard.Opens(w, c), 12, "TafsDim");
+        opens.HorizontalAlignment = HorizontalAlignment.Center;
+        box.Children.Add(opens);
+        if (!failed)
+        {
+            var notNow = new Button
+            {
+                Content = w.Get("common.not_now"), HorizontalAlignment = HorizontalAlignment.Center, FontSize = 14, Foreground = Brush("TafsDim"),
+                Style = (Style)Application.Current.Resources["TafsQuietButton"],
+                IsEnabled = answer is not null && !answered.Contains(thread.CardRef(c.Id)),
+            };
+            notNow.Click += (_, _) => _ = AnswerAsync(thread, c.Id, "not now");
+            box.Children.Add(notNow);
+        }
+        if (notes.GetValueOrDefault(c.Id) is { } note) box.Children.Add(Words(note, 13, "TafsNoText"));
+        return Framed(box, failed);
+    }
 
     /// <summary>
     /// tafs cloud's line for a sign-in wider than the job, in amber after a warning mark, as one thing Narrator reads: the
