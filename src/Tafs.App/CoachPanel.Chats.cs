@@ -234,7 +234,9 @@ public sealed partial class CoachPanel
             ShowChatTools();
             return;
         }
-        if (await SendCoachAsync(text) is not null) CoachDraft.Text = "";
+        // Out of the box at once, as it shows in the thread; not tried at all, back in the box unless something new is there.
+        CoachDraft.Text = "";
+        if (await SendCoachAsync(text) is null && CoachDraft.Text.Length == 0) CoachDraft.Text = text;
     }
 
     /// <summary>
@@ -248,7 +250,7 @@ public sealed partial class CoachPanel
         var (gen, mine) = (generation, conversationGen);
         var pending = TafChatSend.Pending(text, thread?.Messages ?? [], DateTimeOffset.UtcNow);
         coachSent.Add(pending);
-        CoachDraft.Text = "";
+        // The box is the Send button's to clear: Retry leaves what's being typed there alone, as the iPad's submitSetup.
         (coachSending, chatError) = (true, null);
         ShowConversation();
         var (into, refused) = await CoachSend.SendAsync(w, id, text, conversation, send);

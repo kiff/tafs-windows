@@ -204,7 +204,9 @@ public sealed partial class TafPage : Page
             ShowChat();
             return;
         }
-        if (await SendTextAsync(text) is not null) Draft.Text = "";
+        // Out of the box at once, as it shows in the thread; not tried at all, back in the box unless something new is there.
+        Draft.Text = "";
+        if (await SendTextAsync(text) is null && Draft.Text.Length == 0) Draft.Text = text;
     }
 
     /// <summary>
@@ -217,7 +219,7 @@ public sealed partial class TafPage : Page
         var w = App.Words;
         var pending = TafChatSend.Pending(text, chat?.Messages ?? [], DateTimeOffset.UtcNow);
         sent.Add(pending);
-        Draft.Text = "";
+        // The box is the Send button's to clear: Retry leaves what's being typed there alone, as the iPad's submitChat.
         (sending, chatNote) = (true, null);
         ShowChat();
         var refused = mine.Stream is { } stream ? await StreamAsync(w, id, text, stream, send, mine) : await TafChatSend.SendAsync(w, id, text, send);
