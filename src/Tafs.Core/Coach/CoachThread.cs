@@ -277,6 +277,9 @@ public enum HandOverState { SetUp, Failed, SettingUp }
 
 public enum ImprovementState { Made, Failed, Preparing }
 
+/// <summary>What the panel read: the thread, else why not; Coach's id; and the conversation's session, when known.</summary>
+public sealed record CoachLoad(CoachThread? Thread, string? Error, string? Coach, string? Session);
+
 /// <summary>Coach's thread read and drawn, as the iPad's <c>loadSetupThread</c>, <c>SetupChatView.thread</c> and <c>WorkLog</c>.</summary>
 public static class CoachChat
 {
@@ -289,32 +292,31 @@ public static class CoachChat
     /// </summary>
     public static async Task<(CoachThread? Thread, string? Error, string? Coach)> LoadAsync(WordBook w, Func<string, Task<CloudRead>> read)
     {
-        var setup = await read("/v1/setup");
-        if (setup.Answer is not { } s || Lenient.Text(Lenient.Field(s, "setup") ?? default, "id") is not { } coach) return (null, null, null);
-        var id = CloudRead.PathPart(coach);
-        var chats = await read($"/v1/tafs/{id}/chats");
-        var newest = chats.Answer is { } c && Chats(c) is { Count: > 0 } list ? list.MaxBy(x => x.Updated).Session : null;
-        var thread = await read($"/v1/tafs/{id}/conversation" + (newest is null ? "" : "/" + CloudRead.PathPart(newest)));
-        // A thread that doesn't decode: the iPad says the system's words for it; this app has its own.
-        var why = thread.Answer is { } t ? (CoachThread.Read(t) is { } read2 ? null : w.Get("error.ours")) : thread.Why;
-        return why is null ? (CoachThread.Read(thread.Answer!.Value), null, coach) : (null, w.Get("coach.conversation_not_loaded", ("why", why)), coach);
+        var loaded = await LoadAsync(w, read, CoachConversation.Newest);
+        return (loaded.Thread, loaded.Error, loaded.Coach);
     }
 
     /// <summary>
-    /// Coach's conversations, as the iPad's strict <c>[Chat]</c>: each needs its session and title, and its start and update
-    /// times; one that lacks any fails the list, as the iPad's decoder, and the whole thread is read instead.
+    /// The conversation shown, as the iPad's <c>loadSetupThread</c>: the newest when none is chosen (above), the one the
+    /// person reopened by its session, with no list read, or, for a new one, nothing read past Coach's id, since it has
+    /// nothing until its first message. Also the session it is, for the next message, when the list or the choice names it.
     /// </summary>
-    static List<(string Session, DateTimeOffset Updated)>? Chats(JsonElement answer)
+    public static async Task<CoachLoad> LoadAsync(WordBook w, Func<string, Task<CloudRead>> read, CoachConversation shown)
     {
-        if (Lenient.Field(answer, "chats") is not { ValueKind: JsonValueKind.Array } chats) return null;
-        var list = new List<(string, DateTimeOffset)>();
-        foreach (var x in chats.EnumerateArray())
+        var setup = await read("/v1/setup");
+        if (setup.Answer is not { } s || Lenient.Text(Lenient.Field(s, "setup") ?? default, "id") is not { } coach) return new(null, null, null, null);
+        if (shown.Fresh) return new(null, null, coach, null);
+        var session = shown.Session;
+        if (session is null)
         {
-            if (Lenient.Text(x, "session") is not { } session || Lenient.Text(x, "title") is null || Lenient.At(x, "started") is null
-                || Lenient.At(x, "updated") is not { } updated) return null;
-            list.Add((session, updated));
+            var chats = await read(CoachChats.ListPath(coach));
+            session = chats.Answer is { } c && CoachChats.Read(c) is { Count: > 0 } list ? list[0].Session : null;
         }
-        return list;
+        var thread = await read($"/v1/tafs/{CloudRead.PathPart(coach)}/conversation" + (session is null ? "" : "/" + CloudRead.PathPart(session)));
+        // A thread that doesn't decode: the iPad says the system's words for it; this app has its own.
+        var decoded = thread.Answer is { } t ? CoachThread.Read(t) : null;
+        var why = thread.Answer is null ? thread.Why : decoded is null ? w.Get("error.ours") : null;
+        return why is null ? new(decoded, null, coach, session) : new(null, w.Get("coach.conversation_not_loaded", ("why", why)), coach, session);
     }
 
     /// <summary>
