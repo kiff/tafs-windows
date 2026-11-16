@@ -59,9 +59,20 @@ public static class SignInScreen
         };
     }
 
-    /// <summary>tafs's own Terms and Privacy policy, as on the iPad and Android (English only for now).</summary>
-    public static readonly Uri Terms = new("https://kiff.dev/tafs/terms");
-    public static readonly Uri Privacy = new("https://kiff.dev/tafs/privacy");
+    /// <summary>
+    /// The languages kiff.dev has tafs's Terms and Privacy policy in, besides English, at
+    /// <c>kiff.dev/&lt;lang&gt;/tafs/terms</c> and <c>/&lt;lang&gt;/tafs/privacy</c>. The English pages govern.
+    /// </summary>
+    public static readonly IReadOnlySet<string> LegalLanguages = new HashSet<string> { "de", "es", "fr", "it", "nl", "pl", "pt" };
+
+    /// <summary>tafs's own Terms, in the app's language where kiff.dev has it, else in English.</summary>
+    public static Uri Terms(string language) => Legal(language, "terms");
+
+    /// <summary>tafs's own Privacy policy, in the app's language where kiff.dev has it, else in English.</summary>
+    public static Uri Privacy(string language) => Legal(language, "privacy");
+
+    static Uri Legal(string language, string page) =>
+        new(LegalLanguages.Contains(language) ? $"https://kiff.dev/{language}/tafs/{page}" : $"https://kiff.dev/tafs/{page}");
 
     /// <summary>"By signing in, you agree to …", in pieces: the two names linked wherever the language puts them.</summary>
     public static IReadOnlyList<(string Text, Uri? Link)> Agreement(WordBook w)
@@ -73,7 +84,7 @@ public static class SignInScreen
         {
             if (line[i] is not ('\u0001' or '\u0002')) continue;
             if (i > start) parts.Add((line[start..i], null));
-            parts.Add(line[i] == '\u0001' ? (w.Get("settings.terms"), Terms) : (w.Get("settings.privacy_policy"), Privacy));
+            parts.Add(line[i] == '\u0001' ? (w.Get("settings.terms"), Terms(w.Language)) : (w.Get("settings.privacy_policy"), Privacy(w.Language)));
             start = i + 1;
         }
         if (start < line.Length) parts.Add((line[start..], null));
