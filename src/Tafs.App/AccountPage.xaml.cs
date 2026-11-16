@@ -10,7 +10,8 @@ using Tafs.Core.Words;
 namespace Tafs.App;
 
 /// <summary>What Account opens with: whether the window shows the iPad's sample, the theme it's in, and tafs cloud's read as the session.</summary>
-public sealed record AccountOpening(bool Sample, ElementTheme Theme, Func<string, Task<CloudRead>>? Read = null);
+public sealed record AccountOpening(bool Sample, ElementTheme Theme, Func<string, Task<CloudRead>>? Read = null,
+    KiffAccount? Account = null);
 
 /// <summary>
 /// Account. Its rows follow where this PC stands (the sample, signed in with KIFF, or signed out). The KIFF account's name,
@@ -26,6 +27,8 @@ public sealed partial class AccountPage : Page
     public static event Action? AlertsChosen;
     public static event Action? DevicesChosen;
     public static event Action? PeopleChosen;
+    public static event Action? ConnectAppsChosen;
+    public static event Action? UsageChosen;
 
     AccountOpening opening = new(false, ElementTheme.Default);
     // Export my chats, as the iPad's ExportChatsSection: preparing, why the last one failed, and the files it made.
@@ -43,6 +46,13 @@ public sealed partial class AccountPage : Page
         Show();
     }
 
+    /// <summary>The KIFF account, once read: Your account's rows are drawn again with it.</summary>
+    internal void ShowAccount(KiffAccount? account)
+    {
+        opening = opening with { Account = account };
+        Show();
+    }
+
     void Show()
     {
         var w = App.Words;
@@ -52,6 +62,15 @@ public sealed partial class AccountPage : Page
         var mode = AccountScreen.ModeOf(opening.Sample, kept);
 
         var account = new List<UIElement> { Row(w.Get("settings.mode"), AccountScreen.ModeWords(w, mode)) };
+        // The KIFF account, as the iPad's Your account and AccountView: its name, its id when it differs, who is signed in
+        // (each said once), and its time zone, which ends a Card's day.
+        if (mode == AccountMode.Kiff && opening.Account is { } kiff)
+        {
+            account.Add(Row(w.Get("settings.kiff_account"), kiff.Name));
+            if (kiff.Slug != kiff.Name) account.Add(Row(w.Get("settings.account_id"), kiff.Slug));
+            if (kiff.SignedInAs is { } email) account.Add(Row(w.Get("settings.signed_in_as"), email));
+            account.Add(Row(w.Get("settings.time_zone_title"), kiff.TimeZone ?? "UTC"));
+        }
         // View only exactly when the session says view: Add this Windows PC pairs it.
         if (AccountScreen.ViewOnly(mode, kept))
         {
@@ -65,7 +84,11 @@ public sealed partial class AccountPage : Page
             [
                 Opens(Row(w.Get("people.title"), "", chevron: true), w.Get("people.title"), () => PeopleChosen?.Invoke()),
                 Opens(Row(w.Get("settings.devices.title"), "", chevron: true), w.Get("settings.devices.title"), () => DevicesChosen?.Invoke()),
+                Opens(Row(w.Get("connect.apps.title"), "", chevron: true), w.Get("connect.apps.title"), () => ConnectAppsChosen?.Invoke()),
             ]);
+        // Plan, as the iPad's: Plan & usage, opening its screen.
+        if (mode == AccountMode.Kiff)
+            Section(w.Get("settings.plan"), [Opens(Row(w.Get("usage.title"), "", chevron: true), w.Get("usage.title"), () => UsageChosen?.Invoke())]);
         Section(null, [Opens(Row(w.Get("settings.alerts"), "", chevron: true), w.Get("settings.alerts"), () => AlertsChosen?.Invoke())]);
         Section(w.Get("settings.theme_title"), [ThemePicker(w)]);
         Section(w.Get("settings.language_title"),

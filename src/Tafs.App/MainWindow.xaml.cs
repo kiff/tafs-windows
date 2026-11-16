@@ -84,6 +84,31 @@ public sealed partial class MainWindow : Window
     IReadOnlyList<RecordEntry> record;
     /// <summary>How this window reads KIFF for the Record: as the session, or a stand-in file for a screenshot; none signed out.</summary>
     Func<string, Task<CloudRead>>? kiffRead;
+    /// <summary>The KIFF account signed in to (<c>GET /v1/me</c>): its name, the person's email and its time zone, once read.</summary>
+    Tafs.Core.Account.KiffAccount? kiffAccount;
+
+    /// <summary>
+    /// The KIFF account, read once a session starts, as the iPad's <c>model.kiffAccount</c>: the email under Account in the
+    /// sidebar, and the account's rows in Account. A read that fails leaves Account's title alone; one for an earlier session is
+    /// dropped.
+    /// </summary>
+    async Task ReadKiffAccountAsync(int reading)
+    {
+        if (kiffRead is not { } read) return;
+        var answer = (await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer;
+        if (reading != sessions || answer is not { } me) return;
+        kiffAccount = Tafs.Core.Account.KiffAccount.Read(me);
+        ShowKiffAccount();
+    }
+
+    /// <summary>Under Account at the sidebar's foot: the person's email, else the account's name; nothing until it's read.</summary>
+    void ShowKiffAccount()
+    {
+        AccountName.Text = kiffAccount?.SidebarLine ?? "";
+        AccountName.Visibility = kiffAccount is null ? Visibility.Collapsed : Visibility.Visible;
+        AutomationProperties.SetName(AccountButton, Sidebar.Foot(App.Words, kiffAccount?.Name).AccountLabel + (kiffAccount?.Email is { } email ? ", " + email : ""));
+        if (Pages.Content is AccountPage page) page.ShowAccount(kiffAccount);
+    }
     /// <summary>The Overview's lines: tafs cloud's once Home is read, else none, or the sample's.</summary>
     IReadOnlyList<OverviewRow> overviewRows;
     /// <summary>Home's answer from tafs cloud, for a taf's page; none until it's read.</summary>
@@ -236,6 +261,9 @@ public sealed partial class MainWindow : Window
         // The choices only for a KIFF account, as the iPad's mode == .kiff: never over the sample.
         AccountPage.AlertsChosen += () => OpenBeside(typeof(AlertsPage), new AlertsOpening(sample ? null : App.Sessions.Kept()?.Tenant));
         AccountPage.DevicesChosen += () => OpenBeside(typeof(DevicesPage), new DevicesOpening(kiffRead));
+        // Connect apps and Plan & usage from Account, as the iPad's People & apps and Plan rows: the sidebar's screens.
+        AccountPage.ConnectAppsChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
+        AccountPage.UsageChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
         AccountPage.PeopleChosen += () => OpenBeside(typeof(PeoplePage), new PeopleOpening(kiffRead,
             agent => home?.Tafs.FirstOrDefault(t => t.Agent == agent)?.Name));
         AccountPage.AddThisDeviceChosen += OpenPairing;
@@ -694,6 +722,7 @@ public sealed partial class MainWindow : Window
         cloudReadWithProof = (path, proof) => CloudReadAsync(bearer, path, proof);
         setupProof = () => SetupProofAsync(session);
         kiffRead = path => KiffReadAsync(bearer, path);
+        _ = ReadKiffAccountAsync(sessions);
         ReceiptSheet.Read = path => KiffBytesAsync(bearer, path);
         // Given before Coach's read, which reads them as it draws its approvals.
         CoachMode.Grants = () => GrantsAsync(session);
@@ -734,6 +763,8 @@ public sealed partial class MainWindow : Window
         setupProof = null;
         deviceId = null;
         kiffRead = null;
+        kiffAccount = null;
+        ShowKiffAccount();
         ReceiptSheet.Read = null;
         record = [];
         if (Pages.Content is RecordPage page) page.ShowEntries(record);
@@ -1256,7 +1287,7 @@ public sealed partial class MainWindow : Window
     void OnAccount(object sender, RoutedEventArgs e)
     {
         OpenBeside(typeof(AccountPage), new AccountOpening(sample, Root.RequestedTheme,
-            path => cloudRead is { } read ? read(path) : Task.FromResult(CloudRead.Unreached(App.Words))));
+            path => cloudRead is { } read ? read(path) : Task.FromResult(CloudRead.Unreached(App.Words)), kiffAccount));
         ShowAccountChosen(true);
     }
 
