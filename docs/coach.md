@@ -163,6 +163,14 @@ work, where the iPad's decoder fails the thread.
     - **A sign-in wider than the job** (kiff/tafs#1218): where tafs cloud marks the card `wider: {words}` (planque couldn't
       narrow the sign-in, `usual_access`), its words show in amber after a warning mark, above the buttons, so they're read
       before anyone approves. Blank, or of another shape, is no line.
+  - **A sign-in card** (`SignInCard`, the iPad's `SetupChatView.signIn`): "Needs you · sign in" (in red, "Didn't go
+    through · sign in", after a failure, with why), "Sign in at Gmail" (the card's service, else planque's name for the
+    app, else "the vendor"; a signed-out connection, planque's words), "The vendor's own page opens. No taf sees your
+    sign-in.", tafs cloud's `wider` line where it sends one, the button in Coach's words else "Open Gmail", and under it
+    where it goes, always the app's own words ("Opens Gmail", else "the vendor's page"). Then **Not now**, which answers the
+    card. Done once answered, or once planque's grant is connected or holds the sign-in (`listed`): "Signed in at Gmail";
+    Not now: "Not now: no sign-in at Gmail". The button stays off until connecting apps comes to Windows: it would open
+    the vendor's sign-in through planque.
     - **Windows Hello's dialog** doesn't show tafs cloud's `reason`, which the iPad's Face ID prompt shows; it names the
       app and the passkey, as for Start.
     - **Closed,** nothing is approved and the card says so: "Cancelled, so nothing was approved. The request is kept:
@@ -267,7 +275,7 @@ a second reference.
 - **Coach's words as Markdown:** they show as written until `MarkdownText` is ported.
 - **See version 3,** which opens the taf's Versions on the iPad: Versions aren't ported, so the made line shows instead,
   as the iPad does when it can't find the taf.
-- **Coach's other cards** (sign-ins), connecting an app from an approval, and the conversation read's proof and `?can=`
+- **Opening a sign-in card's vendor page** (it comes with connecting apps), connecting an app from an approval, and the conversation read's proof and `?can=`
   (they mark approval cards).
 - **After an answer:** the iPad follows the run's stream as it writes; here the thread is read again, until the stream is
   ported. The AI-data consent's screen isn't ported, so a refusal for it leaves the card as it was, with no line.
