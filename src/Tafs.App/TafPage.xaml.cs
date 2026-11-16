@@ -17,7 +17,7 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     TafTab OpensOn = TafTab.Activity, IReadOnlyList<TafCard>? Cards = null, string IssuedBy = "", string? CloudId = null,
     Func<string, Task<CloudRead>>? Read = null, Func<string, string?, Task<CloudRead>>? ReadWithProof = null,
     Func<Task<string?>>? SetupProof = null, bool Revoked = false, IReadOnlyList<Tafs.Core.Coach.ChatMessage>? SampleChat = null,
-    TafHalt? Halt = null);
+    TafHalt? Halt = null, Func<string, byte[], Task<CloudRead>>? Send = null, bool Manages = false);
 
 /// <summary>A taf's halt row, for whoever manages the taf: how its halt is read, and what opens its screen.</summary>
 public sealed record TafHalt(Func<Task<Halt>> Read, Action Open);
@@ -59,7 +59,14 @@ public sealed partial class TafPage : Page
     bool revoked;
     string? front;
 
-    public TafPage() => InitializeComponent();
+    public TafPage()
+    {
+        InitializeComponent();
+        // The thread read again every 2 s while the taf works or a sent message waits for it, only while Chat shows.
+        chatClock = new DispatcherTimer { Interval = TafChatSend.WhileWorking };
+        chatClock.Tick += (_, _) => { if (tab == TafTab.Chat) _ = LoadChatAsync(); };
+        Unloaded += (_, _) => chatClock.Stop();
+    }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
@@ -106,9 +113,98 @@ public sealed partial class TafPage : Page
         // An answer for a page since opened on another taf is dropped. A sign-out leaves for the sign-in page, and a taf's
         // page is never brought back from history, so an answer landing after it reaches a page nobody sees.
         if (opening != mine) return;
-        if (thread is not null) chat = thread;
+        if (thread is not null)
+        {
+            chat = thread;
+            // What the person sent stays on screen until the thread has it, as the iPad's SentMessages.merge.
+            sent = TafChatSend.Merge(thread.Messages, sent, DateTimeOffset.UtcNow).Waiting.ToList();
+        }
         chatError = error;
+        // While a run of its works, or a message waits for the thread, read again, as the iPad's chat does as it works.
+        if (thread?.Working is not null || sent.Count > 0) chatClock.Start(); else chatClock.Stop();
         if (tab == TafTab.Chat) ShowChat();
+    }
+
+    /// <summary>Messages sent here that the thread doesn't have yet, shown after it.</summary>
+    List<Tafs.Core.Coach.ChatMessage> sent = [];
+    bool sending;
+    /// <summary>Why the last message or Stop didn't go through, under the thread; "You stopped Refunds." once stopped.</summary>
+    string? chatNote;
+    bool chatNoteIsError;
+    DispatcherTimer chatClock = null!;
+
+    /// <summary>
+    /// The composer under the thread, for a taf tafs cloud runs and someone signed in: "Message Refunds", Send, and Stop
+    /// while a run of its works for someone who manages it. A message being sent turns Send off, as the iPad's one at a time.
+    /// </summary>
+    void ShowComposer()
+    {
+        var w = App.Words;
+        var writable = opening is { CloudId: not null, Send: not null };
+        Composer.Visibility = tab == TafTab.Chat && writable ? Visibility.Visible : Visibility.Collapsed;
+        if (!writable) return;
+        var name = opening!.Head.Name;
+        var working = chat?.Working is not null;
+        Draft.PlaceholderText = working ? w.Get("chat.send_while_works", ("taf", name)) : w.Get("chat.message_taf", ("taf", name));
+        AutomationProperties.SetName(Draft, Draft.PlaceholderText);
+        SendButton.Content = w.Get(sending ? "common.sending" : "common.send");
+        SendButton.IsEnabled = !sending;
+        StopButton.Content = w.Get("chat.stop");
+        StopButton.Visibility = working && opening.Manages ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>Ctrl+Enter sends; Enter alone is a new line.</summary>
+    void OnDraftKey(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        var ctrl = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+        if (e.Key == Windows.System.VirtualKey.Enter && ctrl) { e.Handled = true; OnSend(sender, e); }
+    }
+
+    /// <summary>
+    /// Send, as the iPad's <c>sendChat</c>: checked first (nothing to send says nothing; too long says so), shown at once,
+    /// then sent. Not taken, it leaves the thread and its words go back in the box, with why under the thread.
+    /// </summary>
+    async void OnSend(object sender, RoutedEventArgs e)
+    {
+        if (sending || opening is not { CloudId: { } id, Send: { } send } mine) return;
+        var w = App.Words;
+        var (text, why) = TafChatSend.Check(w, Draft.Text);
+        if (text is null)
+        {
+            (chatNote, chatNoteIsError) = (why, why is not null);
+            ShowChat();
+            return;
+        }
+        var pending = TafChatSend.Pending(text, chat?.Messages ?? [], DateTimeOffset.UtcNow);
+        sent.Add(pending);
+        Draft.Text = "";
+        (sending, chatNote) = (true, null);
+        ShowChat();
+        var refused = await TafChatSend.SendAsync(w, id, text, send);
+        if (opening != mine) return;
+        sending = false;
+        if (refused is not null)
+        {
+            sent.Remove(pending);
+            if (Draft.Text.Length == 0) Draft.Text = text;
+            (chatNote, chatNoteIsError) = (refused, true);
+            ShowChat();
+            return;
+        }
+        await LoadChatAsync();
+    }
+
+    /// <summary>Stop, as the iPad's <c>stopChat</c>: the run at work is cancelled; "You stopped Refunds.", or why not.</summary>
+    async void OnStop(object sender, RoutedEventArgs e)
+    {
+        if (opening is not { CloudId: { } id, Send: { } send, Manages: true } mine || chat?.Working is not { } session) return;
+        StopButton.IsEnabled = false;
+        var why = await TafChatSend.StopAsync(App.Words, id, session, send);
+        if (opening != mine) return;
+        StopButton.IsEnabled = true;
+        (chatNote, chatNoteIsError) = why is null ? (App.Words.Get("chat.you_stopped", ("taf", mine.Head.Name)), false) : (why, true);
+        await LoadChatAsync();
     }
 
     /// <summary>
@@ -125,6 +221,8 @@ public sealed partial class TafPage : Page
         Microsoft.UI.Xaml.Media.Brush Brush(string key) => ChatViews.ThemeBrush(ActualTheme, key);
         IReadOnlyList<Tafs.Core.Coach.ThreadItem> items = chat is { } thread ? TafChat.Items(thread)
             : (opening?.SampleChat ?? []).Select(m => new Tafs.Core.Coach.ThreadItem(m, null)).ToList();
+        // What the person sent that the thread doesn't have yet, after it, in the order sent.
+        if (sent.Count > 0) items = [.. items, .. sent.Select(m => new Tafs.Core.Coach.ThreadItem(m, null))];
         if (items.Count == 0)
         {
             var empty = CoachPanel.Words(TafChat.Empty(w, opening?.Head.Name), 14, "TafsDimText", HorizontalAlignment.Center);
@@ -179,6 +277,13 @@ public sealed partial class TafPage : Page
             error.Foreground = Brush("TafsNo");
             ChatPane.Children.Add(error);
         }
+        if (chatNote is { } note)
+        {
+            var line = CoachPanel.Words(note, 13, "TafsSoftText");
+            if (chatNoteIsError) line.Foreground = Brush("TafsNo");
+            ChatPane.Children.Add(line);
+        }
+        ShowComposer();
     }
 
     /// <summary>Its Setup, read as the page opens and on Try again, as the iPad's <c>.task(id: tafID)</c> on its page.</summary>
@@ -261,6 +366,7 @@ public sealed partial class TafPage : Page
         SetupPane.Visibility = tab == TafTab.Setup ? Visibility.Visible : Visibility.Collapsed;
         CardPane.Visibility = tab == TafTab.Card ? Visibility.Visible : Visibility.Collapsed;
         ChatPane.Visibility = tab == TafTab.Chat ? Visibility.Visible : Visibility.Collapsed;
+        ShowComposer();
         // Over the Chat and the Activity, as the iPad's (section < 2).
         CardBar.Visibility = tab is TafTab.Chat or TafTab.Activity && opening?.Card is not null ? Visibility.Visible : Visibility.Collapsed;
         if (tab == TafTab.Setup) ShowSetup();
