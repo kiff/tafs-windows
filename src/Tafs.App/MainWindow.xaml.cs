@@ -243,12 +243,20 @@ public sealed partial class MainWindow : Window
             ViewOnly.IsOpen = session.Mode == ApprovalMode.View;
             Nav.SelectedItem = BrandItem;
             if (App.Sessions.Kept() is { } kept) UseSession(kept);
+            Celebrate();
         };
         // Paired with a key in the TPM: this PC approves, with its own passkey or the account's.
         PairingPage.Paired += session =>
         {
             ViewOnly.IsOpen = session.Mode == ApprovalMode.View;
             if (App.Sessions.Kept() is { } kept) UseSession(kept);
+            Celebrate();
+        };
+        // Let's go: the app, on its Overview.
+        ConnectedPage.Done += () =>
+        {
+            HideGate();
+            Nav.SelectedItem = BrandItem;
         };
         this.screenshot = screenshot;
 
@@ -273,7 +281,8 @@ public sealed partial class MainWindow : Window
             ViewOnly.IsOpen = false;
             requestedHold = null;
             ForgetSession();
-            OpenSignIn();
+            // Signed out: the whole window is signing in again, as the iPad's.
+            ShowGate(typeof(SignedOutPage));
         };
         // Leaving the sample: the app starts again without it, as the iPad's Clear the sample leaves it.
         AccountPage.ClearSampleChosen += () => Microsoft.Windows.AppLifecycle.AppInstance.Restart(
@@ -337,6 +346,34 @@ public sealed partial class MainWindow : Window
             // Coach's thread comes through the same read, as the session; a screenshot never reads it.
             Root.Loaded += (_, _) => UseSession(session);
         }
+        // No session, and not the sample: the whole window signs in (the owner's approved mockup), not the app with nothing in
+        // it. A screenshot of it with --page signed-out, and of the celebration with --page connected.
+        switch (Tafs.Core.SignIn.SignedOut.AtLaunch(page, screenshot is not null, sample, App.Sessions.Kept() is not null))
+        {
+            case Tafs.Core.SignIn.Opening.SignedOut: ShowGate(typeof(SignedOutPage)); break;
+            case Tafs.Core.SignIn.Opening.Connected: ShowGate(typeof(ConnectedPage)); break;
+        }
+    }
+
+    /// <summary>The whole window, over the app: signed out, or the celebration.</summary>
+    void ShowGate(Type page)
+    {
+        CoachMode.Close();
+        Gate.Visibility = Visibility.Visible;
+        Gate.Navigate(page);
+        Gate.BackStack.Clear();
+    }
+
+    void HideGate()
+    {
+        Gate.Visibility = Visibility.Collapsed;
+        Gate.Content = null;
+    }
+
+    /// <summary>Either way of signing in ends on the celebration, as the iPad's <c>justConnected</c>; never over the sample.</summary>
+    void Celebrate()
+    {
+        if (Tafs.Core.SignIn.SignedOut.AfterSignIn(sample) == Tafs.Core.SignIn.Opening.Connected) ShowGate(typeof(ConnectedPage));
     }
 
     /// <summary>
