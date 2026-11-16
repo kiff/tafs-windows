@@ -20,7 +20,18 @@ public static class CoachAccess
     /// <c>use</c>, <c>oversee</c> and <c>manage</c> are true or false, its <c>groups</c> absent, null or words, or nothing
     /// is read. None without Setup's agent.
     /// </summary>
-    public static bool? SetupUse(JsonElement? answer)
+    public static bool? SetupUse(JsonElement? answer) =>
+        Agents(answer) is { } agents && agents.TryGetProperty("setup", out var setup) ? setup.GetProperty("use").GetBoolean() : null;
+
+    /// <summary>
+    /// Which agents the person manages, by agent, as the iPad's <c>access[agent]?.manage</c>: its Card, versions, halting it
+    /// and removing it. None when the access doesn't read; an agent not listed isn't managed (the iPad's <c>manages</c>).
+    /// </summary>
+    public static IReadOnlyDictionary<string, bool>? Manage(JsonElement? answer) =>
+        Agents(answer)?.EnumerateObject().ToDictionary(a => a.Name, a => a.Value.GetProperty("manage").GetBoolean());
+
+    /// <summary><c>{"agents": {…}}</c>, every agent read as the iPad's synthesized <c>Access</c>, or none.</summary>
+    static JsonElement? Agents(JsonElement? answer)
     {
         if (answer is not { } a || !Shape.Required(a, "agents", v => v.ValueKind == JsonValueKind.Object)) return null;
         var agents = a.GetProperty("agents");
@@ -28,7 +39,7 @@ public static class CoachAccess
             if (!Shape.Required(agent.Value, "use", Shape.Bool) || !Shape.Required(agent.Value, "oversee", Shape.Bool)
                 || !Shape.Required(agent.Value, "manage", Shape.Bool) || !Shape.Optional(agent.Value, "groups", g => Shape.List(g, Shape.Text)))
                 return null;
-        return agents.TryGetProperty("setup", out var setup) ? setup.GetProperty("use").GetBoolean() : null;
+        return agents;
     }
 
     /// <summary>
