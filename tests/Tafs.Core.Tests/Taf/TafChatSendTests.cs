@@ -8,7 +8,7 @@ using Tafs.Core.Words;
 namespace Tafs.Core.Tests.Taf;
 
 /// <summary>Writing to a taf, as the iPad's sendChat, SentMessages and stopChat.</summary>
-[Part("home")]
+[Part("record")]
 public class TafChatSendTests
 {
     static readonly WordBook En = WordBook.Load(SharedFiles.Strings, "en");
