@@ -20,7 +20,8 @@ The sections, in the iPad's order:
     "The account's zone changed. Its schedules couldn't be updated yet:" says why. Then the account and Home are read again.
   - **Any zone** (the iPad's `TimeZonePicker`): for the same sessions, Time zone opens its list, "Use this Windows PC: …" first,
     then tafs cloud's zones (`GET /v1/time-zones?q=`), searched there a moment after the last key ("Find a time zone"),
-    the account's marked with a check. One chosen is set as this PC's is, behind the same Windows Hello and signature.
+    the account's marked with a check. One chosen is set as this PC's is, behind the same Windows Hello and signature. A
+    list that can't be read says so in red ("Time zone couldn't be read:" and why).
   - **Delete account…,** in red, for someone KIFF lets delete it (`account.delete`, or a KIFF that lists none) on a session
     that isn't view-only, as the
     iPad's `DeleteAccountView` (App Store guideline 5.1.1(v)): its warning, what goes (tafs, runs, chats and notes; Cards
