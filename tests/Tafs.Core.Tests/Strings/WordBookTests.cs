@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Tafs.Core.Words;
 
 namespace Tafs.Core.Tests.Strings;
@@ -74,6 +75,38 @@ public class WordBookTests
                 ? new[] { book.Get(key, values) }
                 : Enumerable.Range(0, 26).Select(n => book.Count(key, n, values)).ToArray();
             Assert.All(filled, text => Assert.DoesNotContain("{", text));
+        }
+    }
+
+    [Fact]
+    public void The_this_rule_is_the_pinned_generator_s()
+    {
+        // The rule is copied from the shared generate.py's THIS table: once the pin carries it, each language's letters and words
+        // must be this app's, letter by letter, so the copy can't drift. Before the pin carries it, no line may use the form.
+        var generator = Path.Combine(SharedFiles.Strings, "generate.py");
+        var table = File.Exists(generator)
+            ? Regex.Match(File.ReadAllText(generator), @"^THIS = \{(?<rules>.*)\}\s*$", RegexOptions.Multiline)
+            : Match.Empty;
+        if (!table.Success)
+        {
+            foreach (var language in Shipped)
+            {
+                var book = WordBook.Load(SharedFiles.Strings, language);
+                Assert.Empty(book.Keys.Where(book.UsesThis));
+            }
+            return;
+        }
+        var rules = Regex.Matches(table.Groups["rules"].Value, "\"(\\w+)\": \\(\"([^\"]*)\", \"([^\"]*)\", \"([^\"]*)\"\\)");
+        Assert.NotEmpty(rules);
+        const string Letters = "abcdefghijklmnopqrstuvwxyzàâäçéèêëîïôöùûüœæ";
+        foreach (Match rule in rules)
+        {
+            var (language, starts, before, other) = (rule.Groups[1].Value, rule.Groups[2].Value, rule.Groups[3].Value, rule.Groups[4].Value);
+            foreach (var letter in Letters + starts)
+            {
+                var name = letter + "x";
+                Assert.Equal((starts.Contains(letter) ? before : other) + name, WordBook.Demonstrative(language, name));
+            }
         }
     }
 
