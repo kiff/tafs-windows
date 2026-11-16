@@ -370,6 +370,12 @@ public sealed partial class MainWindow : Window
             if (page is "taf" or "taf-setup" or "taf-chat" && home?.Tafs.FirstOrDefault() is { } first)
                 OpenBeside(typeof(TafPage), OpenTaf(w, first.Id, page switch { "taf-setup" => TafTab.Setup, "taf-chat" => TafTab.Chat, _ => TafTab.Activity }));
             // Setup › Starts when or Results go to, its dial from taf-knob.json beside the Home file, as whoever manages the taf.
+            // The Card tab's versions or usage, from taf-versions.json or taf-credits.json beside the Home file, as whoever manages the taf.
+            if (page is "taf-versions" or "taf-usage" && home?.Tafs.FirstOrDefault() is { } carded)
+                OpenBeside(typeof(TafPage), OpenTaf(w, carded.Id, TafTab.Card) with
+                {
+                    Manages = true, CardOn = page == "taf-versions" ? CardScreen.Versions : CardScreen.Usage,
+                });
             if (page is "taf-starts" or "taf-results" && home?.Tafs.FirstOrDefault() is { } shown)
                 OpenBeside(typeof(TafPage), OpenTaf(w, shown.Id, TafTab.Setup) with
                 {
@@ -1446,7 +1452,8 @@ public sealed partial class MainWindow : Window
                 : path.StartsWith("/v1/record/cases/", StringComparison.Ordinal) ? "record-case.json"
                 : path.StartsWith("/v1/record?", StringComparison.Ordinal) ? "record-search.json"
                 : path.StartsWith(Tafs.Core.Missions.Brief.Route, StringComparison.Ordinal) ? "brief.json"
-                : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json" : path.EndsWith("/knob") ? "taf-knob.json"
+                : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json" : path.EndsWith("/knob") ? "taf-knob.json" : path.EndsWith("/versions") ? "taf-versions.json"
+                : path.StartsWith("/v1/usage/credits/tafs/", StringComparison.Ordinal) ? "taf-credits.json"
                 : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
         return File.Exists(file) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(file)) : CloudRead.Unreached(w);
     }

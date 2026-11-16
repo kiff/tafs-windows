@@ -19,7 +19,8 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     Func<Task<string?>>? SetupProof = null, bool Revoked = false, IReadOnlyList<Tafs.Core.Coach.ChatMessage>? SampleChat = null,
     TafHalt? Halt = null, Func<string, byte[], Task<CloudRead>>? Send = null, bool Manages = false, TafStream? Stream = null,
     TafRemove? Remove = null, Func<HttpMethod, string, byte[]?, Task<CloudRead>>? Change = null, TafStarts? Starts = null,
-    bool Paused = false, string? Email = null, string? TimeZone = null, Action? AskCoach = null, SetupScreen SetupOn = SetupScreen.Main);
+    bool Paused = false, string? Email = null, string? TimeZone = null, Action? AskCoach = null, SetupScreen SetupOn = SetupScreen.Main,
+    CardScreen CardOn = CardScreen.Main);
 
 /// <summary>
 /// Remove for good, for whoever manages the taf on a PC that signs with its passkey: what goes with it, in tafs cloud's words,
@@ -115,6 +116,7 @@ public sealed partial class TafPage : Page
         _ = LoadSetupAsync();
         if (tab == TafTab.Chat) _ = LoadChatAsync();
         if (opening.SetupOn != SetupScreen.Main) OpenSetupScreen(opening.SetupOn);
+        if (opening.CardOn != CardScreen.Main) OpenCardScreen(opening.CardOn);
     }
 
     /// <summary>
@@ -808,14 +810,14 @@ public sealed partial class TafPage : Page
     /// </summary>
     void ShowCards()
     {
+        // Its versions or its usage, each on a screen of its own with Back.
+        if (ShowCardScreen()) return;
         if (opening?.Cards is not { Count: > 0 } cards)
         {
-            // A tafs cloud taf's Cards aren't drawn here yet: its halt row still is, for whoever manages it.
-            if (opening?.Halt is { } alone && !revoked)
-            {
-                CardPane.Children.Clear();
-                CardPane.Children.Add(HaltRow(alone));
-            }
+            // A tafs cloud taf's Cards aren't drawn here yet: its halt row still is, for whoever manages it, and its rows.
+            CardPane.Children.Clear();
+            if (opening?.Halt is { } alone && !revoked) CardPane.Children.Add(HaltRow(alone));
+            AddCardRows();
             return;
         }
         var w = App.Words;
@@ -864,6 +866,8 @@ public sealed partial class TafPage : Page
         }
         // Halting is a job of its own too, for whoever manages the taf: its row opens its screen (the iPad's HaltRow).
         if (opening.Halt is { } halt) CardPane.Children.Add(HaltRow(halt));
+        // "Changes to how it runs" and Usage, as the iPad's, for whoever manages it.
+        AddCardRows();
         // Remove for good, last, in red, as the iPad's: what goes with it first, then Windows Hello.
         if (opening.Remove is { } remove) CardPane.Children.Add(RemoveButton(remove));
         // Revoke reaches nothing yet, so it's the sample's only: on a real taf it would look done when KIFF revoked nothing.
