@@ -205,6 +205,24 @@ jobs:
       - name: It starts
         if: matrix.platform == 'x64'
         run: timeout 120 artifacts/zip/tafs-x64/Tafs.App.exe --page sign-in --screenshot zip-start.png && test -s zip-start.png
+      # One tafs (Program.cs): a second start, here planque's tafs:// return from a vendor's sign-in, hands its activation to
+      # the running window and ends, and the first keeps running.
+      - name: One tafs, and tafs:// comes back to it
+        if: matrix.platform == 'x64'
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path artifacts/zip/tafs-x64/Tafs.App.exe).Path
+          $first = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 20
+          if ($first.HasExited) { throw "the first tafs ended: $($first.ExitCode)" }
+          $scheme = Get-Item 'HKCU:\Software\Classes\tafs' -ErrorAction SilentlyContinue
+          Write-Host ("tafs: registered for this user: " + [bool]$scheme)
+          $second = Start-Process $exe -ArgumentList 'tafs://planque/signed-in?tenant=t&grant=g&confirm=c' -PassThru
+          if (-not $second.WaitForExit(30000)) { $second.Kill(); Stop-Process -Id $first.Id; throw 'the second start did not hand over and end' }
+          Start-Sleep -Seconds 2
+          if ($first.HasExited) { throw 'the first tafs ended when the second came' }
+          Stop-Process -Id $first.Id
+          Write-Host 'one tafs: the second start handed its activation over and ended'
       # The installer people download (docs/install.md): an MSI of this same publish, and the setup .exe around it, by WiX
       # v5, pinned in .config/dotnet-tools.json with its one extension. Built on every run that builds the zip.
       - name: The installer

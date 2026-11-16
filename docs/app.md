@@ -65,6 +65,16 @@ in the theme's line colour on Windows.
 - **Board 5 (an app connected):** drawn, and placed once connecting an app with a key
   comes to Windows. **Boards 11 and 12** are the watches'.
 
+## One tafs, and its scheme
+
+- **One window holds the session** (`Program.cs`, as Windows App SDK's single-instance guide): a second start hands its
+  activation to the tafs already running, which comes to the front, and ends. A screenshot (`--screenshot`) always runs
+  on its own. CI checks it on x64: a second start with a `tafs://` URL ends, and the first keeps running.
+- **The `tafs:` scheme** is registered for the person on each start (`ActivationRegistrationManager`), so planque's return
+  from a vendor's sign-in (`tafs://planque/signed-in?tenant=…&grant=…&confirm=…`, `PlanqueSignIn`) comes back to the
+  window that's waiting (`App.SignedInReturned`). The URL alone connects nothing: this PC confirms its one-use code
+  with planque, signed, and the connection counts only once planque says so. Connecting an app is built on this next.
+
 ## Language
 
 The app speaks the first of the person's Windows languages that tafs ships (`AppLanguage.Pick`), otherwise English. Every line comes from `WordBook`: nothing is written in code.

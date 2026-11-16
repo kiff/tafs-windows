@@ -13,6 +13,9 @@
     <!-- Brings the resource (PRI) build tasks, so plain `dotnet build` works with no Visual Studio. -->
     <EnableMsixTooling>true</EnableMsixTooling>
     <AssemblyTitle>tafs</AssemblyTitle>
+    <!-- Its own Main (Program.cs): one window holds the session, and a second start hands its activation to it. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <!-- The mascot as the exe's icon: Start, the taskbar, the title bar and the installer's shortcut show it. -->
     <ApplicationIcon>Assets\tafs.ico</ApplicationIcon>
   </PropertyGroup>
