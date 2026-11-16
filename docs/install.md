@@ -41,7 +41,23 @@ signed. Everyone else waits for the signed package.
 - **Getting it:** CI's `msix` job keeps `tafs-msix-x64` and `tafs-msix-ARM64`. Each build's version is
   `0.1.<run number>.0`, so a signed one installs over the last.
 
+## Signing (wired, off until Azure exists)
+
+- **What's signed:** the app's own files in each zip (`Tafs.App.exe`, `Tafs.App.dll`, `Tafs.Core.dll`), with KIFF's
+  Azure Artifact Signing certificate, SHA-256 and Microsoft's timestamp, by CI's `sign` job on main and on demand. The
+  installer and the MSIX join it once they're built for it.
+- **Its values** live in the repository's `windows-signing` environment: the variables `WINDOWS_SIGNING_ENDPOINT`,
+  `WINDOWS_SIGNING_ACCOUNT` and `WINDOWS_SIGNING_PROFILE`, and the secrets `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and
+  `AZURE_CLIENT_SECRET` (an app registration allowed to sign with that profile). Who may set them, and whether a run
+  waits for someone's approval, are the environment's protection rules: the owner's call.
+- **Until they're set,** the job runs as a dry run (`ci/sign-dry-run.ps1`): the same files are signed with a throwaway
+  self-signed certificate made in that run, and each signature is read back. It proves the file list, `signtool` and the
+  read-back, and keeps nothing. Once the values exist, the next run signs for real, checks each signature is valid, and
+  keeps `tafs-windows-signed-x64` and `tafs-windows-signed-ARM64`.
+- The action is Azure's own (`Azure/artifact-signing-action`), pinned to v2.0.0's commit.
+
 ## Not yet
 
-- **Signing,** of the MSIX and the app itself. It waits on the certificate decision.
+- **Signing the MSIX and the installer,** with the same job: the MSIX needs its publisher set to the certificate's subject
+  first, and the installer comes with WiX.
 - **Updates on their own** (an App Installer file) and **a download page.**

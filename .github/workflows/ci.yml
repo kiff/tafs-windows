@@ -239,6 +239,83 @@ jobs:
           path: artifacts/msix/*/*.msix
           if-no-files-found: error
 
+  # Signing (docs/install.md), from main and on demand: the app's own files, by KIFF's Azure Artifact Signing certificate.
+  # Off until the windows-signing environment has its values (rule 16): until then the same step runs as a dry run, signing
+  # a copy with a throwaway self-signed certificate (ci/sign-dry-run.ps1), so the rest is proved and Azure is a values
+  # change. The environment holds WINDOWS_SIGNING_ENDPOINT, _ACCOUNT and _PROFILE (variables) and AZURE_TENANT_ID,
+  # AZURE_CLIENT_ID and AZURE_CLIENT_SECRET (secrets); its protection rules are the owner's. Only a real signing keeps its
+  # files (tafs-windows-signed-<platform>); a dry run keeps nothing. The installer and the MSIX are signed here too once
+  # they're built for it.
+  sign:
+    needs: [zip]
+    if: >-
+      always() && needs.zip.result == 'success'
+      && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+    runs-on: windows-latest
+    environment: windows-signing
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x64, ARM64]
+    env:
+      SIGNING_ENDPOINT: ${{ vars.WINDOWS_SIGNING_ENDPOINT }}
+      SIGNING_ACCOUNT: ${{ vars.WINDOWS_SIGNING_ACCOUNT }}
+      SIGNING_PROFILE: ${{ vars.WINDOWS_SIGNING_PROFILE }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: tafs-windows-${{ matrix.platform }}
+          path: artifacts/zip/tafs-${{ matrix.platform }}
+      - name: Signing's values
+        id: values
+        run: |
+          if [ -n "$SIGNING_ENDPOINT" ] && [ -n "$SIGNING_ACCOUNT" ] && [ -n "$SIGNING_PROFILE" ]; then
+            echo "real=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "real=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::windows-signing has no values yet: dry run with a throwaway certificate, nothing kept"
+          fi
+      - name: Sign with KIFF's certificate
+        if: steps.values.outputs.real == 'true'
+        uses: Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ env.SIGNING_ENDPOINT }}
+          signing-account-name: ${{ env.SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ env.SIGNING_PROFILE }}
+          files: |
+            ${{ github.workspace }}\artifacts\zip\tafs-${{ matrix.platform }}\Tafs.App.exe
+            ${{ github.workspace }}\artifacts\zip\tafs-${{ matrix.platform }}\Tafs.App.dll
+            ${{ github.workspace }}\artifacts\zip\tafs-${{ matrix.platform }}\Tafs.Core.dll
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: Each signature is KIFF's
+        if: steps.values.outputs.real == 'true'
+        shell: pwsh
+        run: |
+          foreach ($name in 'Tafs.App.exe', 'Tafs.App.dll', 'Tafs.Core.dll') {
+            $s = Get-AuthenticodeSignature "artifacts/zip/tafs-${{ matrix.platform }}/$name"
+            if ($s.Status -ne 'Valid') { throw "${name}: $($s.Status)" }
+            Write-Host "$name signed by $($s.SignerCertificate.Subject)"
+          }
+      - name: Dry run
+        if: steps.values.outputs.real != 'true'
+        shell: pwsh
+        run: ./ci/sign-dry-run.ps1 -Folder "artifacts/zip/tafs-${{ matrix.platform }}"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: steps.values.outputs.real == 'true'
+        with:
+          name: tafs-windows-signed-${{ matrix.platform }}
+          path: artifacts/zip/tafs-${{ matrix.platform }}/
+          if-no-files-found: error
+
   # Fails when the pin is more than 7 days or 20 commits behind the shared repository's main.
   pin-drift:
     runs-on: ubuntu-latest
