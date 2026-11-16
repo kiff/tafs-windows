@@ -267,7 +267,7 @@ thread, planque's grants and KIFF's drafts) and asks no server for more; the car
     (`…/unarchive`); not taken: "Not put back." and why;
   - none: "No conversations yet." or "Nothing archived."; a list unread: "The conversation couldn't be loaded:" and why.
 - **The box,** as the iPad's composer, for someone who may use Coach: "Ask anything about your tafs" ("Write the next
-  message" while Coach works), and Send; Ctrl+Enter sends, Enter alone is a new line.
+  message" while Coach works), and Send; Enter sends; Shift+Enter is a new line.
   - Checked first, as a taf's chat: nothing to send says nothing; past 2000 characters, "That's longer than 2000 characters."
   - Shown at once on the right, then `POST /v1/tafs/{coach}/messages` with `text`, and `session` for the conversation
     shown or `new_chat: true` for a new one, always with `new_chat_after_handover: true` (the iPad's `setupTarget`).

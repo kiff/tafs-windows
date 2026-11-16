@@ -236,11 +236,11 @@ public sealed partial class CoachPanel
         _ = LoadThreadAsync();
     }
 
-    /// <summary>Ctrl+Enter sends; Enter alone is a new line, as a taf's chat.</summary>
+    /// <summary>Enter sends; Shift+Enter is a new line, as a taf's chat.</summary>
     void OnCoachDraftKey(object sender, KeyRoutedEventArgs e)
     {
-        var ctrl = InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
-        if (e.Key == Windows.System.VirtualKey.Enter && ctrl) { e.Handled = true; OnCoachSend(sender, e); }
+        // Enter sends; Shift+Enter is a new line (seen before the box takes the Enter).
+        if (ChatViews.SendsOnEnter(e)) { e.Handled = true; OnCoachSend(sender, e); }
     }
 
     /// <summary>

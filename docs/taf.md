@@ -77,6 +77,19 @@ Activity):
 - `--page taf-setup` with `--home` opens the first taf on Setup, from `taf-setup.json` beside the Home contract (CI's
   `taf-home` and `taf-setup-home`).
 
+**Its work and its runs** (S17, S18; `TafWork`, `TafHealth`, `TafPage.Work.cs`; the iPad's `WorkPanel`, `HealthLines`
+and `RunsPanel`): above a tafs cloud taf's record on Activity, from `GET /v1/tafs/{id}/work`, read as the page opens and
+after each change.
+- **Its work:** tafs cloud's line (unless its health's first reason says it); its health's lines in amber, red when
+  failing, each with tafs cloud's fixes (Coach with its words in the box, nothing sent, for whoever manages it and may use
+  Coach; Plan & usage for credits); its oldest waiting case, amber past the promise; Answer within (`PUT …/promise`,
+  whole hours or Not set) for whoever manages it; then its requests and skipped firings, newest first: needing you amber,
+  failed red, skipped dim, what a run used, where its result went, and Send again on one given up on
+  (`POST …/requests/{run}/deliveries/{place}/send`, the place's key URL-encoded). A read that fails says so in red.
+- **Its runs:** that it works from its chat, or when it runs next (Paused when it is), and Run now for whoever manages it
+  (`POST …/run`), "Starting a run…" until tafs cloud answers; a firing that started nothing says tafs cloud's words.
+- The runs it kept, and a run's own page, come with S19.
+
 **Starts when and Results go to** (P40, `TafKnob`, `ResultPlaces`, `TafPage.Starts.cs`; the iPad's `StartsWhenView`,
 `ResultsGoToView` and `KnobPendingPanel`): two rows under the job, each its own screen with Setup to go back, read from
 the taf's dial (`GET /v1/tafs/{id}/knob`, read as strictly as the iPad's decoder) each time one opens and after each change.
@@ -192,7 +205,7 @@ reference:
 
 **Writing to the taf** (`TafChatSend`, ported from the iPad's `sendChat`, `SentMessages` and `stopChat`):
 - **The composer** sits under the thread for a taf tafs cloud runs: "Message Refunds", or "Send to Refunds while it
-  works" while a run of its is at work. Ctrl+Enter sends; Enter is a new line.
+  works" while a run of its is at work. Enter sends; Shift+Enter is a new line.
 - **Sending:** an empty message sends nothing and says nothing; one over 2000 characters says "That's longer than 2000
   characters…" and sends nothing. Otherwise it shows at once, never above the thread's latest, and goes to tafs cloud
   (`POST /v1/tafs/{id}/messages`, `{text}`). One at a time: Send is off while it goes.

@@ -171,7 +171,7 @@ static class Illustrations
     {
 
         /// <summary>The app's mark, the brand's sweep, the same in both themes.</summary>
-        public static Brush Brand => (Brush)Application.Current.Resources["TafsBrand"];
+        public static Brush Brand => ChatViews.Themed("TafsBrand");
 
         /// <summary>What's drawn on amber: white, as the app writes on its amber (<c>TafsOnAmberText</c>), in both themes.</summary>
         public static Brush OnAmber => new SolidColorBrush(Color.FromArgb(255, 255, 255, 255));

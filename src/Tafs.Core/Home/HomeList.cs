@@ -18,7 +18,8 @@ public sealed record TafStarts(DateTimeOffset? NextRun, string? NextRunWords, bo
 
 public sealed record HomeTaf(string Id, string Name, int Colour, string State, string Now, string? Attention,
     IReadOnlyList<TafCard> Cards, int Waiting, DateTimeOffset? LastRun, DateTimeOffset? LastChange, string Job = "", string? Agent = null,
-    bool Revoked = false, IReadOnlyList<string>? LabelIds = null, IReadOnlyList<string>? CardIdList = null, TafStarts? Starts = null)
+    bool Revoked = false, IReadOnlyList<string>? LabelIds = null, IReadOnlyList<string>? CardIdList = null, TafStarts? Starts = null,
+    Tafs.Core.Taf.TafHealth? Health = null)
 {
     /// <summary>Its Cards' ids in KIFF (<c>card.ids</c>), revoked before it's removed for good; none without.</summary>
     public IReadOnlyList<string> CardIds => CardIdList ?? [];
@@ -123,7 +124,8 @@ public static class HomeList
             LabelIds: LabelChips.Ids(t),
             CardIdList: Lenient.Field(t, "card") is { } ids ? Lenient.Array(ids, "ids").Where(i => i.ValueKind == JsonValueKind.String).Select(i => i.GetString()!).ToList() : null,
             Starts: new TafStarts(Lenient.At(t, "next_run"), Lenient.Text(t, "next_run_words"), Lenient.Bool(t, "unscheduled"),
-                Lenient.Field(t, "results") is { ValueKind: JsonValueKind.Array } r ? r.EnumerateArray().Select(Tafs.Core.Taf.ResultPlaces.Of).OfType<string>().ToList() : null));
+                Lenient.Field(t, "results") is { ValueKind: JsonValueKind.Array } r ? r.EnumerateArray().Select(Tafs.Core.Taf.ResultPlaces.Of).OfType<string>().ToList() : null),
+            Health: Tafs.Core.Taf.TafHealth.Read(Lenient.Field(t, "health")));
     }
 
     /// <summary>What it's doing, as the iPad says it: tafs cloud's "Next run Fri 12:30" while it works on a schedule.</summary>
