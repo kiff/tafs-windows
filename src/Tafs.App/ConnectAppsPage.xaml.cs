@@ -94,6 +94,13 @@ public sealed partial class ConnectAppsPage : Page
 
     public ConnectAppsPage() => InitializeComponent();
 
+    /// <summary>Each sign-out moves it on: the kept page then starts from nothing, even on Back, never with the last account's apps.</summary>
+    static int forgotten;
+    int seen;
+
+    /// <summary>Signed out: the list kept in the cached page goes with the account.</summary>
+    public static void Forget() => forgotten++;
+
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         var w = App.Words;
@@ -104,8 +111,21 @@ public sealed partial class ConnectAppsPage : Page
         More.Content = w.Get("connect.more_apps");
         Search.PlaceholderText = w.Get("connect.apps.search");
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(Search, w.Get("connect.apps.search"));
+        // Kept in memory (the page is cached): back from an app's connections, the list is as it was, never read again
+        // from the top; an ending there reads it itself.
+        if (e.NavigationMode == NavigationMode.Back && shown is not null && seen == forgotten) return;
+        var before = opening;
         opening = e.Parameter as ConnectAppsOpening;
-        Show(opening?.Sample);
+        // Opened again in the same session: the list kept shows at once, and is read again quietly over it. Another
+        // session, or the sample, starts from nothing: one account's apps never show for another.
+        var same = before?.Read is not null && ReferenceEquals(before.Read, opening?.Read) && shown is not null && query.Length == 0 && seen == forgotten;
+        seen = forgotten;
+        if (!same)
+        {
+            (grants, grantsRead, query) = ([], false, "");
+            Search.Text = "";
+            Show(opening?.Sample);
+        }
         if (opening?.Read is not null)
         {
             Search.Visibility = Visibility.Visible;

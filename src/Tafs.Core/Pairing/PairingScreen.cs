@@ -57,6 +57,26 @@ public static class PairingScreen
     /// Where the screen opens: Added for a PC whose kept session approves (a relaunch after pairing), so the same key never
     /// goes in a new QR, which KIFF would refuse as already registered. Otherwise a new code.
     /// </summary>
+    /// <summary>
+    /// The card before Windows Hello's passkey prompt: why this PC makes a passkey, and the button that then asks Windows.
+    /// tafs's own words for it (<c>pair.passkey_why_*</c>) once they're shared; until then the lines it already has: what
+    /// the passkey lets this PC do, and that Windows asks once.
+    /// </summary>
+    public static (string Title, string Body, string Go) PasskeyWhy(WordBook w)
+    {
+        var device = ("device", Device(w));
+        var biometry = ("biometry", Coach.CoachScreen.Biometry);
+        string Line(string key, Func<string> otherwise) => w.Has(key) ? w.Get(key, device, biometry) : otherwise();
+        return (
+            Line("pair.passkey_why_title", () => w.Get("settings.devices.pair_gives_hello", device)),
+            Line("pair.passkey_why_body", () => w.Get("coach.starting_asks", biometry)),
+            Line("pair.passkey_why_go", () => w.Get("common.continue")));
+    }
+
+    /// <summary>Whether the card comes first: a PC that makes a passkey (Windows Hello is there), with a code to show.</summary>
+    public static bool AsksWhyFirst(KeptSession? kept, bool helloAvailable, bool offline) =>
+        helloAvailable && !offline && Opening(kept) == PairingStep.Waiting;
+
     public static PairingStep Opening(KeptSession? kept) => kept is { Mode: not ApprovalMode.View } ? PairingStep.Added : PairingStep.Waiting;
 
     /// <summary>Where a claim's answer leaves the screen. Pending and slow_down keep it waiting.</summary>

@@ -318,6 +318,7 @@ public sealed partial class MainWindow : Window
         }
 
         if (page == "pair") OpenPairing();
+        else if (page == "pair-why") OpenBeside(typeof(PairingPage), "why");
         else if (page == "account") OnAccount(this, new RoutedEventArgs());
         else if (page == "sign-in") OpenSignIn();
         else if (page is "calendar" or "calendar-week" or "calendar-month")
@@ -900,6 +901,10 @@ public sealed partial class MainWindow : Window
     void ForgetSession()
     {
         sessions++;
+        // The pages' in-memory caches go with the account: every taf's Setup, the Connect apps list, and what Back would reopen.
+        TafPage.ForgetSetups();
+        ConnectAppsPage.Forget();
+        Pages.BackStack.Clear();
         consentPutOff = false;
         // A Discard of the last session's says nothing more, and its Cards left are the next account's to read.
         discarding.Clear();

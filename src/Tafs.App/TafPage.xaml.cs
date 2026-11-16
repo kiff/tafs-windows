@@ -60,7 +60,16 @@ public sealed partial class TafPage : Page
     /// <summary>tafs cloud's Activity, one set of pages a filter, as the iPad keeps them by taf and filter.</summary>
     readonly Dictionary<string, ActivityPages> cloudPages = [];
     /// <summary>tafs cloud's Setup for this taf, as last read.</summary>
-    readonly SetupRead setupRead = new();
+    SetupRead setupRead = new();
+
+    /// <summary>
+    /// Each taf's Setup as last read in this session, by its id: opened again, its page draws at once and is read again
+    /// underneath. Another session starts from nothing (<see cref="setupsFor"/> is that session's read).
+    /// </summary>
+    static readonly Tafs.Core.Kiff.SessionScoped<string, SetupRead> setups = new();
+
+    /// <summary>Signed out: every taf's Setup kept goes, connections included.</summary>
+    public static void ForgetSetups() => setups.Forget();
     /// <summary>Its thread, as tafs cloud last answered it, and why the last read didn't come (the iPad's chatErrors).</summary>
     Tafs.Core.Coach.CoachThread? chat;
     string? chatError;
@@ -431,8 +440,13 @@ public sealed partial class TafPage : Page
     async Task LoadSetupAsync()
     {
         if (opening is not { CloudId: { } id, Read: { } read }) return;
-        await setupRead.LoadAsync(id, opening.ReadWithProof ?? ((path, _) => read(path)), opening.SetupProof);
-        if (tab == TafTab.Setup) ShowSetup();
+        var kept = setups.Get(read, id, () => new SetupRead());
+        setupRead = kept;
+        if (tab == TafTab.Setup && kept.Page is not null) ShowSetup();
+        // Drawn as soon as the quick read lands; the connections when planque's signed read does.
+        await kept.LoadAsync(id, opening.ReadWithProof ?? ((path, _) => read(path)), opening.SetupProof,
+            () => { if (tab == TafTab.Setup && opening?.CloudId == id) ShowSetup(); });
+        if (tab == TafTab.Setup && opening?.CloudId == id) ShowSetup();
     }
 
     /// <summary>
@@ -595,14 +609,16 @@ public sealed partial class TafPage : Page
         // ConnectedToolsRing: why its connections couldn't be read, with Try again; a read going; else the ring and workflow.
         var tools = new StackPanel { Spacing = 10 };
         tools.Children.Add(Eyebrow("connect.connected_tools"));
-        if ((setupRead.Error ?? page?.ConnectionsError) is { } error)
+        if (!setupRead.ConnectionsPending && (setupRead.Error ?? page?.ConnectionsError) is { } error)
         {
             tools.Children.Add(Words(error, 13, "TafsNoText"));
             var again = new Button { Content = App.Words.Get("common.try_again") };
             again.Click += (_, _) => _ = LoadSetupAsync();
             tools.Children.Add(again);
         }
-        if (page is null && setupRead.Error is null) tools.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24 });
+        // Reading: the whole page, or its connections while planque's signed read is on its way.
+        if ((page is null && setupRead.Error is null) || (setupRead.ConnectionsPending && page?.Connections.Count == 0))
+            tools.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Left });
         if (page is not null)
         {
             tools.Children.Add(Ring(TafSetup.Nodes(page.Connections), setup.Job));
