@@ -144,7 +144,7 @@ public static class HoldAllow
     /// <summary>
     /// The one signature and the confirm, as the iPad's <c>confirmAllow</c>: this PC's passkey asserts the confirm request
     /// itself (<paramref name="sign"/>), then it goes to KIFF (<paramref name="post"/>). Windows Hello closed sends nothing
-    /// and says nothing, as the iPad's quiet stop. Any other failure to sign (a refusal, Windows Hello or the TPM failing, an
+    /// and says "Cancelled. Nothing changed.", as Refuse and Your step say it. Any other failure to sign (a refusal, Windows Hello or the TPM failing, an
     /// answer that can't be read) sends nothing and says why (<paramref name="why"/>), never leaving the sheet waiting.
     /// <c>Stopped</c> when another session began meanwhile: checked before Windows Hello is asked, as the iPad's
     /// <c>confirmAllow</c> returns with no account, and after each await. KIFF's refusal is said in the app's plain words for
@@ -159,7 +159,7 @@ public static class HoldAllow
         var path = ConfirmPath(draft);
         (string Header, string Value) signature;
         try { signature = await sign(path, body); }
-        catch (OperationCanceledException) { return (false, null, !current()); }
+        catch (OperationCanceledException) { return current() ? (false, w.Get("approval.cancelled"), false) : (false, null, true); }
         catch (Exception e) when (e is Approvals.PasskeyRefusedException or InvalidDataException or System.Runtime.InteropServices.COMException
             or System.Security.Cryptography.CryptographicException or InvalidOperationException or UnauthorizedAccessException)
         {

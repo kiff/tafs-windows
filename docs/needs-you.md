@@ -4,6 +4,29 @@ The iPad's Needs you (`NeedsYouView`, `HeldCallCard`), on Windows: each call KIF
 outside its Card, on its own card, or a panel saying nothing waits. What it says is in
 `Tafs.Core.NeedsYou` (`NeedsYouScreen`), tested in the `approvals` part. `NeedsYouPage` places it.
 
+## Your brief (`Brief`, `BriefPage`)
+
+The iPad's `BriefView` (Missions design v2.1), in Needs you's place once tafs cloud has one.
+
+- **When it shows:** tafs cloud's `GET /v1/brief` is read with each read of Home's list. A brief with a decision, something
+  done or a next move takes Needs you's row, under tafs cloud's name for it ("Your brief"). A 404, an error, or a brief
+  with nothing in it keeps Needs you as today. Signed out, it goes.
+- **What it draws,** every word, count and order tafs cloud's (`BriefPage`): the title and when; the label chips, each
+  reading the brief again for that label; the decisions beside Done, then the next move and what needs nothing now under
+  Done; the credits line. A recommendation is shown, never acted on.
+- **A decision's answers open where it's answered, with nothing chosen and nothing signed here** (`Brief.Destination`):
+  - a held call opens Needs you on its own card;
+  - a step opens Needs you, with Your step;
+  - a taf whose checks keep failing (`check`) opens its page, selected in the sidebar when it's listed there;
+  - anything else opens Needs you.
+- **Later** posts tafs cloud's unsigned `POST /v1/brief/decisions/{id}/later`; not taken, its words show in red.
+- **"2 need you"** under Done counts what Needs you holds that the brief doesn't show, matched item by item
+  (`hold:<id>`, `step:<handoff>`) plus every unproven call (`Brief.NeedsYouBeyond`); a click opens Needs you, which the row
+  keeps until another screen is chosen. A held call's notification opens Needs you on its card, past the brief.
+- **A mission's log** opens from Done (`MissionLog`, `GET /v1/missions/{id}/log`).
+- **The next move's Start** opens Coach, for someone who may use it, with the move's words in its box to edit and send,
+  as the iPad's `startNextMove`; nothing is sent. Not now dismisses it here.
+
 ## A held call's card
 
 Top to bottom, as on the iPad:
@@ -82,7 +105,7 @@ As the iPad's `HoldAllow`, `AllowSheetView` and `AppModel`'s `openAllow`, `loadA
   - With the switch on and no version, nothing is signed ("KIFF doesn't take your answer to this one.").
   - A session that doesn't approve with this PC's passkey keeps the gate (why, and Add this Windows PC) where Approve would
     be.
-  - Closing Windows Hello sends nothing and leaves the sheet as it was.
+  - Closing Windows Hello sends nothing and the sheet says "Cancelled. Nothing changed." (`approval.cancelled`).
 - **Taken,** the sheet closes and Home and Needs you read again. **Refused,** why shows in the sheet in the app's plain
   words for KIFF's status (`KiffErrors.Words`, as the iPad's `PlainError`), never KIFF's own text. A sign-out meanwhile
   closes it.

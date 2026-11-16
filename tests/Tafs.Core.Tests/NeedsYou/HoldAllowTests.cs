@@ -467,7 +467,7 @@ public class HoldAllowTests
             (_, _) => thrown is null ? Task.FromResult(("KIFF-Passkey-Assertion", "t=x,a=y")) : Task.FromException<(string, string)>(thrown),
             Post, () => true, e => $"0x{e.HResult:X8}");
 
-        Assert.Equal((false, null, false), await Confirm(new OperationCanceledException()));
+        Assert.Equal((false, "Cancelled. Nothing changed.", false), await Confirm(new OperationCanceledException()));
         var tpm = new System.Security.Cryptography.CryptographicException("tpm");
         Assert.Equal((false, $"0x{tpm.HResult:X8}", false), await Confirm(tpm));
         Assert.Equal((false, "0x80004005", false), await Confirm(new System.Runtime.InteropServices.COMException("hello", unchecked((int)0x80004005))));

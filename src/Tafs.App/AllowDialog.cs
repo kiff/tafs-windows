@@ -98,7 +98,7 @@ sealed class AllowDialog
         catch (Exception e) { came = (false, SessionStore.Why(e), false); }
         var (done, refused, stopped) = came;
         if (stopped || done) { dialog?.Hide(); return; }
-        // Windows Hello closed or not verified: nothing was sent, and the sheet stays as it was, as the iPad's quiet stop.
+        // Nothing was sent: why shows on the sheet ("Cancelled. Nothing changed." when Windows Hello was closed).
         sheet = refused is null ? sheet with { Busy = false } : sheet.Failed(App.Words, refused);
         Draw();
     }
