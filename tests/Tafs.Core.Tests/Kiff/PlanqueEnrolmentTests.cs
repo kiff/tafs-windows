@@ -41,7 +41,46 @@ public class PlanqueEnrolmentTests
             return Task.FromResult(Mint);
         }
 
-        public Task<EnrolResult> Run() => PlanqueEnrolment.EnrolAsync(En, DeviceKey, Post, MintKey);
+        /// <summary>Signed out after this many sends (planque's asks and the mint, counted together); none, never.</summary>
+        public int? SignOutAfter { get; init; }
+
+        bool Current() => SignOutAfter is not { } n || Enrolments.Count + Mints < n;
+
+        public Task<EnrolResult> Run() => PlanqueEnrolment.EnrolAsync(En, DeviceKey, Post, MintKey, Current);
+    }
+
+    /// <summary>
+    /// A sign-out between the sends stops there, as the iPad's enrolPlanque checks accountGeneration after each: after
+    /// planque's first ask, no key is minted; after the mint, none is enrolled; after the enrolment, it's still cancelled.
+    /// </summary>
+    [Fact]
+    public async Task A_sign_out_between_the_sends_mints_and_enrols_nothing_more()
+    {
+        const string needsKey = """{"error": "needs_key", "code": "needs_key"}""";
+        var afterAsk = new Stubs((409, needsKey), (201, "{}")) { SignOutAfter = 1 };
+        Assert.Equal(EnrolOutcome.Cancelled, (await afterAsk.Run()).Outcome);
+        Assert.Equal((1, 0), (afterAsk.Enrolments.Count, afterAsk.Mints));
+
+        var afterMint = new Stubs((409, needsKey), (201, "{}")) { SignOutAfter = 2 };
+        Assert.Equal(EnrolOutcome.Cancelled, (await afterMint.Run()).Outcome);
+        Assert.Equal((1, 1), (afterMint.Enrolments.Count, afterMint.Mints));
+
+        var afterEnrol = new Stubs((409, needsKey), (201, "{}")) { SignOutAfter = 3 };
+        Assert.Equal(EnrolOutcome.Cancelled, (await afterEnrol.Run()).Outcome);
+        Assert.Equal((2, 1), (afterEnrol.Enrolments.Count, afterEnrol.Mints));
+
+        // Signed in throughout: enrolled.
+        Assert.Equal(EnrolOutcome.Enrolled, (await new Stubs((409, needsKey), (201, "{}")).Run()).Outcome);
+    }
+
+    /// <summary>KIFF's refusal of the mint is read as KIFF's: its error, else "KIFF answered 500", and a 401 as signed out.</summary>
+    [Fact]
+    public async Task KIFF_s_refusal_of_the_mint_is_read_as_KIFF_s()
+    {
+        const string needsKey = """{"error": "needs_key", "code": "needs_key"}""";
+        Assert.Contains("no keys today", (await new Stubs((409, needsKey)) { Mint = (500, """{"error": "no keys today", "words": "not KIFF's"}""") }.Run()).Why);
+        Assert.Contains(En.Get("error.kiff_answered", ("status", "500")), (await new Stubs((409, needsKey)) { Mint = (500, "") }.Run()).Why);
+        Assert.Contains(En.Get("error.signed_out"), (await new Stubs((409, needsKey)) { Mint = (401, "") }.Run()).Why);
     }
 
     /// <summary>The iPad's testAKeptEnrolmentMintsNoConnectorKey: planque keeps the key it holds, and nothing is minted.</summary>
@@ -131,11 +170,41 @@ public class PlanqueEnrolmentTests
         Assert.True(TestSigner.Verify(key.PublicKeyDer, PlanqueProof.Message(PlanqueProof.Api, "t_01", "POST", "/v1/accounts/t_01/enrolment", body, "2026-11-15T16:00:00.000Z"), signature));
         Assert.Null(await PlanqueProof.SignAsync("t_01", null, () => Task.FromResult<string?>(null), key, () => "t", "POST", "/x", body));
 
-        var at = new DateTimeOffset(2026, 11, 15, 16, 0, 0, TimeSpan.Zero);
+        var at = "2026-11-15T16:00:00.456Z";
         var mint = await PlanqueEnrolment.MintSignatureAsync(key, "t_01", at);
-        Assert.StartsWith("t=2026-11-15T16:00:00Z,v1=", mint);
+        Assert.StartsWith("t=2026-11-15T16:00:00.456Z,v1=", mint);
         Assert.True(TestSigner.Verify(key.PublicKeyDer, KiffSigning.RequestV1("t_01", "POST", "/v1/keys", PlanqueEnrolment.MintBody(), at), Convert.FromBase64String(mint.Split(",v1=")[1])));
         Assert.Equal("""{"label":"planque","roles":["connector"]}""", Encoding.UTF8.GetString(PlanqueEnrolment.MintBody()));
         Assert.Equal("tafs.planque.v1|t_01", Encoding.UTF8.GetString(PlanqueEnrolment.GateMessage("t_01")));
+    }
+
+    static KeptSession Session(ApprovalMode mode, string? passkey = null) =>
+        new KeptSession("api.kiff.dev", "token", "t_01", "s1", "dev_pc01", mode, DateTimeOffset.MaxValue, "k") { PasskeyId = passkey };
+
+    /// <summary>
+    /// Who may set planque up, before anything is sent: only a passkey session behind Windows Hello over
+    /// tafs.planque.v1|{tenant}, with its own passkey; a view session, a key session (its device key asks no one), or a
+    /// passkey session that doesn't know its passkey, never. Closing Windows Hello, or one that doesn't verify, stops quietly.
+    /// </summary>
+    [Fact]
+    public async Task Who_may_set_planque_up()
+    {
+        var asked = new List<(byte[] Id, string Message)>();
+        Task Hello(byte[] id, byte[] message) { asked.Add((id, Encoding.UTF8.GetString(message))); return Task.CompletedTask; }
+
+        Assert.Null(await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Passkey, KiffSigning.Base64Url([1, 2, 255])), Hello));
+        Assert.Equal([1, 2, 255], asked[0].Id);
+        Assert.Equal("tafs.planque.v1|t_01", asked[0].Message);
+
+        var cant = new EnrolResult(EnrolOutcome.CantApprove, "This device can't approve. Approve on another device signed in to your account.");
+        Assert.Equal(cant, await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.View), Hello));
+        Assert.Equal(cant, await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Key), Hello));
+        Assert.Equal(cant, await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Passkey), Hello));
+        Assert.Single(asked);
+
+        Assert.Equal(new EnrolResult(EnrolOutcome.Cancelled),
+            await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Passkey, "AQ"), (_, _) => throw new OperationCanceledException()));
+        Assert.Equal(new EnrolResult(EnrolOutcome.Cancelled),
+            await PlanqueEnrolment.GateAsync(En, Session(ApprovalMode.Passkey, "AQ"), (_, _) => throw new Tafs.Core.Approvals.PasskeyRefusedException("Windows Hello didn't verify the person")));
     }
 }

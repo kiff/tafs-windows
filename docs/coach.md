@@ -16,10 +16,50 @@ changed, over whatever is open. The core is `Tafs.Core.Coach.CoachScreen`; the w
 - **Before Coach starts,** the iPad's intro (`SetupChatView.introBefore`):
   - "Coach mode", 30 bold, in Coach's blue;
   - the line naming how this PC asks ("You approve with Windows Hello");
-  - Start, as the iPad's primary button while it's off: the dim at 22%, the soft ink, 54 high, corners of 16;
+  - Start, the iPad's primary button (below); off, as the iPad's, the dim at 22% with the soft ink, 54 high, corners of 16;
   - the footnote "Starting asks for Windows Hello once."
 - **Windows Hello** is the product's own name, the same in every language, as the iPad names Face ID or Touch ID.
   The word book has no word for it, so it's `CoachScreen.Biometry`.
+
+## Starting Coach (`CoachStart`)
+
+Ported from the iPad's `AppModel.startSetup`, which its Start calls (`SetupChatView.introBefore`), with `setUpPlanque` and
+`enrolPlanque` as its first step (kiff/tafs `ios/Tafs`, at d14217f).
+
+- **Who:** only a passkey session that knows its passkey (`CoachStart.MayStart`). The iPad signs Setup's draft only with
+  its approval key under a biometric Face ID; this PC's TPM device key asks no one, so a key session never gives that
+  authority. Any other signed-in session reads the iPad's gate line where Start would be ("This device can't approve.
+  Approve on another device signed in to your account.", its `ApprovalGate` in `introBefore`); if Start is reached anyway,
+  nothing is read, asked or sent.
+- **The order, as the iPad's:**
+  1. `GET /v1/setup`, as its `setupRead`. Here it comes first, so nothing is asked for what won't be sent.
+  2. **One confirmation, before anything is sent.**
+     - Windows Hello, once. With no Coach yet, the one Hello is Setup's draft's own `KIFF-Passkey-Assertion`, built in
+       full first (body and `signed_at`, `SigningTime.Next`'s, milliseconds kept as written in the message and in `t=`),
+       as the iPad's prepared requests are. With Coach already there, it confirms over `tafs.setup.v1|{tenant}`, the
+       iPad's message.
+     - Closing Windows Hello, or one that doesn't verify, stops quietly, as the iPad's failed Face ID.
+  3. **planque**, unless this session set it up already (`planqueReady`, kept until sign-out): `PlanqueEnrolment` with
+     the session's TPM key (`keys.md`).
+  4. **Setup's draft**, as the iPad's `submitNoToolsDraft`: `POST /v1/me/agent-drafts` with
+     `{"agent_id":"setup","label":"Setup","no_tools":true}`. It's signed as an approval, by the passkey's assertion only:
+     anything else fails closed and signs nothing.
+  5. **Its key, claimed by tafs cloud**, as the iPad's `TafsCloud.startSetup`: `POST /v1/setup` with `draft_id` and
+     `claim_secret`, so the key never reaches this PC.
+  6. Coach's thread is read again, as the iPad's `loadSetupThread`.
+- **A sign-out meanwhile** stops it: after the confirmation, after planque's enrolment and after the draft, nothing more
+  is sent once another session began (the iPad's `accountGeneration`). A late answer never sets the last account's device
+  id for the next session's proofs.
+- **What stops it says why**, under the intro, and what comes after isn't sent:
+  - planque not set up (`keys.md`'s words);
+  - KIFF's refusal of the draft, "Couldn't start." with why, read as the iPad's `KIFFClient.send`: KIFF's `error`, else
+    "KIFF answered 500", and a 401 as signed out of KIFF;
+  - the TPM key gone or refusing, "Couldn't start." with its code;
+  - an answer with no claim secret, "KIFF didn't answer as expected";
+  - tafs cloud's refusal.
+- **While it runs,** Start says "Starting…" and is off, as the iPad's `startingSetup`. A sign-out meanwhile drops it.
+- **Not for Windows:** the iPad's separate approval key (`registerApprovalKey`, `approvalKeyUnheld`). A Windows session
+  signs with one key.
 
 ## Coach's thread
 
@@ -88,6 +128,24 @@ work, where the iPad's decoder fails the thread.
 - `--home` with `--page coach` reads tafs cloud's contracts beside the Home file: `setup-coach.json`, `coach-chats.json`
   and `coach-conversation.json`. CI saves Coach's thread that way (`coach-home`), and `CoachContractTests` read them.
 
+## Reporting an answer (`AnswerReport`, `ReportAnswerDialog`)
+
+Ported from the iPad's `ReportAnswerSheet` and `reportable`, `AppModel.canReport`/`reportAnswer`/`ReportOutcome` and
+`TafsCloud.ReportReason`/`reportAnswer` (kiff/tafs#421, Google Play's rule for content an AI generates). tafs-macos #77 is
+a second reference.
+- **Which answers:** Coach's, with words, not a run's start, with tafs cloud's id, for a KIFF account. Right-click (or
+  the menu key) on one gives **Report this answer**, with its flag. Copy stays on Ctrl+C.
+- **The dialog:** "What's wrong with it?" with Offensive, Harmful, Wrong and Other; the note ("Add a note (optional)"),
+  with the red line past 1,000 characters (as a person counts them); the footer, that a person at KIFF reads it.
+  Send is off with no reason, while sending, or past the limit.
+- **The request:** `POST /v1/tafs/{coach}/messages/{id}/report` with `reason`, the note trimmed (left out when blank)
+  and the answer's `session`.
+- **What it comes to:** `{"report": {"id", "at", "new"}}`: new says "Thanks. Someone at KIFF will read your report.",
+  else that it was reported already, each with Done. Not sent, it stays open with "Not sent:" and tafs cloud's `words`,
+  or that the answer isn't on tafs cloud any more (404), or "It didn't reach KIFF. Try again.", never tafs cloud's codes.
+  One answered after the person signed out says "You signed out."
+- **Not yet:** a taf's and a trial's answers, whose chats aren't on Windows yet.
+
 **Not yet:**
 - **Coach's words as Markdown:** they show as written until `MarkdownText` is ported.
 - **A Coach with an empty thread:** the iPad shows `starts` ("Ask anything"); here the intro stays until writing is ported.
@@ -99,8 +157,14 @@ work, where the iPad's decoder fails the thread.
   ported. The AI-data consent's screen isn't ported, so a refusal for it leaves the card as it was, with no line.
 - **A drive's end** (what Coach did in the app, `DriveRecap`), placed in the thread on the iPad: with drives.
 - **Writing to Coach:** the composer, sending, the stream, Stop, unsent and queued messages, steering, reading again.
-- **Starting Coach:** Start stays off until it's wired.
-  - tafs cloud's first start (its own words and the tools Coach is given, signed under one Windows Hello prompt);
+- **Starting Coach, the rest of `startSetup`:**
+  - **tafs cloud's first start** (`start` in `/v1/setup`, `CoachStart.Startable`, as the iPad's `startable`): the tools
+    batch and Coach's Cards signed together (`kiff.requests.v1`, `startCoachTogether`), or the Cards' draft alone. Until
+    it's ported, Start reads it, asks and sends nothing, and turns off.
+  - KIFF's alerts (`keepKIFFAlerts`);
+  - the tools step (`loadCoachTools`);
+  - keeping planque's enrolment across launches (the iPad's Keychain `planqueTenant`). Here it's asked again after each
+    sign-in, and planque keeps its key (`kept`), so nothing is minted;
   - then the recipes, New conversation and the previous conversations (the iPad's ✎ and ⋯);
   - "Taking shape" beside a wide chat.
 - **Dragging the edge** to choose the panel's width, and keeping it and full screen for the next time.

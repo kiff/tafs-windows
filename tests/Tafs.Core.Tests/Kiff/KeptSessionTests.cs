@@ -97,4 +97,15 @@ public class KeptSessionTests
     [Fact]
     public void The_token_is_never_printed() =>
         Assert.DoesNotContain("secret-token", Session("secret-token", ApprovalMode.View, "k").ToString());
+
+    /// <summary>A passkey session keeps its passkey's credential id across launches; a session kept before it has none.</summary>
+    [Fact]
+    public void A_passkey_session_keeps_its_passkey_s_id()
+    {
+        var kept = Session("t", ApprovalMode.Passkey, "k") with { PasskeyId = "cred-1_x" };
+        Assert.Equal("cred-1_x", KeptSessions.Read(KeptSessions.Write(kept), Api, Now)!.PasskeyId);
+        Assert.Null(KeptSessions.Read(KeptSessions.Write(Session("t", ApprovalMode.Key, "k")), Api, Now)!.PasskeyId);
+        var before = System.Text.Encoding.UTF8.GetBytes("""{"host":"api.kiff.dev","access_token":"t","tenant":"t1","subject":"s1","approval_mode":"passkey","expires":"2027-01-01T00:00:00Z","key_name":"k"}""");
+        Assert.Null(KeptSessions.Read(before, Api, Now)!.PasskeyId);
+    }
 }

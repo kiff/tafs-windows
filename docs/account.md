@@ -57,10 +57,33 @@ held call raises while tafs runs, `needs-you.md`). tafs-macos #68 is a second re
   - "What alerts you", which tafs cloud keeps per phone's push token, and this PC has none;
   - Haptics, the phone's.
 
+## Devices (`Devices`, `DevicesPage`)
+
+Ported from the iPad's `DevicesView` and `KIFFClient.Device`, opened from **People & apps**, which shows for a KIFF account
+(the iPad's `SettingsView`):
+- **The read:** `GET /v1/me/devices` as the session, as the iPad's `refreshDevices`. Each device needs its id. Its name is
+  KIFF's `display_name` in the app's language, else the name it gave at sign-in, else "A device". Last used is
+  `last_used_at`, else `last_seen_at` for a session from before devices. A field of the wrong kind fails the read, which
+  says "Couldn't load your devices." with why, in the iPad's plain words (`KiffErrors`, its `KIFFError` and `PlainError`):
+  signed out of KIFF for a 401, else the app's line for the status, never KIFF's own reason.
+- **Each row:** the name, 15 semibold, and "Last used 3 hours ago" or "Not used yet", 13 dim. On the right, "This device"
+  for this PC.
+- **Last used** is written as Apple's `RelativeDateTimeFormatter` writes a past time in full, in each shipped language
+  ("3 hours ago", "il y a 3 heures", "3 godziny temu"). .NET has no such formatter (`RelativeTime`). The unit is the
+  largest with at least one, counted from the time elapsed: a month is 30 days and a year 365, where Apple counts
+  calendar units.
+- **The footer:** what signing a device out does, and that this PC signs out with Sign out of KIFF.
+- **Sign out, for another device,** is an approval, signed by this device (`prepareRemoveDevice` behind Face ID on the
+  iPad). Until this PC can sign one, it's left out, and Android's line says why under the list: "To sign another device
+  out, use a device that can approve."
+- **Not for Windows:** the iPad's **Add a device** (`PairComputerView`), where a phone adds a computer by its code. On
+  Windows, this PC is the computer, and it's added from the phone.
+
 **Not yet:**
+- **Signing another device out,** with the approvals.
 - **The KIFF account's rows**, from `GET /v1/me`:
   - KIFF account (its name, opening its details);
   - Signed in as (the email), as its own row, shown only when the account isn't named after it;
   - the plan, from `plan_line` in `plan_tone`'s colour.
 - **View only from `GET /v1/me`** itself: today it comes from the token's `approval_mode`, kept with the session.
-- **The KIFF-only sections:** People & apps, Coach's suggestions, the AI-data consent, the time zone and Your chats.
+- **The KIFF-only sections:** the rest of People & apps (People & groups, Connect apps), Coach's suggestions, the AI-data consent, the time zone and Your chats.
