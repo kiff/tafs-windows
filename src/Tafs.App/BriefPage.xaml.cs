@@ -73,6 +73,13 @@ public sealed partial class BriefPage : Page
             foreach (var d in open) Decisions.Children.Add(DecisionCard(d, b.Words, o));
             if (b.More is { } more) Decisions.Children.Add(Line(more.Words, 13, "TafsSoftText"));
         }
+        // Board 3, nothing to decide, as the iPad's BriefView.decisions(): a calm sun over a clear page, where decisions go.
+        else
+        {
+            var art = Illustrations.BriefClear();
+            art.HorizontalAlignment = HorizontalAlignment.Left;
+            Decisions.Children.Add(art);
+        }
 
         Side.Children.Clear();
         if (b.Done.Count > 0)

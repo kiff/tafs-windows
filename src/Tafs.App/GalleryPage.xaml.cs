@@ -129,11 +129,17 @@ public sealed partial class GalleryPage : Page
         lines.Children.Add(Words(words.OwnWords, 16, "TafsInk", semibold: true));
         if (words.OwnWordsLine.Trim().Length > 0) lines.Children.Add(Words(words.OwnWordsLine, 14, "TafsSoft"));
         var row = new Grid { ColumnSpacing = 12 };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.ColumnDefinitions.Add(new ColumnDefinition());
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        // Board 8, small, beside it, as the iPad's RecipeGallery in its create mode: words becoming a card.
+        var art = Illustrations.NewTaf();
+        art.VerticalAlignment = VerticalAlignment.Center;
+        row.Children.Add(art);
+        Grid.SetColumn(lines, 1);
         row.Children.Add(lines);
         var chevron = new FontIcon { Glyph = "\uE76C", FontSize = 13, Foreground = Look("TafsDim"), VerticalAlignment = VerticalAlignment.Center };
-        Grid.SetColumn(chevron, 1);
+        Grid.SetColumn(chevron, 2);
         row.Children.Add(chevron);
         var b = new Button
         {

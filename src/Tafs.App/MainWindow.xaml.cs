@@ -1371,7 +1371,8 @@ public sealed partial class MainWindow : Window
         ShowYourTafs();
         NoTafs.Visibility = home.Tafs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows, home?.Labels);
-        // Coach's result cards name and open the tafs on this list.
+        // Coach's result cards name and open the tafs on this list, and its empty chat draws board 7 with none or one.
+        CoachMode.TafCount = read.Tafs.Count;
         CoachMode.Redraw();
     }
 

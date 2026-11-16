@@ -27,6 +27,8 @@
         <Border x:Name="Empty" Background="{ThemeResource TafsPanel}" BorderBrush="{ThemeResource TafsLine}" BorderThickness="1"
                 CornerRadius="18" Padding="16">
           <StackPanel Spacing="12">
+            <!-- Board 6, above the words that say it: shapes only (rule 14), hidden from Narrator. -->
+            <Border x:Name="EmptyArt" HorizontalAlignment="Center" />
             <TextBlock x:Name="EmptyLead" FontSize="15" FontWeight="SemiBold" Foreground="{ThemeResource TafsInk}" />
             <TextBlock x:Name="EmptyHint" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
           </StackPanel>
