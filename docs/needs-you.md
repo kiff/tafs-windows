@@ -37,6 +37,27 @@ iPad's `answers(refuseOnly:)`, with KIFF's capabilities from `GET /v1/me` (read 
 
 Words, never buttons that can't work.
 
+## Did this happen? (`DidThisHappen`, `Unproven`)
+
+Ported from the iPad's `DidThisHappenCard` (NeedsYouView.swift), `KIFFClient.Unproven`/`didThisHappen` and
+`AppModel.loadUnproven`/`mayAnswerHolds`. tafs-macos #76 is a second reference.
+- **What it is:** a money call whose outcome KIFF can't prove: its answer was lost, the app refused it with nothing
+  showing it had no effect, or it's one of the first calls of a new money operation. The person says whether it
+  happened.
+- **The read:** `GET /v1/me/did-this-happen`, a plain read as the session, when Needs you opens and with F5, as the iPad reads it on
+  open and on pull-to-refresh. Only for someone who answers held calls (KIFF's `holds.answer` in `GET /v1/me`'s capabilities; an account that
+  lists none may). A call needs its proposal; its title is "" and its status unknown when not said; any other field of
+  the wrong kind fails the read, which keeps the list. No `calls` is none. A sign-out clears it.
+- **Its card,** before the held calls: the amber edge; "Did this happen?" in amber, 13 semibold; KIFF's words for the
+  call, else its title, 15 semibold; the amount only without KIFF's words (two places unless KIFF says, and "725 (no
+  currency)" with no unit); why KIFF asks, in its words, 13 soft.
+- **"Nothing waiting"** only with no held call and no call to say about.
+- **The answers:** the iPad's Yes and No are signed like an approval (`tafs.happened.v1|…`). On a view-only PC, for
+  someone who answers held calls, the card says why it can't approve and offers **Add this Windows PC**, as the iPad's
+  `ApprovalGate` shows `ApprovalNotReady` only while a device can't approve. A PC that approves (a key or passkey
+  session) shows neither the line nor buttons until Yes and No are ported. The line about No goes with the buttons, so
+  it isn't shown.
+
 ## Where the calls come from
 
 **From KIFF** (`KiffHeld`), as the iPad's `KIFFClient.heldCalls` and `KIFFMapping.held`, with each read of Home's list:

@@ -29,6 +29,10 @@ public sealed partial class MainWindow : Window
     /// <summary>The held calls Needs you shows: KIFF's, read with each refresh of Home's list, or the iPad's samples.</summary>
     IReadOnlyList<HeldCall> held;
 
+    /// <summary>"Did this happen?": KIFF's money calls it can't prove, read when Needs you opens, and whether the person answers held calls.</summary>
+    IReadOnlyList<Unproven> unproven = [];
+    bool mayAnswerHolds = true;
+
     /// <summary>A screenshot's samples: they stay, and KIFF isn't read for them.</summary>
     readonly bool sampleHeld;
 
@@ -157,7 +161,13 @@ public sealed partial class MainWindow : Window
             }
         };
         // F5 on Needs you: Home and KIFF's held calls read again, as the iPad's pull-to-refresh.
-        NeedsYouPage.RefreshChosen += () => { if (cloudRead is { } read) _ = ReadHomeAsync(read); };
+        NeedsYouPage.RefreshChosen += () =>
+        {
+            if (cloudRead is not { } read) return;
+            _ = ReadHomeAsync(read);
+            // Did this happen? read again too, as the iPad's refresh then loadUnproven.
+            _ = ReadUnprovenAsync(sessions);
+        };
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
         // Focus goes back to the sidebar's Coach when Coach mode has gone.
         CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
@@ -364,6 +374,23 @@ public sealed partial class MainWindow : Window
         if (requestedHold is { } hold && Pages.Content is NeedsYouPage page && page.ShowHold(hold)) requestedHold = null;
     }
 
+    /// <summary>
+    /// "Did this happen?" read from KIFF when Needs you opens, as the iPad's <c>loadUnproven</c>: only for someone who answers
+    /// held calls (KIFF's <c>holds.answer</c>, from <c>GET /v1/me</c>), a plain read as the session. A read that fails keeps
+    /// the list; one that lands after another session began is dropped.
+    /// </summary>
+    async Task ReadUnprovenAsync(int reading)
+    {
+        if (kiffRead is not { } read || sampleHeld) return;
+        // Read into a local first: an answer from an earlier session never replaces this one's, as the iPad's accountGeneration.
+        var may = DidThisHappen.MayAnswerHolds(Tafs.Core.Coach.CoachAccess.Capabilities((await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer));
+        if (reading != sessions) return;
+        mayAnswerHolds = may;
+        if (mayAnswerHolds && (await read(DidThisHappen.Path)).Answer is { } json && reading == sessions && DidThisHappen.Read(json) is { } calls)
+            unproven = calls;
+        if (reading == sessions && Pages.Content is NeedsYouPage page) page.ShowUnproven(unproven, mayAnswerHolds);
+    }
+
     /// <summary>The held calls drawn again: NEEDS YOU in the sidebar, Needs you's count, and Needs you or the Overview when open.</summary>
     void ShowHeld(IReadOnlyList<HeldCall> calls)
     {
@@ -467,6 +494,9 @@ public sealed partial class MainWindow : Window
         record = [];
         if (Pages.Content is RecordPage page) page.ShowEntries(record);
         if (!sampleHeld) ShowHeld([]);
+        unproven = [];
+        mayAnswerHolds = true;
+        if (Pages.Content is NeedsYouPage needsYou) needsYou.ShowUnproven(unproven, mayAnswerHolds);
         notified = null;
         // The requested hold is kept: a session starting (a cold start from a click, or signing in after one) forgets the
         // last one's state first, and the click must still land once Needs you lists it. Only a sign-out drops it.
@@ -951,6 +981,8 @@ public sealed partial class MainWindow : Window
         else if (item.Tag is Screen.NeedsYou or HeldCall)
         {
             Pages.Navigate(typeof(NeedsYouPage), held);
+            if (Pages.Content is NeedsYouPage page) page.ShowUnproven(unproven, mayAnswerHolds);
+            _ = ReadUnprovenAsync(sessions);
             ShowRequestedHold();
         }
         else if (item.Tag == HaltAll) OpenHalt(null, "");
