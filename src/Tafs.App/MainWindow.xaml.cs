@@ -857,6 +857,8 @@ public sealed partial class MainWindow : Window
     {
         sessions++;
         consentPutOff = false;
+        // The next session asks Windows Hello again before its first step.
+        (hello, helloChecked) = (HelloReadiness.Ready, false);
         // The last export's files too, as the iPad's removeOpenedFiles: a person's chats never stay on this PC after them.
         ChatsExport.Remove(ChatsExport.Folder);
         cloudRead = null;
