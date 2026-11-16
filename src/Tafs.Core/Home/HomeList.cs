@@ -12,8 +12,11 @@ namespace Tafs.Core.Home;
 /// </summary>
 public sealed record HomeTaf(string Id, string Name, int Colour, string State, string Now, string? Attention,
     IReadOnlyList<TafCard> Cards, int Waiting, DateTimeOffset? LastRun, DateTimeOffset? LastChange, string Job = "", string? Agent = null,
-    bool Revoked = false)
+    bool Revoked = false, IReadOnlyList<string>? LabelIds = null)
 {
+    /// <summary>Its labels' ids, as Home sends them (<c>labels: [id]</c>); none without.</summary>
+    public IReadOnlyList<string> Labels => LabelIds ?? [];
+
     /// <summary>The state its page's head says: tafs cloud's word, Ready for an idle taf, Stopped for one it doesn't know.</summary>
     public string StateKey => State switch
     {
@@ -23,8 +26,14 @@ public sealed record HomeTaf(string Id, string Name, int Colour, string State, s
     };
 }
 
-/// <summary>Home's answer: the tafs, and its headline ("2 tafs working."), counted by tafs cloud, never here.</summary>
-public sealed record HomeAnswer(IReadOnlyList<HomeTaf> Tafs, string? Headline);
+/// <summary>
+/// Home's answer: the tafs, its headline ("2 tafs working."), counted by tafs cloud, never here, and the account's labels
+/// (none when no taf is labelled).
+/// </summary>
+public sealed record HomeAnswer(IReadOnlyList<HomeTaf> Tafs, string? Headline, HomeLabels? LabelList = null)
+{
+    public HomeLabels Labels => LabelList ?? HomeLabels.None;
+}
 
 /// <summary>
 /// The app's list of tafs: <c>GET /v1/home</c> on tafs cloud (contracts/home.json), as the iPad's KIFFMapping.taf. It
@@ -39,7 +48,8 @@ public static class HomeList
     public static HomeAnswer Read(WordBook w, JsonElement answer, TimeZoneInfo zone) => new(
         Lenient.Array(answer, "tafs").Where(t => Lenient.Text(t, "id") is not null && Lenient.Text(t, "name") is not null)
             .Select(t => Taf(w, t, zone)).ToList(),
-        Lenient.Field(answer, "headline") is { } h && Lenient.Text(h, "words") is { Length: > 0 } words ? words : null);
+        Lenient.Field(answer, "headline") is { } h && Lenient.Text(h, "words") is { Length: > 0 } words ? words : null,
+        LabelChips.Read(answer));
 
     static HomeTaf Taf(WordBook w, JsonElement t, TimeZoneInfo zone)
     {
@@ -52,7 +62,8 @@ public static class HomeList
             // Its job as Coach said it, else as the iPad's: an agent tafs doesn't run is described by its Cards.
             Lenient.Text(t, "job_summary") ?? w.Count("taf.works_under_cards", (Lenient.Field(t, "card") is { } c ? Lenient.Array(c, "ids").Count() : 0)), Lenient.Text(t, "kiff_agent"),
             // Its Card revoked, as the iPad's card.revoked (!card.active): every Card on its page reads Revoked and fades.
-            Revoked: Lenient.Field(t, "card") is { } held && Lenient.Field(held, "active") is { ValueKind: JsonValueKind.False });
+            Revoked: Lenient.Field(t, "card") is { } held && Lenient.Field(held, "active") is { ValueKind: JsonValueKind.False },
+            LabelIds: LabelChips.Ids(t));
     }
 
     /// <summary>What it's doing, as the iPad says it: tafs cloud's "Next run Fri 12:30" while it works on a schedule.</summary>
@@ -92,7 +103,8 @@ public static class HomeList
     /// </summary>
     public static IReadOnlyList<OverviewRow> Rows(WordBook w, HomeAnswer home, TimeZoneInfo zone, IReadOnlyDictionary<string, LatestRun>? reports = null) =>
         home.Tafs.Select(t => new OverviewRow(t.Id, t.Name, t.Colour, t.Now, CardLine(w, t),
-            TafRuns.LastResult(w, reports?.GetValueOrDefault(t.Id), t.LastRun, zone))).ToList();
+            TafRuns.LastResult(w, reports?.GetValueOrDefault(t.Id), t.LastRun, zone), t.Labels,
+            LabelChips.TafChips(LabelChips.Of(t.Labels, home.Labels)))).ToList();
 
     /// <summary>
     /// Your tafs: those relevant now (a call of its waits, or it ran or changed in the last 24 hours), each with what went
