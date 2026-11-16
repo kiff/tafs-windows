@@ -48,6 +48,18 @@ static class KiffHttp
         return await SendAsync(request, cancel);
     }
 
+    /// <summary>A DELETE as the session to tafs cloud or KIFF (a halt released), in the app's language, the same hosts as a read.</summary>
+    /// <exception cref="HttpRequestException">It wasn't reached, or isn't a host the session's token may go to.</exception>
+    public static async Task<(int Status, string Body)> DeleteAsync(Uri url, string bearer, string language, CancellationToken cancel = default)
+    {
+        if (!Tafs.Core.Kiff.KeptSessions.MaySendTo(url, DeviceSignIn.Api)) throw new HttpRequestException("not a host the session goes to");
+        using var request = new HttpRequestMessage(HttpMethod.Delete, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        return await SendAsync(request, cancel, Patient);
+    }
+
     /// <summary>
     /// A read from planque as this device (the iPad's <c>PlanqueClient</c>), in the app's language: signed with
     /// <c>Planque-Device-Signature</c>, with no token. Only planque's exact host.

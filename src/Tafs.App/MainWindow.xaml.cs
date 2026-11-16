@@ -862,10 +862,40 @@ public sealed partial class MainWindow : Window
         Pages.Navigate(typeof(HaltPage), new HaltOpening(taf, name, read, send, () =>
         {
             if (reading != sessions) return;
-            // The list reads it halted at once, not at its next read, as the iPad's refresh() after a halt.
+            // The list reads it halted (or running) at once, not at its next read, as the iPad's refresh() after a halt.
             _ = ReadHomeAsync(read);
             _ = ReadAccountHaltAsync(reading);
-        }));
+        }, ResumeFor(taf, name, reading)));
+    }
+
+    /// <summary>
+    /// Resume for the Halt screen, only for a session that resumes (<see cref="HaltResume.MayResume"/>): this PC's passkey
+    /// asserts KIFF's resume behind one Windows Hello, then tafs cloud releases its halt. None for any other session.
+    /// </summary>
+    Func<Task<(Halt? Halt, string? Why)>>? ResumeFor(string? taf, string name, int reading)
+    {
+        if (App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session) || session.PasskeyId is not { } id) return null;
+        var bearer = session.AccessToken;
+        var agent = taf is null ? null : home?.Tafs.FirstOrDefault(t => t.Id == taf)?.Agent;
+        return () =>
+        {
+            var hello = new WindowsHello(() => App.WindowHandle);
+            var passkey = new PasskeyApprover(hello, KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);
+            return HaltResume.ResumeAsync(App.Words, taf, agent, taf is null ? null : name,
+                path => HaltResume.SignAsync(session, passkey, path, SigningTime.Next(DateTimeOffset.UtcNow)),
+                async (path, signature) => (await KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), HaltResume.Body(), bearer,
+                    App.Words.Language, signature: signature)).Status,
+                async path =>
+                {
+                    try
+                    {
+                        var (status, body) = await KiffHttp.DeleteAsync(new Uri(HomeList.Api, path), bearer, App.Words.Language);
+                        return Answered(App.Words, status, body);
+                    }
+                    catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(App.Words); }
+                },
+                () => reading == sessions && App.Sessions.Kept()?.AccessToken == bearer);
+        };
     }
 
     /// <summary>A read from KIFF as the session, answered as tafs cloud's are.</summary>
@@ -1080,8 +1110,17 @@ public sealed partial class MainWindow : Window
     /// Under YOUR TAFS, the tafs relevant now, as the iPad's sidebar: the avatar (34), the name in 15 semibold, and what
     /// it's doing in 13 soft, on one line each. A row opens its taf's page.
     /// </summary>
+    /// <summary>
+    /// Your tafs drawn again with each read of Home: a taf already listed keeps its row (so its selection stays), with its new
+    /// lines; one no longer relevant loses its row; a new one is put in Home's order. Each read used to add its rows again,
+    /// so a taf showed twice after a halt read Home once more.
+    /// </summary>
     void AddYourTafs(IReadOnlyList<OverviewRow> rows)
     {
+        var listed = Nav.MenuItems.OfType<NavigationViewItem>().Where(i => i.Tag is TafRow).ToList();
+        var keys = rows.Select(r => r.Key).ToHashSet();
+        foreach (var gone in listed.Where(i => !keys.Contains(((TafRow)i.Tag).Key))) Nav.MenuItems.Remove(gone);
+        var kept = listed.Where(i => keys.Contains(((TafRow)i.Tag).Key)).ToDictionary(i => ((TafRow)i.Tag).Key);
         var at = Nav.MenuItems.IndexOf(YourTafs) + 1;
         foreach (var taf in rows)
         {
@@ -1101,6 +1140,16 @@ public sealed partial class MainWindow : Window
                 Style = (Style)Application.Current.Resources["TafsSoftText"] });
             Grid.SetColumn(lines, 1);
             content.Children.Add(lines);
+            if (kept.TryGetValue(taf.Key, out var same))
+            {
+                // The same row, its lines new, moved to Home's order.
+                same.Content = content;
+                AutomationProperties.SetName(same, $"{taf.Taf}. {taf.Now}");
+                var now = Nav.MenuItems.IndexOf(same);
+                if (now != at) { Nav.MenuItems.RemoveAt(now); Nav.MenuItems.Insert(now < at ? --at : at, same); }
+                at++;
+                continue;
+            }
             var row = new NavigationViewItem
             {
                 Content = content, Tag = new TafRow(taf.Key), Style = (Style)Application.Current.Resources["TafsSidebarItem"],
