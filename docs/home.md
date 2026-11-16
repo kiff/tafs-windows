@@ -138,8 +138,8 @@ The iPad's `RecipeGallerySheet`, `RecipeStrip`, `RecipeRow` and `RecipeSheet`, r
   - **A colour** is tafs cloud's `#RRGGBB` for light and for dark, as the window's theme is; one it can't read is none.
 - **A job's sheet** (a strip job opens on it): what it ends, what that costs today, its Card in zones (does on its own,
   asks first, never does; an empty zone left out), tafs cloud's line for a passed proof run and what the job reported,
-  then **Try it with Coach** (`words.try`, else `labels.hand`) for someone who may use Coach. It opens Coach; the job's
-  words go in Coach's box once that box is on main (tafs-windows#99).
+  then **Try it with Coach** (`words.try`, else `labels.hand`) for someone who may use Coach. As the iPad's
+  `handRecipeToCoach`, it starts a new Coach conversation with the job's `say` in the box, to edit and send; nothing is sent.
 - **Signed out,** the rows go.
 
 ## Not yet

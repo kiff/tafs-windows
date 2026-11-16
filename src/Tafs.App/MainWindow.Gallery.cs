@@ -107,12 +107,13 @@ public sealed partial class MainWindow
 
     /// <summary>
     /// The gallery, to browse, as the iPad's sheet from Explore jobs: a job's "Try it with Coach", for someone who may use
-    /// Coach, opens Coach. A strip job opens on its own sheet.
+    /// Coach, starts a new conversation with the job's words in the box, as the iPad's <c>handRecipeToCoach</c>; nothing is
+    /// sent. A strip job opens on its own sheet.
     /// </summary>
     void OpenGallery(GalleryRow row)
     {
         if (gallery is not { } g) return;
         Pages.Navigate(typeof(GalleryPage), new GalleryOpening(g, Browse: true,
-            Hand: CoachMode.Answer is not null ? _ => CoachMode.Open() : null, Open: row.Job, Logos: HomeList.Api));
+            Hand: CoachMode.Answer is not null ? job => CoachMode.Write(job.Say, newConversation: true) : null, Open: row.Job, Logos: HomeList.Api));
     }
 }

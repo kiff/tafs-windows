@@ -59,7 +59,7 @@ their lines here are d14217f's.
 | HomeRecipes.swift | 242 | Home with no taf: the recipes | |
 | MicButton.swift | 122 | The mic in a chat's message bar | Dictation |
 | PlanViews.swift | 268 | Buying credits and Solo, asking an admin, declining a request. `BuyCreditsView` and `SoloView` buy through the App Store, so Windows needs its own store or KIFF's web flow; `AskAdminView` and `DeclineRequestView` are plain tafs cloud calls | Purchases |
-| RecipeGallery.swift | 135 | The jobs' gallery | Browsing: Explore jobs and the strip with See all jobs in the sidebar, the gallery with its chips and categories, `RecipeRow`, `AppMarks` with tafs cloud's logos, `RecipeSheet` with Try it with Coach (`GalleryPage.xaml.cs`, `MainWindow.Gallery.cs`, `Tafs.Core/Home/Gallery.cs`) | + New's create mode and "Say it in your own words"; the job's words in Coach's box (after #99) |
+| RecipeGallery.swift | 135 | The jobs' gallery | Browsing: Explore jobs and the strip with See all jobs in the sidebar, the gallery with its chips and categories, `RecipeRow`, `AppMarks` with tafs cloud's logos, `RecipeSheet` with Try it with Coach, a new conversation with the job's words in the box (`GalleryPage.xaml.cs`, `MainWindow.Gallery.cs`, `Tafs.Core/Home/Gallery.cs`) | + New's create mode and "Say it in your own words" |
 | RecordSearchViews.swift | 192 | The Record's search | |
 | SetupShapePanel.swift | 130 | What Coach has made so far | SetupShape |
 | TafDialPanel.swift | 228 | The dial's requests and confirmation | KnobNavigation, DoorsModel |
