@@ -84,6 +84,31 @@ public sealed partial class MainWindow : Window
     IReadOnlyList<RecordEntry> record;
     /// <summary>How this window reads KIFF for the Record: as the session, or a stand-in file for a screenshot; none signed out.</summary>
     Func<string, Task<CloudRead>>? kiffRead;
+    /// <summary>The KIFF account signed in to (<c>GET /v1/me</c>): its name, the person's email and its time zone, once read.</summary>
+    Tafs.Core.Account.KiffAccount? kiffAccount;
+
+    /// <summary>
+    /// The KIFF account, read once a session starts, as the iPad's <c>model.kiffAccount</c>: the email under Account in the
+    /// sidebar, and the account's rows in Account. A read that fails leaves Account's title alone; one for an earlier session is
+    /// dropped.
+    /// </summary>
+    async Task ReadKiffAccountAsync(int reading)
+    {
+        if (kiffRead is not { } read) return;
+        var answer = (await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer;
+        if (reading != sessions || answer is not { } me) return;
+        kiffAccount = Tafs.Core.Account.KiffAccount.Read(me);
+        ShowKiffAccount();
+    }
+
+    /// <summary>Under Account at the sidebar's foot: the person's email, else the account's name; nothing until it's read.</summary>
+    void ShowKiffAccount()
+    {
+        AccountName.Text = kiffAccount?.SidebarLine ?? "";
+        AccountName.Visibility = kiffAccount is null ? Visibility.Collapsed : Visibility.Visible;
+        AutomationProperties.SetName(AccountButton, Sidebar.Foot(App.Words, kiffAccount?.Name).AccountLabel + (kiffAccount?.Email is { } email ? ", " + email : ""));
+        if (Pages.Content is AccountPage page) page.ShowAccount(kiffAccount);
+    }
     /// <summary>The Overview's lines: tafs cloud's once Home is read, else none, or the sample's.</summary>
     IReadOnlyList<OverviewRow> overviewRows;
     /// <summary>Home's answer from tafs cloud, for a taf's page; none until it's read.</summary>
@@ -236,6 +261,9 @@ public sealed partial class MainWindow : Window
         // The choices only for a KIFF account, as the iPad's mode == .kiff: never over the sample.
         AccountPage.AlertsChosen += () => OpenBeside(typeof(AlertsPage), new AlertsOpening(sample ? null : App.Sessions.Kept()?.Tenant));
         AccountPage.DevicesChosen += () => OpenBeside(typeof(DevicesPage), new DevicesOpening(kiffRead));
+        // Connect apps and Plan & usage from Account, as the iPad's People & apps and Plan rows: the sidebar's screens.
+        AccountPage.ConnectAppsChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
+        AccountPage.UsageChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
         AccountPage.PeopleChosen += () => OpenBeside(typeof(PeoplePage), new PeopleOpening(kiffRead,
             agent => home?.Tafs.FirstOrDefault(t => t.Agent == agent)?.Name));
         AccountPage.AddThisDeviceChosen += OpenPairing;
@@ -694,6 +722,7 @@ public sealed partial class MainWindow : Window
         cloudReadWithProof = (path, proof) => CloudReadAsync(bearer, path, proof);
         setupProof = () => SetupProofAsync(session);
         kiffRead = path => KiffReadAsync(bearer, path);
+        _ = ReadKiffAccountAsync(sessions);
         ReceiptSheet.Read = path => KiffBytesAsync(bearer, path);
         // Given before Coach's read, which reads them as it draws its approvals.
         CoachMode.Grants = () => GrantsAsync(session);
@@ -734,6 +763,8 @@ public sealed partial class MainWindow : Window
         setupProof = null;
         deviceId = null;
         kiffRead = null;
+        kiffAccount = null;
+        ShowKiffAccount();
         ReceiptSheet.Read = null;
         record = [];
         if (Pages.Content is RecordPage page) page.ShowEntries(record);
@@ -962,6 +993,86 @@ public sealed partial class MainWindow : Window
                 },
                 () => reading == sessions && App.Sessions.Kept()?.AccessToken == bearer);
         };
+    }
+
+    /// <summary>
+    /// The account's time zone set from this PC (<see cref="Tafs.Core.Account.AccountTimeZone.SetAsync"/>): Windows Hello as
+    /// Your step asks it, then this session's TPM key signs KIFF's change. Taken, the account is read again, and Account and
+    /// every time read after it follow. None without a session.
+    /// </summary>
+    Func<string, Task<(string? Zone, string? Why)>>? SetTimeZoneFor()
+    {
+        if (App.Sessions.Kept() is not { } session) return null;
+        var reading = sessions;
+        return async zone =>
+        {
+            var result = await Tafs.Core.Account.AccountTimeZone.SetAsync(App.Words, session.Tenant, zone, ConfirmStepAsync,
+                async message =>
+                {
+                    using var key = TpmKey.Open(session.KeyName);
+                    return await key.SignDerAsync(message);
+                },
+                async header => await KiffHttp.PutAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, Tafs.Core.Account.AccountTimeZone.Path),
+                    Tafs.Core.Account.AccountTimeZone.Body(zone), session.AccessToken, App.Words.Language, signature: ("KIFF-Device-Signature", header)),
+                () => SigningTime.Next(DateTimeOffset.UtcNow), () => reading == sessions);
+            if (result.Zone is not null && reading == sessions) await ReadKiffAccountAsync(reading);
+            return result;
+        };
+    }
+
+    /// <summary>
+    /// Delete account (<see cref="Tafs.Core.Account.AccountDeletion.DeleteAsync"/>): Windows Hello as Your step asks it, then
+    /// tafs cloud's erase, planque's (signed by this device), and KIFF's, last, signed by this session's TPM key. None without
+    /// a session.
+    /// </summary>
+    Func<Task<(Tafs.Core.Account.Deleted Done, string? Why)>>? DeleteAccountFor()
+    {
+        if (App.Sessions.Kept() is not { } session) return null;
+        var reading = sessions;
+        var w = App.Words;
+        return async () =>
+        {
+            using var key = TpmKey.Open(session.KeyName);
+            return await Tafs.Core.Account.AccountDeletion.DeleteAsync(w, session.Tenant, ConfirmStepAsync,
+                () => CloudWriteAsync(session.AccessToken, "POST", Tafs.Core.Account.AccountDeletion.CloudPath, Tafs.Core.Account.AccountDeletion.Body()),
+                async () =>
+                {
+                    var path = Tafs.Core.Account.AccountDeletion.PlanquePath(session.Tenant);
+                    // This device's id in KIFF, as Start's proof loads it: planque takes no signature without it.
+                    async Task<string?> LoadDevice()
+                    {
+                        var devices = await KiffReadAsync(session.AccessToken, PlanqueProof.DevicesPath);
+                        var device = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
+                        if (reading == sessions) deviceId = device;
+                        return device;
+                    }
+                    var signature = await PlanqueProof.SignAsync(session.Tenant, deviceId, LoadDevice, key,
+                        () => SigningTime.Next(DateTimeOffset.UtcNow), "DELETE", path, []);
+                    return signature is null ? 0 : (await KiffHttp.PlanqueDeleteAsync(new Uri(PlanqueProof.Api, path), signature, w.Language)).Status;
+                },
+                async header => (await KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, Tafs.Core.Account.AccountDeletion.KiffPath),
+                    Tafs.Core.Account.AccountDeletion.Body(), session.AccessToken, w.Language, signature: ("KIFF-Device-Signature", header))).Status,
+                async message => await key.SignDerAsync(message),
+                () => SigningTime.Next(DateTimeOffset.UtcNow), () => reading == sessions);
+        };
+    }
+
+    /// <summary>A write to tafs cloud as the session (POST, PUT or DELETE), answered as a read is: Account's settings.</summary>
+    static async Task<CloudRead> CloudWriteAsync(string bearer, string method, string path, byte[]? body)
+    {
+        var w = App.Words;
+        var url = new Uri(HomeList.Api, path);
+        try
+        {
+            var (status, answer) = method switch
+            {
+                "PUT" => await KiffHttp.PutAsync(url, body ?? "{}"u8.ToArray(), bearer, w.Language),
+                "DELETE" => await KiffHttp.DeleteAsync(url, bearer, w.Language),
+                _ => await KiffHttp.PostAsync(url, body ?? "{}"u8.ToArray(), bearer, w.Language),
+            };
+            return Answered(w, status, answer);
+        }
+        catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
     }
 
     /// <summary>A read from KIFF as the session, answered as tafs cloud's are.</summary>
@@ -1305,7 +1416,9 @@ public sealed partial class MainWindow : Window
     void OnAccount(object sender, RoutedEventArgs e)
     {
         OpenBeside(typeof(AccountPage), new AccountOpening(sample, Root.RequestedTheme,
-            path => cloudRead is { } read ? read(path) : Task.FromResult(CloudRead.Unreached(App.Words))));
+            path => cloudRead is { } read ? read(path) : Task.FromResult(CloudRead.Unreached(App.Words)), kiffAccount,
+            App.Sessions.Kept() is { } session ? (method, path, body) => CloudWriteAsync(session.AccessToken, method, path, body) : null,
+            Halt.ManagesCards(capabilities), SetTimeZoneFor(), DeleteAccountFor()));
         ShowAccountChosen(true);
     }
 
