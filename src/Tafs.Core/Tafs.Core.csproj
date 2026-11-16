@@ -1,6 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Its one package, BouncyCastle, is pinned to an exact version and its hash kept in packages.lock.json; CI restores
+         only what the lock file says. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
+    <!-- The runtimes the app publishes for, so one lock file holds for a restore with or without -r. -->
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
   <ItemGroup>
     <!-- The native structures' layouts are pinned by tests (WindowsHelloLayoutTests). -->
     <InternalsVisibleTo Include="Tafs.Core.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="BouncyCastle.Cryptography" Version="[2.5.1]" />
   </ItemGroup>
 </Project>
