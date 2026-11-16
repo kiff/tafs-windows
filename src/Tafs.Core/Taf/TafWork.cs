@@ -111,18 +111,24 @@ public sealed record TafWork(string Line, TafHealth? Health, OldestWaiting? Olde
             ? new OldestWaiting(words, Lenient.Bool(o, "late")) : null;
         var promise = Lenient.Field(a, "promise") is { ValueKind: JsonValueKind.Object } p && Lenient.Int(p, "hours") is > 0 and var h ? h : (int?)null;
         var requests = Lenient.Array(a, "requests").Select(Request).OfType<WorkRequest>().ToList();
-        var skipped = Lenient.Array(a, "skipped").Where(k => k.ValueKind == JsonValueKind.Object && Lenient.At(k, "due") is not null)
-            .Select(k => new WorkSkipped(Lenient.At(k, "due")!.Value, Lenient.Text(k, "why") ?? "", Lenient.Text(k, "words") ?? "")).ToList();
+        var skipped = ReadSkipped(a);
         return new(summary, Lenient.Field(a, "health") is { ValueKind: JsonValueKind.Object } health ? TafHealth.Read(health) : null,
             oldest, promise, requests, skipped);
     }
 
-    static WorkRequest? Request(JsonElement r)
+    /// <summary>The skipped firings of an answer (<c>skipped</c>), each with its due time.</summary>
+    internal static IReadOnlyList<WorkSkipped> ReadSkipped(JsonElement a) =>
+        Lenient.Array(a, "skipped").Where(k => k.ValueKind == JsonValueKind.Object && Lenient.At(k, "due") is not null)
+            .Select(k => new WorkSkipped(Lenient.At(k, "due")!.Value, Lenient.Text(k, "why") ?? "", Lenient.Text(k, "words") ?? "")).ToList();
+
+    /// <summary>A delivery as tafs cloud writes it.</summary>
+    internal static WorkDelivery Delivery(JsonElement d) => new(Lenient.Text(d, "place") ?? "door_reply", Lenient.Text(d, "key"), Lenient.Text(d, "state") ?? "",
+        Lenient.Text(d, "line") ?? "", Lenient.Bool(d, "send_again"));
+
+    internal static WorkRequest? Request(JsonElement r)
     {
         if (r.ValueKind != JsonValueKind.Object || Lenient.Text(r, "id") is not { } id || Lenient.At(r, "at") is not { } at) return null;
-        var deliveries = Lenient.Array(r, "deliveries").Where(d => d.ValueKind == JsonValueKind.Object)
-            .Select(d => new WorkDelivery(Lenient.Text(d, "place") ?? "door_reply", Lenient.Text(d, "key"), Lenient.Text(d, "state") ?? "",
-                Lenient.Text(d, "line") ?? "", Lenient.Bool(d, "send_again"))).ToList();
+        var deliveries = Lenient.Array(r, "deliveries").Where(d => d.ValueKind == JsonValueKind.Object).Select(Delivery).ToList();
         var credits = Lenient.Field(r, "credits") is { ValueKind: JsonValueKind.Object } c && Lenient.Text(c, "words")?.Trim() is { Length: > 0 } used ? used : null;
         return new(id, at, Lenient.Text(r, "state") ?? "", Lenient.Text(r, "line") ?? "", deliveries, credits);
     }

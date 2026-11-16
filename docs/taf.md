@@ -88,7 +88,13 @@ after each change.
   (`POST …/requests/{run}/deliveries/{place}/send`, the place's key URL-encoded). A read that fails says so in red.
 - **Its runs:** that it works from its chat, or when it runs next (Paused when it is), and Run now for whoever manages it
   (`POST …/run`), "Starting a run…" until tafs cloud answers; a firing that started nothing says tafs cloud's words.
-- The runs it kept, and a run's own page, come with S19.
+- **The runs it kept** (`RunPage`, `TafPage.Runs.cs`; the iPad's `RetainedRuns`): under its runs, tafs cloud's title for
+  them and its latest three (`GET …/work/runs?limit=3`), each with what it used and where its reply went, the firings that
+  started no run in their place, dim; "see them all" in tafs cloud's words lists every page kept, 20 at a time with More,
+  and tafs cloud's end words.
+- **A run's own page** (S19, `RunDetail`; the iPad's `KnobRequestDetail`): a tap on a run opens it in place of the Activity,
+  with Back: where it came from, its line, each step with its mark (done in green, else amber) and its line, Try the reply
+  now on a reply given up on (for whoever manages the taf), and Ask Coach.
 
 **Starts when and Results go to** (P40, `TafKnob`, `ResultPlaces`, `TafPage.Starts.cs`; the iPad's `StartsWhenView`,
 `ResultsGoToView` and `KnobPendingPanel`): two rows under the job, each its own screen with Setup to go back, read from

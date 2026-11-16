@@ -1458,6 +1458,7 @@ public sealed partial class MainWindow : Window
                 : path.StartsWith("/v1/record/cases/", StringComparison.Ordinal) ? "record-case.json"
                 : path.StartsWith("/v1/record?", StringComparison.Ordinal) ? "record-search.json"
                 : path.StartsWith(Tafs.Core.Missions.Brief.Route, StringComparison.Ordinal) ? "brief.json"
+                : path.Contains("/work/runs?") ? "taf-work-runs.json" : path.Contains("/requests/") ? "taf-request.json"
                 : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json" : path.EndsWith("/knob") ? "taf-knob.json" : path.EndsWith("/work") ? "taf-work.json"
                 : path.EndsWith("/chats") ? "coach-chats.json" : path.Contains("/conversation") ? "coach-conversation.json" : "taf-run-report.json");
         return File.Exists(file) ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(file)) : CloudRead.Unreached(w);
