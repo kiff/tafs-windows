@@ -249,8 +249,8 @@ reference:
   taking it after KIFF did, "KIFF resumed Rae, but tafs cloud didn't yet." with why. A sign-out meanwhile sends nothing
   more. A taf halted with every taf is resumed from every taf's screen.
 
-**Remove for good** (`TafRemoval`, ported from the iPad's `removeTaf` and `removalWords`): "Remove Rae", outlined in red,
-last on the Card tab, for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume (a removal
+**Remove for good** (`TafRemoval`, ported from the iPad's `removeTaf` and `removalWords`): "Remove for good" (Narrator: "Remove Rae"),
+outlined in red, last on Setup as the iPad's (a revoked taf too), for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume (a removal
 is the approval key's act, never the device key's); a revoked taf can still be removed.
 1. **The confirmation:** "Remove Rae for good?", what always goes (`taf.remove_body`), then what goes with it and what
    stays, in tafs cloud's words (`GET /v1/tafs/{id}/removal`, which ends nothing). Cancel changes nothing.
