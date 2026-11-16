@@ -9,3 +9,5 @@ shared/
 screenshots/
 # The team's zip and MSIX, built locally.
 artifacts/
+# WiX's extensions, fetched by `dotnet wix extension add` at the version CI names.
+.wix/

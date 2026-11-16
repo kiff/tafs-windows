@@ -77,12 +77,28 @@ as one, with "Shows the receipt". In `Tafs.Core.Record` (`Receipt`):
 - **KIFF's receipt,** for a line that has one: `GET /v1/receipts/{trace_id}` on KIFF, as the session,
   kept as KIFF wrote it. Its chain (`causal_chain`) is taken as written, never decoded and written again
   (`RawJson`, as the iPad's `RawJSON`), since that's what KIFF signed.
+  - **Checked on this PC** (`ReceiptCheck`, as iOS's and Android's): the signed digest is
+    keccak256(ascii(sha256hex(causal_chain))), and the signer recovered from the 65-byte secp256k1
+    signature must be the one the receipt declares and KIFF's (`ReceiptCheck.KiffSigner`, one key for
+    every account; a rotation ships in a new build first). A receipt that doesn't read, or writes a key
+    twice at its top or in its attestation, isn't one KIFF wrote. Keccak-256 and the key's recovery are
+    BouncyCastle's (`BouncyCastle.Cryptography`, pinned to 2.5.1 with its hash in Tafs.Core's
+    `packages.lock.json`, which CI restores locked), the library Android's check uses. While it's read
+    and checked: "Checking KIFF's receipt on this Windows PC…".
   - **What happened:** each step KIFF signed, its message (else its kind in words) and its time, on a
-    line of dots.
-  - **The receipt's panel:** the decision in the receipt's words and when it was issued ("held →
-    approved once by you · issued …"), and Copy receipt. Until the check, it has no heading: it's never
-    called KIFF's receipt, or checked, before it is.
-  - **A line the steps contradict** says KIFF's receipt doesn't check out, and why: the decision step
+    line of dots, drawn only once the receipt checks out here and matches the line
+    (`Receipt.ShowsWhatHappened`).
+  - **The receipt's panel,** by the check:
+    - **Checked:** "KIFF's receipt · checked on this Windows PC" in green, "Signed by KIFF, unchanged
+      since.", the decision in the receipt's words and when it was issued ("held → approved once by you ·
+      issued …"), **Show the full receipt** (its id and signer shortened, each step with its hash, and
+      the signature), and Copy receipt.
+    - **Not signed yet:** "KIFF's receipt · not signed yet", KIFF signs within a minute; after ten
+      minutes, "If this stays, tell us the receipt id below." with its id.
+    - **Doesn't check out:** "KIFF's receipt doesn't check out", "This receipt was changed after KIFF
+      signed it, or it wasn't signed by KIFF. Don't rely on this line.", the facts, the full receipt with
+      no signer, and Copy.
+  - **A line the steps contradict,** once checked, says KIFF's receipt doesn't check out, and why: the decision step
     signed another amount, or the hold was settled with another answer (KIFF writes a refusal "reject").
     Amounts are compared as numbers with their unit, so "150.00" and "150" agree. The iPad compares
     the strings, which would call that a contradiction. One that isn't a number is compared as written.
@@ -93,9 +109,7 @@ as one, with "Shows the receipt". In `Tafs.Core.Record` (`Receipt`):
 
 - **The tafs' chips are the tafs in the lines.** On the iPad they're the account's tafs, so a taf with no
   line yet still has its chip. They switch when the tafs list arrives.
-- **KIFF's signature on the receipt, checked on this PC** (`ReceiptCheck`), with what comes of it: checked,
-  doesn't check out, or not signed yet; and Show the full receipt, with its signer. Until then, the sheet
-  shows the receipt and never says it's checked.
+- **Share** beside Copy on a checked receipt, as the iPad's ShareLink.
 - **Open in the taf's chat,** at the sheet's foot on the iPad.
 - **From the iPad's Record, still to come:**
   - what happened in tafs itself beside KIFF's calls (its events);
