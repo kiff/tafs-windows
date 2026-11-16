@@ -93,6 +93,9 @@ public class BriefTests
         var connection = b.Decisions[0] with { Ref = new BriefRef("connection", "Gmail", "") };
         Assert.Equal(new BriefDestination(BriefGoes.NeedsYou, null), Brief.Destination(connection));
         Assert.Equal(new BriefDestination(BriefGoes.NeedsYou, null), Brief.Destination(b.Decisions[0] with { Ref = BriefRef.None }));
+        // A taf whose checks keep failing opens on its own page (tafs#1207), by its tafs cloud id; with none, Needs you.
+        Assert.Equal(new BriefDestination(BriefGoes.Taf, "taf-1"), Brief.Destination(b.Decisions[0] with { Ref = new BriefRef("check", "c_1", "taf-1") }));
+        Assert.Equal(new BriefDestination(BriefGoes.NeedsYou, null), Brief.Destination(b.Decisions[0] with { Ref = new BriefRef("check", "c_1", "") }));
     }
 
     /// <summary>Needs you beyond the brief is matched item by item: equal counts of different items still count.</summary>

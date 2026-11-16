@@ -102,17 +102,18 @@ public sealed record Brief(string? At, string? NextAt, IReadOnlyList<BriefDecisi
 
     /// <summary>
     /// Where a decision is answered: the route it already has, where its own signed answer is given. A held call opens on
-    /// its own card in Needs you, with <b>no answer chosen</b>; a step on its own; anything else Needs you. The answer
-    /// tapped is never part of where it goes, so nothing is chosen ahead and nothing is signed from the brief.
+    /// its own card in Needs you, with <b>no answer chosen</b>; a step on its own; a taf whose checks keep failing
+    /// (<c>check</c>, "Open the taf") on its own page, by <c>ref.taf</c>; anything else Needs you. The answer tapped is
+    /// never part of where it goes, so nothing is chosen ahead and nothing is signed from the brief.
     /// </summary>
-    public static BriefDestination Destination(BriefDecision decision) =>
-        decision.Ref.Id.Length == 0 ? new(BriefGoes.NeedsYou, null)
-        : decision.Ref.Kind switch
-        {
-            "hold" => new(BriefGoes.Hold, decision.Ref.Id),
-            "step" => new(BriefGoes.Step, decision.Ref.Id),
-            _ => new(BriefGoes.NeedsYou, null),
-        };
+    public static BriefDestination Destination(BriefDecision decision) => decision.Ref.Kind switch
+    {
+        "check" when decision.Ref.Taf.Length > 0 => new(BriefGoes.Taf, decision.Ref.Taf),
+        _ when decision.Ref.Id.Length == 0 => new(BriefGoes.NeedsYou, null),
+        "hold" => new(BriefGoes.Hold, decision.Ref.Id),
+        "step" => new(BriefGoes.Step, decision.Ref.Id),
+        _ => new(BriefGoes.NeedsYou, null),
+    };
 
     /// <summary>
     /// How much of Needs you the brief doesn't show, matched item by item, never by number, as the iPad's
@@ -175,7 +176,7 @@ public sealed record Brief(string? At, string? NextAt, IReadOnlyList<BriefDecisi
 }
 
 /// <summary>Where answering a decision goes.</summary>
-public enum BriefGoes { NeedsYou, Hold, Step }
+public enum BriefGoes { NeedsYou, Hold, Step, Taf }
 
 /// <summary>Where answering a decision goes, and the hold or hand-off it opens on.</summary>
 public sealed record BriefDestination(BriefGoes Goes, string? Id);
