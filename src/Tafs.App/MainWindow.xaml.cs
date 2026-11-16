@@ -335,8 +335,9 @@ public sealed partial class MainWindow : Window
             var beside = Path.GetDirectoryName(Path.GetFullPath(homeFile))!;
             CoachMode.Grants = () => Task.FromResult(File.Exists(Path.Combine(beside, "planque-grants.json"))
                 ? Tafs.Core.Kiff.PlanqueGrants.Read(File.ReadAllBytes(Path.Combine(beside, "planque-grants.json"))) : null);
-            CoachMode.Drafts = _ => Task.FromResult(File.Exists(Path.Combine(beside, "kiff-draft.json"))
-                ? Tafs.Core.Approvals.KiffDrafts.Read(Tafs.Core.Contracts.ContractFile.Answer(Path.Combine(beside, "kiff-draft.json"))) : null);
+            // With no kiff-draft.json, the draft isn't reached, and its card says so.
+            CoachMode.Drafts = _ => Task.FromResult(Tafs.Core.Approvals.KiffDrafts.Read(w, File.Exists(Path.Combine(beside, "kiff-draft.json"))
+                ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(Path.Combine(beside, "kiff-draft.json"))) : CloudRead.Unreached(w)));
             CoachMode.Read = path => Task.FromResult(ContractRead(w, homeFile, path));
             // The first taf's page, its Activity from taf-activity.json beside the Home contract, its Chat from taf-conversation.json.
             if (page is "taf" or "taf-setup" or "taf-chat" && home?.Tafs.FirstOrDefault() is { } first)
@@ -794,7 +795,7 @@ public sealed partial class MainWindow : Window
         // Approve on Coach's approval cards: only a passkey session that knows its passkey signs; any other keeps the gate.
         // Given with the answers, once this person may use Coach (AllowCoachAsync).
         CoachMode.Approves = Tafs.Core.Coach.CoachStart.MayStart(session);
-        CoachMode.Drafts = async id => (await KiffReadAsync(bearer, Tafs.Core.Approvals.KiffDrafts.Path(id))).Answer is { } d ? Tafs.Core.Approvals.KiffDrafts.Read(d) : null;
+        CoachMode.Drafts = async id => Tafs.Core.Approvals.KiffDrafts.Read(App.Words, await KiffReadAsync(bearer, Tafs.Core.Approvals.KiffDrafts.Path(id)));
         CoachMode.Read = path => CloudReadAsync(bearer, path);
         haltSend = path => CloudSendAsync(bearer, path, "{}"u8.ToArray());
         cloudSend = (path, body) => CloudSendAsync(bearer, path, body);

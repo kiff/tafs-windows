@@ -106,6 +106,15 @@ public static class KiffDrafts
 {
     public static string Path(string id) => "/v1/me/agent-drafts/" + CloudRead.PathPart(id);
 
+    /// <summary>
+    /// A draft as KIFF answered it, or why it couldn't be read, as the iPad's <c>readCardDraft</c> keeps its
+    /// <c>setupDraftErrors</c>: KIFF's own reason when it refused or wasn't reached, "KIFF didn't answer as expected" for an
+    /// answer it can't read.
+    /// </summary>
+    public static (AgentDraft? Draft, string? Why) Read(WordBook w, CloudRead read) =>
+        read.Answer is { } d && Read(d) is { } draft ? (draft, null)
+            : (null, read.Answer is null && read.Why is { } why ? why : w.Get("kiff.kiff_did_not_answer_expected"));
+
     /// <summary>A quantity that adds an amount up (<c>sum(amount_cents)</c>), not a count.</summary>
     public static bool IsSum(string quantity) => quantity.StartsWith("sum(", StringComparison.OrdinalIgnoreCase);
 

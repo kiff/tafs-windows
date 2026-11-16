@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Tafs.Core.Approvals;
+using Tafs.Core.Taf;
 using Tafs.Core.Tests.Strings;
 using Tafs.Core.Words;
 
@@ -99,5 +100,24 @@ public class KiffDraftsTests
         Assert.Equal("Refunds assistant's Card", Draft("").CardTitle(En));
         Assert.Equal("The taf's Card", (Draft("") with { Label = "  " }).CardTitle(En));
         Assert.Equal("/v1/me/agent-drafts/d%2F1", KiffDrafts.Path("d/1"));
+    }
+
+    /// <summary>As the iPad's <c>setupDraftErrors</c>: a draft that isn't read says why, KIFF's reason or that it answered otherwise.</summary>
+    [Fact]
+    public void A_draft_not_read_says_why()
+    {
+        var read = KiffDrafts.Read(En, CloudRead.Of(JsonDocument.Parse("""{"id": "d", "agent_id": "a", "status": "draft", "version": "v"}""").RootElement));
+        Assert.Equal("d", read.Draft?.Id);
+        Assert.Null(read.Why);
+
+        var refused = KiffDrafts.Read(En, CloudRead.Refused(En, 404, """{"error": "No such draft"}"""));
+        Assert.Null(refused.Draft);
+        Assert.Equal("No such draft", refused.Why);
+        Assert.Equal(CloudRead.Unreached(En).Why, KiffDrafts.Read(En, CloudRead.Unreached(En)).Why);
+
+        var unread = KiffDrafts.Read(En, CloudRead.Of(JsonDocument.Parse("""{"id": "d"}""").RootElement));
+        Assert.Null(unread.Draft);
+        Assert.Equal("KIFF didn't answer as expected. Try again.", unread.Why);
+        Assert.Equal("KIFF's draft of this Card couldn't be read. No such draft", En.Get("coach.card_draft_not_read", ("why", refused.Why!)));
     }
 }

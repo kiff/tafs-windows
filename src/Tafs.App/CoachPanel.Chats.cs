@@ -198,6 +198,7 @@ public sealed partial class CoachPanel
             cards.Clear();
             grants = null;
             drafts.Clear();
+            draftErrors.Clear();
             ShowConversation();
         }
     }
