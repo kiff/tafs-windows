@@ -2,7 +2,7 @@
 # Everything else has no named owner. One person reads every change to these paths, whoever wrote it.
 
 # Keys and signing: the TPM device key, Windows Hello, passkeys and the feature switches, KIFF's and planque's
-# signatures and their canonical JSON, the kept session.
+# signatures and their canonical JSON, the kept session, and where the token and signature headers are sent.
 /src/Tafs.Core/Approvals/                 @kiff-qa
 /src/Tafs.Core/Kiff/TpmKey.cs             @kiff-qa
 /src/Tafs.Core/Kiff/KiffSigning.cs        @kiff-qa
@@ -10,6 +10,7 @@
 /src/Tafs.Core/Kiff/KeptSession.cs        @kiff-qa
 /src/Tafs.Core/Kiff/Planque*.cs           @kiff-qa
 /src/Tafs.App/SessionStore.cs             @kiff-qa
+/src/Tafs.App/KiffHttp.cs                 @kiff-qa
 
 # Pairing and sign-in: how this PC gets its session and its key.
 /src/Tafs.Core/Pairing/                   @kiff-qa
@@ -24,6 +25,7 @@
 /src/Tafs.Core/NeedsYou/HeldAnswer.cs     @kiff-qa
 /src/Tafs.Core/NeedsYou/HoldAllow.cs      @kiff-qa
 /src/Tafs.Core/NeedsYou/YourStep.cs       @kiff-qa
+/src/Tafs.App/HeldAnswering.cs            @kiff-qa
 
 # The tests that pin all of the above.
 /tests/Tafs.Core.Tests/Approvals/         @kiff-qa
