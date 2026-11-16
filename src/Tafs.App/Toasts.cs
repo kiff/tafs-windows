@@ -43,8 +43,15 @@ static class Toasts
             && click.Arguments.TryGetValue(HoldToast.Argument, out var started) ? started : null;
     }
 
-    /// <summary>One hold's notification, tagged with its id, so a hold is never shown twice.</summary>
-    public static void Show(ToastLines lines)
+    /// <summary>Whether Windows lets tafs show notifications: registered, and not turned off in Windows' settings or by policy.</summary>
+    public static bool Allowed => on && AppNotificationManager.Default.Setting == AppNotificationSetting.Enabled;
+
+    /// <summary>
+    /// One hold's notification, tagged with its id, so a hold is never shown twice. With Sound off it goes to Notification
+    /// Center only, with no banner and no sound, as the iPad's passive alert (tafs cloud's <c>quietFor</c>, and
+    /// <c>PushDelegate</c>'s <c>.passive ? [.list]</c>).
+    /// </summary>
+    public static void Show(ToastLines lines, bool sound)
     {
         if (!on) return;
         var builder = new AppNotificationBuilder()
@@ -52,8 +59,10 @@ static class Toasts
             .AddText(lines.Title);
         // No second line while the PC is locked (HoldToast.Lines).
         if (lines.Body is { } body) builder.AddText(body);
+        if (!sound) builder.MuteAudio();
         var notification = builder.BuildNotification();
         notification.Tag = HoldToast.Tag(lines.Hold);
+        notification.SuppressDisplay = !sound;
         AppNotificationManager.Default.Show(notification);
     }
 
