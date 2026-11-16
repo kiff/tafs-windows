@@ -199,7 +199,8 @@ public sealed partial class MainWindow : Window
             if (screenshot is null) Keep(chosen);
         };
         AccountPage.SignInChosen += OpenSignIn;
-        AccountPage.AlertsChosen += () => OpenBeside(typeof(ComingPage), w.Get("settings.alerts"));
+        // The choices only for a KIFF account, as the iPad's mode == .kiff: never over the sample.
+        AccountPage.AlertsChosen += () => OpenBeside(typeof(AlertsPage), new AlertsOpening(sample ? null : App.Sessions.Kept()?.Tenant));
         AccountPage.DevicesChosen += () => OpenBeside(typeof(DevicesPage), new DevicesOpening(kiffRead));
         AccountPage.PeopleChosen += () => OpenBeside(typeof(PeoplePage), new PeopleOpening(kiffRead,
             agent => home?.Tafs.FirstOrDefault(t => t.Agent == agent)?.Name));
@@ -333,11 +334,13 @@ public sealed partial class MainWindow : Window
         var calls = KiffHeld.Calls(App.Words, holds, agent => tafs.TryGetValue(agent, out var taf) ? taf : null);
         ShowHeld(calls);
         // A hold KIFF has held since the last read gets its notification, as the iPad's hold alert, only for someone who
-        // answers held calls (canAnswerHolds); one no longer held loses its notification (removeAlerts(forHold:)).
+        // answers held calls (canAnswerHolds) and turned alerts on for this account (Account › Alerts); one no longer held
+        // loses its notification (removeAlerts(forHold:)).
         Toasts.Remove(HoldToast.Gone(notified, calls));
-        if (HoldToast.Notifies(capabilities))
+        var alerts = Alerts.Prefs;
+        if (HoldToast.Notifies(capabilities) && App.Sessions.Kept()?.Tenant is { } tenant && alerts.IsOn(tenant))
             foreach (var fresh in HoldToast.New(notified, calls))
-                if (HoldToast.Lines(App.Words, fresh, TimeZoneInfo.Local, Toasts.Locked()) is { } lines) Toasts.Show(lines);
+                if (HoldToast.Lines(App.Words, fresh, TimeZoneInfo.Local, Toasts.Locked()) is { } lines) Toasts.Show(lines, alerts.Sound);
         notified = calls.Where(c => c.KiffId is not null).Select(c => c.KiffId!).ToHashSet();
     }
 
