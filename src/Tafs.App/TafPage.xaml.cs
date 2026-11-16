@@ -225,6 +225,14 @@ public sealed partial class TafPage : Page
         var refused = mine.Stream is { } stream ? await StreamAsync(w, id, text, stream, send, mine) : await TafChatSend.SendAsync(w, id, text, send);
         if (opening != mine) return null;
         (sending, live) = (false, null);
+        if (refused is { Consent: true })
+        {
+            // Refused for want of the AI-data consent: its screen says why, and the words go back in the box, with no Not sent
+            // row, to send once it's allowed, as the iPad's.
+            sent.Remove(pending);
+            ShowChat();
+            return null;
+        }
         if (refused is not null)
         {
             sent.Remove(pending);

@@ -241,6 +241,8 @@ public sealed partial class MainWindow : Window
         };
         // An unsent bubble refused for a halt: Resume opens Halt's screen, the account's or the taf's.
         ChatViews.ResumeChosen += (taf, name) => OpenHalt(taf, name);
+        // A turn refused for want of the AI-data consent, from any route: its screen, wherever the person tried.
+        CloudRead.ConsentRequired += consent => DispatcherQueue.TryEnqueue(() => _ = AskConsentAsync(consent));
         OverviewPage.NeedsYouChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
         SignInPage.SignedIn += session =>
         {
@@ -807,6 +809,7 @@ public sealed partial class MainWindow : Window
         var reporting = sessions;
         CoachMode.Report = async (path, body) => await CloudSendAsync(bearer, path, body) is var r && reporting == sessions ? r : null;
         _ = ReadHomeAsync(path => CloudReadAsync(bearer, path));
+        _ = ReadConsentAsync(path => CloudReadAsync(bearer, path), sessions);
         heldClock.Start();
         _ = AllowCoachAsync(bearer);
     }
@@ -821,6 +824,7 @@ public sealed partial class MainWindow : Window
     void ForgetSession()
     {
         sessions++;
+        consentPutOff = false;
         // The last export's files too, as the iPad's removeOpenedFiles: a person's chats never stay on this PC after them.
         ChatsExport.Remove(ChatsExport.Folder);
         cloudRead = null;
