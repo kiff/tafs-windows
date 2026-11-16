@@ -9,6 +9,11 @@ The sections, in the iPad's order:
   - **The KIFF account**, once `GET /v1/me` is read (`KiffAccount`, as the iPad's `KIFFClient.Account` and `AccountView`):
     KIFF account (its name, else its slug), Account id (only when it differs from the name), Signed in as (the email,
     left out when the account is named after it, as `AccountLines.signedInAs`), and Time zone (KIFF's, else UTC).
+  - **Use this Windows PC: Europe/Paris,** under Time zone when the account's differs from this PC's (Windows' zone as its
+    IANA name), as the iPad's "Use this iPad": Windows Hello asks first ("Set your account's time zone to Europe/Paris"),
+    then this session's TPM key signs KIFF's `PUT /v1/me/time-zone` as a signed setup call (`KIFF-Device-Signature` over
+    `kiff.request.v1`). Closed or failing, nothing is sent ("The time zone didn't change."); KIFF refusing says the app's
+    line; taken, the account is read again. The iPad's full list of zones isn't here yet.
   - **In the sidebar,** under Account: the person's email, else the account's name, once read. Narrator reads both.
   - **View only**, with Add this Windows PC, shows exactly when the kept session's `approval_mode` says view ([the session](session.md)).
 - **People & apps,** for a KIFF account: People & groups, Devices, and Connect apps, which opens the sidebar's screen.

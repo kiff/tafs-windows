@@ -74,7 +74,8 @@ static class KiffHttp
 
     /// <summary>A JSON PUT as the session to tafs cloud or KIFF (a setting changed), the same hosts as a read.</summary>
     /// <exception cref="HttpRequestException">It wasn't reached, or isn't a host the session's token may go to.</exception>
-    public static async Task<(int Status, string Body)> PutAsync(Uri url, byte[] body, string bearer, string language, CancellationToken cancel = default)
+    public static async Task<(int Status, string Body)> PutAsync(Uri url, byte[] body, string bearer, string language, CancellationToken cancel = default,
+        (string Header, string Value)? signature = null)
     {
         if (!Tafs.Core.Kiff.KeptSessions.MaySendTo(url, DeviceSignIn.Api)) throw new HttpRequestException("not a host the session goes to");
         using var request = new HttpRequestMessage(HttpMethod.Put, url) { Content = new ByteArrayContent(body) };
@@ -82,6 +83,8 @@ static class KiffHttp
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
         request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        // A signed setup call's header (KIFF-Device-Signature), when it is one.
+        if (signature is { } signed) request.Headers.Add(signed.Header, signed.Value);
         return await SendAsync(request, cancel, Patient);
     }
 

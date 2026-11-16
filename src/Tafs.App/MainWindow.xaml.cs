@@ -995,6 +995,31 @@ public sealed partial class MainWindow : Window
         };
     }
 
+    /// <summary>
+    /// The account's time zone set from this PC (<see cref="Tafs.Core.Account.AccountTimeZone.SetAsync"/>): Windows Hello as
+    /// Your step asks it, then this session's TPM key signs KIFF's change. Taken, the account is read again, and Account and
+    /// every time read after it follow. None without a session.
+    /// </summary>
+    Func<string, Task<(string? Zone, string? Why)>>? SetTimeZoneFor()
+    {
+        if (App.Sessions.Kept() is not { } session) return null;
+        var reading = sessions;
+        return async zone =>
+        {
+            var result = await Tafs.Core.Account.AccountTimeZone.SetAsync(App.Words, session.Tenant, zone, ConfirmStepAsync,
+                async message =>
+                {
+                    using var key = TpmKey.Open(session.KeyName);
+                    return await key.SignDerAsync(message);
+                },
+                async header => await KiffHttp.PutAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, Tafs.Core.Account.AccountTimeZone.Path),
+                    Tafs.Core.Account.AccountTimeZone.Body(zone), session.AccessToken, App.Words.Language, signature: ("KIFF-Device-Signature", header)),
+                () => SigningTime.Next(DateTimeOffset.UtcNow), () => reading == sessions);
+            if (result.Zone is not null && reading == sessions) await ReadKiffAccountAsync(reading);
+            return result;
+        };
+    }
+
     /// <summary>A write to tafs cloud as the session (POST, PUT or DELETE), answered as a read is: Account's settings.</summary>
     static async Task<CloudRead> CloudWriteAsync(string bearer, string method, string path, byte[]? body)
     {
@@ -1356,7 +1381,7 @@ public sealed partial class MainWindow : Window
         OpenBeside(typeof(AccountPage), new AccountOpening(sample, Root.RequestedTheme,
             path => cloudRead is { } read ? read(path) : Task.FromResult(CloudRead.Unreached(App.Words)), kiffAccount,
             App.Sessions.Kept() is { } session ? (method, path, body) => CloudWriteAsync(session.AccessToken, method, path, body) : null,
-            Halt.ManagesCards(capabilities)));
+            Halt.ManagesCards(capabilities), SetTimeZoneFor()));
         ShowAccountChosen(true);
     }
 

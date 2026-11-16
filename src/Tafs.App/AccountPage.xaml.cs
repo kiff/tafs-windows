@@ -13,7 +13,8 @@ namespace Tafs.App;
 /// <param name="Write">A write to tafs cloud as the session (method, path, body): the consent and the suggestions setting.</param>
 /// <param name="Manages">Whether this person manages the account's tafs (KIFF's <c>cards.manage</c>): who may change suggestions.</param>
 public sealed record AccountOpening(bool Sample, ElementTheme Theme, Func<string, Task<CloudRead>>? Read = null,
-    KiffAccount? Account = null, Func<string, string, byte[]?, Task<CloudRead>>? Write = null, bool Manages = false);
+    KiffAccount? Account = null, Func<string, string, byte[]?, Task<CloudRead>>? Write = null, bool Manages = false,
+    Func<string, Task<(string? Zone, string? Why)>>? SetTimeZone = null);
 
 /// <summary>
 /// Account. Its rows follow where this PC stands (the sample, signed in with KIFF, or signed out). The KIFF account's name,
@@ -47,6 +48,21 @@ public sealed partial class AccountPage : Page
         opening = e.Parameter as AccountOpening ?? opening;
         Show();
         _ = ReadSettingsAsync();
+    }
+
+    string? zoneWhy;
+    bool zoneBusy;
+
+    /// <summary>Use this PC's zone; taken, the window reads the account again and Account follows; not, why shows under it.</summary>
+    async Task UseZoneAsync(Func<string, Task<(string? Zone, string? Why)>> set, string zone)
+    {
+        if (zoneBusy) return;
+        var mine = opening;
+        (zoneBusy, zoneWhy) = (true, null);
+        var (_, why) = await set(zone);
+        if (opening != mine) return;
+        (zoneBusy, zoneWhy) = (false, why);
+        Show();
     }
 
     // The AI-data consent and Coach's suggestions, as tafs cloud has them; none until read, and then their rows show.
@@ -107,6 +123,12 @@ public sealed partial class AccountPage : Page
             if (kiff.Slug != kiff.Name) account.Add(Row(w.Get("settings.account_id"), kiff.Slug));
             if (kiff.SignedInAs is { } email) account.Add(Row(w.Get("settings.signed_in_as"), email));
             account.Add(Row(w.Get("settings.time_zone_title"), kiff.TimeZone ?? "UTC"));
+            // This PC's zone, when the account's differs, as the iPad's "Use this iPad: …": one Windows Hello, then the device
+            // key signs KIFF's change. Holds' deadlines, Activity, the Record and what tafs write use it.
+            if (opening.SetTimeZone is { } set && AccountTimeZone.ThisPc(TimeZoneInfo.Local) is { } here && here != (kiff.TimeZone ?? "UTC"))
+                account.Add(Action(w.Get("settings.use_device_zone", ("device", w.Get("device.windows")), ("identifier", here)), "TafsAmberWords",
+                    () => _ = UseZoneAsync(set, here)));
+            if (zoneWhy is { } why) account.Add(new TextBlock { Text = why, FontSize = 13, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(20, 0, 20, 12), Style = Look("TafsNoText") });
         }
         // View only exactly when the session says view: Add this Windows PC pairs it.
         if (AccountScreen.ViewOnly(mode, kept))
