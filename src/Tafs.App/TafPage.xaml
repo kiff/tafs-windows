@@ -83,6 +83,20 @@
       <StackPanel x:Name="CardPane" Spacing="16" Visibility="Collapsed" />
       <!-- Chat: a taf's thread, in a readable column on a wide window, as the iPad's (720). -->
       <StackPanel x:Name="ChatPane" Spacing="12" MaxWidth="720" Visibility="Collapsed" />
+      <!-- Writing to the taf, under its thread, as the iPad's composer: Send, and Stop while a run of its works. -->
+      <Grid x:Name="Composer" MaxWidth="720" ColumnSpacing="8" Visibility="Collapsed">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBox x:Name="Draft" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="160" KeyDown="OnDraftKey"
+                 AutomationProperties.AutomationId="chat.draft" />
+        <Button x:Name="SendButton" Grid.Column="1" Style="{StaticResource TafsPrimary}" VerticalAlignment="Bottom" Click="OnSend"
+                AutomationProperties.AutomationId="chat.send" />
+        <Button x:Name="StopButton" Grid.Column="2" Style="{StaticResource TafsOutlineNo}" VerticalAlignment="Bottom" Click="OnStop"
+                Visibility="Collapsed" AutomationProperties.AutomationId="chat.stop" />
+      </Grid>
       <StackPanel x:Name="ActivityPane" Spacing="10">
         <StackPanel x:Name="FilterChips" Orientation="Horizontal" Spacing="6" />
         <TextBlock x:Name="Empty" FontSize="14" Foreground="{ThemeResource TafsDim}" Margin="0,8,0,0" Visibility="Collapsed" />
