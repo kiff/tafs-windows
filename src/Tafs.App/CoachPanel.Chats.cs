@@ -120,6 +120,13 @@ public sealed partial class CoachPanel
             {
                 var w = App.Words;
                 var empty = new StackPanel { Spacing = 8, Margin = new Thickness(4, 40, 4, 0) };
+                // Board 7, Coach with no taf or one, as the iPad's SetupChatView.starts: its spark beside one card.
+                if (TafCount <= 1)
+                {
+                    var art = Illustrations.CoachFirst();
+                    art.Margin = new Thickness(0, 0, 0, 12);
+                    empty.Children.Add(art);
+                }
                 var heading = Words(w.Get("coach.ask_anything"), 22, "TafsInkText");
                 heading.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
                 AutomationProperties.SetHeadingLevel(heading, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
@@ -212,6 +219,9 @@ public sealed partial class CoachPanel
         OpenChat(chosenSession);
         Open();
     }
+
+    /// <summary>How many tafs Home lists, as the window last read it: Coach's empty chat draws board 7 with none or one.</summary>
+    public int TafCount { get; set; }
 
     /// <summary>A conversation from the list, reopened: shown alone, and messages go on in it, as the iPad's <c>openSetupChat</c>.</summary>
     void OpenChat(string chosenSession)

@@ -23,6 +23,6 @@
     "strings": ["src/*/Words/**", "tests/*/Strings/**"],
     "contracts": ["src/*/Contracts/**", "tests/*/Contracts/**"],
     "ci": ["src/*/Ci/**", "tests/*/Ci/**", "tools/**", "ci/**"],
-    "app": ["src/Tafs.App/**"]
+    "app": ["src/Tafs.App/**", "installer/**", ".config/**"]
   }
 }

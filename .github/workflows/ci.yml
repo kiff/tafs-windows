@@ -107,9 +107,10 @@ jobs:
           exe=src/Tafs.App/bin/x64/Release/net8.0-windows10.0.19041.0/Tafs.App.exe
           mkdir -p screenshots
           missing=0
-          for screen in sign-in overview overview-home overview-labels taf-home taf-setup-home coach-home view-only pair needs-you record calendar calendar-week usage connect-apps account coach taf taf-setup taf-card; do
+          for screen in sign-in signed-out overview overview-home overview-labels taf-home taf-setup-home coach-home view-only pair needs-you record calendar calendar-week usage connect-apps account coach taf taf-setup taf-card; do
             case $screen in
               sign-in) opts=(--page sign-in) ;;
+              signed-out) opts=(--page signed-out) ;;
               overview) opts=(--sample) ;;
               overview-home) opts=(--home shared/contracts/home.json) ;;
               overview-labels) opts=(--home tests/fixtures/home-labels/home.json) ;;
@@ -199,11 +200,55 @@ jobs:
       - name: It starts
         if: matrix.platform == 'x64'
         run: timeout 120 artifacts/zip/tafs-x64/Tafs.App.exe --page sign-in --screenshot zip-start.png && test -s zip-start.png
+      # The installer people download (docs/install.md): an MSI of this same publish, and the setup .exe around it, by WiX
+      # v5, pinned in .config/dotnet-tools.json with its one extension. Built on every run that builds the zip.
+      - name: The installer
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          arch=$(echo "$PLATFORM" | tr '[:upper:]' '[:lower:]')
+          version=0.1.${{ github.run_number }}.0
+          dotnet tool restore
+          dotnet wix extension add WixToolset.Bal.wixext/5.0.2
+          # The 5.0.2 package names its DLL after the bootstrapper applications, so it's named by its path.
+          bal=.wix/extensions/WixToolset.Bal.wixext/5.0.2/wixext5/WixToolset.BootstrapperApplications.wixext.dll
+          mkdir -p artifacts/installer
+          # WiX reads -d paths from the .wxs file's folder, so they're absolute Windows paths; -wx makes a warning (a folder
+          # it can't harvest, say) fail the build instead of shipping an installer with nothing in it.
+          app=$(cygpath -w "$PWD/artifacts/zip/tafs-$PLATFORM")
+          msi=$(cygpath -w "$PWD/artifacts/installer/tafs-$version-$arch.msi")
+          dotnet wix build installer/Package.wxs -wx -arch "$arch" -d AppDir="$app" -d Version="$version" -o "$msi"
+          dotnet wix build installer/Bundle.wxs -wx -arch "$arch" -ext "$bal" -d Msi="$msi" -d Version="$version" \
+            -o "artifacts/installer/tafs-setup-$version-$arch.exe"
+          ls -la artifacts/installer
+      # On x64: the setup installs quietly, tafs starts from where it put it and saves its sign-in screen, and it uninstalls.
+      - name: It installs, starts and uninstalls
+        if: matrix.platform == 'x64'
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem artifacts/installer/tafs-setup-*-x64.exe).FullName
+          $p = Start-Process $setup -ArgumentList '/quiet', '/norestart', '/log', 'install.log' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 60; throw "install: $($p.ExitCode)" }
+          $app = Join-Path $env:ProgramFiles 'tafs\Tafs.App.exe'
+          if (-not (Test-Path $app)) { throw "not installed at $app" }
+          $run = Start-Process $app -ArgumentList '--page', 'sign-in', '--screenshot', "$PWD\installed-start.png" -PassThru
+          if (-not $run.WaitForExit(120000)) { $run.Kill(); throw 'the installed app did not finish its screenshot' }
+          if (-not (Test-Path installed-start.png) -or (Get-Item installed-start.png).Length -eq 0) { throw 'the installed app did not start' }
+          $u = Start-Process $setup -ArgumentList '/uninstall', '/quiet', '/norestart', '/log', 'uninstall.log' -Wait -PassThru
+          if ($u.ExitCode -ne 0) { Get-Content uninstall.log -Tail 60; throw "uninstall: $($u.ExitCode)" }
+          if (Test-Path $app) { throw 'still there after uninstalling' }
+          Write-Host 'installed, started and uninstalled'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: github.event_name != 'pull_request'
         with:
           name: tafs-windows-${{ matrix.platform }}
           path: artifacts/zip/tafs-${{ matrix.platform }}/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: github.event_name != 'pull_request'
+        with:
+          name: tafs-windows-setup-${{ matrix.platform }}
+          path: artifacts/installer/
           if-no-files-found: error
 
   # The MSIX (docs/install.md), kept for the day it's signed: Windows installs no unsigned package that holds an app.

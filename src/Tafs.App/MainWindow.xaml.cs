@@ -841,7 +841,16 @@ public sealed partial class MainWindow : Window
         // Given with the answers, once this person may use Coach (AllowCoachAsync).
         CoachMode.Approves = Tafs.Core.Coach.CoachStart.MayStart(session);
         CoachMode.Drafts = async id => Tafs.Core.Approvals.KiffDrafts.Read(App.Words, await KiffReadAsync(bearer, Tafs.Core.Approvals.KiffDrafts.Path(id)));
-        CoachMode.Read = path => CloudReadAsync(bearer, path);
+        // Coach's conversation carries this PC's planque proof, read-only and signed with no prompt, so tafs cloud marks its
+        // approval and sign-in cards with wider, as the iPad's and the Mac's thread reads. No proof, it reads unmarked.
+        CoachMode.Read = async path =>
+        {
+            string? proof = null;
+            if (Tafs.Core.Coach.CoachChat.SignsRead(path))
+                try { proof = await SetupProofAsync(session); }
+                catch (System.Security.Cryptography.CryptographicException) { }
+            return await CloudReadAsync(bearer, path, proof);
+        };
         haltSend = path => CloudSendAsync(bearer, path, "{}"u8.ToArray());
         cloudSend = (path, body) => CloudSendAsync(bearer, path, body);
         cloudStream = (path, body, cancel) => KiffHttp.PostStreamAsync(new Uri(HomeList.Api, path), body, bearer, App.Words.Language, cancel);
@@ -869,6 +878,9 @@ public sealed partial class MainWindow : Window
     {
         sessions++;
         consentPutOff = false;
+        // A Discard of the last session's says nothing more, and its Cards left are the next account's to read.
+        discarding.Clear();
+        discardLeft.Clear();
         // The next session asks Windows Hello again before its first step.
         (hello, helloChecked) = (HelloReadiness.Ready, false);
         // The last export's files too, as the iPad's removeOpenedFiles: a person's chats never stay on this PC after them.
@@ -1391,7 +1403,8 @@ public sealed partial class MainWindow : Window
         ShowYourTafs();
         NoTafs.Visibility = home.Tafs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows, home?.Labels);
-        // Coach's result cards name and open the tafs on this list.
+        // Coach's result cards name and open the tafs on this list, and its empty chat draws board 7 with none or one.
+        CoachMode.TafCount = read.Tafs.Count;
         CoachMode.Redraw();
     }
 
