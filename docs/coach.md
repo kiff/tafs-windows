@@ -160,6 +160,9 @@ work, where the iPad's decoder fails the thread.
       buttons, as the iPad's `requestRefused`; the refused digests it keeps aren't on this PC yet.
     - **One approval at a time:** while one goes through, every approval card's buttons are off, as the iPad's
       `connecting`.
+    - **A sign-in wider than the job** (kiff/tafs#1218): where tafs cloud marks the card `wider: {words}` (planque couldn't
+      narrow the sign-in, `usual_access`), its words show in amber after a warning mark, above the buttons, so they're read
+      before anyone approves. Blank, or of another shape, is no line.
     - **Windows Hello's dialog** doesn't show tafs cloud's `reason`, which the iPad's Face ID prompt shows; it names the
       app and the passkey, as for Start.
     - **Closed,** nothing is approved and the card says so: "Cancelled, so nothing was approved. The request is kept:
