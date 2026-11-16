@@ -31,6 +31,11 @@ public sealed record CoachCard(string Kind, string Id, string? Title = null, str
     public string? ConnectionDone { get; init; }
     /// <summary>tafs cloud's mark of what the approval signs (<c>signs</c>): none when it didn't say.</summary>
     public CardSigns? Signs { get; init; }
+    /// <summary>
+    /// tafs cloud's words for a sign-in wider than the job (<c>wider: {words}</c>, kiff/tafs#1218), in the reader's language:
+    /// planque couldn't narrow it (<c>usual_access</c>), so it asks for more access than the taf uses. None when it didn't say.
+    /// </summary>
+    public string? Wider { get; init; }
 }
 
 /// <summary>
@@ -171,6 +176,9 @@ public sealed record ShownCard(DateTimeOffset FirstAt, string Session, string Ru
                 ? new CardSigns(Lenient.Field(s, "card") is { ValueKind: JsonValueKind.True or JsonValueKind.False } card ? card.GetBoolean() : null,
                     Lenient.Text(s, "words") is { } words && words.Trim().Length > 0 ? words : null, Lenient.Text(s, "takes"))
                 : null,
+            // Read leniently, as signs: another shape is no line, never the card.
+            Wider = Lenient.Field(c, "wider") is { ValueKind: JsonValueKind.Object } wider && Lenient.Text(wider, "words") is { } said
+                && said.Trim().Length > 0 ? said.Trim() : null,
         };
     }
 

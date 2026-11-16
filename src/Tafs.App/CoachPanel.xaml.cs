@@ -714,6 +714,25 @@ public sealed partial class CoachPanel : UserControl
     static readonly string[] Kinds = ["questions", "notice", "result", "confirm", "approval"];
 
     /// <summary>
+    /// tafs cloud's line for a sign-in wider than the job, in amber after a warning mark, as one thing Narrator reads: the
+    /// sign-in asks for more access than the taf uses, and the taf still uses only its own tools.
+    /// </summary>
+    UIElement Wider(string words)
+    {
+        var line = new Grid { ColumnSpacing = 8 };
+        line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        line.ColumnDefinitions.Add(new ColumnDefinition());
+        line.Children.Add(new FontIcon { Glyph = "", FontSize = 14, Foreground = Brush("TafsAmberText"), VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 2, 0, 0) });
+        var text = new TextBlock { Text = words, FontSize = 13, TextWrapping = TextWrapping.Wrap, Foreground = Brush("TafsAmberText") };
+        Grid.SetColumn(text, 1);
+        line.Children.Add(text);
+        AutomationProperties.SetName(line, words);
+        AutomationProperties.SetAutomationId(line, "coach.approval.wider");
+        return line;
+    }
+
+    /// <summary>
     /// An approval, as the iPad's <c>SetupApproval</c>: planque's own words for the connection (its exact terms under
     /// Details), KIFF's draft of the taf's Card as its lines, and where it stands. Answered, one line; a newer request for
     /// the same connection makes it history. Approving comes in its own change: until then Decline and Approve are off.
@@ -773,6 +792,8 @@ public sealed partial class CoachPanel : UserControl
             box.Children.Add(new Border { Child = card, Padding = new Thickness(12), CornerRadius = new CornerRadius(12), Background = Brush("TafsRaised") });
         }
         else if (grant is not null && ApprovalCard.CardNextWords(c) is { } nextWords) box.Children.Add(Words(nextWords, 13, "TafsSoftText"));
+        // A sign-in wider than the job, in tafs cloud's words, above the buttons (kiff/tafs#1218): read before anyone approves.
+        if (c.Wider is { } wider) box.Children.Add(Wider(wider));
         if (failed) box.Children.Add(Words(why is null ? w.Get("coach.did_not_go_through_nothing") : w.Get("coach.answer.failed_why", ("value", why)), 14, "TafsNoText"));
         // A request planque refused, sent again unchanged, would fail the same way: Coach mode has to change it first, in
         // place of the buttons, as the iPad's requestRefused (the refused digests it keeps aren't on this PC yet).
