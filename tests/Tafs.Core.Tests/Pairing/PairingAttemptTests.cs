@@ -112,4 +112,39 @@ public class PairingAttemptTests
         Assert.NotEqual(PairingAttempt.PasskeyUserId(device.PublicKeyDer), PairingAttempt.PasskeyUserId(other.PublicKeyDer));
         Assert.Equal(32, PairingAttempt.PasskeyUserId(device.PublicKeyDer).Length);
     }
+
+    static NewPasskey Passkey(byte id) => new([id, 1, 2], [9]);
+
+    /// <summary>
+    /// A new code that made another passkey (the claim's proof makes one per attempt) leaves the one before unused, to be
+    /// removed; one kept for the new code isn't.
+    /// </summary>
+    [Fact]
+    public void A_passkey_a_new_code_replaced_is_left_unused()
+    {
+        var (a, b) = (Passkey(1), Passkey(2));
+        Assert.Same(a, PairingAttempt.Replaced(a, b));
+        Assert.Null(PairingAttempt.Replaced(a, Passkey(1)));
+        Assert.Null(PairingAttempt.Replaced(null, b));
+        // Windows Hello closed on the new code: none made, the one before isn't offered either.
+        Assert.Null(PairingAttempt.Replaced(a, null));
+    }
+
+    /// <summary>A code that expires, or a page that closes, unpaired: its passkey goes; a paired session's stays.</summary>
+    [Fact]
+    public void An_unpaired_passkey_is_removed_and_a_paired_one_kept()
+    {
+        var a = Passkey(1);
+        Assert.Same(a, PairingAttempt.LeftOver(a, paired: false));
+        Assert.Null(PairingAttempt.LeftOver(a, paired: true));
+        Assert.Null(PairingAttempt.LeftOver(null, paired: false));
+
+        var deleted = new List<byte[]>();
+        Assert.True(PairingAttempt.Discard(a, id => { deleted.Add(id); return true; }));
+        Assert.Equal(a.CredentialId, Assert.Single(deleted));
+        Assert.False(PairingAttempt.Discard(null, _ => throw new InvalidOperationException("never asked")));
+        // Windows can't, or refuses: quietly kept, never a failure of the pairing.
+        Assert.False(PairingAttempt.Discard(a, _ => false));
+        Assert.False(PairingAttempt.Discard(a, _ => throw new System.Runtime.InteropServices.COMException("no")));
+    }
 }

@@ -47,4 +47,28 @@ public static class PairingAttempt
             withPasskeyProof: withPasskeyProof);
         return (offer, credential);
     }
+
+    /// <summary>
+    /// The passkey a new attempt leaves unused: the one kept before, when the attempt made another (with the claim's proof,
+    /// each attempt makes its own). None when it was kept, or there was none.
+    /// </summary>
+    public static NewPasskey? Replaced(NewPasskey? kept, NewPasskey? now) =>
+        kept is not null && now is not null && !kept.CredentialId.AsSpan().SequenceEqual(now.CredentialId) ? kept : null;
+
+    /// <summary>
+    /// When a code expires or the page closes, the passkey its QR offered and that no session holds: KIFF never registered
+    /// it, so it's removed from Windows' list rather than left behind. One a paired session holds stays.
+    /// </summary>
+    public static NewPasskey? LeftOver(NewPasskey? kept, bool paired) => paired ? null : kept;
+
+    /// <summary>
+    /// Removes an unused passkey with <paramref name="delete"/> (<see cref="WindowsHello.DeletePlatformCredential"/>), quietly:
+    /// a failure leaves it in Windows' list, never stops the pairing. True when it went.
+    /// </summary>
+    public static bool Discard(NewPasskey? unused, Func<byte[], bool> delete)
+    {
+        if (unused is null) return false;
+        try { return delete(unused.CredentialId); }
+        catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException) { return false; }
+    }
 }

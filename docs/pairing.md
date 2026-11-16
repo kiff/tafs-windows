@@ -55,8 +55,17 @@ this against KIFF's worked example (§2.4), down to verifying its signature.
 The page opens its device key in the TPM (`TpmKey.PairingKeyName`, made the first time) and asks Windows Hello for this
 PC's passkey (`WindowsHello.CreateAsync`, ES256, the person verified), then shows the offer and claims it.
 
-- **A new code keeps the passkey.** Show a new code makes a new nonce and reuses the passkey from the last
-  attempt, so a retry asks for no new Windows Hello prompt and leaves no extra passkey in Windows' list.
+- **A new code keeps the passkey** while its code is live. Show a new code makes a new nonce and reuses the passkey from
+  the last attempt, so a retry asks for no new Windows Hello prompt and leaves no extra passkey in Windows' list.
+- **An unused passkey is removed** (`PairingAttempt.Replaced`, `LeftOver`, `Discard`): KIFF registers a passkey only when
+  the pairing goes through, so one the QR offered and no session holds is taken out of Windows' list
+  (`WindowsHello.DeletePlatformCredential`, `WebAuthNDeletePlatformCredential`, Windows' WebAuthn API 4 and up), asking
+  the person nothing:
+  - when its code expires (a new code then makes another, on the person's tap);
+  - when a new code made another one (with the creation proof on, each attempt makes its own);
+  - when the page closes without pairing.
+  A paired session's passkey is never removed. An older Windows that can't, or a refusal, leaves it in the list, as before,
+  and never stops the pairing.
 - **The passkey's user id** is sha256 of the device key: the same on every attempt with that key.
 - **With the creation proof on** (`Features.PairingPasskeyProof`), the challenge holds the nonce, so each
   attempt makes the passkey again. `PairingOffer.Create` then checks the proof's challenge is

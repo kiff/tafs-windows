@@ -27,6 +27,8 @@ public sealed partial class PairingPage : Page
     TpmKey? deviceKey;
     NewPasskey? passkey;
     bool offline;
+    /// <summary>KIFF handed over a session for this page's passkey: it's the session's now, never removed.</summary>
+    bool paired;
 
     /// <summary>KIFF handed over this PC's session. It's kept in memory for now.</summary>
     public static event Action<PairedSession>? Paired;
@@ -36,7 +38,12 @@ public sealed partial class PairingPage : Page
         InitializeComponent();
         clock.Tick += (_, _) =>
         {
-            if (offer is not null && offer.IsExpired(DateTimeOffset.UtcNow)) Show(PairingStep.Expired);
+            if (offer is not null && offer.IsExpired(DateTimeOffset.UtcNow))
+            {
+                Show(PairingStep.Expired);
+                // Its passkey was never registered: out of Windows' list. A new code makes another.
+                ForgetPasskey();
+            }
         };
         Unloaded += (_, _) =>
         {
@@ -44,6 +51,7 @@ public sealed partial class PairingPage : Page
             cancel.Cancel();
             deviceKey?.Dispose();
             deviceKey = null;
+            ForgetPasskey();
         };
     }
 
@@ -85,8 +93,11 @@ public sealed partial class PairingPage : Page
                 ? (challenge, c) => new WindowsHello(() => App.WindowHandle)
                     .CreateAsync(PairingAttempt.PasskeyUserId(deviceKey.PublicKeyDer), name, name, challenge, c)
                 : null;
+            var before = passkey;
             (offer, passkey) = await PairingAttempt.OfferAsync(deviceKey.PublicKeyDer, name, make, passkey,
                 DateTimeOffset.UtcNow, Features.PairingPasskeyProof, token);
+            // A new code that made another passkey leaves the one before unused: out of Windows' list.
+            PairingAttempt.Discard(PairingAttempt.Replaced(before, passkey), WindowsHello.DeletePlatformCredential);
             if (token.IsCancellationRequested) return;
             await ShowQrAsync();
 
@@ -101,6 +112,7 @@ public sealed partial class PairingPage : Page
                 {
                     PasskeyId = session.Mode == ApprovalMode.Passkey && passkey is { } made ? KiffSigning.Base64Url(made.CredentialId) : null,
                 });
+                paired = true;
                 Paired?.Invoke(session);
             }
             var step = PairingScreen.After(result.Status);
@@ -126,6 +138,15 @@ public sealed partial class PairingPage : Page
         {
             NewCode.IsEnabled = true;
         }
+    }
+
+    /// <summary>The passkey the QR offered, removed when no session holds it (<see cref="PairingAttempt.LeftOver"/>).</summary>
+    void ForgetPasskey()
+    {
+        if (offline || PairingAttempt.LeftOver(passkey, paired) is not { } unused) return;
+        // Gone or not (an older Windows keeps it), it's no longer offered: a new code makes another.
+        PairingAttempt.Discard(unused, WindowsHello.DeletePlatformCredential);
+        passkey = null;
     }
 
     async Task ShowQrAsync()
