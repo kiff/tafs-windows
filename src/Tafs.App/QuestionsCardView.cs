@@ -196,14 +196,23 @@ sealed class QuestionsCardView : StackPanel
         var chevron = new FontIcon { Glyph = "", FontSize = 11, Foreground = brush("TafsSoft"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 4, 0, 0) };
         Grid.SetColumn(chevron, 2);
         line.Children.Add(chevron);
-        // The whole line opens and folds what was approved; Narrator hears it as one, with its state.
-        var toggle = new Button { Content = card, Style = (Style)Application.Current.Resources["TafsBox"], HorizontalAlignment = HorizontalAlignment.Stretch,
+        // The whole line opens and folds what was approved. Narrator reads it as one line and hears whether it's open
+        // (the Expand/Collapse pattern, FoldButton).
+        var toggle = new FoldButton { Content = card, Style = (Style)Application.Current.Resources["TafsBox"], HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch };
         AutomationProperties.SetName(toggle, text);
-        toggle.Click += (_, _) =>
+        toggle.Toggled += open =>
         {
-            var open = more.Visibility != Visibility.Visible;
-            (more.Visibility, chevron.Glyph) = (open ? Visibility.Visible : Visibility.Collapsed, open ? "" : "");
+            if (open)
+            {
+                more.Visibility = Visibility.Visible;
+                chevron.Glyph = "";
+            }
+            else
+            {
+                more.Visibility = Visibility.Collapsed;
+                chevron.Glyph = "";
+            }
         };
         return new Border { Child = toggle };
     }
