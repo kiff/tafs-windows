@@ -89,6 +89,21 @@ static class KiffHttp
         using (answer) return ((int)answer.StatusCode, await answer.Content.ReadAsStringAsync(cancel), null);
     }
 
+    /// <summary>A run's stream opened again as the session (tafs cloud's stream host only), held open as it goes.</summary>
+    /// <exception cref="HttpRequestException">It wasn't reached, or isn't a host the session's token may go to.</exception>
+    public static async Task<(int Status, string Body, HttpResponseMessage? Open)> GetStreamAsync(Uri url, string bearer, string language,
+        CancellationToken cancel = default)
+    {
+        if (!Tafs.Core.Kiff.KeptSessions.MaySendTo(url, DeviceSignIn.Api)) throw new HttpRequestException("not a host the session goes to");
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearer);
+        request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+        var answer = await Streaming.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancel);
+        if (answer.IsSuccessStatusCode) return ((int)answer.StatusCode, "", answer);
+        using (answer) return ((int)answer.StatusCode, await answer.Content.ReadAsStringAsync(cancel), null);
+    }
+
     /// <exception cref="HttpRequestException">KIFF wasn't reached.</exception>
     /// <param name="bearer">The session's token, for a call as that session.</param>
     public static async Task<(int Status, string Body)> PostAsync(string path, byte[] body, CancellationToken cancel = default, string? bearer = null)

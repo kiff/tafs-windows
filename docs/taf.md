@@ -29,6 +29,11 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
   come keeps the thread there was and says "The thread couldn't be loaded." and why, in red at 13. A sample taf's
   thread is its greeting (`sample.hello`), with what it's doing as its Overview line says it. Coach's thread draws
   its bubbles, run starts and work the same way (`ChatViews`).
+  **A run at work picked back up** (the iPad's `resumeChat`): opened on a taf whose thread says a run is at work, with
+  nothing streaming it here (the page opened after it began, after a relaunch, or a stream that dropped), its stream is
+  opened again from its first step (`GET /v1/tafs/{id}/runs/{run}/stream?after=0`, tafs cloud's stream host) and drawn as
+  the live answer, then the thread is read again when it ends. Each run once; never a trial's chat. A stream that doesn't
+  open says nothing, and the thread is read again as before.
   **While it works** (P34, the iPad's `submitChat` and `steer`), words alone go to the run at work, once
   (`POST /v1/tafs/{id}/steer` with `{run, text, hold: true}`): the run streaming here, else the thread's `working.run`.
   Taken, it shows on the right with "Refunds reads this at its next step" ("…when it carries on" for a paused run).

@@ -869,6 +869,7 @@ public sealed partial class MainWindow : Window
     Func<string, byte[], Task<CloudRead>>? cloudSend;
     /// <summary>A POST to tafs cloud as the session whose answer streams: a message to a taf.</summary>
     TafStream? cloudStream;
+    TafResumeStream? cloudResume;
     /// <summary>A change to a taf as the session (Setup's dial: a follow-up removed, every start paused, tafs' places set); none signed out.</summary>
     Func<HttpMethod, string, byte[]?, Task<CloudRead>>? cloudChange;
 
@@ -937,6 +938,8 @@ public sealed partial class MainWindow : Window
         cloudChange = (method, path, body) => CloudChangeAsync(bearer, method, path, body);
         // Streamed answers come from tafs cloud's streaming function, as the iPad's streamURL: its main host has no such route.
         cloudStream = (path, body, cancel) => KiffHttp.PostStreamAsync(new Uri(Tafs.Core.Kiff.KeptSessions.TafsCloudStream, path), body, bearer, App.Words.Language, cancel);
+        // A run at work picked back up: the same stream host, as the session.
+        cloudResume = (path, cancel) => KiffHttp.GetStreamAsync(new Uri(Tafs.Core.Kiff.KeptSessions.TafsCloudStream, path), bearer, App.Words.Language, cancel);
         // Start, as the iPad's: off for a session that can't approve.
         CoachMode.StartCoach = Tafs.Core.Coach.CoachStart.MayStart(session) ? () => StartCoachAsync(session) : null;
         // Coach's tools still to give, given from its row (P8): only a session that signs with this PC's passkey.
@@ -1033,6 +1036,7 @@ public sealed partial class MainWindow : Window
         CoachMode.Answer = null;
         ShowNewTaf();
         (manage, capabilities, accountHalt, haltSend, cloudSend, cloudStream, cloudChange) = (null, null, Halt.Running, null, null, null, null);
+        cloudResume = null;
         ShowHaltAll();
         CoachMode.StartCoach = null;
         CoachMode.GiveTools = null;
@@ -1870,7 +1874,7 @@ public sealed partial class MainWindow : Window
                 // isn't read on this PC yet, so its issuer is the iPad's for anyone else: "The account".
                 Cards: taf.Cards, IssuedBy: w.Get("card.issued_by_account"), Revoked: taf.Revoked,
                 CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof,
-                Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream, Remove: RemoveFor(taf), ApproveEvent: EventFor(taf), Share: ShareFor(taf),
+                Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream, ResumeStream: cloudResume, Remove: RemoveFor(taf), ApproveEvent: EventFor(taf), Share: ShareFor(taf),
                 // Setup › Starts when and Results go to: when it starts and where results go, as Home says, and the changes made at once.
                 Change: cloudChange, Starts: taf.Starts, Paused: taf.State == "paused", Email: kiffAccount?.Email, TimeZone: kiffAccount?.TimeZone,
                 // Coach on improving this taf, as the iPad's improveTaf; offered while KIFF says this person may use Coach.
