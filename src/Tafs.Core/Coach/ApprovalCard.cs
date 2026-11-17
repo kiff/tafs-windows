@@ -57,7 +57,8 @@ public static class ApprovalCard
         if (state == ApprovalState.Done && thread.AnswerTo(c.Id)?.Text.StartsWith("already approved", StringComparison.Ordinal) == true)
             return $"{w.Get("coach.already_approved")} · {signed ?? title ?? vendor}";
         if (signed is not null) return w.Get("coach.answer.approved_title", ("title", signed));
-        var declined = state == ApprovalState.Declined;
+        // Approved words only for an approved card: any other state reads as not approved, never by default.
+        var declined = state != ApprovalState.Done;
         string Titled(string what) => w.Get(declined ? "coach.answer.declined_title" : "coach.answer.approved_title", ("title", what));
         if (title is not null) return Titled(title);
         if (draft is { NoTools: not true }) return Titled(draft.CardTitle(w));

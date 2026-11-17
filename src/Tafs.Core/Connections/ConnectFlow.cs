@@ -92,6 +92,54 @@ public static class ConnectFlow
             ? new(true) : new(false, Why: w.Get("coach.not_connected", ("vendor", Vendor())));
     }
 
+    /// <summary>
+    /// The connect step tafs cloud asked for on Coach's approval card, as the iPad's <c>makeAskedCall</c> and <c>connectedAfter</c>:
+    /// planque's approve with the body tafs cloud built, sent as it is, as a tap in KIFF's window (opened with Windows Hello when
+    /// none is); then the vendor's sign-in and planque's confirm, or the code planque gave. What came of it, as the report says it.
+    /// Windows Hello closed throws <see cref="OperationCanceledException"/>: nothing approved.
+    /// </summary>
+    /// <param name="body">The approve body this PC rebuilt from what the card showed (<see cref="Tafs.Core.Coach.CoachApproval.ApproveBodyShown"/>).</param>
+    public static async Task<Tafs.Core.Coach.ConnectCame> AskedAsync(WordBook w, string tenant, Tafs.Core.Coach.ApprovalPlanque p, byte[] body, ConnectCalls calls)
+    {
+        OpenWindow? window;
+        try { window = await WindowAsync(calls, fresh: false); }
+        catch (WindowRefused refused) { return new("failed", Why: refused.Message); }
+        if (window is null) throw new OperationCanceledException();
+        try
+        {
+            var approved = await TapAsync(calls, window, ApprovalWindow.ApprovePath(tenant, p.Grant), body);
+            if (approved.Status is < 200 or > 299) return new("failed", Why: Refusal(w, approved.Status, approved.Body));
+            if (Read(approved.Body) is not { } answer) return new("failed", Why: w.Get("kiff.kiff_did_not_answer_expected"));
+            string? code;
+            if (answer.SignIn is { } page)
+            {
+                code = await calls.SignIn(page, p.Grant);
+                if (code is null) return new("sign_in_closed");
+            }
+            else if (answer.Status == "signed_in" && answer.ConfirmCode is { } given) code = given;
+            // planque already holds the sign-in: approving connected it, with no second sign-in.
+            else return answer.Status is "connected" or "listed" ? new(answer.Status) : new("not_connected", answer.Status);
+            var confirmed = await TapAsync(calls, approved.Window ?? window, ApprovalWindow.ConfirmPath(tenant, p.Grant), ApprovalWindow.ConfirmBody(code));
+            if (confirmed.Status is < 200 or > 299) return new("failed", Why: Refusal(w, confirmed.Status, confirmed.Body));
+            var status = Status(confirmed.Body);
+            return status is "connected" or "listed" ? new(answer.SignIn is null && status == "listed" ? "listed" : "connected")
+                : answer.SignIn is null ? new("not_connected", status)
+                : new("failed", Why: w.Get("connect.sign_came_back_connection", ("status", status ?? "")));
+        }
+        catch (WindowRefused refused) { return new("failed", Why: refused.Message); }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { return new("failed", Why: w.Get("error.offline")); }
+    }
+
+    static string? Status(string body)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            return doc.RootElement.ValueKind == JsonValueKind.Object ? Lenient.Text(doc.RootElement, "status") : null;
+        }
+        catch (JsonException) { return null; }
+    }
+
     static ConnectResult Failed(WordBook w, string vendor, string why) => new(false, Why: w.Get("connect.could_not_connected", ("vendor", vendor), ("why", why)));
 
     /// <summary>KIFF or planque refused opening a window: its words, said in place of a connection.</summary>

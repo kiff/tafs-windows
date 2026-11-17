@@ -1033,6 +1033,7 @@ public sealed partial class MainWindow : Window
         CoachMode.StartCoach = null;
         CoachMode.StartGate = false;
         planqueReady = false;
+        PlanqueKept.Forget();
         CoachMode.Report = null;
         CoachMode.Grants = null;
         CoachMode.Approve = null;
@@ -1041,8 +1042,30 @@ public sealed partial class MainWindow : Window
         CoachMode.Forget();
     }
 
-    /// <summary>This session set planque up, as the iPad's <c>planqueReady</c>: kept until sign-out, not across launches.</summary>
-    bool planqueReady;
+    /// <summary>
+    /// This PC is set up with planque for the signed-in account and device, as the iPad's <c>planqueReady</c>: kept across
+    /// launches (the iPad keeps it in its Keychain), forgotten at sign-out.
+    /// </summary>
+    bool planqueReady
+    {
+        get => App.Sessions.Kept() is { } s && PlanqueKept.Is(s.Tenant, s.DeviceId);
+        set
+        {
+            if (value && App.Sessions.Kept() is { } s) PlanqueKept.Keep(s.Tenant, s.DeviceId);
+            else if (!value) PlanqueKept.Forget();
+        }
+    }
+
+    /// <summary>
+    /// planque set up before an approval needs it, as the iPad sets it up from the approval itself: with Coach already there,
+    /// Start is one Windows Hello and planque's enrolment, nothing else. Why not, else none.
+    /// </summary>
+    async Task<string?> PlanqueFirstAsync(KeptSession session)
+    {
+        if (planqueReady) return null;
+        var started = await StartCoachAsync(session);
+        return planqueReady ? null : started.Why ?? App.Words.Get("connect.start_connected_tools_first", ("device", App.Words.Get("device.windows")));
+    }
 
     /// <summary>
     /// Start, as the iPad's <c>startSetup</c> (<c>CoachStart</c>): planque set up first with the session's TPM key, as its
@@ -1143,7 +1166,9 @@ public sealed partial class MainWindow : Window
         ShowNewTaf();
         // Approve, as the iPad's Coach cards, only for someone who may use Coach, and only a session that signs with its passkey.
         if (Tafs.Core.Coach.CoachStart.MayStart(session))
-            CoachMode.Approve = (card, conversation, digest, version) => ApproveCardAsync(session, card, conversation, digest, version);
+            CoachMode.Approve = (card, conversation, digest, version, words) => ApproveCardAsync(session, card, conversation, digest, version, words);
+            // KIFF's words for a connection's profile, shown on its approval card before Approve (P9).
+            CoachMode.ReadProfileWords = grant => ProfileWordsAsync(session, grant);
     }
 
     /// <summary>Every taf's halt, for someone who manages Cards (the iPad's <c>haltAllRow</c>'s <c>refreshHalt(nil)</c>), then its row.</summary>
@@ -1430,7 +1455,7 @@ public sealed partial class MainWindow : Window
     /// and the report signed by the TPM device key, which asks no one, with a fresh proof.
     /// </summary>
     async Task<Tafs.Core.Coach.ApproveResult> ApproveCardAsync(KeptSession session, Tafs.Core.Coach.CoachCard card, string? conversation,
-        string? shownDigest, string? shownDraft)
+        string? shownDigest, string? shownDraft, ProfileWords? shownWords = null)
     {
         var w = App.Words;
         var bearer = session.AccessToken;
@@ -1438,7 +1463,8 @@ public sealed partial class MainWindow : Window
         if (CoachMode.CoachId is not { } coach || session.PasskeyId is not { } passkeyId) return new(null);
         // As the iPad's approveAsked: planque set up by this session first, before anything is sent. It isn't kept across
         // launches here yet, so after one the person starts again from Coach's Start or Connected apps.
-        if (!planqueReady) return new(w.Get("connect.start_connected_tools_first", ("device", w.Get("device.windows"))));
+        // planque set up first, when it isn't yet on this PC: one Windows Hello and its enrolment.
+        if (await PlanqueFirstAsync(session) is { } notReady) return gen == sessions ? new(notReady) : Tafs.Core.Coach.ApproveResult.Stopped;
         var calls = new Tafs.Core.Coach.ApproveCalls(
             async () => { try { return await SetupProofAsync(session); } catch (System.Security.Cryptography.CryptographicException) { return null; } },
             async (path, body, proof) =>
@@ -1472,8 +1498,10 @@ public sealed partial class MainWindow : Window
                 }
                 catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
             },
-            () => SigningTime.Next(DateTimeOffset.UtcNow), () => gen == sessions, SessionStore.Why);
-        try { return await Tafs.Core.Coach.CoachApproval.ApproveAsync(w, coach, card, session.Tenant, conversation, shownDigest, shownDraft, calls); }
+            () => SigningTime.Next(DateTimeOffset.UtcNow), () => gen == sessions, SessionStore.Why,
+            // Connecting the app the card asks for (P9): in KIFF's window, opened with this PC's passkey.
+            (planque, body) => Tafs.Core.Connections.ConnectFlow.AskedAsync(w, session.Tenant, planque, body, ConnectCallsFor(session, passkeyId)));
+        try { return await Tafs.Core.Coach.CoachApproval.ApproveAsync(w, coach, card, session.Tenant, conversation, shownDigest, shownDraft, calls, shownWords); }
         // A kept passkey id that can't be read, or anything else unforeseen: the card says why, and never stays waiting.
         catch (Exception e) when (e is FormatException or System.Security.Cryptography.CryptographicException)
         {

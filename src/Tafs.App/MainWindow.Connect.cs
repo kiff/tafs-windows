@@ -32,7 +32,7 @@ public sealed partial class MainWindow
         async Task<((string Grant, bool NeedsKey)?, string?)> Start(ConnectApp app, string taf)
         {
             // As the iPad's: planque set up by this session first.
-            if (!planqueReady) return (null, w.Get("connect.start_connected_tools_first", ("device", w.Get("device.windows"))));
+            if (await PlanqueFirstAsync(session) is { } notReady) return (null, notReady);
             // A fresh signed grants read: planque takes each once. With it, tafs cloud decides the taf needs the app.
             string? proof;
             try { proof = await SetupProofAsync(session); }
@@ -57,17 +57,44 @@ public sealed partial class MainWindow
             var grants = await GrantsAsync(session);
             if (grants?.FirstOrDefault(g => g.Id == grantId) is not { } grant)
                 return (null, null, grants is null ? w.Get("connect.approve_not_read", ("why", w.Get("error.offline"))) : w.Get("connect.no_such_connection"));
-            if (grant.Profile is not { } profile) return (grant, null, null);
-            // KIFF's words for exactly its profile, read with the session and checked before they're shown.
-            try
-            {
-                var (status, body) = await KiffHttp.PostAsync(new Uri(kiff, ProfileWords.Path), ProfileWords.Body(profile), bearer, w.Language);
-                if (status is < 200 or > 299) return (grant, null, w.Get("connect.kiff_words_connection_could_not"));
-                var (words, why) = ProfileWords.Checked(w, System.Text.Encoding.UTF8.GetBytes(body), profile);
-                return (grant, words, why);
-            }
-            catch (System.Net.Http.HttpRequestException) { return (grant, null, w.Get("connect.kiff_words_connection_could_not")); }
+            if (grant.Profile is null) return (grant, null, null);
+            var (words, why) = await ProfileWordsAsync(session, grant);
+            return (grant, words, why);
         }
+
+        var calls = ConnectCallsFor(session, passkeyId);
+
+        return new ConnectAppsConnecting(tafs, Start, Read,
+            (grantId, digest, words) => ConnectFlow.ApproveAsync(w, session.Tenant, grantId, digest, words, calls));
+    }
+
+    /// <summary>KIFF's words for exactly a grant's profile, read with the session and checked before they're shown; or why not.</summary>
+    static async Task<(ProfileWords? Words, string? Why)> ProfileWordsAsync(KeptSession session, PlanqueGrant grant)
+    {
+        var w = App.Words;
+        if (grant.Profile is not { } profile) return (null, null);
+        try
+        {
+            var (status, body) = await KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, ProfileWords.Path), ProfileWords.Body(profile),
+                session.AccessToken, w.Language);
+            if (status is < 200 or > 299) return (null, w.Get("connect.kiff_words_connection_could_not"));
+            return ProfileWords.Checked(w, System.Text.Encoding.UTF8.GetBytes(body), profile);
+        }
+        catch (System.Net.Http.HttpRequestException) { return (null, w.Get("connect.kiff_words_connection_could_not")); }
+    }
+
+    /// <summary>
+    /// The calls connecting an app makes as this session (<see cref="ConnectCalls"/>), for Connect apps and Coach's approval card
+    /// alike: planque's grants, KIFF's window read and opened by this PC's passkey, planque's taps signed by the TPM key in it, and
+    /// the vendor's sign-in in the browser, back through <c>tafs:</c>.
+    /// </summary>
+    ConnectCalls ConnectCallsFor(KeptSession session, string passkeyId)
+    {
+        var w = App.Words;
+        var bearer = session.AccessToken;
+        var reading = sessions;
+        var kiff = Tafs.Core.SignIn.DeviceSignIn.Api;
+        bool Current() => reading == sessions;
 
         async Task<string?> Device()
         {
@@ -78,7 +105,7 @@ public sealed partial class MainWindow
             return device;
         }
 
-        var calls = new ConnectCalls(
+        return new ConnectCalls(
             () => GrantsAsync(session),
             async () => (await KiffReadAsync(bearer, ApprovalWindow.Path)).Answer is { } a ? ApprovalWindow.Read(a) : null,
             async () =>
@@ -131,7 +158,5 @@ public sealed partial class MainWindow
             },
             Current, SessionStore.Why);
 
-        return new ConnectAppsConnecting(tafs, Start, Read,
-            (grantId, digest, words) => ConnectFlow.ApproveAsync(w, session.Tenant, grantId, digest, words, calls));
     }
 }
