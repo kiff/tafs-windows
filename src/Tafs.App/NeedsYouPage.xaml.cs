@@ -191,17 +191,27 @@ public sealed partial class NeedsYouPage : Page
                 panel.Children.Add(allow);
             }
         }
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        // The other answers side by side at equal width across the card, Refuse last, as the iPad's.
+        var answers = new List<Button>();
         foreach (var step in call.NextSteps)
         {
             var next = Button(step, "TafsOutlineButton", sending);
             next.Click += (_, _) => HeldAnswerChosen?.Invoke(call, new HeldAnswer.NextStep(step));
-            row.Children.Add(next);
+            answers.Add(next);
         }
         var refuse = Button(w.Get("needs_you.refuse"), "TafsOutlineButton", sending);
         refuse.Foreground = ThemeBrush("TafsNo");
+        // Its outline in its own colour, at 40%, as the iPad's OutlineButtonStyle(color:).
+        if (refuse.Foreground is SolidColorBrush no) refuse.BorderBrush = new SolidColorBrush(no.Color) { Opacity = 0.4 };
         refuse.Click += (_, _) => HeldAnswerChosen?.Invoke(call, new HeldAnswer.Refuse());
-        row.Children.Add(refuse);
+        answers.Add(refuse);
+        var row = new Grid { ColumnSpacing = 8 };
+        foreach (var (answer, at) in answers.Select((b, i) => (b, i)))
+        {
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Grid.SetColumn(answer, at);
+            row.Children.Add(answer);
+        }
         panel.Children.Add(row);
         return panel;
     }
@@ -222,11 +232,12 @@ public sealed partial class NeedsYouPage : Page
         return ApprovalGate.Wrap(b);
     }
 
+    /// <summary>An answer's button, across the card's width, as the iPad's PrimaryButtonStyle and OutlineButtonStyle.</summary>
     static Button Button(string text, string style, bool sending)
     {
         var b = new Button
         {
-            Content = text, IsEnabled = !sending, HorizontalAlignment = HorizontalAlignment.Left,
+            Content = text, IsEnabled = !sending, HorizontalAlignment = HorizontalAlignment.Stretch,
             Style = (Style)Application.Current.Resources[sending && style == "TafsPrimary" ? "TafsPrimaryOff" : style],
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, text);
