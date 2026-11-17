@@ -118,13 +118,23 @@ public static class Attachments
     public static string? OpenableName(ChatFile file)
     {
         if (!System.Text.RegularExpressions.Regex.IsMatch(file.Id, "^[A-Za-z0-9_-]{1,64}$")) return null;
-        var safe = string.Concat(System.IO.Path.GetFileName(file.Name).Split(System.IO.Path.GetInvalidFileNameChars())).Trim();
+        var safe = SafeName(file.Name);
         var ext = System.IO.Path.GetExtension(safe);
         if (ext.Length == 0 || FilePrep.ByExtension.GetValueOrDefault(ext) is not { } mediaType) return null;
         // What tafs keeps for an image is a JPEG, whatever it was picked as.
         var kept = mediaType.StartsWith("image/", StringComparison.Ordinal) && mediaType != "image/jpeg" && !FilePrep.Limits.ContainsKey(mediaType) ? "image/jpeg" : mediaType;
         if (!string.Equals(kept, file.MediaType, StringComparison.OrdinalIgnoreCase)) return null;
         return file.Id + "-" + safe;
+    }
+
+    /// <summary>Windows' file-name characters that may not be in a name, the same on every OS this runs on (the tests' Linux too).</summary>
+    static readonly char[] NotInName = ['<', '>', ':', '"', '/', '\\', '|', '?', '*', .. Enumerable.Range(0, 32).Select(c => (char)c)];
+
+    /// <summary>A name's last part after either slash, with what Windows doesn't take in a name left out.</summary>
+    static string SafeName(string name)
+    {
+        var last = name[(name.LastIndexOfAny(['/', '\\']) + 1)..];
+        return string.Concat(last.Split(NotInName)).Trim().TrimEnd('.');
     }
 
     /// <summary>The most a sent file's download is read: the largest kind tafs takes (a PDF, 25 MB), and a margin.</summary>

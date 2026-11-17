@@ -84,6 +84,8 @@ public class AttachmentsTests
     [InlineData("..\\x", "a.pdf", "application/pdf", null)]
     [InlineData("C:\\x", "a.pdf", "application/pdf", null)]
     [InlineData("att_1", "..\\..\\a.pdf", "application/pdf", "att_1-a.pdf")]
+    [InlineData("att_1", "../../a.pdf", "application/pdf", "att_1-a.pdf")]
+    [InlineData("att_1", "a:b.pdf", "application/pdf", "att_1-ab.pdf")]
     public void Only_a_kind_tafs_takes_opens(string id, string name, string mediaType, string? opens) =>
         Assert.Equal(opens, Attachments.OpenableName(new ChatFile(id, "", mediaType, name, 1)));
 }
