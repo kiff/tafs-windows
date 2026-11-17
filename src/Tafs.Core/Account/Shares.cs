@@ -89,7 +89,8 @@ public static class Shares
     /// Who uses a taf, under its name on the Overview, as the iPad's <c>usedBy</c>: "Support, ana@acme.com · 3 people", each
     /// group by its name and each person by their email, then how many people that is, counted once each; "Not shared" when
     /// it's shared with no one. None unless all three of KIFF's reads answered, so it never says something untrue. A group
-    /// share whose group isn't listed names no one.
+    /// share whose group isn't listed names no one; when no share can be named, there's no line (it is shared, with whom isn't
+    /// known). A person KIFF doesn't list shows by their subject, as the iPad's.
     /// </summary>
     public static string? UsedBy(WordBook w, IReadOnlyList<TafShare>? shares, IReadOnlyList<PeopleGroup>? groups, IReadOnlyList<Person>? people)
     {
@@ -111,7 +112,17 @@ public static class Shares
                 subjects.Add(subject);
             }
         }
-        return string.Join(", ", names) + " · " + w.Count("people.count", subjects.Count);
+        return names.Count == 0 ? null : string.Join(", ", names) + " · " + w.Count("people.count", subjects.Count);
+    }
+
+    /// <summary>
+    /// The Overview's lines kept only for the tafs the person manages now: one they no longer manage loses its line, so they
+    /// stop seeing who uses it.
+    /// </summary>
+    public static void KeepManaged(IDictionary<string, string> lines, IEnumerable<string> managed)
+    {
+        var keep = managed.ToHashSet();
+        foreach (var taf in lines.Keys.Where(k => !keep.Contains(k)).ToList()) lines.Remove(taf);
     }
 
     /// <summary>"Maria (manager), Ana, Luis", or "No one yet", as the iPad's <c>people(of:)</c>.</summary>

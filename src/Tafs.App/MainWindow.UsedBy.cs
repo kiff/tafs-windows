@@ -12,25 +12,34 @@ public sealed partial class MainWindow
     /// <summary>The line under each managed taf's name, by taf id, as last read.</summary>
     readonly Dictionary<string, string> usedBy = [];
 
-    /// <summary>The Overview's rows with who uses each taf, where it's been read.</summary>
+    /// <summary>The Overview's rows with who uses each taf where it's been read, and no line anywhere else.</summary>
     IReadOnlyList<OverviewRow> WithUsedBy(IReadOnlyList<OverviewRow> rows) =>
-        rows.Select(r => usedBy.TryGetValue(r.Key, out var who) ? r with { UsedBy = who } : r).ToList();
+        rows.Select(r => r with { UsedBy = usedBy.GetValueOrDefault(r.Key) }).ToList();
 
     /// <summary>
-    /// Reads who uses each taf this person manages, then draws the Overview's rows again. Any read that fails says nothing for
-    /// that taf, rather than something untrue; one that lands after another session began is dropped.
+    /// Reads who uses each taf this person manages, then draws the Overview's rows again. A taf they no longer manage loses
+    /// its line first; when KIFF's groups or people can't be read, every line goes, and a taf whose shares can't be read has
+    /// none, rather than something untrue or out of date. One that lands after another session began is dropped.
     /// </summary>
     async Task ReadUsedByAsync(HomeAnswer listed, int reading)
     {
-        if (kiffRead is not { } read || manage is not { } managed) return;
-        var mine = listed.Tafs.Where(t => t.Agent is { } agent && managed.GetValueOrDefault(agent)).ToList();
-        if (mine.Count == 0) return;
+        var mine = kiffRead is not null && manage is { } managed
+            ? listed.Tafs.Where(t => t.Agent is { } agent && managed.GetValueOrDefault(agent)).ToList()
+            : [];
+        Shares.KeepManaged(usedBy, mine.Select(t => t.Id));
+        ShowUsedBy();
+        if (mine.Count == 0 || kiffRead is not { } read) return;
         var groupsRead = await read(People.GroupsPath);
         var peopleRead = await read(People.PeoplePath);
         if (reading != sessions) return;
         var groups = groupsRead.Answer is { } g ? People.Groups(g) : null;
         var people = peopleRead.Answer is { } p ? People.Members(p) : null;
-        if (groups is null || people is null) return;
+        if (groups is null || people is null)
+        {
+            usedBy.Clear();
+            ShowUsedBy();
+            return;
+        }
         foreach (var taf in mine)
         {
             var sharesRead = await read(Shares.Path(taf.Agent!));
@@ -38,6 +47,12 @@ public sealed partial class MainWindow
             if (Shares.UsedBy(App.Words, sharesRead.Answer is { } s ? Shares.Read(s) : null, groups, people) is { } line) usedBy[taf.Id] = line;
             else usedBy.Remove(taf.Id);
         }
+        ShowUsedBy();
+    }
+
+    /// <summary>The Overview's rows drawn again with the lines as they are now.</summary>
+    void ShowUsedBy()
+    {
         overviewRows = WithUsedBy(overviewRows);
         if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows, home?.Labels);
     }

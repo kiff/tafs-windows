@@ -42,8 +42,19 @@ public class SharesTests
         Assert.Equal("Not shared", Shares.UsedBy(En, [], [], []));
         // A group that isn't listed names no one, and no read means no line.
         Assert.Equal("bo@x.test · 1 person", Shares.UsedBy(En, [new("grp_9", null), new(null, "sub_bo")], [Support], [Bo]));
+        Assert.Null(Shares.UsedBy(En, [new("grp_9", null)], [Support], [Bo]));
         Assert.Null(Shares.UsedBy(En, [new(null, "sub_bo")], null, [Bo]));
         Assert.Null(Shares.UsedBy(En, null, [], []));
+    }
+
+    [Fact]
+    public void A_taf_no_longer_managed_loses_its_line()
+    {
+        var lines = new Dictionary<string, string> { ["taf_1"] = "Support · 2 people", ["taf_2"] = "Not shared" };
+        Shares.KeepManaged(lines, ["taf_2"]);
+        Assert.Equal(["taf_2"], lines.Keys);
+        Shares.KeepManaged(lines, []);
+        Assert.Empty(lines);
     }
 
     [Fact]
