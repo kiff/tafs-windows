@@ -84,4 +84,18 @@ public class TpmKeyTests : IDisposable
         var proof = Convert.FromBase64String(body.RootElement.GetProperty("proof").GetString()!);
         Assert.True(TestSigner.Verify(key.PublicKeyDer, PairingClaim.ProofMessage(offer.Nonce, key.PublicKeyDer), proof));
     }
+
+    /// <summary>
+    /// Each pairing makes a key of its own (the owner's test, 17 Nov): KIFF refuses a key that's already a device's, so the
+    /// same name twice would never pair again once this PC's device was removed.
+    /// </summary>
+    [Fact]
+    public void Each_pairing_has_a_key_name_of_its_own()
+    {
+        var a = TpmKey.NewPairingKeyName();
+        var b = TpmKey.NewPairingKeyName();
+        Assert.NotEqual(a, b);
+        Assert.StartsWith(TpmKey.PairingKeyName + " ", a);
+        Assert.NotEqual(TpmKey.DeviceKeyName, a);
+    }
 }

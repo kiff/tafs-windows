@@ -18,10 +18,18 @@ public sealed class TpmKey : IKiffSigner, IDisposable
     public const string DeviceKeyName = "tafs device key";
 
     /// <summary>
-    /// The device key a pairing makes: its own, since a view-only session from the browser already holds
-    /// <see cref="DeviceKeyName"/>, and KIFF refuses a key that's already a device's (the contract's §5.9).
+    /// The device key a pairing makes, before its own part (<see cref="NewPairingKeyName"/>): its own, since a view-only session
+    /// from the browser already holds <see cref="DeviceKeyName"/>, and KIFF refuses a key that's already a device's (the
+    /// contract's §5.9).
     /// </summary>
     public const string PairingKeyName = "tafs paired device key";
+
+    /// <summary>
+    /// A new key's name for each pairing (the owner's test, 17 Nov): KIFF refuses a key that's already a device's, so a PC that
+    /// pairs again, after its device was removed or alongside the one it has, needs a key no device holds. The session keeps the
+    /// name, and signing out or a later pairing removes that key.
+    /// </summary>
+    public static string NewPairingKeyName() => PairingKeyName + " " + Guid.NewGuid().ToString("N");
 
     readonly CngKey key;
     readonly ECDsaCng signer;

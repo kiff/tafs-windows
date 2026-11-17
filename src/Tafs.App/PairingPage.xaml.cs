@@ -25,6 +25,10 @@ public sealed partial class PairingPage : Page
     CancellationTokenSource cancel = new();
     PairingOffer? offer;
     TpmKey? deviceKey;
+    /// <summary>This pairing's own key's name, new for each pairing: kept by the session once KIFF hands one over.</summary>
+    string? deviceKeyName;
+    /// <summary>KIFF handed a session over with this key: it isn't this page's to remove.</summary>
+    bool keyKept;
     /// <summary>The passkey the QR offers; claimed the moment KIFF answers, so nothing removes a registered one.</summary>
     readonly OfferedPasskey offered = new();
     bool offline;
@@ -50,6 +54,12 @@ public sealed partial class PairingPage : Page
             cancel.Cancel();
             deviceKey?.Dispose();
             deviceKey = null;
+            // A key no session took leaves the TPM with the page: it was never a device's.
+            if (deviceKeyName is { } unused && !keyKept)
+            {
+                try { TpmKey.Delete(unused); } catch (System.Security.Cryptography.CryptographicException) { }
+            }
+            deviceKeyName = null;
             ForgetPasskey();
         };
     }
@@ -116,7 +126,8 @@ public sealed partial class PairingPage : Page
             }
             // A store that refuses stops the pairing before the code: a session KIFF hands over must be kept.
             App.Sessions.CheckWritable();
-            deviceKey ??= TpmKey.OpenOrCreate(TpmKey.PairingKeyName);
+            deviceKeyName ??= TpmKey.NewPairingKeyName();
+            deviceKey ??= TpmKey.OpenOrCreate(deviceKeyName);
             MakePasskey? make = WindowsHello.IsAvailable()
                 ? (challenge, c) => new WindowsHello(() => App.WindowHandle)
                     .CreateAsync(PairingAttempt.PasskeyUserId(deviceKey.PublicKeyDer), name, name, challenge, c)
@@ -134,11 +145,12 @@ public sealed partial class PairingPage : Page
             {
                 // Claimed before anything is awaited: a code expiring, or the page closing, while it's kept removes nothing.
                 offered.Claim();
+                keyKept = true;
                 clock.Stop();
                 // Kept before Added shows, so a relaunch reads it instead of pairing the same key again.
                 // A passkey session keeps its passkey's credential id, the one the QR offered, so Windows Hello can be asked for it.
                 await App.Sessions.KeepAsync(KeptSession.Of(DeviceSignIn.Api, session.AccessToken, session.Tenant, session.Subject,
-                    session.DeviceId, session.Mode, session.ExpiresIn, DateTimeOffset.UtcNow, TpmKey.PairingKeyName) with
+                    session.DeviceId, session.Mode, session.ExpiresIn, DateTimeOffset.UtcNow, deviceKeyName!) with
                 {
                     PasskeyId = session.Mode == ApprovalMode.Passkey && offered.Current is { } passkey ? KiffSigning.Base64Url(passkey.CredentialId) : null,
                 });
