@@ -30,7 +30,7 @@ time it opens, as the iPad's `.task`: tafs cloud's balance (`GET /v1/usage/balan
 (`billing.manage` on KIFF's `/v1/me`). In the iPad's order:
 - **The balance,** then, where tafs cloud offers Raise and the person manages billing, "This device can't approve.
   Approve on another device signed in to your account." in its place: nothing that moves money happens on Windows in
-  this release (the PM, 00:08), so no buying and no raise.
+  this release (decided 17 Nov), so no buying and no raise.
 - **Who bills the plan,** in one line ("Billed by KIFF").
 - **A member** (no `billing.manage`): their request waiting ("You asked an admin to raise the spend limit. An admin
   answers.") with Withdraw; else the last answer, and Ask an admin where the plan lets them ask (a raise on Company, a

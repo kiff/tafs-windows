@@ -44,7 +44,7 @@ public class ApprovalCardTests
     }
 
     /// <summary>
-    /// A sign-in wider than the job (kiff/tafs#1218): tafs cloud's words, kept as sent less their spaces; blank, or of another
+    /// A sign-in wider than the job: tafs cloud's words, kept as sent less their spaces; blank, or of another
     /// shape, is no line and never fails the card.
     /// </summary>
     [Fact]
@@ -107,7 +107,7 @@ public class ApprovalCardTests
         }
     }
 
-    /// <summary>tafs cloud's settled answers, as the PM's 03:28: failed reads failed with its reason; connected reads done.</summary>
+    /// <summary>tafs cloud's settled answers, as decided: failed reads failed with its reason; connected reads done.</summary>
     [Theory]
     [InlineData("failed: the vendor refused", "Approuver · cela n'a pas abouti : le fournisseur a refusé", ApprovalState.Failed, "the vendor refused")]
     [InlineData("connected", "Stripe est connecté ; sa Card vient ensuite", ApprovalState.Done, null)]

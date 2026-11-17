@@ -8,7 +8,7 @@ namespace Tafs.Core.Taf;
 public sealed record TrialSummary(DateTimeOffset Started, string Why, int Calls, int Held, int Refused);
 
 /// <summary>
-/// One version of a taf, like an app build (kiff/tafs#107): its number, what changed, who made it in tafs cloud's words,
+/// One version of a taf, like an app build: its number, what changed, who made it in tafs cloud's words,
 /// when, whether it's live, whether it brings a new Card (a KIFF draft), and its trials that ended.
 /// </summary>
 public sealed record TafVersion(int N, string? Note, string? ByWords, DateTimeOffset Created, bool Live, string? Draft, IReadOnlyList<TrialSummary> Trials);

@@ -183,8 +183,7 @@ rules and totals.
 - **The sample's Card** is Refunds' own: refunds up to €150 each and €2,000 a day, credits up to €100 and €1,000, never
   a payout, with €40 used today.
 
-**Halt** (`Halt`, `HaltPage`), as the iPad's `HaltScreen`, `HaltRow` and `TafsCloud.Halt`, with tafs-macos #70 as a second
-reference:
+**Halt** (`Halt`, `HaltPage`), as the iPad's `HaltScreen`, `HaltRow` and `TafsCloud.Halt`:
 - **Who sees it:**
   - **A taf's halt** is a row on its Card tab, after its rules and before Revoke, as the iPad's `card(_:)`. It shows only
     for whoever manages the taf, as KIFF says (`GET /v1/me/access`, the iPad's `manages`, read again with each read of
@@ -234,7 +233,7 @@ reference:
     sends it once that's done.
   - **Refused for want of the AI-data consent** (`ai_consent_required`), as the iPad's: no Not sent row. The words go
     back in the box, and the consent's screen says why (`docs/account.md`); sent again once it's allowed.
-  - **Retry is a new send.** tafs cloud doesn't take an idempotency key for a message yet (kiff-admin's, in tafs cloud), so
+  - **Retry is a new send.** tafs cloud doesn't take an idempotency key for a message yet, so
     a send that reached it but whose answer was lost can show twice after Retry.
 - **While the taf works,** or a sent message waits, the thread is read again every 2 s, only while Chat shows.
 - **Stop,** for whoever manages the taf (KIFF's `cards.manage` access, once read): the run at work is cancelled
@@ -283,7 +282,7 @@ each its own screen with Back.
     says the taf doesn't run until it's done, with Finish and Cancel.
 - **Usage:** its credits this period in tafs cloud's words (`GET /v1/usage/credits/tafs/{id}`), then its runs newest first,
   each with tafs cloud's words and when it ended, and More while there are more (`?after=`).
-- **Trying a version** (`TafTrials`, `TafPage.Trial.cs`, `MainWindow.Trials.cs`; the iPad's `TrialViews`, kiff/tafs#173),
+- **Trying a version** (`TafTrials`, `TafPage.Trial.cs`, `MainWindow.Trials.cs`; the iPad's `TrialViews`),
   for whoever manages the taf as KIFF says, on a PC that signs with its passkey:
   - **Try it** under each version that isn't live; off while another trial is open (one a taf). Its sheet: "Try version 2:
     what changed", While you try it (the four lines), and Its Card, KIFF's draft as read (`POST /v1/tafs/{id}/versions/{n}/try`,
@@ -326,7 +325,7 @@ is the approval key's act, never the device key's); a revoked taf can still be r
 1. **The confirmation:** "Remove Rae for good?", what always goes (`taf.remove_body`), then what goes with it and what
    stays, in tafs cloud's words (`GET /v1/tafs/{id}/removal`, which ends nothing). Cancel changes nothing.
 2. **Signed first,** behind one Windows Hello: this PC's passkey asserts `kiff.request.v1` over `DELETE /v1/tafs/{id}`
-   and its empty body, sent as `KIFF-Passkey-Assertion` (read by tafs cloud from kiff/tafs#1247 on). Closed or refused:
+   and its empty body, sent as `KIFF-Passkey-Assertion` (read by tafs cloud). Closed or refused:
    "Not removed. Nothing changed.", and nothing is sent.
 3. **Its Cards revoked in KIFF** (Home's `card.ids`, `POST /v1/me/mandates/{id}/revoke`), unless it's revoked already;
    one KIFF doesn't revoke is counted and said.

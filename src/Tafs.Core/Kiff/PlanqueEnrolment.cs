@@ -15,8 +15,8 @@ public sealed record EnrolResult(EnrolOutcome Outcome, string? Why = null)
 }
 
 /// <summary>
-/// Setting this device up with planque, once per account, as the iPad's <c>setUpPlanque</c> and <c>enrolPlanque</c> (with
-/// iOS #1106 and planque#248): planque is asked first with no key, and keeps the connector key it holds while KIFF still
+/// Setting this device up with planque, once per account, as the iPad's <c>setUpPlanque</c> and <c>enrolPlanque</c>:
+/// planque is asked first with no key, and keeps the connector key it holds while KIFF still
 /// takes it (<c>kept</c>). Only when planque says it needs one is a KIFF key minted, which connects tools and does nothing
 /// else, and handed to planque; it's never kept here. Every call to planque carries this device's signature, never KIFF's token.
 /// </summary>

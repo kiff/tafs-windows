@@ -3,7 +3,7 @@ using Tafs.Core.Words;
 
 namespace Tafs.Core.Calendar;
 
-/// <summary>The calendar's three views (kiff/tafs#534). Week is the one it opens on.</summary>
+/// <summary>The calendar's three views. Week is the one it opens on.</summary>
 public enum CalendarMode { Day, Week, Month }
 
 /// <summary>Wide or compact by the calendar's own pane, as the iPad's CalendarLayout.of.</summary>

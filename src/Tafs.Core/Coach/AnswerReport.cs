@@ -15,7 +15,7 @@ public abstract record ReportOutcome
 }
 
 /// <summary>
-/// Reporting an answer Coach wrote (kiff/tafs#421, Google Play's rule for content an AI generates), as the iPad's
+/// Reporting an answer Coach wrote (Google Play's rule for content an AI generates), as the iPad's
 /// <c>ReportAnswerSheet</c>, <c>AppModel.canReport</c>/<c>reportAnswer</c> and <c>TafsCloud.ReportReason</c>/<c>reportAnswer</c>:
 /// a reason, an optional note, sent to tafs cloud with the answer's chat so a person at KIFF reads it.
 /// </summary>

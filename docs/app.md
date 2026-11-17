@@ -44,7 +44,7 @@ Signing in is the only screen that reaches KIFF so far. Other screens show only 
 
 ## Illustrations
 
-The owner's approved boards (kiff/work#10, rows S37–S48), drawn in code from iOS's `Illustrations.swift`, number for
+The owner's approved boards (rows S37–S48 of the parity list), drawn in code from iOS's `Illustrations.swift`, number for
 number, on each board's own grid (`Illustrations`). Rule 14: shapes only, never a letter, a number or a word; the
 screen's own shared words say what it means, and every drawing is hidden from Narrator (`IllustrationsRuleTests`). Each
 paints itself in its own theme once it's in the window, and again when the theme changes. A card's shadow is a hairline

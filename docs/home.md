@@ -50,7 +50,7 @@ From the top:
        Refused while KIFF still holds Cards in force (409 `cards_in_force`), "KIFF didn't revoke 1 of its Cards: revoke
        them in KIFF.", and the Cards it named are revoked on the next Discard. Any other refusal says tafs cloud's words.
     - While it goes, the button reads Loading… and is off. A sign-out ends it quietly.
-    - tafs cloud reads `KIFF-Passkey-Assertion` on this route from kiff/tafs#1247 on, and asks KIFF whether this PC's
+    - tafs cloud reads `KIFF-Passkey-Assertion` on this route, and asks KIFF whether this PC's
       passkey signed it.
   - **Each row:** the avatar (34), the name in 15 semibold, and what it's doing in 13 soft, on one line each. A row
     opens its taf's page.
@@ -98,7 +98,7 @@ headings.
 ## Labels (`LabelChips`, `HomeLabels`)
 
 Chips on the tafs list, for the person to filter it by, as kiff/tafs `docs/labels.md` and the iPad's `LabelChips`,
-`TafLabels` and `AppModel.filterList` (iOS #1173). tafs-macos #120 is a second reference. The app never changes a label;
+`TafLabels` and `AppModel.filterList`. The app never changes a label;
 Coach does.
 - **What Home sends:** `labels: [id]` on each taf that has any; `labels: [{id, name, color, count, waiting, headline}]`
   for the account, in the order to show them; and `labels_words.all`, the first chip's word. Each label is read on its

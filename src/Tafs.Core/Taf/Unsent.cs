@@ -3,7 +3,7 @@ using Tafs.Core.Words;
 namespace Tafs.Core.Taf;
 
 /// <summary>
-/// A message that wasn't taken, kept where it was written, as the iPad's <c>UnsentMessage</c> (kiff/tafs#58, #476): its words,
+/// A message that wasn't taken, kept where it was written, as the iPad's <c>UnsentMessage</c>: its words,
 /// why, and when, until Retry sends it again, Edit puts its words back in the box, or Delete drops it.
 /// </summary>
 public sealed record UnsentMessage(string Id, string Text, string Why, DateTimeOffset At, string? Halted = null)

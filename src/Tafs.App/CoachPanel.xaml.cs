@@ -469,7 +469,7 @@ public sealed partial class CoachPanel : UserControl
         ShowPlan(Shaping ? null : thread.Plan);
         // Asked once the thread is drawn: Home's read can answer at once, and it draws the thread again.
         if (Tafs is { } tafs && thread.ReadHomeFor(tafs().Select(t => t.Agent), homeAsked)) DispatcherQueue.TryEnqueue(() => HomeWanted?.Invoke());
-        // In the order already drawn: nothing moves while Coach answers (kiff/tafs#1233).
+        // In the order already drawn: nothing moves while Coach answers.
         var items = CoachChat.Steady(drawnOrder, thread.Drawn(Kinds));
         // Beside the thread when the panel is wide: what it has made so far, read again with it.
         ShowShape(thread);
@@ -840,7 +840,7 @@ public sealed partial class CoachPanel : UserControl
         box.Children.Add(title);
         if (failed) box.Children.Add(Words(why is null ? w.Get("coach.answer.failed") : w.Get("coach.answer.failed_why", ("value", why)), 14, "TafsNoText"));
         box.Children.Add(Words(w.Get("coach.sign_in_note"), 14, "TafsSoftText"));
-        // A sign-in wider than the job, in tafs cloud's words, before the button (kiff/tafs#1218).
+        // A sign-in wider than the job, in tafs cloud's words, before the button.
         if (c.Wider is { } wider) box.Children.Add(Wider(wider));
         var open = new Button
         {
@@ -956,7 +956,7 @@ public sealed partial class CoachPanel : UserControl
         else if (c.Draft is { } wanted && draft is null && !(thread.CardFor(c.Id) is { } sent && answered.Contains(sent.Ref)))
             box.Children.Add(DraftNotRead(wanted));
         else if (grant is not null && ApprovalCard.CardNextWords(c) is { } nextWords) box.Children.Add(Words(nextWords, 13, "TafsSoftText"));
-        // A sign-in wider than the job, in tafs cloud's words, above the buttons (kiff/tafs#1218): read before anyone approves.
+        // A sign-in wider than the job, in tafs cloud's words, above the buttons: read before anyone approves.
         if (c.Wider is { } wider) box.Children.Add(Wider(wider));
         if (failed) box.Children.Add(Words(why is null ? w.Get("coach.did_not_go_through_nothing") : w.Get("coach.answer.failed_why", ("value", why)), 14, "TafsNoText"));
         // A request planque refused, sent again unchanged, would fail the same way: Coach mode has to change it first, in

@@ -16,7 +16,7 @@ public static class AppLanguage
     }
 
     /// <summary>
-    /// tafs's languages in the Terms table's order, each named in itself, as Android's <c>AppLanguage.name</c> (tafs#1214):
+    /// tafs's languages in the Terms table's order, each named in itself, as Android's <c>AppLanguage.name</c>:
     /// the in-app picker's list, after this PC's own language.
     /// </summary>
     public static readonly IReadOnlyList<(string Code, string Name)> Named =

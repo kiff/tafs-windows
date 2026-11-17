@@ -346,7 +346,7 @@ public static class CoachChat
     }
 
     /// <summary>
-    /// The thread in the order already drawn, as Android's <c>Chat.steady</c> (kiff/tafs#1233): what's shown stays where it
+    /// The thread in the order already drawn, as Android's <c>Chat.steady</c>: what's shown stays where it
     /// is, something new goes after it in the order read, and anything gone from the thread goes. With nothing drawn yet
     /// (the first read, or another conversation), the thread as read, so a reopened conversation shows a card after Coach's
     /// words. A card read again while Coach answers, or Coach's words joining at the end of a turn, then move nothing.

@@ -13,7 +13,7 @@ public sealed record CalendarEvent(string Taf, string Name, int Color, string Ki
     string Words, int Count);
 
 /// <summary>
-/// The tafs' scheduled work still to come on a range of dates (<c>GET /v1/calendar?from=&amp;to=</c>, kiff/tafs#534), as the
+/// The tafs' scheduled work still to come on a range of dates (<c>GET /v1/calendar?from=&amp;to=</c>), as the
 /// iPad's <c>TafsCloud.CalendarRead</c>: its events, tafs cloud's line for the range, and whether some were left out or the
 /// account is halted.
 /// </summary>

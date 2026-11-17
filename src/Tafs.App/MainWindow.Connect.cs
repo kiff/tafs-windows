@@ -9,7 +9,7 @@ namespace Tafs.App;
 /// <summary>
 /// Connecting an app from Connect apps on this PC (P9): for whoever manages a taf, on a PC that approves with its own passkey.
 /// tafs cloud starts the connection; planque's grant is read with KIFF's words for its profile; one Windows Hello opens KIFF's
-/// approval window (kiff-cloud#1705); inside it this session's TPM key signs planque's approve and confirm as taps; the vendor's
+/// approval window; inside it this session's TPM key signs planque's approve and confirm as taps; the vendor's
 /// sign-in opens in the browser and comes back through <c>tafs:</c>.
 /// </summary>
 public sealed partial class MainWindow

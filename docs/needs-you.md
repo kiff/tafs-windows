@@ -113,7 +113,7 @@ As the iPad's `HoldAllow`, `AllowSheetView` and `AppModel`'s `openAllow`, `loadA
 ## Your step (`YourSteps`, `YourStep`)
 
 Ported from the iPad's `YourStepCard`, `TafsCloud.YourStep`, `KIFFClient.handoffMessage`/`handoff`/`answerHandoff` and
-`AppModel.showSteps`/`canAnswerSteps`/`answerYourStep`/`answerRefusedWords`. tafs-macos #78 is a second reference.
+`AppModel.showSteps`/`canAnswerSteps`/`answerYourStep`/`answerRefusedWords`.
 - **What it is:** a step a taf may never take itself, such as approving a bank transfer, which it prepared and handed to
   its owner. Every word on it is tafs cloud's.
 - **Where it comes from:** Home's `your_steps`, with each read of Home. A step needs its hand-off; every other field
@@ -149,7 +149,7 @@ Ported from the iPad's `YourStepCard`, `TafsCloud.YourStep`, `KIFFClient.handoff
 ## Did this happen? (`DidThisHappen`, `Unproven`)
 
 Ported from the iPad's `DidThisHappenCard` (NeedsYouView.swift), `KIFFClient.Unproven`/`didThisHappen` and
-`AppModel.loadUnproven`/`mayAnswerHolds`. tafs-macos #76 is a second reference.
+`AppModel.loadUnproven`/`mayAnswerHolds`.
 - **What it is:** a money call whose outcome KIFF can't prove: its answer was lost, the app refused it with nothing
   showing it had no effect, or it's one of the first calls of a new money operation. The person says whether it
   happened.

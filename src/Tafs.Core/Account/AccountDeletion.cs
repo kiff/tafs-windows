@@ -10,7 +10,7 @@ namespace Tafs.Core.Account;
 public enum Deleted { Yes, No, Stopped }
 
 /// <summary>
-/// Deleting the account, as the iPad's <c>deleteAccount</c> (App Store guideline 5.1.1(v), kiff/tafs#185): the person confirms
+/// Deleting the account, as the iPad's <c>deleteAccount</c> (App Store guideline 5.1.1(v)): the person confirms
 /// with Windows Hello, then tafs cloud erases every taf and what it and kiff/agents keep (<c>POST /v1/account/delete</c>), then
 /// planque forgets the account's connections (<c>DELETE /v1/accounts/{tenant}</c>, signed by the device), then KIFF, last,
 /// since it ends this PC's session (<c>POST /v1/me/delete</c>, a signed setup call). Each step can be asked again, so when one

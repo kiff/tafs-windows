@@ -39,7 +39,7 @@ public static class SignInCard
         : grant is { NeedsReconnect: true } ? w.Get("connect.sign_in_again")
         : c.Yes ?? (c.Service is { } service ? w.Get("coach.sign_in.open", ("service", service)) : w.Get("coach.sign_in.open_sign_in"));
 
-    /// <summary>Where it goes, always the app's own words, never Coach's (kiff/agents#112): the card's service, else the vendor's page.</summary>
+    /// <summary>Where it goes, always the app's own words, never Coach's: the card's service, else the vendor's page.</summary>
     public static string Opens(WordBook w, CoachCard c) =>
         w.Get("coach.sign_in.opens", ("destination", c.Service ?? w.Get("connect.the_vendors_page")));
 

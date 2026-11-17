@@ -7,7 +7,7 @@ using Tafs.Core.Taf;
 namespace Tafs.App;
 
 /// <summary>
-/// Trying a version (the iPad's <c>TrialViews</c>, kiff/tafs#173): an open trial is its own row under its taf in the sidebar,
+/// Trying a version (the iPad's <c>TrialViews</c>): an open trial is its own row under its taf in the sidebar,
 /// "Refunds · v2", and opens the taf's page on the trial's own chat; Try it on a version starts one.
 /// </summary>
 public sealed partial class MainWindow

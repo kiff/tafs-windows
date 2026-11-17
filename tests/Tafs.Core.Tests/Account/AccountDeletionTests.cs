@@ -82,7 +82,7 @@ public class AccountDeletionTests
         Assert.True(new KiffAccount("t", "s", null, null, null).MayDelete);
     }
 
-    /// <summary>A view-only session is never offered Delete account, whatever KIFF lists (kiff-qa on #97).</summary>
+    /// <summary>A view-only session is never offered Delete account, whatever KIFF lists (review on #97).</summary>
     [Fact]
     public void A_view_only_session_is_not_offered_delete()
     {

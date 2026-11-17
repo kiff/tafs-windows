@@ -198,7 +198,7 @@ public sealed partial class AccountPage : Page
         Section(w.Get("settings.language_title"),
         [
             Row(w.Get("settings.language_title"), AccountScreen.LanguageName(w.Language)),
-            // The app's own picker, as Android's (tafs#1214): this PC's language, then tafs's 8, each named in itself.
+            // The app's own picker, as Android's: this PC's language, then tafs's 8, each named in itself.
             Action(w.Get("settings.change_language"), "TafsAmberWords", () => _ = ChooseLanguageAsync()),
         ]);
         // Their own copy, for their rights of access and portability, for a KIFF account, as the iPad's.

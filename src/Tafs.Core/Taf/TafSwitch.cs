@@ -31,7 +31,7 @@ public sealed record SwitchResult(bool Live, AgentDraft? Changed = null, bool St
 public sealed record SwitchCalls(TrialCalls Calls, Func<string, Task<StepConfirmed>> Presence);
 
 /// <summary>
-/// Install this version, forward or back (the iPad's <c>prepareSwitch</c> and <c>useVersion</c>, kiff/tafs#107, #122): tafs
+/// Install this version, forward or back (the iPad's <c>prepareSwitch</c> and <c>useVersion</c>): tafs
 /// cloud begins the switch and prepares the Card draft it waits for; the owner reads that Card; one Windows Hello confirms it
 /// in KIFF (this PC's passkey) or, with no Card to change, is the owner's presence; then the version goes live. Make it live
 /// on the dial's change is this same switch to its next version.

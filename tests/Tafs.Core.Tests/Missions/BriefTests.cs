@@ -5,7 +5,7 @@ using Tafs.Core.Words;
 
 namespace Tafs.Core.Tests.Missions;
 
-/// <summary>Your brief and a mission's log, as the iPad's TafsCloud.Brief, MissionLog and AppModel's brief (iOS #1173).</summary>
+/// <summary>Your brief and a mission's log, as the iPad's TafsCloud.Brief, MissionLog and AppModel's brief.</summary>
 [Part("home")]
 public class BriefTests
 {
@@ -93,7 +93,7 @@ public class BriefTests
         var connection = b.Decisions[0] with { Ref = new BriefRef("connection", "Gmail", "") };
         Assert.Equal(new BriefDestination(BriefGoes.NeedsYou, null), Brief.Destination(connection));
         Assert.Equal(new BriefDestination(BriefGoes.NeedsYou, null), Brief.Destination(b.Decisions[0] with { Ref = BriefRef.None }));
-        // A taf whose checks keep failing opens on its own page (tafs#1207), by its tafs cloud id; with none, Needs you.
+        // A taf whose checks keep failing opens on its own page, by its tafs cloud id; with none, Needs you.
         Assert.Equal(new BriefDestination(BriefGoes.Taf, "taf-1"), Brief.Destination(b.Decisions[0] with { Ref = new BriefRef("check", "c_1", "taf-1") }));
         Assert.Equal(new BriefDestination(BriefGoes.NeedsYou, null), Brief.Destination(b.Decisions[0] with { Ref = new BriefRef("check", "c_1", "") }));
     }

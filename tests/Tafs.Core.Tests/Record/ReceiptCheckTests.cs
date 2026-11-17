@@ -7,7 +7,7 @@ using Tafs.Core.Words;
 namespace Tafs.Core.Tests.Record;
 
 /// <summary>
-/// This PC's check of a KIFF receipt (kiff/tafs#167), as iOS's ReceiptCheckTests, against the same receipt signed the way KIFF
+/// This PC's check of a KIFF receipt, as iOS's ReceiptCheckTests, against the same receipt signed the way KIFF
 /// signs and written by the receipts endpoint's encoder, with a test key. Its chain has what a re-encoding would change:
 /// escaped &lt;, &gt; and &amp;, a map's sorted keys, and Go's 1e+21.
 /// </summary>

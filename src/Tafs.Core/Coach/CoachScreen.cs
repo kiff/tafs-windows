@@ -44,7 +44,7 @@ public static class CoachScreen
     public const string Biometry = "Windows Hello";
 
     /// <summary>
-    /// Whether "Taking shape" shows beside the conversation, as the iPad's <c>shaping</c> (kiff/tafs#85): from 780 across,
+    /// Whether "Taking shape" shows beside the conversation, as the iPad's <c>shaping</c>: from 780 across,
     /// the conversation and the column together; narrower, the conversation alone.
     /// </summary>
     public static bool Shaping(double width) => width >= ShapingFrom;

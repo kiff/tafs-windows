@@ -168,7 +168,7 @@ public class PairingScreenTests
         Assert.Equal("tafs on this Windows PC", PairingScreen.DeviceName(En));
 
     /// <summary>
-    /// Before Windows Hello's prompt, a card says why, in tafs's own words (<c>pair.passkey_why_*</c>, tafs#1276), in every
+    /// Before Windows Hello's prompt, a card says why, in tafs's own words (<c>pair.passkey_why_*</c>), in every
     /// shipped language, no placeholder left.
     /// </summary>
     [Theory]

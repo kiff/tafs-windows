@@ -74,7 +74,7 @@ and `Grant`), read before anything is approved:
 ## Setting planque up (`PlanqueEnrolment`)
 
 Once per account, this device is enrolled with planque, which keeps the vendor sign-ins so they never reach this PC,
-tafs cloud, the agent or KIFF. Ported from the iPad's `setUpPlanque` and `enrolPlanque`, with iOS #1106 (planque#248):
+tafs cloud, the agent or KIFF. Ported from the iPad's `setUpPlanque` and `enrolPlanque`:
 
 1. **Asked first with no key:** `POST /v1/accounts/{tenant}/enrolment` on planque with `{device_key}` (this device's SPKI
    DER, base64), signed `Planque-Device-Signature` (`PlanqueProof.SignAsync`, for exactly that method, path and body).

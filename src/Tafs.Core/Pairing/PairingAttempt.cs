@@ -78,7 +78,7 @@ public static class PairingAttempt
 /// <summary>
 /// The passkey the QR offers, and whether KIFF has answered for it, so an unused one is removed and a registered one never
 /// is. Claimed the moment KIFF hands over a session, before it's kept: a code that expires, or a page that closes, while
-/// the session is being kept then removes nothing (kiff-qa on #109).
+/// the session is being kept then removes nothing (review on #109).
 /// </summary>
 public sealed class OfferedPasskey
 {
