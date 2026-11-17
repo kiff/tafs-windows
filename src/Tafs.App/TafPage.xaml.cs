@@ -20,7 +20,14 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     TafHalt? Halt = null, Func<string, byte[], Task<CloudRead>>? Send = null, bool Manages = false, TafStream? Stream = null,
     TafRemove? Remove = null, Func<HttpMethod, string, byte[]?, Task<CloudRead>>? Change = null, TafStarts? Starts = null,
     bool Paused = false, string? Email = null, string? TimeZone = null, Action? AskCoach = null, SetupScreen SetupOn = SetupScreen.Main,
-    TafHealth? Health = null, Action<string>? AskCoachWith = null, Action? OpenUsage = null);
+    TafHealth? Health = null, Action<string>? AskCoachWith = null, Action? OpenUsage = null, Func<bool>? MayUseCoach = null)
+{
+    /// <summary>
+    /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
+    /// KIFF's answer can come after the page opened, so it's asked each time, never kept from the opening.
+    /// </summary>
+    public Action? Improve => MayUseCoach?.Invoke() == true ? AskCoach : null;
+}
 
 /// <summary>
 /// Remove for good, for whoever manages the taf on a PC that signs with its passkey: what goes with it, in tafs cloud's words,
@@ -316,6 +323,8 @@ public sealed partial class TafPage : Page
         (int Status, string Body, System.Net.Http.HttpResponseMessage? Open) answer;
         try { answer = await stream(TafChatStream.Path(id), TafChatSend.Body(text, files), CancellationToken.None); }
         catch (System.Net.Http.HttpRequestException) { return await TafChatSend.SendAsync(w, id, text, send, files); }
+        // No stream route there (404, 405): the plain send takes it, as the iPad's (an older tafs cloud, or the stream's host).
+        if (answer.Open is null && answer.Status is 404 or 405) return await TafChatSend.SendAsync(w, id, text, send, files);
         if (answer.Open is not { } open)
             return Refusal.Of(CloudRead.Refused(w, answer.Status, answer.Body), w.Get("error.ours"));
         using (open)
@@ -618,7 +627,16 @@ public sealed partial class TafPage : Page
             title.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
             SetupPane.Children.Add(Panel(title, Words(ask.Words, 14, "TafsSoftText"), Words(ask.History, 12, "TafsDimText")));
         }
-        SetupPane.Children.Add(Panel(Eyebrow("setup.job"), Words(setup.Job, 15, "TafsInkText")));
+        // Its job, and Improve in Coach for whoever manages it, as the iPad's: Coach starts on improving this taf.
+        var job = Panel(Eyebrow("setup.job"), Words(setup.Job, 15, "TafsInkText"));
+        if (opening?.Manages == true && opening.Improve is { } improve)
+        {
+            var link = new HyperlinkButton { Content = App.Words.Get("setup.improve_in_coach"), Padding = new Thickness(0), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(link, "setup.improve");
+            link.Click += (_, _) => improve();
+            ((StackPanel)job.Child).Children.Add(link);
+        }
+        SetupPane.Children.Add(job);
         AddSetupLinks();
 
         // ConnectedToolsRing: why its connections couldn't be read, with Try again; a read going; else the ring and workflow.

@@ -195,6 +195,9 @@ public sealed partial class CoachPanel
     {
         // A new conversation starts with an empty tray.
         coachTray?.Clear();
+        // A new conversation improves no taf, as the iPad's newSetupChat.
+        improving = null;
+        ShowImproving();
         var empty = conversation.Fresh && coachSent.Count == 0 && !coachSending;
         if (!empty)
         {
@@ -282,8 +285,16 @@ public sealed partial class CoachPanel
         (coachSending, chatError) = (true, null);
         ShowConversation();
         var files = CoachTray.Ready;
-        var (into, refused) = await CoachSend.SendAsync(w, id, text, conversation, send, files);
+        // Improving a taf: its first message goes to that taf's improve route, as the iPad's; then Coach's as usual.
+        var improves = improving;
+        var (into, refused) = improves is { } taf ? await CoachSend.ImproveAsync(w, taf.Id, text, send, files)
+            : await CoachSend.SendAsync(w, id, text, conversation, send, files);
         if (refused is null && files.Count > 0) CoachTray.Sent(files);
+        if (improves is not null && refused is null)
+        {
+            improving = null;
+            ShowImproving();
+        }
         if (gen != generation || mine != conversationGen) return null;
         coachSending = false;
         if (refused is { Consent: true })
@@ -321,6 +332,33 @@ public sealed partial class CoachPanel
     async void OnCoachAttach(object sender, RoutedEventArgs e)
     {
         if (coach is { } id && answer is { } send) await CoachTray.PickAsync(id, send);
+    }
+
+    /// <summary>The taf a new conversation improves, as the iPad's <c>setupImproving</c>: its id and name; none once its first message went.</summary>
+    (string Id, string Name)? improving;
+
+    /// <summary>
+    /// Improve a taf with Coach, as the iPad's <c>improveTaf</c>: Coach opens on a new conversation about that taf, "Improve
+    /// Refunds" over its box and the iPad's line under it; its first message goes to the taf's own improve route. A new
+    /// conversation, or another taf's, ends it.
+    /// </summary>
+    public void Improve(string taf, string name)
+    {
+        Open();
+        StartNewConversation();
+        improving = (taf, name);
+        _ = LoadThreadAsync();
+        ShowImproving();
+        DispatcherQueue.TryEnqueue(() => CoachDraft.Focus(FocusState.Programmatic));
+    }
+
+    void ShowImproving()
+    {
+        var w = App.Words;
+        ImprovingNote.Visibility = improving is null ? Visibility.Collapsed : Visibility.Visible;
+        if (improving is not { } taf) return;
+        ImprovingTitle.Text = w.Get("coach.improve_taf", ("taf", taf.Name));
+        ImprovingLine.Text = w.Get("coach.improve_line", ("name", taf.Name));
     }
 
     /// <summary>Messages tafs cloud didn't take in the conversation shown, kept after it until Retry, Edit or Delete takes them.</summary>
