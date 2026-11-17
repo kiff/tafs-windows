@@ -108,18 +108,21 @@ public static class TafRemoval
     /// <summary>
     /// Revoke, from a live taf's Card tab, as the iPad's <c>AppModel.revoke</c>: KIFF revokes each of its Cards in turn, so
     /// nothing it holds can act. The first Card KIFF doesn't revoke stops it, with why ("KIFF didn't revoke the Card. …");
-    /// none when every one is revoked.
+    /// none when every one is revoked. <c>Revoked</c> counts those KIFF did revoke before it stopped, so a partial revoke is
+    /// still read back.
     /// </summary>
-    public static async Task<string?> RevokeCardsAsync(WordBook w, IReadOnlyList<string> cards, Func<string, Task<CloudRead>> revoke)
+    public static async Task<(string? Why, int Revoked)> RevokeCardsAsync(WordBook w, IReadOnlyList<string> cards, Func<string, Task<CloudRead>> revoke)
     {
+        var revoked = 0;
         foreach (var card in cards)
         {
             CloudRead answer;
             try { answer = await revoke(RevokePath(card)); }
             catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { answer = CloudRead.Unreached(w); }
-            if (answer.Answer is null) return w.Get("card.revoke_failed", ("why", answer.Why ?? w.Get("error.offline")));
+            if (answer.Answer is null) return (w.Get("card.revoke_failed", ("why", answer.Why ?? w.Get("error.offline"))), revoked);
+            revoked++;
         }
-        return null;
+        return (null, revoked);
     }
 
     /// <summary>KIFF's revoke of one Card, a session's POST with no signature (the iPad's <c>KIFFClient.revoke</c>).</summary>
