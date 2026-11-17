@@ -201,13 +201,14 @@ public sealed partial class NeedsYouPage : Page
         }
         var refuse = Button(w.Get("needs_you.refuse"), "TafsOutlineButton", sending);
         refuse.Foreground = ThemeBrush("TafsNo");
+        // Its outline in its own colour, at 40%, as the iPad's OutlineButtonStyle(color:).
+        if (refuse.Foreground is SolidColorBrush no) refuse.BorderBrush = new SolidColorBrush(no.Color) { Opacity = 0.4 };
         refuse.Click += (_, _) => HeldAnswerChosen?.Invoke(call, new HeldAnswer.Refuse());
         answers.Add(refuse);
         var row = new Grid { ColumnSpacing = 8 };
         foreach (var (answer, at) in answers.Select((b, i) => (b, i)))
         {
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            answer.HorizontalAlignment = HorizontalAlignment.Stretch;
             Grid.SetColumn(answer, at);
             row.Children.Add(answer);
         }
@@ -225,19 +226,18 @@ public sealed partial class NeedsYouPage : Page
             add.Click += OnAddThisDevice;
             return new StackPanel { Spacing = 8, Children = { Line(gate.Lead, 13, "TafsSoftText"), add } };
         }
-        // One full-width gradient button across the card, as the iPad's.
         var b = Button(w.Get(key, ("biometry", "Windows Hello")), "TafsPrimary", sending);
-        b.HorizontalAlignment = HorizontalAlignment.Stretch;
         b.Click += (_, _) => HeldAnswerChosen?.Invoke(call, answer);
         // Windows Hello not ready here: why and what to do, in the button's place.
         return ApprovalGate.Wrap(b);
     }
 
+    /// <summary>An answer's button, across the card's width, as the iPad's PrimaryButtonStyle and OutlineButtonStyle.</summary>
     static Button Button(string text, string style, bool sending)
     {
         var b = new Button
         {
-            Content = text, IsEnabled = !sending, HorizontalAlignment = HorizontalAlignment.Left,
+            Content = text, IsEnabled = !sending, HorizontalAlignment = HorizontalAlignment.Stretch,
             Style = (Style)Application.Current.Resources[sending && style == "TafsPrimary" ? "TafsPrimaryOff" : style],
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, text);
