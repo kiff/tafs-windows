@@ -23,7 +23,8 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     bool Paused = false, string? Email = null, string? TimeZone = null, Action? AskCoach = null, SetupScreen SetupOn = SetupScreen.Main,
     TafHealth? Health = null, Action<string>? AskCoachWith = null, Action? OpenUsage = null, Func<bool>? MayUseCoach = null,
     CardScreen CardOn = CardScreen.Main, bool CreditsPrevious = false, TafTrying? Trying = null, TafInTrial? InTrial = null,
-    TafInstalling? Installing = null, Func<int, KnobItem, Task<KnobEventResult>>? ApproveEvent = null, TafSharing? Share = null)
+    TafInstalling? Installing = null, Func<int, KnobItem, Task<KnobEventResult>>? ApproveEvent = null, TafSharing? Share = null,
+    Action<string>? AskCoachAbout = null)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
@@ -231,9 +232,11 @@ public sealed partial class TafPage : Page
         if (!writable) return;
         var name = opening!.Head.Name;
         var working = chat?.Working is not null || live is { Ended: false };
-        Draft.PlaceholderText = working ? w.Get("chat.send_while_works", ("taf", name)) : w.Get("chat.message_taf", ("taf", name));
+        // While it works, as the iPad's: "Write the next message" in the box, and Send says where it goes.
+        Draft.PlaceholderText = working ? w.Get("chat.write_next") : w.Get("chat.message_taf", ("taf", name));
         AutomationProperties.SetName(Draft, Draft.PlaceholderText);
         SendButton.Content = w.Get(sending ? "common.sending" : "common.send");
+        AutomationProperties.SetName(SendButton, working && !sending ? w.Get("chat.send_while_works", ("taf", name)) : (string)SendButton.Content);
         ShowTray();
         // A trial's chat takes words only.
         AttachButton.Visibility = opening.InTrial is null ? Visibility.Visible : Visibility.Collapsed;
@@ -562,8 +565,11 @@ public sealed partial class TafPage : Page
             empty.Margin = new Thickness(0, 30, 0, 30);
             ChatPane.Children.Add(empty);
         }
+        // The taf's cards for Coach, among its messages by time, as the iPad's chat items; not in a trial's chat.
+        var asks = new Queue<Tafs.Core.Coach.AskCoachCard>(opening?.InTrial is null ? (chat?.AskCoach ?? []).OrderBy(a => a.At) : []);
         for (var i = 0; i < items.Count; i++)
         {
+            while (asks.Count > 0 && asks.Peek().At <= items[i].At) ChatPane.Children.Add(AskCoachCardView(asks.Dequeue()));
             if (Tafs.Core.Coach.CoachChat.GapTime(w, items, i, DateTimeOffset.Now, TimeZoneInfo.Local) is { } gap)
             {
                 var time = CoachPanel.Words(gap, 12, "TafsDimText", HorizontalAlignment.Center);
@@ -607,6 +613,7 @@ public sealed partial class TafPage : Page
             if (m.RefusedLines is { } refused) lines.Children.Add(ChatViews.RefusedLines(refused, Brush));
             ChatPane.Children.Add(lines);
         }
+        while (asks.Count > 0) ChatPane.Children.Add(AskCoachCardView(asks.Dequeue()));
         // Written while it works: what the run hasn't read, what waits for after, what a stopped run never read.
         AddSteering(Brush);
         // What tafs cloud didn't take, after the thread, where it was written.
@@ -633,6 +640,21 @@ public sealed partial class TafPage : Page
             ChatPane.Children.Add(line);
         }
         ShowComposer();
+    }
+
+    /// <summary>
+    /// A taf's card for Coach, as the iPad's <c>AskCoachCardView</c>: its words, 15, on a panel; Ask Coach, outlined, only for
+    /// whoever manages the taf and may use Coach, which opens Coach improving this taf with the words in its box, nothing sent.
+    /// </summary>
+    UIElement AskCoachCardView(Tafs.Core.Coach.AskCoachCard card)
+    {
+        var words = Words(card.Text, 15, "TafsInkText");
+        words.IsTextSelectionEnabled = true;
+        if (opening is not { Manages: true, AskCoachAbout: { } ask } || opening.MayUseCoach?.Invoke() != true) return Panel(words);
+        var button = new Button { Content = App.Words.Get("coach.ask"), Style = Look("TafsOutlineButton"), HorizontalAlignment = HorizontalAlignment.Stretch };
+        AutomationProperties.SetAutomationId(button, "chat.askCoach." + card.Id);
+        button.Click += (_, _) => ask(card.Text);
+        return Panel(words, button);
     }
 
     /// <summary>Its Setup, read as the page opens and on Try again, as the iPad's <c>.task(id: tafID)</c> on its page.</summary>
