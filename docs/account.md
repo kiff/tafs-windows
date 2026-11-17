@@ -158,14 +158,24 @@ Ported from the iPad's `DevicesView` and `KIFFClient.Device`, opened from **Peop
   largest with at least one, counted from the time elapsed: a month is 30 days and a year 365, where Apple counts
   calendar units.
 - **The footer:** what signing a device out does, and that this PC signs out with Sign out of KIFF.
-- **Sign out, for another device,** is an approval, signed by this device (`prepareRemoveDevice` behind Face ID on the
-  iPad). Until this PC can sign one, it's left out, and Android's line says why under the list: "To sign another device
-  out, use a device that can approve."
+- **Sign out, for another device** (P11), is an approval at KIFF (`DELETE /v1/me/devices/{id}`, in its phone approval
+  rules), as the iPad's `prepareRemoveDevice` behind Face ID. On a PC whose own passkey approves, each other device has
+  Sign out in red. It asks first, "Sign Laptop out?" ("Sign this device out?" for one with no name). Then this PC's
+  passkey approves exactly that `DELETE` behind Windows Hello (`KIFF-Passkey-Assertion`, `AccountRemoval`), and the list
+  is read again. Windows Hello closed: "Cancelled. Nothing changed." A refusal: "Sign Laptop out of your account didn't go
+  through." with KIFF's reason, at the top. A PC that can't approve shows no Sign out, and Android's line says why under
+  the list: "To sign another device out, use a device that can approve."
+- **Passkeys** (P11, `Passkeys`), as the iPad's section, from `GET /v1/me/passkeys`: each by its name, else "A device";
+  a computer's own (with a `device_id`) says "Goes with its computer" and has no Remove, since it's removed with its
+  computer. Remove, for the person's own, shows for an owner or an admin (`GET /v1/me`'s `role`) on a PC that approves.
+  It asks "Remove iPhone?", then approves `DELETE /v1/me/passkeys/{id}` the same way. A failed read says "Couldn't load
+  your passkeys." with why. **Add a passkey** stays the phone's: its words say "this phone".
 - **Not for Windows:** the iPad's **Add a device** (`PairComputerView`), where a phone adds a computer by its code. On
   Windows, this PC is the computer, and it's added from the phone.
 
 **Not yet:**
-- **Signing another device out,** with the approvals.
+- **Reading Devices again when the window comes back** (the iPad's on its scene's return): it's read on opening and after
+  each change.
 - **The KIFF account's rows**, from `GET /v1/me`:
   - KIFF account (its name, opening its details);
   - Signed in as (the email), as its own row, shown only when the account isn't named after it;

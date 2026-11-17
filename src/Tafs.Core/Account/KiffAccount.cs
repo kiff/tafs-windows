@@ -7,8 +7,9 @@ namespace Tafs.Core.Account;
 /// The KIFF account this PC is signed in to, from <c>GET /v1/me</c>, as the iPad's <c>KIFFClient.Account</c>: its id and slug,
 /// its display name, the person's email, and the account's time zone, which ends a Card's day.
 /// </summary>
+/// <param name="Role">The person's role on the account (<c>owner</c>, <c>admin</c>, …), as the iPad's <c>me.role</c>.</param>
 public sealed record KiffAccount(string TenantId, string Slug, string? DisplayName, string? Email, string? TimeZone,
-    IReadOnlyList<string>? Capabilities = null)
+    IReadOnlyList<string>? Capabilities = null, string? Role = null)
 {
     /// <summary>
     /// Whether Account offers Delete account: KIFF's <c>account.delete</c>, as the iPad's <c>mayDeleteAccount</c>; a KIFF that
@@ -40,7 +41,8 @@ public sealed record KiffAccount(string TenantId, string Slug, string? DisplayNa
         return T(me, "tenant_id") is { } id && T(me, "tenant_slug") is { } slug
             ? new(id, slug, T(me, "tenant_display_name"), T(me, "email"), T(me, "time_zone"),
                 me.TryGetProperty("capabilities", out var c) && c.ValueKind == JsonValueKind.Array
-                    ? c.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()!).ToList() : null)
+                    ? c.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()!).ToList() : null,
+                T(me, "role"))
             : null;
     }
 

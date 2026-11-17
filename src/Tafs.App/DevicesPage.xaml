@@ -17,6 +17,13 @@
       <!-- The list's footer, as the iPad's: what signing a device out does, and how this PC signs out. -->
       <TextBlock x:Name="NeedsApprover" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" Margin="16,0" Visibility="Collapsed" />
       <TextBlock x:Name="Note" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsDim}" Margin="16,0" />
+      <!-- The account's passkeys, as the iPad's: each by its name, a computer's own going with it, Remove for the person's own. -->
+      <TextBlock x:Name="PasskeysTitle" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource TafsDim}" Margin="16,20,16,0" Visibility="Collapsed"
+                 AutomationProperties.HeadingLevel="Level2" />
+      <TextBlock x:Name="PasskeysError" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
+      <Border x:Name="PasskeysPanel" Style="{StaticResource TafsListPanel}" Visibility="Collapsed">
+        <StackPanel x:Name="PasskeyRows" />
+      </Border>
     </StackPanel>
   </ScrollViewer>
 </Page>
