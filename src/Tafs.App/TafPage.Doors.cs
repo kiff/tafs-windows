@@ -141,22 +141,14 @@ public sealed partial class TafPage
     void ShowDoor()
     {
         var w = App.Words;
-        var back = new HyperlinkButton { Padding = new Thickness(0) };
-        var label = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        label.Children.Add(new FontIcon { Glyph = "", FontSize = 12 });
-        label.Children.Add(new TextBlock { Text = w.Get("setup.starts_when") });
-        back.Content = label;
-        AutomationProperties.SetName(back, w.Get("common.back"));
-        back.Click += (_, _) => { setupScreen = SetupScreen.StartsWhen; ShowSetup(); };
-        SetupPane.Children.Add(back);
+        var named = doors?.Doors.FirstOrDefault(d => d.Id == doorShown);
+        // In the page's place, the door's name in the bar; Back goes to Starts when, which it was opened from.
+        ShowSubBar(named is { } d ? w.Get("door.named", ("door", d.Label)) : w.Get("setup.starts_when"));
         if (doors?.Doors.FirstOrDefault(d => d.Id == doorShown) is not { } door || opening?.CloudId is not { } id)
         {
             SetupPane.Children.Add(Words(w.Get(doors is null ? "common.loading" : "door.door_removed"), 15, "TafsSoftText"));
             return;
         }
-        var title = Words(w.Get("door.named", ("door", door.Label)), 22, "TafsInkText");
-        title.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
-        SetupPane.Children.Add(title);
         if (door.Words?.Settings is { } settings) SetupPane.Children.Add(Words(settings, 12, "TafsDimText"));
         if (doorsWhy is { } why) SetupPane.Children.Add(Words(why, 13, "TafsNoText"));
 

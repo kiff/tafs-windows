@@ -14,7 +14,18 @@
     </Grid.RowDefinitions>
 
     <!-- The head: the avatar (34, corners of 10, its letter in white), the name (20 bold) and its state's chip. -->
-    <Grid ColumnSpacing="10">
+    <!-- A screen pushed from Setup or the Card (Starts when, Results go to, Versions, Usage, …), as the iPad's: in the
+         page's place, its bar a round Back and the title in the middle; the taf's head and tabs come back with Back. -->
+    <Grid x:Name="SubBar" Visibility="Collapsed" MinHeight="44">
+      <Button x:Name="SubBack" Click="OnSubBack" Width="44" Height="44" CornerRadius="22" Padding="0" HorizontalAlignment="Left"
+              Style="{StaticResource TafsOutlineButton}" AutomationProperties.AutomationId="taf.sub.back">
+        <FontIcon Glyph="&#xE76B;" FontSize="16" />
+      </Button>
+      <TextBlock x:Name="SubTitle" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"
+                 Margin="56,0" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource TafsInk}"
+                 AutomationProperties.HeadingLevel="Level1" />
+    </Grid>
+    <Grid x:Name="Head" ColumnSpacing="10">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />

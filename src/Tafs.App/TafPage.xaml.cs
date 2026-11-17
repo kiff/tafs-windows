@@ -762,8 +762,9 @@ public sealed partial class TafPage : Page
         ChatPane.Visibility = tab == TafTab.Chat ? Visibility.Visible : Visibility.Collapsed;
         ShowComposer();
         // Over the Chat and the Activity, as the iPad's (section < 2).
-        // The Card bar above the chat or the activity, or at a wide width the side column beside them.
-        ShowSide();
+        // The Card bar above the chat or the activity, or at a wide width the side column beside them; never a pushed screen's bar.
+        if (tab is TafTab.Chat or TafTab.Activity) ShowSubBar(null);
+        else ShowSide();
         if (tab == TafTab.Setup) ShowSetup();
         if (tab == TafTab.Card) ShowCards();
         if (tab == TafTab.Chat) ShowChat();
@@ -778,6 +779,8 @@ public sealed partial class TafPage : Page
         if (opening?.Setup is not { } setup) return;
         var w = App.Words;
         SetupPane.Children.Clear();
+        // Setup itself: the taf's head and tabs; a screen pushed from it sets its own bar.
+        if (setupScreen == SetupScreen.Main && tab == TafTab.Setup) ShowSubBar(null);
         if (opening.CloudId is not null)
         {
             if (setupScreen == SetupScreen.StartsWhen) ShowStartsWhen();
@@ -1175,6 +1178,7 @@ public sealed partial class TafPage : Page
     {
         // Its versions or its usage, each on a screen of its own with Back.
         if (ShowCardScreen()) return;
+        if (tab == TafTab.Card) ShowSubBar(null);
         if (opening?.Cards is not { Count: > 0 } cards)
         {
             // A tafs cloud taf's Cards aren't drawn here yet: its halt row still is, for whoever manages it, and its rows.
