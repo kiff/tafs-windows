@@ -1873,7 +1873,6 @@ public sealed partial class MainWindow : Window
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
         else if (item.Tag is TafRow trial && TrialFromRow(trial.Key) is { } inTrial) Pages.Navigate(typeof(TafPage), inTrial);
         else if (item.Tag is TafRow taf) Pages.Navigate(typeof(TafPage), OpenTaf(App.Words, taf.Key));
-
         else Pages.Navigate(typeof(ComingPage), item.Content);
     }
 

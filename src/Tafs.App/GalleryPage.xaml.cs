@@ -220,7 +220,12 @@ public sealed partial class GalleryPage : Page
         Background = Look("TafsPanel"), BorderBrush = Look("TafsLine"),
     };
 
-    TextBlock Eyebrow(string text) => new() { Text = text, Style = (Style)Application.Current.Resources["TafsEyebrow"] };
+    /// <summary>A section's label, as the iPad's Eyebrow: tafs cloud's words in capitals, by the language's own rules.</summary>
+    TextBlock Eyebrow(string text) => new()
+    {
+        Text = text.ToUpper(System.Globalization.CultureInfo.GetCultureInfo(App.Words.Language)),
+        Style = (Style)Application.Current.Resources["TafsEyebrow"],
+    };
 
     TextBlock Words(string text, double size, string brush, bool semibold = false) => new()
     {
