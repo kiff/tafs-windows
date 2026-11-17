@@ -38,70 +38,10 @@
           </StackPanel>
         </Border>
 
-        <ItemsControl x:Name="Calls">
+        <ItemsControl x:Name="Calls" ItemTemplate="{StaticResource HeldCallCard}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate><StackPanel Spacing="14" /></ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
-          <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="local:HeldCallView">
-              <!-- The iPad's Panel with an amber edge: a held call waits for you. -->
-              <Border Background="{ThemeResource TafsPanel}" BorderBrush="{StaticResource TafsAmberEdge}" BorderThickness="1"
-                      CornerRadius="18" Padding="16">
-                <StackPanel Spacing="12">
-                  <Grid ColumnSpacing="10">
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="Auto" />
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <Border Width="32" Height="32" CornerRadius="10" Background="{x:Bind Avatar}" Visibility="{x:Bind AvatarShown}">
-                      <TextBlock Text="{x:Bind Lines.Initial}" FontSize="16" FontWeight="Bold" Foreground="White"
-                                 HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                    <TextBlock Grid.Column="1" Text="{x:Bind Lines.Holder}" FontSize="14" FontWeight="SemiBold"
-                               VerticalAlignment="Center" Foreground="{ThemeResource TafsInk}" />
-                    <TextBlock Grid.Column="2" Text="{x:Bind Lines.Left, Mode=OneWay}" FontSize="12" FontFamily="Cascadia Mono, Consolas"
-                               VerticalAlignment="Center" Foreground="{ThemeResource TafsAmberText}" />
-                  </Grid>
-                  <TextBlock Text="{x:Bind Lines.Amount}" Visibility="{x:Bind local:HeldCallView.Seen(Lines.Amount)}"
-                             FontSize="44" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
-                  <TextBlock Text="{x:Bind Lines.Summary}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{ThemeResource TafsInk}" />
-                  <TextBlock Text="{x:Bind Lines.Context}" Visibility="{x:Bind local:HeldCallView.Seen(Lines.Context)}"
-                             FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
-                  <Border HorizontalAlignment="Left" CornerRadius="12" Padding="10,5" Background="{StaticResource TafsAmberWash}">
-                    <TextBlock Text="{x:Bind Lines.Reason}" FontSize="12" FontWeight="Medium" Foreground="{ThemeResource TafsAmberText}" />
-                  </Border>
-
-                  <!-- The taf's own words, under their own heading, drawn as they are: never in place of KIFF's. -->
-                  <Border Visibility="{x:Bind local:HeldCallView.Seen(Lines.TafSays)}" CornerRadius="10" Padding="10"
-                          Background="{ThemeResource TafsSoftWash}">
-                    <StackPanel Spacing="4">
-                      <TextBlock Text="{x:Bind Lines.TafSays}" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource TafsSoft}" />
-                      <TextBlock Text="{x:Bind Lines.TafAbout}" Visibility="{x:Bind local:HeldCallView.Seen(Lines.TafAbout)}"
-                                 FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{ThemeResource TafsInk}" />
-                      <TextBlock Text="{x:Bind Lines.TafReason}" Visibility="{x:Bind local:HeldCallView.Seen(Lines.TafReason)}"
-                                 FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsInk}" />
-                    </StackPanel>
-                  </Border>
-
-                  <!-- What it's on, as KIFF keeps the call, folded under Details as the iPad's: ids aren't words for the card's face. -->
-                  <Expander Visibility="{x:Bind local:HeldCallView.Seen(DetailsText)}" HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Left" Padding="0">
-                    <Expander.Header>
-                      <TextBlock Text="{x:Bind DetailsHeading}" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource TafsCoach}" />
-                    </Expander.Header>
-                    <TextBlock Text="{x:Bind DetailsText}" FontSize="12" FontFamily="Cascadia Mono, Consolas" TextWrapping="Wrap"
-                               IsTextSelectionEnabled="True" Foreground="{ThemeResource TafsSoft}" />
-                  </Expander>
-
-                  <TextBlock Text="{x:Bind Lines.Footer, Mode=OneWay}" Visibility="{x:Bind FooterShown}" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
-
-                  <!-- The answers, as the iPad's HeldCallCard.answers: drawn in code for who's answering and how this PC signs. -->
-                  <ContentPresenter Content="{x:Bind Answers}" Visibility="{x:Bind local:HeldCallView.Shown(Lines.Answerable), Mode=OneWay}" />
-                </StackPanel>
-              </Border>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
         </ItemsControl>
       </StackPanel>
     </Grid>
