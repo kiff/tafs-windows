@@ -1,10 +1,13 @@
 # Getting tafs for Windows
 
-Step 1 of the spec's download and install. Until a signing certificate is decided, the team runs the app from a **zip**:
-unzip it and run it, with nothing installed and no Windows setting changed. The **MSIX** is built too, for the day it's
-signed. Everyone else waits for the signed package.
+Step 1 of the spec's download and install. People get tafs from the **setup** (`tafs-setup-<version>-x64.exe` and
+`-arm64.exe`), in their PC's language, from kiff.dev's download page once a signed release is published. Until then:
+- the owner tests a **draft** release, unsigned and marked never publish (Releasing, below);
+- the team runs CI's builds, the setup or the **zip** (unzip and run, with nothing installed).
 
-## The zip (what the team runs now)
+The **MSIX** is built too, for the day it's signed.
+
+## The zip (the team's quick build)
 
 - **What it is:** the app as it builds, unpackaged and self-contained. .NET and the Windows App SDK come inside it, so
   nothing else needs installing. There's one for x64 and one for ARM64 (about 165 MB unzipped).
@@ -29,7 +32,7 @@ signed. Everyone else waits for the signed package.
   dotnet publish src/Tafs.App -c Release -p:Platform=x64 -r win-x64 --self-contained -o artifacts/zip/tafs-x64
   ```
 
-## The installer (what people will download)
+## The installer (what people download)
 
 - **What it is:** `tafs-setup-<version>-x64.exe` and `tafs-setup-<version>-arm64.exe`, WiX's standard setup around one
   MSI per platform (`installer/Bundle.wxs`, `installer/Package.wxs`). It installs the same self-contained publish as the
