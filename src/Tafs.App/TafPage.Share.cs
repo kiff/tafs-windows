@@ -90,6 +90,7 @@ public sealed partial class TafPage
         Person? Find(string subject) => people.FirstOrDefault(x => x.Subject == subject);
         var chosen = new HashSet<TafShare>(had);
         var step = 1;
+        var sharingNow = false;
         var body = new StackPanel { Spacing = 10, MinWidth = 380 };
         var why = Words("", 13, "TafsNoText");
         var dialog = new ContentDialog
@@ -148,7 +149,7 @@ public sealed partial class TafPage
                     row.Children.Add(said);
                     body.Children.Add(row);
                 }
-                (dialog.PrimaryButtonText, dialog.CloseButtonText, dialog.IsPrimaryButtonEnabled) = (w.Get("people.share.action"), w.Get("common.back"), true);
+                (dialog.PrimaryButtonText, dialog.CloseButtonText, dialog.IsPrimaryButtonEnabled) = (w.Get("people.share.action"), w.Get("common.back"), ApprovalGate.Ready);
             }
             body.Children.Add(why);
         }
@@ -158,7 +159,7 @@ public sealed partial class TafPage
             args.Cancel = true;
             if (step == 1) { step = 2; Draw(); return; }
             var deferral = args.GetDeferral();
-            dialog.IsPrimaryButtonEnabled = false;
+            (dialog.IsPrimaryButtonEnabled, sharingNow) = (false, true);
             try
             {
                 var (done, said) = await sharing.Apply!(chosen.Except(had).ToList(), had.Except(chosen).ToList());
@@ -167,7 +168,7 @@ public sealed partial class TafPage
             }
             finally
             {
-                dialog.IsPrimaryButtonEnabled = true;
+                (dialog.IsPrimaryButtonEnabled, sharingNow) = (ApprovalGate.Ready, false);
                 deferral.Complete();
             }
         };
@@ -180,6 +181,9 @@ public sealed partial class TafPage
             Draw();
         };
         Draw();
+        // Share asks Windows Hello: while it can't confirm here, why, above the steps, and Share off.
+        // Never back on while it's sharing: the window comes back after each Windows Hello prompt.
+        ApprovalGate.Notice(dialog, () => { if (step == 2) dialog.IsPrimaryButtonEnabled = !sharingNow && ApprovalGate.Ready; });
         await dialog.ShowAsync();
     }
 }

@@ -31,6 +31,7 @@
       <!-- Resuming gives authority back, so it's signed: until this PC can sign it, the line for an approval made elsewhere. -->
       <Button x:Name="ResumeButton" Style="{StaticResource TafsOutlineButton}" HorizontalAlignment="Left" Click="OnResume" Visibility="Collapsed"
               AutomationProperties.AutomationId="halt.resume" />
+      <ContentControl x:Name="ResumeHello" HorizontalContentAlignment="Stretch" Visibility="Collapsed" />
       <TextBlock x:Name="ResumeElsewhere" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" Visibility="Collapsed" />
       <TextBlock x:Name="Error" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
     </StackPanel>

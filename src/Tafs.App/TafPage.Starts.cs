@@ -147,7 +147,7 @@ public sealed partial class TafPage
             Style = Look("TafsAmberWords"),
         });
         foreach (var line in k.DraftWords) inside.Children.Add(Words(line, 13, "TafsSoftText"));
-        if (MakeLiveButton(App.Words, pending) is { } live) inside.Children.Add(live);
+        if (MakeLiveButton(App.Words, pending) is { } live) inside.Children.Add(ApprovalGate.Wrap(live));
         SetupPane.Children.Add(panel);
     }
 

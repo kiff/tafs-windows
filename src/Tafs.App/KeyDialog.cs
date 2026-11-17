@@ -95,7 +95,7 @@ public static class KeyDialog
             body.Children.Add(new Expander { Header = sheet.DetailsTitle ?? w.Get("common.details"), Content = details,
                 HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left });
             dialog.PrimaryButtonText = busy ? w.Get("approval.approving") : sheet.Button;
-            dialog.IsPrimaryButtonEnabled = !busy && key is not null && grant.DigestMatches && (grant.Profile is null || words is not null);
+            dialog.IsPrimaryButtonEnabled = !busy && key is not null && grant.DigestMatches && (grant.Profile is null || words is not null) && ApprovalGate.Ready;
         }
         dialog.PrimaryButtonClick += async (_, args) =>
         {
@@ -123,6 +123,8 @@ public static class KeyDialog
             }
         };
         Draw();
+        // Windows Hello not ready here: why, above the sheet, and Give off until it is.
+        ApprovalGate.Notice(dialog, Draw);
         await dialog.ShowAsync();
         // The key is forgotten with the sheet.
         key = null;

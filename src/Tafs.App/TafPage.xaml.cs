@@ -1000,6 +1000,7 @@ public sealed partial class TafPage : Page
                     Content = new TextBlock { Text = TafRemoval.ConfirmText(w, goes), TextWrapping = TextWrapping.Wrap },
                     PrimaryButtonText = w.Get("taf.remove.button"), CloseButtonText = w.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
                 };
+                ApprovalGate.Notice(ask);
                 if (await ask.ShowAsync() != ContentDialogResult.Primary) return;
                 var result = await remove.Run();
                 if (result.Words is { } said)

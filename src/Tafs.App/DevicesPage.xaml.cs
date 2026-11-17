@@ -200,6 +200,8 @@ public sealed partial class DevicesPage : Page
             Content = detail is null ? null : new TextBlock { Text = detail, TextWrapping = TextWrapping.Wrap, Style = Look("TafsSoftText") },
             CloseButtonText = App.Words.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
         };
+        // Sign out and Remove ask Windows Hello next: while it can't confirm here, why, and the act off.
+        ApprovalGate.Notice(dialog);
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
 

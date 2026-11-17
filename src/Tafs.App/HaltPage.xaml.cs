@@ -30,7 +30,15 @@ public sealed partial class HaltPage : Page
     /// <summary>Each opening moves it on: a read for a screen left behind is dropped.</summary>
     int shown;
 
-    public HaltPage() => InitializeComponent();
+    public HaltPage()
+    {
+        InitializeComponent();
+        // Resume asks Windows Hello: while it can't confirm here, why and what to do beside it, in its place.
+        HelloState.Changed += OnHelloChanged;
+        Unloaded += (_, _) => HelloState.Changed -= OnHelloChanged;
+    }
+
+    void OnHelloChanged() => DispatcherQueue.TryEnqueue(() => { if (opening is not null) Show(); });
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
@@ -159,7 +167,11 @@ public sealed partial class HaltPage : Page
         AgainButton.IsEnabled = !busy;
         // A taf halted with every taf is resumed from every taf's screen, as the iPad's.
         var resumable = halt.State == HaltState.Halted && !(halt.Account && opening.Taf is not null);
-        ResumeButton.Visibility = resumable && opening.Resume is not null ? Visibility.Visible : Visibility.Collapsed;
+        // Windows Hello not ready here: why and what to do in Resume's place, as the iPad's ApprovalGate.
+        var notReady = resumable && opening.Resume is not null ? Tafs.Core.Approvals.HelloGate.NotReady(w, HelloState.Readiness) : null;
+        ResumeHello.Content = notReady is null ? null : ApprovalGate.NotReadyView(notReady);
+        ResumeHello.Visibility = notReady is null ? Visibility.Collapsed : Visibility.Visible;
+        ResumeButton.Visibility = resumable && opening.Resume is not null && notReady is null ? Visibility.Visible : Visibility.Collapsed;
         ResumeButton.IsEnabled = !busy;
         if (busy && resumable) ResumeButton.Content = w.Get("taf.halt.resuming");
         else ResumeButton.Content = w.Get("taf.halt.resume_with", ("biometry", Tafs.Core.Coach.CoachScreen.Biometry));

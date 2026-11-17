@@ -96,7 +96,11 @@ public sealed partial class CoachPanel : UserControl
     void ShowStart()
     {
         var on = startCoach is not null && !starting && !firstStart;
-        Start.Visibility = startGate ? Visibility.Collapsed : Visibility.Visible;
+        // Windows Hello not ready, for a session that could start: its line and buttons in Start's place.
+        var notReady = !startGate && startCoach is not null ? global::Tafs.Core.Approvals.HelloGate.NotReady(App.Words, HelloState.Readiness) : null;
+        StartHello.Content = notReady is null ? null : ApprovalGate.NotReadyView(notReady);
+        StartHello.Visibility = notReady is null ? Visibility.Collapsed : Visibility.Visible;
+        Start.Visibility = startGate || notReady is not null ? Visibility.Collapsed : Visibility.Visible;
         StartGateLine.Visibility = startGate ? Visibility.Visible : Visibility.Collapsed;
         StartGateLine.Text = App.Words.Get("approval.device_can_not_approve_approve");
         Start.IsEnabled = on;
@@ -305,6 +309,9 @@ public sealed partial class CoachPanel : UserControl
     public CoachPanel()
     {
         InitializeComponent();
+        // Start asks Windows Hello: while it can't confirm here, why and what to do in Start's place (beside it, in its cell:
+        // a button the page's markup names stays where the markup put it).
+        HelloState.Changed += () => DispatcherQueue.TryEnqueue(ShowStart);
         // Board 9; it paints itself in the panel's theme, and again when that changes.
         IntroArt.Child = Illustrations.CoachStarting();
         var w = App.Words;
