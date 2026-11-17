@@ -48,5 +48,8 @@ public class TafVersionsTests
         Assert.Equal(["r2", "r1", "r0"], more.Runs.Select(r => r.Run));
         Assert.Null(more.Next);
         Assert.Equal("/v1/usage/credits/tafs/t1?after=c%2B1", TafCredits.Path("t1", "c+1"));
+        // The period before, as Plan & usage's Last period opens it, with its next page too.
+        Assert.Equal("/v1/usage/credits/tafs/t1?period=previous", TafCredits.Path("t1", previous: true));
+        Assert.Equal("/v1/usage/credits/tafs/t1?period=previous&after=c%2B1", TafCredits.Path("t1", "c+1", previous: true));
     }
 }

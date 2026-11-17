@@ -232,6 +232,9 @@ public sealed partial class MainWindow : Window
         OverviewPage.TafChosen += key => OpenBeside(typeof(TafPage), OpenTaf(w, key));
         // A result card in Coach: its taf, or Plan & usage, with Coach closed, as the iPad's beside its sidebar.
         CoachMode.Tafs = () => home?.Tafs ?? [];
+        // A taf's row in Plan & usage's Credits: its Card › Usage, in that period, as the iPad's TafCreditsView.
+        UsagePage.TafCreditsChosen += (key, previous) =>
+            OpenBeside(typeof(TafPage), OpenTaf(w, key, TafTab.Card) with { CardOn = CardScreen.Usage, CreditsPrevious = previous });
         CoachMode.TafChosen += key =>
         {
             CoachMode.Close();

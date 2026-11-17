@@ -149,7 +149,7 @@ public sealed partial class TafPage
         if (more && credits?.Next is null) return;
         creditsMore = more;
         if (more) ShowCards();
-        var answer = await read(TafCredits.Path(id, more ? credits!.Next : null));
+        var answer = await read(TafCredits.Path(id, more ? credits!.Next : null, opening.CreditsPrevious));
         creditsMore = false;
         if (opening?.CloudId != id) return;
         if (answer.Answer is { } a && TafCredits.Read(a) is { } page) (credits, creditsWhy) = (more && credits is { } before ? before.With(page) : page, null);
@@ -177,7 +177,22 @@ public sealed partial class TafPage
                     FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas"), Style = Look("TafsDimText") };
                 Grid.SetColumn(at, 1);
                 line.Children.Add(at);
-                inside.Children.Add(line);
+                if (run.Opens)
+                {
+                    // A run that opens, as the iPad's CreditsRunRow: its own page, what it did step by step, on Activity.
+                    var open = new Button { Content = line, Style = Look("TafsQuietButton"), Padding = new Thickness(0),
+                        HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+                    AutomationProperties.SetName(open, run.Words);
+                    var id = run.Run;
+                    open.Click += (_, _) =>
+                    {
+                        tab = TafTab.Activity;
+                        ShowTab();
+                        OpenRun(id);
+                    };
+                    inside.Children.Add(open);
+                }
+                else inside.Children.Add(line);
             }
             if (c.Next is not null)
             {
