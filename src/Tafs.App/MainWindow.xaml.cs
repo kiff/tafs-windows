@@ -503,7 +503,8 @@ public sealed partial class MainWindow : Window
         // Home's steps; a list that can't be read leaves them as they were.
         if (YourSteps.Read(answer) is { } listedNow) listedSteps = listedNow;
         ShowSteps();
-        // Coach's chats waiting on the person, with Home's count.
+        // Coach's chats waiting on the person, with Home's count of all that waits.
+        homeNeedsYou = NeedsYouTotal.Read(answer);
         ReadCoachWaiting(answer);
         ShowHaltAll();
         _ = ReadGalleryAsync(read, reading);
@@ -847,7 +848,7 @@ public sealed partial class MainWindow : Window
         if (needsYouRow is { } row) ShowCount(row, w, NeedsYouTitle);
         if (Pages.Content is NeedsYouPage page) page.Show(held);
         ShowRequestedHold();
-        if (Pages.Content is OverviewPage overview) overview.ShowHeld(held);
+        if (Pages.Content is OverviewPage overview) overview.ShowHeld(held, NeedsYouRest());
     }
 
     /// <summary>
@@ -1069,7 +1070,7 @@ public sealed partial class MainWindow : Window
         (manage, capabilities, accountHalt, haltSend, cloudSend, cloudStream, cloudChange) = (null, null, Halt.Running, null, null, null, null);
         usedBy.Clear();
         cloudResume = null;
-        (coachWaiting, coachWaitingClear) = ([], null);
+        (coachWaiting, coachWaitingClear, homeNeedsYou) = ([], null, null);
         settingAside.Clear();
         ShowHaltAll();
         CoachMode.StartCoach = null;
@@ -1681,8 +1682,10 @@ public sealed partial class MainWindow : Window
     /// </summary>
     void ShowCount(NavigationViewItem row, Tafs.Core.Words.WordBook w, string title)
     {
-        var (count, name) = Sidebar.NeedsYouCount(w, held.Count + CoachWaitingShown().Count);
+        var (count, name) = Sidebar.NeedsYouCount(w, NeedsYouShown());
         AutomationProperties.SetName(row, name);
+        // The Overview's line for the rest follows the same count.
+        if (Pages.Content is OverviewPage overview) overview.ShowHeld(held, NeedsYouRest());
         if (count is null)
         {
             row.Content = title;
@@ -1823,7 +1826,7 @@ public sealed partial class MainWindow : Window
         // Another screen chosen: Needs you's row opens the brief again.
         if (item != needsYouRow) needsYouUnderBrief = false;
         if (item == BrandItem)
-            Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, overviewRows, home?.Labels, HomeRecipesOpening()));
+            Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, overviewRows, home?.Labels, HomeRecipesOpening(), NeedsYouRest()));
         else if (item.Tag is Screen.NeedsYou) ShowNeedsYouOrBrief();
         else if (item.Tag is HeldCall) ShowNeedsYou();
         else if (item.Tag == HaltAll) OpenHalt(null, "");

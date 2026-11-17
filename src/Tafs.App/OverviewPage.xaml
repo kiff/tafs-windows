@@ -46,6 +46,21 @@
             </DataTemplate>
           </ItemsControl.ItemTemplate>
         </ItemsControl>
+        <!-- What else waits (Coach's chats, steps, "Did this happen?"): tafs cloud's count in its words, opening Needs you. -->
+        <Button x:Name="Rest" Click="OnHeld" Style="{StaticResource TafsRow}" Visibility="Collapsed"
+                AutomationProperties.AutomationId="overview.needsYou">
+          <Grid ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Ellipse Width="8" Height="8" Fill="{StaticResource TafsAmber}" VerticalAlignment="Center" />
+            <TextBlock x:Name="RestWords" Grid.Column="1" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                       Foreground="{ThemeResource TafsInk}" />
+            <FontIcon Grid.Column="2" Glyph="&#xE76C;" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TafsSoft}" />
+          </Grid>
+        </Button>
       </StackPanel>
 
       <!-- The account's labels, as the iPad's LabelChips: All, two labels, then "+N"; a chip filters the table below. None
