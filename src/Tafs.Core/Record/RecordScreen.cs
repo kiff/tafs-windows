@@ -102,8 +102,31 @@ public static class RecordScreen
         return entries.Where(e => Keeps(filter, e) && (taf is null || e.Taf == taf))
             .OrderByDescending(e => e.At)
             .GroupBy(e => TimeZoneInfo.ConvertTime(e.At, zone).Date)
-            .Select(g => new RecordDay(DayTitle(w, g.Key, today), g.Where(e => !Read(e)).ToList(), g.Where(Read).ToList(), g.Key))
+            .Select(g => new RecordDay(foldReads && Spent(w, g) is { } spent ? $"{DayTitle(w, g.Key, today)} · {spent}" : DayTitle(w, g.Key, today),
+                g.Where(e => !Read(e)).ToList(), g.Where(Read).ToList(), g.Key))
             .ToList();
+    }
+
+    /// <summary>
+    /// The money a day moved, at the end of its heading on the Record, as the iPad's <c>spent</c>: "€640 spent", a sum for each
+    /// currency joined with " + ", from KIFF's amounts on the calls that moved money; none when none did.
+    /// </summary>
+    public static string? Spent(WordBook w, IEnumerable<RecordEntry> entries)
+    {
+        var order = new List<string>();
+        var sums = new Dictionary<string, (decimal Value, int Scale)>();
+        foreach (var e in entries)
+        {
+            if (!Keeps(RecordFilter.MoneyMoved, e) || e.Call?.Amount is not { Unit: { Length: 3 } unit } amount
+                || !decimal.TryParse(amount.Value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var value))
+                continue;
+            var scale = amount.Value.Split('.') is { Length: > 1 } parts ? parts[1].Length : 0;
+            if (!sums.TryGetValue(unit, out var sum)) order.Add(unit);
+            sums[unit] = (sum.Value + value, Math.Max(sum.Scale, scale));
+        }
+        var figures = order.Select(u => KiffActivity.AmountText(w, new CallAmount(sums[u].Value.ToString("F" + sums[u].Scale.ToString(CultureInfo.InvariantCulture),
+            CultureInfo.InvariantCulture), u))).OfType<string>().ToList();
+        return figures.Count == 0 ? null : w.Get("record.day_spent", ("amount", string.Join(" + ", figures)));
     }
 
     /// <summary>The fold's line, as the iPad's: "· 11 reads of data, within its Card · Show", or Hide once open.</summary>
