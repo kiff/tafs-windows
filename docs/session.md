@@ -23,6 +23,10 @@ closing the window would sign the PC out while its device stayed at KIFF.
 - **Replacing one** (a view-only session by a paired one): the old session signs itself out at KIFF
   (`POST /v1/auth/device/logout`, bearer only, as the phones do), and its key leaves the TPM. If KIFF can't be reached,
   the old session ends with its 90 days, or from Devices on the phone. The same key's session again isn't signed out.
+- **One KIFF no longer accepts:** a `401` on Home's read (revoked, expired, or a session left by an older build) means the
+  kept session is dead. It goes as Sign out's does: KIFF is told, and the store and its TPM key are cleared, with a store
+  that refuses left as it is. Then the window signs in again. It never shows an error with Try again, which could never
+  help it.
 - **Screenshots** never read or write it.
 
 **Tests** (the `pairing` part, `KeptSessionTests`):
