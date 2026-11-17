@@ -50,6 +50,7 @@ public sealed partial class MainWindow
         Pages.Navigate(typeof(NeedsYouPage), held);
         if (Pages.Content is NeedsYouPage page) page.ShowUnproven(unproven, mayAnswerHolds);
         ShowSteps();
+        ShowCoachWaiting();
         _ = ReadUnprovenAsync(sessions);
         ShowRequestedHold();
     }
