@@ -16,8 +16,8 @@
       <StackPanel Spacing="4">
         <TextBlock x:Name="Heading" FontSize="30" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
         <TextBlock x:Name="Subtitle" FontSize="14" Foreground="{ThemeResource TafsDim}" />
-        <!-- Board 10, under the title, as the iPad's OverviewView at a regular width: shapes only, hidden from Narrator. -->
-        <Border x:Name="OverviewArt" HorizontalAlignment="Left" Margin="0,12,0,0" />
+        <!-- Board 10, under the title, centred, as the iPad's OverviewView at a regular width (maxWidth: .infinity): shapes only, hidden from Narrator. -->
+        <Border x:Name="OverviewArt" HorizontalAlignment="Center" Margin="0,12,0,0" />
       </StackPanel>
 
       <!-- What waits for the person, above the tafs: one raised row per held call, as on the iPad. -->
