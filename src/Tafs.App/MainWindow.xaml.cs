@@ -198,6 +198,8 @@ public sealed partial class MainWindow : Window
         NeedsYouPage.AddThisDeviceChosen += OpenPairing;
         NeedsYouPage.StepAnswerChosen += (step, done) => _ = AnswerStepAsync(step, done);
         NeedsYouPage.HelloCheckChosen += () => _ = CheckHelloAsync();
+        // Your step draws again with each answer from Windows, as every approval's gate does.
+        HelloState.Changed += () => DispatcherQueue.TryEnqueue(() => { if (Pages.Content is NeedsYouPage) ShowSteps(); });
         NeedsYouPage.HeldAnswerChosen += (call, answer) => _ = AnswerHeldAsync(call, answer);
         NeedsYouPage.AllowChosen += call => _ = OpenAllowAsync(call);
         Toasts.HoldChosen += hold => DispatcherQueue.TryEnqueue(() => OpenHold(hold));
@@ -728,37 +730,23 @@ public sealed partial class MainWindow : Window
         steps = YourSteps.Shown(listedSteps, answeredSteps);
         if (Pages.Content is NeedsYouPage page)
         {
-            page.ShowSteps(steps, CanAnswerSteps(App.Sessions.Kept()), answeringSteps, hello);
+            page.ShowSteps(steps, CanAnswerSteps(App.Sessions.Kept()), answeringSteps, HelloState.Readiness);
             page.ShowError(needsYouError);
             // Asked once there's a step this PC answers, and again on Check again: never before it's needed.
             if (steps.Count > 0 && !helloChecked) _ = CheckHelloAsync();
         }
     }
 
-    /// <summary>Whether Windows Hello can confirm a step's answer, as last asked; ready until asked.</summary>
-    HelloReadiness hello = HelloReadiness.Ready;
     bool helloChecked;
 
     /// <summary>
-    /// Asks Windows whether Hello can confirm here (<c>UserConsentVerifier.CheckAvailabilityAsync</c>), as the iPad's
-    /// <c>ApprovalReadiness</c> reads LocalAuthentication, then draws the steps again with it.
+    /// Asks Windows whether Hello can confirm here (<see cref="HelloState.CheckAsync"/>), as the iPad's <c>ApprovalReadiness</c>
+    /// reads LocalAuthentication; every approval's gate and Your step follow it.
     /// </summary>
     async Task CheckHelloAsync()
     {
         helloChecked = true;
-        try
-        {
-            hello = await Windows.Security.Credentials.UI.UserConsentVerifier.CheckAvailabilityAsync() switch
-            {
-                Windows.Security.Credentials.UI.UserConsentVerifierAvailability.Available => HelloReadiness.Ready,
-                Windows.Security.Credentials.UI.UserConsentVerifierAvailability.NotConfiguredForUser => HelloReadiness.NotSetUp,
-                Windows.Security.Credentials.UI.UserConsentVerifierAvailability.DeviceBusy => HelloReadiness.Busy,
-                _ => HelloReadiness.Unsupported,
-            };
-        }
-        // Not asked: as before, each answer says what came of Hello.
-        catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException) { hello = HelloReadiness.Ready; }
-        ShowSteps();
+        await HelloState.CheckAsync();
     }
 
     /// <summary>
@@ -983,7 +971,8 @@ public sealed partial class MainWindow : Window
         discarding.Clear();
         discardLeft.Clear();
         // The next session asks Windows Hello again before its first step.
-        (hello, helloChecked) = (HelloReadiness.Ready, false);
+        helloChecked = false;
+        HelloState.Forget();
         // The last export's files too, as the iPad's removeOpenedFiles: a person's chats never stay on this PC after them.
         ChatsExport.Remove(ChatsExport.Folder);
         // The files opened again from a chat: a person's own, never left on this PC after them.

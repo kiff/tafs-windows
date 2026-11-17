@@ -148,7 +148,7 @@ public sealed partial class TafPage
                     row.Children.Add(said);
                     body.Children.Add(row);
                 }
-                (dialog.PrimaryButtonText, dialog.CloseButtonText, dialog.IsPrimaryButtonEnabled) = (w.Get("people.share.action"), w.Get("common.back"), true);
+                (dialog.PrimaryButtonText, dialog.CloseButtonText, dialog.IsPrimaryButtonEnabled) = (w.Get("people.share.action"), w.Get("common.back"), ApprovalGate.Ready);
             }
             body.Children.Add(why);
         }
@@ -180,6 +180,8 @@ public sealed partial class TafPage
             Draw();
         };
         Draw();
+        // Share asks Windows Hello: while it can't confirm here, why, above the steps, and Share off.
+        ApprovalGate.Notice(dialog, () => { if (step == 2) dialog.IsPrimaryButtonEnabled = ApprovalGate.Ready; });
         await dialog.ShowAsync();
     }
 }

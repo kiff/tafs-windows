@@ -161,7 +161,8 @@ sealed class AllowDialog
         var confirm = Button(sheet.Busy ? w.Get("approval.approving") : w.Get("approval.approve_with", ("biometry", "Windows Hello")),
             sheet.Busy ? "TafsPrimaryOff" : "TafsPrimary");
         confirm.Click += (_, _) => _ = ConfirmAsync();
-        body.Children.Add(confirm);
+        // Windows Hello not ready here: why and what to do, in Approve's place.
+        body.Children.Add(ApprovalGate.Wrap(confirm));
     }
 
     Button Button(string text, string style)

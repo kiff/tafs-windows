@@ -30,7 +30,12 @@ public sealed partial class HaltPage : Page
     /// <summary>Each opening moves it on: a read for a screen left behind is dropped.</summary>
     int shown;
 
-    public HaltPage() => InitializeComponent();
+    public HaltPage()
+    {
+        InitializeComponent();
+        // Resume asks Windows Hello: while it can't confirm here, why and what to do in Resume's place.
+        ApprovalGate.Wrap(ResumeButton);
+    }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {

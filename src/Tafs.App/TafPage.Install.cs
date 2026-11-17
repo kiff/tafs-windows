@@ -161,6 +161,7 @@ public sealed partial class TafPage
             PrimaryButtonText = w.Get("version.install_this"), CloseButtonText = w.Get("common.cancel"),
             DefaultButton = ContentDialogButton.Close, IsPrimaryButtonEnabled = draft?.Cards is not null,
         };
+        ApprovalGate.Notice(dialog);
         var mine = opening;
         if (await dialog.ShowAsync() != ContentDialogResult.Primary)
         {

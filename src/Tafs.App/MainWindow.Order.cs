@@ -139,9 +139,9 @@ public sealed partial class MainWindow
         if (e.WindowActivationState == WindowActivationState.Deactivated) return;
         settleOnReturn = true;
         ShowYourTafs();
-        // Windows Hello may have been set up meanwhile: asked again with the steps, as the iPad reads its readiness on return.
-        helloChecked = false;
-        if (Pages.Content is NeedsYouPage) ShowSteps();
+        // Windows Hello may have been set up meanwhile: asked again, as the iPad reads its readiness on return; at launch too,
+        // since the window's first activation comes here. Every approval's gate follows the answer.
+        _ = CheckHelloAsync();
         // Devices read again, as the iPad's on its scene's return: a device added on the phone meanwhile shows.
         if (Pages.Content is DevicesPage devices) _ = devices.ReadAgainAsync();
     }

@@ -305,6 +305,8 @@ public sealed partial class CoachPanel : UserControl
     public CoachPanel()
     {
         InitializeComponent();
+        // Start asks Windows Hello: while it can't confirm here, why and what to do in Start's place.
+        ApprovalGate.Wrap(Start);
         // Board 9; it paints itself in the panel's theme, and again when that changes.
         IntroArt.Child = Illustrations.CoachStarting();
         var w = App.Words;

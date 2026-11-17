@@ -74,6 +74,8 @@ public sealed partial class CoachPanel
             }
             if (given.Why is { } said) (why.Text, why.Visibility) = (said, Visibility.Visible);
         };
+        // Give asks Windows Hello: while it can't confirm here, why, above the step, and Give off.
+        ApprovalGate.Notice(dialog);
         await dialog.ShowAsync();
         // Read again: the row goes once they're given.
         await LoadThreadAsync();
