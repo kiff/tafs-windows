@@ -1916,6 +1916,7 @@ public sealed partial class MainWindow : Window
                 Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream, ResumeStream: cloudResume, Remove: RemoveFor(taf), ApproveEvent: EventFor(taf), Share: ShareFor(taf),
                 // Setup › Starts when and Results go to: when it starts and where results go, as Home says, and the changes made at once.
                 Change: cloudChange, Starts: taf.Starts, Paused: taf.State == "paused", Email: kiffAccount?.Email, TimeZone: kiffAccount?.TimeZone,
+                TimeZoneWords: taf.TimeZoneWords, ScheduleTimeZoneWords: taf.ScheduleTimeZoneWords,
                 // Coach on improving this taf, as the iPad's improveTaf; offered while KIFF says this person may use Coach.
                 AskCoach: () => CoachMode.Improve(taf.Id, taf.Name), MayUseCoach: () => mayUseCoach,
                 // Its health's fixes: Coach with tafs cloud's words in the box, nothing sent; Plan & usage for credits.
