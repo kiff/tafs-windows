@@ -20,7 +20,8 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     TafHalt? Halt = null, Func<string, byte[], Task<CloudRead>>? Send = null, bool Manages = false, TafStream? Stream = null,
     TafRemove? Remove = null, Func<HttpMethod, string, byte[]?, Task<CloudRead>>? Change = null, TafStarts? Starts = null,
     bool Paused = false, string? Email = null, string? TimeZone = null, Action? AskCoach = null, SetupScreen SetupOn = SetupScreen.Main,
-    TafHealth? Health = null, Action<string>? AskCoachWith = null, Action? OpenUsage = null, Func<bool>? MayUseCoach = null)
+    TafHealth? Health = null, Action<string>? AskCoachWith = null, Action? OpenUsage = null, Func<bool>? MayUseCoach = null,
+    CardScreen CardOn = CardScreen.Main)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
@@ -135,6 +136,7 @@ public sealed partial class TafPage : Page
         _ = LoadWorkAsync();
         if (tab == TafTab.Chat) _ = LoadChatAsync();
         if (opening.SetupOn != SetupScreen.Main) OpenSetupScreen(opening.SetupOn);
+        if (opening.CardOn != CardScreen.Main) OpenCardScreen(opening.CardOn);
     }
 
     /// <summary>
@@ -860,14 +862,14 @@ public sealed partial class TafPage : Page
     /// </summary>
     void ShowCards()
     {
+        // Its versions or its usage, each on a screen of its own with Back.
+        if (ShowCardScreen()) return;
         if (opening?.Cards is not { Count: > 0 } cards)
         {
-            // A tafs cloud taf's Cards aren't drawn here yet: its halt row still is, for whoever manages it.
-            if (opening?.Halt is { } alone && !revoked)
-            {
-                CardPane.Children.Clear();
-                CardPane.Children.Add(HaltRow(alone));
-            }
+            // A tafs cloud taf's Cards aren't drawn here yet: its halt row still is, for whoever manages it, and its rows.
+            CardPane.Children.Clear();
+            if (opening?.Halt is { } alone && !revoked) CardPane.Children.Add(HaltRow(alone));
+            AddCardRows();
             return;
         }
         var w = App.Words;
@@ -912,6 +914,8 @@ public sealed partial class TafPage : Page
         if (revoked) return;
         // Halting is a job of its own too, for whoever manages the taf: its row opens its screen (the iPad's HaltRow).
         if (opening.Halt is { } halt) CardPane.Children.Add(HaltRow(halt));
+        // "Changes to how it runs" and Usage, as the iPad's, for whoever manages it.
+        AddCardRows();
         // Revoke reaches nothing yet, so it's the sample's only: on a real taf it would look done when KIFF revoked nothing.
         if (opening?.CloudId is not null) return;
         var revoke = new Button { Content = w.Get("taf.revoke"), Style = Look("TafsOutlineNo"), HorizontalAlignment = HorizontalAlignment.Stretch };
