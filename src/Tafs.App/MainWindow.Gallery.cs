@@ -163,10 +163,32 @@ public sealed partial class MainWindow
     /// Coach, starts a new conversation with the job's words in the box, as the iPad's <c>handRecipeToCoach</c>; nothing is
     /// sent. A strip job opens on its own sheet.
     /// </summary>
+    /// <summary>
+    /// Explore jobs, as the iPad's RecipeGallerySheet: a sheet over the window, Close and its title on top, the screen beneath
+    /// kept as it was. Try it with Coach closes it and opens Coach with the job's words.
+    /// </summary>
     void OpenGallery(GalleryRow row)
     {
         if (gallery is not { } g) return;
-        Pages.Navigate(typeof(GalleryPage), new GalleryOpening(g, Browse: true,
-            Hand: CoachMode.Answer is not null ? job => CoachMode.Write(job.Say, newConversation: true) : null, Open: row.Job, Logos: HomeList.Api));
+        SheetFrame.Navigate(typeof(GalleryPage), new GalleryOpening(g, Browse: true,
+            Hand: CoachMode.Answer is not null ? job => { CloseSheet(); CoachMode.Write(job.Say, newConversation: true); } : null, Open: row.Job,
+            Logos: HomeList.Api, InSheet: true));
+        SheetTitle.Text = g.Title(true);
+        SheetClose.Content = App.Words.Get("common.close");
+        Sheet.Visibility = Visibility.Visible;
+        if (SheetClose.KeyboardAccelerators.Count == 0)
+            SheetClose.KeyboardAccelerators.Add(new Microsoft.UI.Xaml.Input.KeyboardAccelerator { Key = Windows.System.VirtualKey.Escape });
+        DispatcherQueue.TryEnqueue(() => SheetClose.Focus(FocusState.Programmatic));
     }
+
+    void CloseSheet()
+    {
+        Sheet.Visibility = Visibility.Collapsed;
+        SheetFrame.Content = null;
+    }
+
+    void OnSheetClose(object sender, RoutedEventArgs e) => CloseSheet();
+
+    /// <summary>A click on the dimmed window around the sheet closes it, as a tap outside the iPad's.</summary>
+    void OnSheetDim(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e) => CloseSheet();
 }

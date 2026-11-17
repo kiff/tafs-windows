@@ -16,7 +16,7 @@ namespace Tafs.App;
 /// <param name="OwnWords">From Start a new taf, for someone who may use Coach: "Say it in your own words", Coach with an empty box.</param>
 /// <param name="OnHome">Home's recipes with no taf, under the Overview's heading: no title of its own, tafs cloud's line instead.</param>
 public sealed record GalleryOpening(Gallery Gallery, bool Browse, Action<Recipe>? Hand, string? Open = null, Uri? Logos = null,
-    Action? OwnWords = null, bool OnHome = false);
+    Action? OwnWords = null, bool OnHome = false, bool InSheet = false);
 
 /// <summary>
 /// The jobs' gallery, as the iPad's <c>RecipeGallerySheet</c> with <c>HomeRecipes</c>, <c>RecipeRow</c> and <c>RecipeSheet</c>:
@@ -49,8 +49,9 @@ public sealed partial class GalleryPage : Page
         Heading.Text = g.Title(o.Browse);
         Body.Children.Clear();
         // On Home, as the iPad's HomeRecipes: under the Overview's own heading, tafs cloud's line first, with no "All jobs".
-        Heading.Visibility = o.OnHome ? Visibility.Collapsed : Visibility.Visible;
-        Holder.Padding = o.OnHome ? new Thickness(0) : new Thickness(24);
+        // In a sheet, its title is the sheet's own, on top.
+        Heading.Visibility = o.OnHome || o.InSheet ? Visibility.Collapsed : Visibility.Visible;
+        Holder.Padding = o.OnHome ? new Thickness(0) : o.InSheet ? new Thickness(24, 4, 24, 24) : new Thickness(24);
         if (o.OnHome && g.Words.Title.Trim().Length > 0) Body.Children.Add(Words(g.Words.Title, 17, "TafsInk", semibold: true));
         // Creating, as the iPad's + New: "Say it in your own words" leads, in tafs cloud's words, where it sends them.
         if (!o.Browse && o.OwnWords is { } own && g.Words.OwnWords.Trim().Length > 0) Body.Children.Add(OwnWordsRow(g.Words, own));
