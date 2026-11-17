@@ -5,6 +5,50 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:local="using:Tafs.App"
       Background="{ThemeResource TafsBackground}">
+  <Page.Resources>
+    <DataTemplate x:Key="RecordRow" x:DataType="local:RecordLineView">
+      <!-- A tap opens its sheet, as the iPad's RecordRow. -->
+      <Button Style="{StaticResource TafsRow}" Background="Transparent" Padding="0" Click="OnLine" Tag="{x:Bind Entry}"
+              AutomationProperties.Name="{x:Bind Name}" AutomationProperties.HelpText="{x:Bind Hint}">
+      <Border Background="{ThemeResource TafsPanel}" BorderBrush="{ThemeResource TafsLine}" BorderThickness="1"
+              CornerRadius="14" Padding="14">
+        <Grid ColumnSpacing="12">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <!-- What became of it: green done, approved or started; amber held, sending or unknown; red refused, not done or revoked. -->
+          <Grid VerticalAlignment="Top" Margin="0,6,0,0">
+            <Ellipse Width="9" Height="9" Fill="{ThemeResource TafsOk}" Visibility="{x:Bind IsDone}" />
+            <Ellipse Width="9" Height="9" Fill="{StaticResource TafsAmber}" Visibility="{x:Bind IsWaiting}" />
+            <Ellipse Width="9" Height="9" Fill="{ThemeResource TafsNo}" Visibility="{x:Bind IsRefused}" />
+          </Grid>
+          <StackPanel Grid.Column="1" Spacing="4">
+            <Grid ColumnSpacing="6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <Ellipse Width="8" Height="8" Fill="{x:Bind TafColour}" VerticalAlignment="Center" />
+              <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"
+                         Foreground="{ThemeResource TafsInk}" />
+              <TextBlock Grid.Column="2" Text="{x:Bind Time}" FontSize="12" FontFamily="Cascadia Mono, Consolas"
+                         Foreground="{ThemeResource TafsDim}" Margin="12,0,0,0" />
+            </Grid>
+            <TextBlock Text="{x:Bind Detail}" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+            <!-- KIFF says its receipt is signed, as the iPad's RecordRow: 12, green, with a page. -->
+            <StackPanel Orientation="Horizontal" Spacing="6" Visibility="{x:Bind ReceiptShown}">
+              <FontIcon Glyph="&#xE8A5;" FontSize="12" Foreground="{ThemeResource TafsOk}" />
+              <TextBlock Text="{x:Bind Receipt}" FontSize="12" Foreground="{ThemeResource TafsOk}" />
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+      </Border>
+      </Button>
+    </DataTemplate>
+  </Page.Resources>
+
   <ScrollViewer>
     <StackPanel Padding="24" Spacing="10">
       <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
@@ -35,49 +79,19 @@
               <!-- "TODAY · NOV 15": 11 medium, monospaced, in capitals, dim. -->
               <TextBlock Text="{x:Bind Title}" FontSize="11" FontWeight="Medium" FontFamily="Cascadia Mono, Consolas"
                          Foreground="{ThemeResource TafsDim}" Margin="0,6,0,0" />
-              <ItemsControl ItemsSource="{x:Bind Entries}">
+              <ItemsControl ItemsSource="{x:Bind Entries}" ItemTemplate="{StaticResource RecordRow}">
                 <ItemsControl.ItemsPanel>
                   <ItemsPanelTemplate><StackPanel Spacing="10" /></ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="local:RecordLineView">
-                    <!-- A tap opens its sheet, as the iPad's RecordRow. -->
-                    <Button Style="{StaticResource TafsRow}" Background="Transparent" Padding="0" Click="OnLine" Tag="{x:Bind Entry}"
-                            AutomationProperties.Name="{x:Bind Name}" AutomationProperties.HelpText="{x:Bind Hint}">
-                    <Border Background="{ThemeResource TafsPanel}" BorderBrush="{ThemeResource TafsLine}" BorderThickness="1"
-                            CornerRadius="14" Padding="14">
-                      <Grid ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                          <ColumnDefinition Width="Auto" />
-                          <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <!-- What became of it: green done, approved or started; amber held, sending or unknown; red refused, not done or revoked. -->
-                        <Grid VerticalAlignment="Top" Margin="0,6,0,0">
-                          <Ellipse Width="9" Height="9" Fill="{ThemeResource TafsOk}" Visibility="{x:Bind IsDone}" />
-                          <Ellipse Width="9" Height="9" Fill="{StaticResource TafsAmber}" Visibility="{x:Bind IsWaiting}" />
-                          <Ellipse Width="9" Height="9" Fill="{ThemeResource TafsNo}" Visibility="{x:Bind IsRefused}" />
-                        </Grid>
-                        <StackPanel Grid.Column="1" Spacing="4">
-                          <Grid ColumnSpacing="6">
-                            <Grid.ColumnDefinitions>
-                              <ColumnDefinition Width="Auto" />
-                              <ColumnDefinition Width="*" />
-                              <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <Ellipse Width="8" Height="8" Fill="{x:Bind TafColour}" VerticalAlignment="Center" />
-                            <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"
-                                       Foreground="{ThemeResource TafsInk}" />
-                            <TextBlock Grid.Column="2" Text="{x:Bind Time}" FontSize="12" FontFamily="Cascadia Mono, Consolas"
-                                       Foreground="{ThemeResource TafsDim}" Margin="12,0,0,0" />
-                          </Grid>
-                          <TextBlock Text="{x:Bind Detail}" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
-                        </StackPanel>
-                      </Grid>
-                    </Border>
-                    </Button>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
               </ItemsControl>
+              <ItemsControl ItemsSource="{x:Bind Reads}" ItemTemplate="{StaticResource RecordRow}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><StackPanel Spacing="10" /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+              </ItemsControl>
+              <!-- A day's reads of data, folded under one line, as the iPad's: "· 11 reads of data, within its Card · Show", 13, green. -->
+              <HyperlinkButton Content="{x:Bind ReadsLine}" Visibility="{x:Bind ReadsLineShown}" Tag="{x:Bind Day}" Click="OnReads"
+                               Padding="4,0" FontSize="13" Foreground="{ThemeResource TafsOk}" />
             </StackPanel>
           </DataTemplate>
         </ItemsControl.ItemTemplate>

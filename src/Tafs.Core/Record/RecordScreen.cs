@@ -46,7 +46,9 @@ public enum Dot { Went, Waiting, Stopped }
 public enum RecordFilter { All, MoneyMoved, Stopped, Waiting }
 
 /// <summary>One day of the Record: its eyebrow ("TODAY · NOV 15") and its lines, newest first.</summary>
-public sealed record RecordDay(string Title, IReadOnlyList<RecordEntry> Entries);
+/// <param name="Reads">The day's reads of data, folded under one line on the Record (the iPad's <c>day.reads</c>); none when not folded.</param>
+/// <param name="Day">The day, which a fold is kept open by.</param>
+public sealed record RecordDay(string Title, IReadOnlyList<RecordEntry> Entries, IReadOnlyList<RecordEntry>? Reads = null, DateTime Day = default);
 
 /// <summary>The Record (the iPad's RecordView): everything the tafs did, were refused, or asked, newest first.</summary>
 public static class RecordScreen
@@ -88,16 +90,28 @@ public static class RecordScreen
     };
 
     /// <summary>The Record by day in <paramref name="zone"/>, newest first, narrowed to the filter and to one taf (or every taf).</summary>
+    /// <param name="foldReads">
+    /// The Record's way, as the iPad's RecordView: under All, a day's reads of data (KIFF's <c>read_only</c> calls) go apart, to
+    /// fold under one line, so what moved shows first. Any other filter shows every call it keeps.
+    /// </param>
     public static IReadOnlyList<RecordDay> Days(WordBook w, IEnumerable<RecordEntry> entries, RecordFilter filter, string? taf,
-        DateTimeOffset now, TimeZoneInfo zone)
+        DateTimeOffset now, TimeZoneInfo zone, bool foldReads = false)
     {
         var today = TimeZoneInfo.ConvertTime(now, zone).Date;
+        bool Read(RecordEntry e) => foldReads && filter == RecordFilter.All && e.Call?.ReadOnly == true;
         return entries.Where(e => Keeps(filter, e) && (taf is null || e.Taf == taf))
             .OrderByDescending(e => e.At)
             .GroupBy(e => TimeZoneInfo.ConvertTime(e.At, zone).Date)
-            .Select(g => new RecordDay(DayTitle(w, g.Key, today), g.ToList()))
+            .Select(g => new RecordDay(DayTitle(w, g.Key, today), g.Where(e => !Read(e)).ToList(), g.Where(Read).ToList(), g.Key))
             .ToList();
     }
+
+    /// <summary>The fold's line, as the iPad's: "· 11 reads of data, within its Card · Show", or Hide once open.</summary>
+    public static string ReadsLine(WordBook w, int count, bool open) =>
+        $"· {w.Count("record.reads", count)} · {w.Get(open ? "record.hide" : "record.show")}";
+
+    /// <summary>"KIFF receipt" under a call whose receipt KIFF says is signed, as the iPad's RecordRow; none otherwise.</summary>
+    public static string? ReceiptLine(WordBook w, RecordEntry e) => e.Call?.Receipt?.Status == "signed" ? w.Get("receipt.kiff_receipt") : null;
 
     /// <summary>"TODAY · NOV 15", "YESTERDAY · NOV 14", else "THURSDAY · NOV 12": in capitals, in the language's own way.</summary>
     public static string DayTitle(WordBook w, DateTime day, DateTime today)
