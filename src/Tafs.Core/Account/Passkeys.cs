@@ -56,13 +56,13 @@ public static class Passkeys
     public static string Name(WordBook w, AccountPasskey p) => p.Name ?? w.Get("settings.devices.unnamed");
 
     /// <summary>
-    /// What the confirmation says under "Remove iPhone?": that it's the last passkey of the person's own that approves (a
-    /// computer's own doesn't count), so approvals then need a device that can approve. KIFF lets it go, since a lost or stolen
-    /// passkey is when Remove is most needed; this only warns. None for any other, or before the shared words are pinned.
+    /// What the confirmation says under "Remove iPhone?": that removing it leaves no passkey that can approve. Every passkey
+    /// KIFF lists counts, a computer's own included (it approves on that computer, and KIFF drops it when the computer is
+    /// signed out), so the words are true whenever they show. KIFF lets it go, since a lost or stolen passkey is when Remove is
+    /// most needed; this only warns. None for any other.
     /// </summary>
     public static string? Warning(WordBook w, AccountPasskey removing, IReadOnlyList<AccountPasskey> all) =>
-        removing.Removable && all.Count(p => p.Removable) == 1 && w.Has("settings.devices.passkey_remove_last")
-            ? w.Get("settings.devices.passkey_remove_last") : null;
+        removing.Removable && all.All(p => p == removing) ? w.Get("settings.devices.passkey_remove_last") : null;
 
     /// <summary>Who may remove one, as the iPad's <c>canAddPasskey</c>: an owner or an admin, on a session that approves.</summary>
     public static bool MayRemove(string? role, bool approves) => approves && role is "owner" or "admin";

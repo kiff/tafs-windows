@@ -76,16 +76,17 @@ public class PasskeysTests
     }
 
     [Fact]
-    public void Removing_the_last_approving_passkey_is_warned_about_never_refused()
+    public void Removing_the_last_passkey_that_can_approve_is_warned_about_never_refused()
     {
         var phone = new AccountPasskey("pk_1", "iPhone", null);
         var computer = new AccountPasskey("pk_2", null, "dev_9");
         var ipad = new AccountPasskey("pk_3", "iPad", null);
-        if (En.Has("settings.devices.passkey_remove_last"))
-            Assert.Equal(En.Get("settings.devices.passkey_remove_last"), Passkeys.Warning(En, phone, [phone, computer]));
-        else
-            Assert.Null(Passkeys.Warning(En, phone, [phone, computer]));
-        Assert.Null(Passkeys.Warning(En, phone, [phone, computer, ipad]));
-        Assert.Null(Passkeys.Warning(En, computer, [phone, computer]));
+        // A computer's own approves too: the phone isn't the last.
+        Assert.Null(Passkeys.Warning(En, phone, [phone, computer]));
+        Assert.Equal("This is your only passkey that can approve. Without it, you need another device that can approve.",
+            Passkeys.Warning(En, phone, [phone]));
+        Assert.Null(Passkeys.Warning(En, phone, [phone, ipad]));
+        // A computer's own has no Remove here: no warning for it either.
+        Assert.Null(Passkeys.Warning(En, computer, [computer]));
     }
 }
