@@ -214,7 +214,8 @@ public sealed partial class TafPage
                     }
                 }
             }
-            panel.Add(Words(w.Get("setup.approve_note"), 12, "TafsDimText"));
+            // Approve signs on this Windows PC, not a phone: the device as the app names it elsewhere (alert.on_this_device).
+            panel.Add(Words(w.Get("setup.approve_note_device", ("device", w.Get("device.windows"))), 12, "TafsDimText"));
             SetupPane.Children.Add(Panel([.. panel]));
         }
 
