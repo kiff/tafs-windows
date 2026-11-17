@@ -138,7 +138,7 @@ static class ChatViews
     /// name in 14 medium, one line, on the panel colour with a line round it, corners of 12. Opening one full size comes with
     /// reading its bytes; until then each is its name.
     /// </summary>
-    public static StackPanel MessageFiles(IReadOnlyList<ChatFile> files, Func<string, Brush> brush)
+    public static StackPanel MessageFiles(IReadOnlyList<ChatFile> files, Func<string, Brush> brush, Action<ChatFile>? open = null)
     {
         var column = new StackPanel { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right };
         foreach (var file in files)
@@ -155,7 +155,18 @@ static class ChatViews
                 Background = brush("TafsPanel"), BorderBrush = brush("TafsLine"), HorizontalAlignment = HorizontalAlignment.Right,
             };
             AutomationProperties.SetName(chip, file.Name);
-            column.Children.Add(chip);
+            if (open is null)
+            {
+                column.Children.Add(chip);
+                continue;
+            }
+            // A tap opens it again (the iPad's Quick Look); Narrator says Open.
+            var button = new Button { Content = chip, Style = (Style)Application.Current.Resources["TafsBox"], HorizontalAlignment = HorizontalAlignment.Right,
+                CornerRadius = new CornerRadius(12) };
+            AutomationProperties.SetName(button, App.Words.Get("chat.file.open", ("name", file.Name)));
+            var shown = file;
+            button.Click += (_, _) => open(shown);
+            column.Children.Add(button);
         }
         return column;
     }

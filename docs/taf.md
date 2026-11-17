@@ -303,3 +303,22 @@ is the approval key's act, never the device key's); a revoked taf can still be r
   each tool.
 - **The rest:** the head's second line (the version and Share); held calls, Card-unit exceptions, its work and its runs
   at the top of the Activity; a line's receipt and its next step.
+
+## Photos and files on a message (P5, `FilePrep`, `Attachments`, `TafPage.Attach.cs`)
+
+As the iPad's `AttachViews` and docs/attachments.md, in a taf's chat:
+- **The paperclip** beside the box picks up to five files a message: photos (JPEG, PNG, GIF, WebP, HEIC, BMP, TIFF), PDF,
+  text, CSV, Markdown, Word and Excel. A kind tafs doesn't take, or one over its limit (images 10 MB, PDF 25 MB, the
+  rest 2 MB), is refused in the tray with why, and never goes up.
+- **Every image is redrawn on this PC** as a JPEG: turned the way it was taken, its long edge at most 2,576, drawn on
+  white, by a new encoder, so only its pixels go: no location, camera or other metadata. Named for it, as .jpg.
+- **Each file goes up as soon as it's picked:** declared to tafs cloud (`POST /v1/tafs/{id}/attachments`,
+  `{media_type, name, size, sha256}`), then its bytes straight to storage through the link it answers (https only,
+  `KiffHttp.UploadAsync`), on its own client: no session ever goes with them.
+- **The tray** above the box shows each: Uploading, Ready, or why in red, with Remove. Send waits while one is going up,
+  takes the ready ones (`{text, attachments: [ids]}`, words or files or both), and the tray empties of them once sent.
+- **A sent file** opens again on a tap: tafs cloud's one-minute link (`GET …/attachments/{att}`, https only), downloaded
+  with no session into `%TEMP%	afsttachments` under its own name only, opened in Windows' app for its kind. The folder
+  goes at every sign-out.
+- Coach mode's paperclip comes next.
+

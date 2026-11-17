@@ -193,6 +193,8 @@ public sealed partial class CoachPanel
     /// <summary>A new, empty conversation; one that's already empty stays, with what's typed.</summary>
     void StartNewConversation()
     {
+        // A new conversation starts with an empty tray.
+        coachTray?.Clear();
         // A new conversation improves no taf, as the iPad's newSetupChat.
         improving = null;
         ShowImproving();
@@ -253,7 +255,10 @@ public sealed partial class CoachPanel
     /// </summary>
     async void OnCoachSend(object sender, RoutedEventArgs e)
     {
+        // Send waits while a file is going up; a message may be words, files, or both.
+        if (CoachTray.Uploading) return;
         var (text, why) = TafChatSend.Check(App.Words, CoachDraft.Text);
+        if (text is null && CoachDraft.Text.Trim().Length == 0 && CoachTray.Ready.Count > 0) (text, why) = ("", null);
         if (text is null)
         {
             chatError = why;
@@ -279,10 +284,12 @@ public sealed partial class CoachPanel
         // The box is the Send button's to clear: Retry leaves what's being typed there alone, as the iPad's submitSetup.
         (coachSending, chatError) = (true, null);
         ShowConversation();
+        var files = CoachTray.Ready;
         // Improving a taf: its first message goes to that taf's improve route, as the iPad's; then Coach's as usual.
         var improves = improving;
-        var (into, refused) = improves is { } taf ? await CoachSend.ImproveAsync(w, taf.Id, text, send)
-            : await CoachSend.SendAsync(w, id, text, conversation, send);
+        var (into, refused) = improves is { } taf ? await CoachSend.ImproveAsync(w, taf.Id, text, send, files)
+            : await CoachSend.SendAsync(w, id, text, conversation, send, files);
+        if (refused is null && files.Count > 0) CoachTray.Sent(files);
         if (improves is not null && refused is null)
         {
             improving = null;
@@ -314,6 +321,17 @@ public sealed partial class CoachPanel
         }
         await LoadThreadAsync();
         return true;
+    }
+
+    AttachTray? coachTray;
+
+    /// <summary>Coach's tray, as a taf's chat: files declared for Coach's own taf.</summary>
+    AttachTray CoachTray => coachTray ??= new AttachTray(CoachFileTray, CoachAttach, () => this,
+        () => CoachSendButton.IsEnabled = !coachTray!.Uploading && !coachSending);
+
+    async void OnCoachAttach(object sender, RoutedEventArgs e)
+    {
+        if (coach is { } id && answer is { } send) await CoachTray.PickAsync(id, send);
     }
 
     /// <summary>The taf a new conversation improves, as the iPad's <c>setupImproving</c>: its id and name; none once its first message went.</summary>

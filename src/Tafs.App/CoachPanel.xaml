@@ -128,14 +128,25 @@
             <TextBlock x:Name="ChatError" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
           </StackPanel>
           <!-- The composer, as the iPad's: "Ask anything about your tafs", and Send in Coach's colour. Ctrl+Enter sends. -->
-          <Grid x:Name="CoachComposer" Grid.Row="3" Margin="0,4,16,12" ColumnSpacing="8" Visibility="Collapsed">
+          <Grid x:Name="CoachComposer" Grid.Row="3" Margin="0,4,16,12" ColumnSpacing="8" RowSpacing="8" Visibility="Collapsed">
             <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBox x:Name="CoachDraft" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="160" PreviewKeyDown="OnCoachDraftKey"
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <!-- The files picked for the next message, as in a taf's chat. -->
+            <StackPanel x:Name="CoachFileTray" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="8" Visibility="Collapsed" />
+            <Button x:Name="CoachAttach" Grid.Row="1" Style="{StaticResource TafsArrow}" Width="40" VerticalAlignment="Bottom" Click="OnCoachAttach"
+                    AutomationProperties.AutomationId="coach.attach">
+              <FontIcon Glyph="&#xE723;" FontSize="17" Foreground="{ThemeResource TafsCoach}" />
+            </Button>
+            <TextBox x:Name="CoachDraft" Grid.Row="1" Grid.Column="1" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="160" PreviewKeyDown="OnCoachDraftKey"
                      AutomationProperties.AutomationId="coach.draft" />
-            <Button x:Name="CoachSendButton" Grid.Column="1" Style="{StaticResource TafsPrimary}" VerticalAlignment="Bottom" Padding="18,0"
+            <Button x:Name="CoachSendButton" Grid.Row="1" Grid.Column="2" Style="{StaticResource TafsPrimary}" VerticalAlignment="Bottom" Padding="18,0"
                     Click="OnCoachSend" AutomationProperties.AutomationId="coach.send" />
           </Grid>
         </Grid>
