@@ -365,7 +365,9 @@ public sealed partial class TafPage : Page
         var name = opening?.Head.Name ?? "";
         var steering = chat?.Steering;
         // Shown at once until the thread has it: then the thread's own.
-        steeredNow.RemoveAll(s => steering?.Untaken.Any(u => u.Text == s.Text) == true || chat?.WorkingRun is null && !sending);
+        // Gone too once the run has read it: the thread then holds it as the person's own message, written at or after it.
+        steeredNow.RemoveAll(s => steering?.Untaken.Any(u => u.Text == s.Text) == true || chat?.WorkingRun is null && !sending
+            || chat?.Messages.Any(m => m.From == Tafs.Core.Coach.ChatFrom.Owner && m.Text == s.Text && m.At >= s.At - TimeSpan.FromSeconds(5)) == true);
         void Row(string text, string line, bool error = false)
         {
             var said = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0) };
