@@ -114,4 +114,18 @@ public class SharesTests
             Assert.Empty(adding.Said);
         }
     }
+
+    [Fact]
+    public void Who_uses_it_under_its_name_never_naming_the_reader()
+    {
+        string Line(IReadOnlyList<TafShare>? shares) =>
+            Shares.SharedWith(En, shares, [Support, Everyone], s => s == "sub_ana", s => Find(s)?.Label ?? s);
+        Assert.Equal("Sharing…", Line(null));
+        Assert.Equal("Not shared", Line([]));
+        Assert.Equal("Shared with everyone", Line([new("grp_0", null)]));
+        Assert.Equal("Shared with Support and bo@x.test", Line([new("grp_1", null), new(null, "sub_bo")]));
+        // Only the reader: not "Shared with" themselves.
+        Assert.Equal("Not shared", Line([new(null, "sub_ana")]));
+        Assert.Equal("Shared with bo@x.test", Line([new(null, "sub_ana"), new(null, "sub_bo")]));
+    }
 }

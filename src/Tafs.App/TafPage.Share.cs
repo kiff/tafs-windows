@@ -7,11 +7,11 @@ using Tafs.Core.Taf;
 namespace Tafs.App;
 
 /// <summary>
-/// Sharing a taf, for whoever manages it on a PC that approves (P32): its KIFF agent, KIFF read as the session, and the change
-/// itself (<see cref="Shares.ApplyAsync"/>) with what to add and what to take away.
+/// Who uses a taf KIFF runs, and sharing it (P32): its KIFF agent, KIFF read as the session, whether a subject is the person
+/// reading, and the change itself (<see cref="Shares.ApplyAsync"/>), only for whoever manages it on a PC that approves.
 /// </summary>
-public sealed record TafSharing(string Agent, Func<string, Task<CloudRead>> Read,
-    Func<IReadOnlyCollection<TafShare>, IReadOnlyCollection<TafShare>, Task<(bool Done, string? Why)>> Apply);
+public sealed record TafSharing(string Agent, Func<string, Task<CloudRead>> Read, Func<Person, bool> You,
+    Func<IReadOnlyCollection<TafShare>, IReadOnlyCollection<TafShare>, Task<(bool Done, string? Why)>>? Apply);
 
 /// <summary>
 /// Share, as the iPad's <c>ShareTafSheet</c>: step 1, who uses it, its groups (each with its people) and the account's people,
@@ -24,12 +24,43 @@ public sealed partial class TafPage
     {
         ShareButton.Content = App.Words.Get("people.share.action");
         AutomationProperties.SetName(ShareButton, App.Words.Get("people.share.title", ("taf", NameText.Text)));
-        ShareButton.Visibility = opening?.Share is not null ? Visibility.Visible : Visibility.Collapsed;
+        ShareButton.Visibility = opening?.Share is { Apply: not null } ? Visibility.Visible : Visibility.Collapsed;
+        _ = ReadSharedWithAsync();
+    }
+
+    /// <summary>The line under the name: "Sharing…" while KIFF is read, then who uses it; nothing for a taf KIFF doesn't run.</summary>
+    async Task ReadSharedWithAsync()
+    {
+        if (opening?.Share is not { } sharing)
+        {
+            SharedWithText.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var w = App.Words;
+        var shown = opening;
+        SharedWithText.Text = w.Get("people.sharing");
+        SharedWithText.Visibility = Visibility.Visible;
+        var groupsRead = await sharing.Read(People.GroupsPath);
+        var peopleRead = await sharing.Read(People.PeoplePath);
+        var sharesRead = await sharing.Read(Shares.Path(sharing.Agent));
+        if (!ReferenceEquals(opening, shown)) return;
+        var groups = groupsRead.Answer is { } g ? People.Groups(g) ?? [] : [];
+        var people = peopleRead.Answer is { } p ? People.Members(p) ?? [] : [];
+        var shares = sharesRead.Answer is { } s ? Shares.Read(s) : null;
+        // A read that failed says nothing rather than something untrue.
+        if (shares is null)
+        {
+            SharedWithText.Visibility = Visibility.Collapsed;
+            return;
+        }
+        Person? Find(string subject) => people.FirstOrDefault(x => x.Subject == subject);
+        SharedWithText.Text = Shares.SharedWith(w, shares, groups, subject => Find(subject) is { } person && sharing.You(person),
+            subject => Find(subject)?.Label ?? subject);
     }
 
     async void OnShare(object sender, RoutedEventArgs e)
     {
-        if (opening?.Share is not { } sharing) return;
+        if (opening?.Share is not { Apply: not null } sharing) return;
         var w = App.Words;
         var taf = NameText.Text;
         ShareButton.IsEnabled = false;
@@ -55,6 +86,8 @@ public sealed partial class TafPage
             await ShareSheetAsync(sharing, taf, groups, people, had);
         }
         finally { ShareButton.IsEnabled = true; }
+        // Read again: the line under the name follows what was shared.
+        await ReadSharedWithAsync();
     }
 
     async Task ShareSheetAsync(TafSharing sharing, string taf, IReadOnlyList<PeopleGroup> groups, IReadOnlyList<Person> people, IReadOnlyList<TafShare> had)
@@ -134,7 +167,7 @@ public sealed partial class TafPage
             dialog.IsPrimaryButtonEnabled = false;
             try
             {
-                var (done, said) = await sharing.Apply(chosen.Except(had).ToList(), had.Except(chosen).ToList());
+                var (done, said) = await sharing.Apply!(chosen.Except(had).ToList(), had.Except(chosen).ToList());
                 if (done) dialog.Hide();
                 else if (said is not null) (why.Text, why.Visibility) = (said, Visibility.Visible);
             }
