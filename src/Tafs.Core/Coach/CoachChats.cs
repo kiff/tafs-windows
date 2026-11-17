@@ -102,4 +102,19 @@ public static class CoachSend
         if (r.Answer is { } a && Lenient.Text(a, "session") is { } session) return (session, null);
         return (null, r.Answer is null ? Refusal.Of(r, w.Get("error.offline")) : new Refusal(w.Get("error.ours")));
     }
+
+    /// <summary>
+    /// Improving a taf with Coach, as the iPad's <c>improveTaf</c>: the conversation's first message goes to the taf's own
+    /// <c>POST /v1/tafs/{taf}/improve</c> with <c>{text}</c>, so Coach starts from what that taf did and what its Card allows,
+    /// in a new conversation of its own; tafs cloud answers Coach's id and that conversation. Only the first message carries
+    /// the taf; the rest go to Coach as any message does.
+    /// </summary>
+    public static string ImprovePath(string taf) => $"/v1/tafs/{CloudRead.PathPart(taf)}/improve";
+
+    public static async Task<(string? Session, Refusal? Why)> ImproveAsync(WordBook w, string taf, string text, Func<string, byte[], Task<CloudRead>> send)
+    {
+        var r = await send(ImprovePath(taf), JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, string> { ["text"] = text }));
+        if (r.Answer is { } a && Lenient.Text(a, "session") is { } session) return (session, null);
+        return (null, r.Answer is null ? Refusal.Of(r, w.Get("error.offline")) : new Refusal(w.Get("error.ours")));
+    }
 }

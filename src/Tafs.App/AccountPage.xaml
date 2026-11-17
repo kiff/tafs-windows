@@ -6,7 +6,14 @@
       Background="{ThemeResource TafsBackground}">
   <ScrollViewer>
     <StackPanel x:Name="Sections" Padding="24" Spacing="10" MaxWidth="1100" HorizontalAlignment="Stretch">
-      <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
+      <Grid>
+        <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
+        <!-- Close: back to where Account was opened from, as tapping Account again does. -->
+        <Button x:Name="CloseButton" Click="OnClose" Style="{StaticResource TafsArrow}" Width="40" Height="40" HorizontalAlignment="Right"
+                VerticalAlignment="Center" AutomationProperties.AutomationId="account.close">
+          <FontIcon Glyph="&#xE711;" FontSize="14" />
+        </Button>
+      </Grid>
     </StackPanel>
   </ScrollViewer>
 </Page>

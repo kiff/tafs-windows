@@ -112,6 +112,14 @@ public class CoachChatsTests
     [Fact]
     public async Task Sent_names_its_conversation_and_not_taken_says_why()
     {
+        // Improving a taf: the first message goes to that taf's own route, with only the words.
+        var asked = new List<(string Path, string Body)>();
+        Assert.Equal(("s_imp", (Refusal?)null), await CoachSend.ImproveAsync(En, "depl_1", "How is it going?", (path, body) =>
+        {
+            asked.Add((path, System.Text.Encoding.UTF8.GetString(body)));
+            return Task.FromResult(CloudRead.Of(System.Text.Json.JsonDocument.Parse("""{"setup":"taf-setup","session":"s_imp","new_session":true}""").RootElement));
+        }));
+        Assert.Equal([("/v1/tafs/depl_1/improve", """{"text":"How is it going?"}""")], asked);
         Assert.Equal(("s2", (Refusal?)null), await CoachSend.SendAsync(En, "c", "Hi", CoachConversation.New,
             (_, _) => Task.FromResult(CloudRead.Of(Json("""{"session": "s2", "new_session": true}""")))));
         Assert.Equal((null, new Refusal("Try again in a minute.")), await CoachSend.SendAsync(En, "c", "Hi", CoachConversation.New,

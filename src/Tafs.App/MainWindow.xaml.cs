@@ -294,7 +294,13 @@ public sealed partial class MainWindow : Window
         AccountPage.AlertsChosen += () => OpenBeside(typeof(AlertsPage), new AlertsOpening(sample ? null : App.Sessions.Kept()?.Tenant));
         AccountPage.DevicesChosen += () => OpenBeside(typeof(DevicesPage), new DevicesOpening(kiffRead));
         // Connect apps and Plan & usage from Account, as the iPad's People & apps and Plan rows: the sidebar's screens.
-        AccountPage.ConnectAppsChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
+        // From Account, Connect apps has Back to it; from the sidebar, none.
+        AccountPage.ConnectAppsChosen += () =>
+        {
+            connectAppsFromAccount = true;
+            Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.ConnectApps);
+        };
+        AccountPage.CloseChosen += CloseAccount;
         AccountPage.UsageChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
         AccountPage.PeopleChosen += () => OpenBeside(typeof(PeoplePage), new PeopleOpening(kiffRead,
             agent => home?.Tafs.FirstOrDefault(t => t.Agent == agent)?.Name));
@@ -930,7 +936,8 @@ public sealed partial class MainWindow : Window
         haltSend = path => CloudSendAsync(bearer, path, "{}"u8.ToArray());
         cloudSend = (path, body) => CloudSendAsync(bearer, path, body);
         cloudChange = (method, path, body) => CloudChangeAsync(bearer, method, path, body);
-        cloudStream = (path, body, cancel) => KiffHttp.PostStreamAsync(new Uri(HomeList.Api, path), body, bearer, App.Words.Language, cancel);
+        // Streamed answers come from tafs cloud's streaming function, as the iPad's streamURL: its main host has no such route.
+        cloudStream = (path, body, cancel) => KiffHttp.PostStreamAsync(new Uri(Tafs.Core.Kiff.KeptSessions.TafsCloudStream, path), body, bearer, App.Words.Language, cancel);
         // Start, as the iPad's: off for a session that can't approve.
         CoachMode.StartCoach = Tafs.Core.Coach.CoachStart.MayStart(session) ? () => StartCoachAsync(session) : null;
         // Signed in but can't approve: the iPad's gate line where Start would be.
@@ -1690,7 +1697,14 @@ public sealed partial class MainWindow : Window
             Pages.Navigate(typeof(RecordPage), record);
         }
         else if (item.Tag is Screen.Usage) Pages.Navigate(typeof(UsagePage), usage);
-        else if (item.Tag is Screen.ConnectApps) Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof, ConnectionsFor()));
+        else if (item.Tag is Screen.ConnectApps)
+        {
+            // Back to Account, which still closes to what was open before it, never to Connect apps.
+            var keep = beforeAccount;
+            var back = connectAppsFromAccount ? () => { OnAccount(this, new RoutedEventArgs()); beforeAccount = keep; } : (Action?)null;
+            connectAppsFromAccount = false;
+            Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof, ConnectionsFor(), Back: back));
+        }
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
         else if (item.Tag is TafRow taf) Pages.Navigate(typeof(TafPage), OpenTaf(App.Words, taf.Key));
         else if (item.Tag is GalleryRow job) OpenGallery(job);
@@ -1701,14 +1715,40 @@ public sealed partial class MainWindow : Window
     void OnCoach(object sender, RoutedEventArgs e) => CoachMode.Open();
 
     /// <summary>Account, at the very foot: it opens beside the sidebar, and its icon shows it's open.</summary>
+    /// <summary>What was open before Account: it shows again when Account closes.</summary>
+    object? beforeAccount;
+
+    /// <summary>Account, or one of its screens, is what shows.</summary>
+    bool AccountShown => Pages.Content is AccountPage or AlertsPage or DevicesPage or PeoplePage;
+
+    /// <summary>Account closes, as its close button or a second tap on Account: back to what was open before it.</summary>
+    void CloseAccount()
+    {
+        ShowAccountChosen(false);
+        var before = beforeAccount;
+        beforeAccount = null;
+        // The same item selected again doesn't navigate: cleared first, so it opens its page again.
+        Nav.SelectedItem = null;
+        Nav.SelectedItem = before ?? BrandItem;
+    }
+
     void OnAccount(object sender, RoutedEventArgs e)
     {
+        // Tapping Account again closes it, as on the iPad's sheet.
+        if (AccountShown)
+        {
+            CloseAccount();
+            return;
+        }
+        beforeAccount = Nav.SelectedItem;
         OpenBeside(typeof(AccountPage), new AccountOpening(sample, Root.RequestedTheme,
             path => cloudRead is { } read ? read(path) : Task.FromResult(CloudRead.Unreached(App.Words)), kiffAccount,
             App.Sessions.Kept() is { } session ? (method, path, body) => CloudWriteAsync(session.AccessToken, method, path, body) : null,
             Halt.ManagesCards(capabilities), SetTimeZoneFor(), DeleteAccountFor()));
         ShowAccountChosen(true);
     }
+
+    bool connectAppsFromAccount;
 
     void ShowAccountChosen(bool chosen)
     {
@@ -1734,7 +1774,8 @@ public sealed partial class MainWindow : Window
                 Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream, Remove: RemoveFor(taf),
                 // Setup › Starts when and Results go to: when it starts and where results go, as Home says, and the changes made at once.
                 Change: cloudChange, Starts: taf.Starts, Paused: taf.State == "paused", Email: kiffAccount?.Email, TimeZone: kiffAccount?.TimeZone,
-                AskCoach: mayUseCoach ? () => CoachMode.Open() : null,
+                // Coach on improving this taf, as the iPad's improveTaf; offered while KIFF says this person may use Coach.
+                AskCoach: () => CoachMode.Improve(taf.Id, taf.Name), MayUseCoach: () => mayUseCoach,
                 // Its health's fixes: Coach with tafs cloud's words in the box, nothing sent; Plan & usage for credits.
                 Health: taf.Health, AskCoachWith: mayUseCoach ? words => CoachMode.Write(words, newConversation: true) : null,
                 OpenUsage: () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage),
