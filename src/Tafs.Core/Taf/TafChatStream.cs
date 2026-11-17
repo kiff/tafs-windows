@@ -160,4 +160,11 @@ public sealed record LiveAnswer(string? Session, string? Run, string? MessageId,
 public static class TafChatStream
 {
     public static string Path(string taf) => $"/v1/tafs/{CloudRead.PathPart(taf)}/messages/stream";
+
+    /// <summary>
+    /// A run of the person's picked back up (the iPad's <c>resumeRun</c>): its steps so far, then the rest as it goes, until it
+    /// stops (<c>GET /v1/tafs/{id}/runs/{run}/stream?after=0</c>). Only their own run; another's is a 404.
+    /// </summary>
+    public static string ResumePath(string taf, string run) =>
+        $"/v1/tafs/{CloudRead.PathPart(taf)}/runs/{CloudRead.PathPart(run)}/stream?after=0";
 }

@@ -118,4 +118,11 @@ public class TafChatStreamTests
         var rows = live.DoneRows();
         Assert.Equal([new Tafs.Core.Coach.WorkRow("Reading the inbox…", Tafs.Core.Coach.StepStatus.Done, 2)], rows);
     }
+
+    [Fact]
+    public void A_run_at_work_is_picked_back_up_from_its_first_step()
+    {
+        Assert.Equal("/v1/tafs/taf_1/runs/run_2/stream?after=0", TafChatStream.ResumePath("taf_1", "run_2"));
+        Assert.Equal("/v1/tafs/taf%2F1/runs/run%202/stream?after=0", TafChatStream.ResumePath("taf/1", "run 2"));
+    }
 }

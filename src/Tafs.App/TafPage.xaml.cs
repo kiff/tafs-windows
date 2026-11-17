@@ -18,6 +18,7 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     Func<string, Task<CloudRead>>? Read = null, Func<string, string?, Task<CloudRead>>? ReadWithProof = null,
     Func<Task<string?>>? SetupProof = null, bool Revoked = false, IReadOnlyList<Tafs.Core.Coach.ChatMessage>? SampleChat = null,
     TafHalt? Halt = null, Func<string, byte[], Task<CloudRead>>? Send = null, bool Manages = false, TafStream? Stream = null,
+    TafResumeStream? ResumeStream = null,
     TafRemove? Remove = null, Func<HttpMethod, string, byte[]?, Task<CloudRead>>? Change = null, TafStarts? Starts = null,
     bool Paused = false, string? Email = null, string? TimeZone = null, Action? AskCoach = null, SetupScreen SetupOn = SetupScreen.Main,
     TafHealth? Health = null, Action<string>? AskCoachWith = null, Action? OpenUsage = null, Func<bool>? MayUseCoach = null,
@@ -39,6 +40,9 @@ public sealed record TafRemove(Func<Task<string?>> Goes, Func<Task<RemovalResult
 
 /// <summary>A POST to tafs cloud whose answer streams: its status, its body when refused, and the open answer when not.</summary>
 public delegate Task<(int Status, string Body, System.Net.Http.HttpResponseMessage? Open)> TafStream(string path, byte[] body, CancellationToken cancel);
+
+/// <summary>A run's stream opened again (a GET to tafs cloud's stream host), as the iPad's <c>resumeRun</c>.</summary>
+public delegate Task<(int Status, string Body, System.Net.Http.HttpResponseMessage? Open)> TafResumeStream(string path, CancellationToken cancel);
 
 /// <summary>A taf's halt row, for whoever manages the taf: how its halt is read, and what opens its screen.</summary>
 public sealed record TafHalt(Func<Task<Halt>> Read, Action Open);
@@ -171,6 +175,8 @@ public sealed partial class TafPage : Page
             sent = TafChatSend.Merge(thread.Messages, sent, DateTimeOffset.UtcNow).Waiting.ToList();
         }
         chatError = error;
+        // A run at work that nothing streams here: picked back up, as the iPad's resumeChat (once per run).
+        if (thread?.WorkingRun is { } run && thread.Working is { } session) _ = ResumeAsync(run, session);
         // While a run of its works, or a message waits for the thread, read again, as the iPad's chat does as it works.
         if (thread?.Working is not null || sent.Count > 0) chatClock.Start(); else chatClock.Stop();
         if (tab == TafTab.Chat) ShowChat();
@@ -439,6 +445,49 @@ public sealed partial class TafPage : Page
         // tafs cloud sends words only with a stop code (kiff/agents' words for people), so their presence is the signal.
         if (live is { EndWords: { } why }) (chatNote, chatNoteIsError) = (why, true);
         return null;
+    }
+
+    /// <summary>The runs picked back up on this page, each once.</summary>
+    readonly HashSet<string> resumed = [];
+
+    /// <summary>
+    /// A run of the person's that tafs cloud says is at work, with nothing streaming it here (opened after it began, or after a
+    /// relaunch), picked back up, as the iPad's <c>resumeChat</c>: its stream opened again from its first step
+    /// (<see cref="TafChatStream.ResumePath"/>), drawn as the live answer under the person's last message, then the thread read
+    /// again once it ends. Each run once; never a trial's chat, nor while a message of this page's is on its way. A refusal or a
+    /// stream that doesn't open says nothing: the thread is read again as before.
+    /// </summary>
+    async Task ResumeAsync(string run, string session)
+    {
+        if (opening is not { InTrial: null, CloudId: { } id, ResumeStream: { } resume } mine || live is not null || sending
+            || !resumed.Add(run)) return;
+        (int Status, string Body, System.Net.Http.HttpResponseMessage? Open) answer;
+        try { answer = await resume(TafChatStream.ResumePath(id, run), CancellationToken.None); }
+        catch (System.Net.Http.HttpRequestException) { return; }
+        if (answer.Open is not { } open) return;
+        using (open)
+        {
+            if (opening != mine || live is not null || sending) return;
+            live = LiveAnswer.Start with { Run = run, Session = session };
+            if (tab == TafTab.Chat) ShowChat();
+            try
+            {
+                using var reader = new StreamReader(await open.Content.ReadAsStreamAsync());
+                await foreach (var e in ServerSentEvents.ReadAsync(reader))
+                {
+                    if (opening != mine) return;
+                    live = live.Apply(e);
+                    if (e.Name == "taken") _ = LoadChatAsync();
+                    if (tab == TafTab.Chat) ShowChat();
+                    if (live.Ended) break;
+                }
+            }
+            catch (Exception e) when (e is IOException or System.Net.Http.HttpRequestException) { }
+        }
+        if (opening != mine) return;
+        if (live is { EndWords: { } why }) (chatNote, chatNoteIsError) = (why, true);
+        live = null;
+        await LoadChatAsync();
     }
 
     /// <summary>Stop, as the iPad's <c>stopChat</c>: the run at work is cancelled; "You stopped Refunds.", or why not.</summary>
