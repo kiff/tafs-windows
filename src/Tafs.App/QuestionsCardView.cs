@@ -179,16 +179,33 @@ sealed class QuestionsCardView : StackPanel
         var line = new Grid { ColumnSpacing = 8 };
         line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         line.ColumnDefinitions.Add(new ColumnDefinition());
+        line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         line.Children.Add(new FontIcon { Glyph = glyph, FontSize = 14, Foreground = brush(tone), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0) });
         var words = new StackPanel { Spacing = 2 };
         words.Children.Add(CoachPanel.Words(text, 14, "TafsSoftText"));
-        // What was approved, under the line, as the iPad's OutcomeLine's detail.
-        foreach (var more in detail ?? []) words.Children.Add(CoachPanel.Words(more, 12, "TafsDimText"));
+        // What was approved, folded under the line until opened, as the iPad's OutcomeLine with its thin ⌄.
+        var more = new StackPanel { Spacing = 2, Visibility = Visibility.Collapsed };
+        foreach (var each in detail ?? []) more.Children.Add(CoachPanel.Words(each, 12, "TafsDimText"));
+        words.Children.Add(more);
         Grid.SetColumn(words, 1);
         line.Children.Add(words);
         var raised = ((SolidColorBrush)brush("TafsRaised")).Color;
         raised.A = (byte)Math.Round(raised.A * 0.6);
-        return new Border { Child = line, Padding = new Thickness(12, 10, 12, 10), CornerRadius = new CornerRadius(12), Background = new SolidColorBrush(raised) };
+        var card = new Border { Child = line, Padding = new Thickness(12, 10, 12, 10), CornerRadius = new CornerRadius(12), Background = new SolidColorBrush(raised) };
+        if (more.Children.Count == 0) return card;
+        var chevron = new FontIcon { Glyph = "", FontSize = 11, Foreground = brush("TafsSoft"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 4, 0, 0) };
+        Grid.SetColumn(chevron, 2);
+        line.Children.Add(chevron);
+        // The whole line opens and folds what was approved; Narrator hears it as one, with its state.
+        var toggle = new Button { Content = card, Style = (Style)Application.Current.Resources["TafsBox"], HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        AutomationProperties.SetName(toggle, text);
+        toggle.Click += (_, _) =>
+        {
+            var open = more.Visibility != Visibility.Visible;
+            (more.Visibility, chevron.Glyph) = (open ? Visibility.Visible : Visibility.Collapsed, open ? "" : "");
+        };
+        return new Border { Child = toggle };
     }
 
     /// <summary>Why a tap ended without reaching Setup, as the iPad's <c>CardNote</c>: an ⓘ and the words, soft, at 13.</summary>
