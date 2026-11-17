@@ -74,10 +74,10 @@ public sealed record OverviewLines(string Title, string Subtitle, IReadOnlyList<
 
 /// <summary>
 /// One line of the Overview's table: its taf (key, name, colour), what it's doing now, its Card, and its last result; its
-/// label ids, which the chips filter by, and the chips under its name.
+/// label ids, which the chips filter by, and the chips under its name; for whoever manages it, who uses it.
 /// </summary>
 public sealed record OverviewRow(string Key, string Taf, int Colour, string Now, string Card, string LastResult,
-    IReadOnlyList<string>? LabelIds = null, IReadOnlyList<string>? Chips = null);
+    IReadOnlyList<string>? LabelIds = null, IReadOnlyList<string>? Chips = null, string? UsedBy = null);
 
 public static class OverviewScreen
 {

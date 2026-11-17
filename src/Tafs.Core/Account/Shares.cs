@@ -85,6 +85,35 @@ public static class Shares
         return SharedWith(w, shares, groups, You, subject => Find(subject)?.Label ?? subject);
     }
 
+    /// <summary>
+    /// Who uses a taf, under its name on the Overview, as the iPad's <c>usedBy</c>: "Support, ana@acme.com · 3 people", each
+    /// group by its name and each person by their email, then how many people that is, counted once each; "Not shared" when
+    /// it's shared with no one. None unless all three of KIFF's reads answered, so it never says something untrue. A group
+    /// share whose group isn't listed names no one.
+    /// </summary>
+    public static string? UsedBy(WordBook w, IReadOnlyList<TafShare>? shares, IReadOnlyList<PeopleGroup>? groups, IReadOnlyList<Person>? people)
+    {
+        if (shares is null || groups is null || people is null) return null;
+        if (shares.Count == 0) return w.Get("people.not_shared");
+        var subjects = new HashSet<string>();
+        var names = new List<string>();
+        foreach (var share in shares)
+        {
+            if (share.Group is { Length: > 0 } id)
+            {
+                if (groups.FirstOrDefault(g => g.Id == id) is not { } group) continue;
+                names.Add(People.ShownName(w, group));
+                subjects.UnionWith(group.Members.Select(m => m.Subject));
+            }
+            else if (share.Subject is { Length: > 0 } subject)
+            {
+                names.Add(people.FirstOrDefault(p => p.Subject == subject)?.Label ?? subject);
+                subjects.Add(subject);
+            }
+        }
+        return string.Join(", ", names) + " · " + w.Count("people.count", subjects.Count);
+    }
+
     /// <summary>"Maria (manager), Ana, Luis", or "No one yet", as the iPad's <c>people(of:)</c>.</summary>
     public static string PeopleOf(WordBook w, PeopleGroup group, Func<string, Person?> person)
     {

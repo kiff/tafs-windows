@@ -34,6 +34,19 @@ public class SharesTests
     }
 
     [Fact]
+    public void The_Overview_names_who_uses_a_taf_and_how_many_people_that_is()
+    {
+        Assert.Equal("Support, bo@x.test · 2 people", Shares.UsedBy(En, [new("grp_1", null), new(null, "sub_bo")], [Support, Everyone], [Ana, Bo]));
+        Assert.Equal("ana@x.test · 1 person", Shares.UsedBy(En, [new(null, "sub_ana")], [Support], [Ana, Bo]));
+        Assert.Equal("sub_cy · 1 person", Shares.UsedBy(En, [new(null, "sub_cy")], [], [Ana]));
+        Assert.Equal("Not shared", Shares.UsedBy(En, [], [], []));
+        // A group that isn't listed names no one, and no read means no line.
+        Assert.Equal("bo@x.test · 1 person", Shares.UsedBy(En, [new("grp_9", null), new(null, "sub_bo")], [Support], [Bo]));
+        Assert.Null(Shares.UsedBy(En, [new(null, "sub_bo")], null, [Bo]));
+        Assert.Null(Shares.UsedBy(En, null, [], []));
+    }
+
+    [Fact]
     public void What_it_means_in_the_app_s_words()
     {
         Assert.Equal("ana@x.test (manager), bo@x.test", Shares.PeopleOf(En, Support, Find));
