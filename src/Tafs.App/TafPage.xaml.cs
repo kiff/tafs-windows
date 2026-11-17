@@ -441,14 +441,9 @@ public sealed partial class TafPage : Page
     async Task<Refusal?> StreamAsync(Tafs.Core.Words.WordBook w, string id, string text, TafStream stream,
         Func<string, byte[], Task<CloudRead>> send, TafOpening mine, IReadOnlyList<string>? files = null, string? messageId = null)
     {
-        (int Status, string Body, System.Net.Http.HttpResponseMessage? Open) answer;
-        // The plain send in the stream's place carries the stream's id: if the stream reached tafs cloud, it's acted on once.
-        try { answer = await stream(TafChatStream.Path(id), TafChatSend.Body(text, files, messageId), CancellationToken.None); }
-        catch (System.Net.Http.HttpRequestException) { return await TafChatSend.SendAsync(w, id, text, send, files, messageId: messageId); }
-        // No stream route there (404, 405): the plain send takes it, as the iPad's (an older tafs cloud, or the stream's host).
-        if (answer.Open is null && answer.Status is 404 or 405) return await TafChatSend.SendAsync(w, id, text, send, files, messageId: messageId);
-        if (answer.Open is not { } open)
-            return Refusal.Of(CloudRead.Refused(w, answer.Status, answer.Body), w.Get("error.ours"));
+        // Not reached, or no stream route: the plain send in its place, under the same id, so it's acted on once.
+        var (opened, refused) = await TafChatStream.OpenAsync(w, id, text, files, messageId, (path, body) => stream(path, body, CancellationToken.None), send);
+        if (opened is not { } open) return refused;
         using (open)
         {
             live = LiveAnswer.Start;

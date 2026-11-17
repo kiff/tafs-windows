@@ -53,4 +53,49 @@ public class MessageIdTests
         Assert.Equal(2, bodies.Count);
         Assert.All(bodies, b => Assert.Contains(id, b));
     }
+
+    [Fact]
+    public async Task A_stream_that_fails_before_its_200_then_the_plain_send_carry_one_id()
+    {
+        var calls = new List<(string Path, string Body)>();
+        Task<CloudRead> Send(string path, byte[] body)
+        {
+            calls.Add((path, Encoding.UTF8.GetString(body)));
+            return Task.FromResult(CloudRead.Of(JsonDocument.Parse("""{"run": "r1"}""").RootElement));
+        }
+        Task<(int, string, System.Net.Http.HttpResponseMessage?)> NotReached(string path, byte[] body)
+        {
+            calls.Add((path, Encoding.UTF8.GetString(body)));
+            throw new System.Net.Http.HttpRequestException("dropped");
+        }
+        var id = TafChatSend.NewMessageId();
+        var (open, refused) = await TafChatStream.OpenAsync(En, "taf_1", "Which refunds are open?", null, id, NotReached, Send);
+        Assert.Null(open);
+        Assert.Null(refused);
+        Assert.Equal(["/v1/tafs/taf_1/messages/stream", "/v1/tafs/taf_1/messages"], calls.Select(c => c.Path));
+        Assert.All(calls, c => Assert.Equal(id, JsonDocument.Parse(c.Body).RootElement.GetProperty("client_message_id").GetString()));
+
+        // No stream route: the same.
+        calls.Clear();
+        await TafChatStream.OpenAsync(En, "taf_1", "Hi", null, id, (p, b) => { calls.Add((p, Encoding.UTF8.GetString(b))); return Task.FromResult<(int, string, System.Net.Http.HttpResponseMessage?)>((404, "", null)); }, Send);
+        Assert.Equal(2, calls.Count);
+        Assert.All(calls, c => Assert.Contains(id, c.Body));
+
+        // A refusal is said and never sent again.
+        calls.Clear();
+        var (_, busy) = await TafChatStream.OpenAsync(En, "taf_1", "Hi", null, id,
+            (p, b) => { calls.Add((p, "")); return Task.FromResult<(int, string, System.Net.Http.HttpResponseMessage?)>((503, """{"words": "Try again."}""", null)); }, Send);
+        Assert.Single(calls);
+        Assert.Equal("Try again.", busy!.Why);
+    }
+
+    [Fact]
+    public void Another_message_under_an_id_already_used_says_to_send_it_as_a_new_one()
+    {
+        var conflict = CloudRead.Refused(En, 409, """{"error": "dedup_key_conflict", "code": "dedup_key_conflict"}""");
+        Assert.Equal("This message was already sent with different text. Send it again as a new message.", conflict.Why);
+        Assert.Equal(CloudRead.DedupKeyConflict, conflict.Code);
+        // Another 409 keeps tafs cloud's words.
+        Assert.Equal("Two messages already wait.", CloudRead.Refused(En, 409, """{"code": "held_full", "words": "Two messages already wait."}""").Why);
+    }
 }

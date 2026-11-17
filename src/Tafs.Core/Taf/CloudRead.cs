@@ -44,6 +44,12 @@ public sealed record CloudRead(JsonElement? Answer, string? Why = null, int Stat
     public static CloudRead Of(JsonElement answer) => new(answer, Status: 200);
 
     /// <summary>
+    /// tafs cloud's code for a message sent under an id already used for other words (kiff/tafs docs/api.md › A taf's chat):
+    /// it isn't sent; the person sends it again as a new message, under a new id.
+    /// </summary>
+    public const string DedupKeyConflict = "dedup_key_conflict";
+
+    /// <summary>
     /// A refusal, as the iPad's <c>TafsCloud.refusal</c>: tafs cloud's <c>words</c>, written for the person, else its
     /// <c>error</c>, else "tafs cloud answered 503".
     /// </summary>
@@ -52,7 +58,9 @@ public sealed record CloudRead(JsonElement? Answer, string? Why = null, int Stat
         JsonElement json = default;
         try { json = JsonDocument.Parse(body).RootElement.Clone(); }
         catch (JsonException) { }
-        var read = new CloudRead(null, Lenient.Text(json, "words") ?? Lenient.Text(json, "error")
+        // Another message under an id already used (409 dedup_key_conflict): the app's own words, as every app says it.
+        var conflict = status == 409 && Lenient.Text(json, "code") == DedupKeyConflict;
+        var read = new CloudRead(null, conflict ? w.Get("error.sent_with_other_text") : Lenient.Text(json, "words") ?? Lenient.Text(json, "error")
             ?? w.Get("error.cloud_answered", ("status", status.ToString(CultureInfo.InvariantCulture))), status, Lenient.Text(json, "code"),
             Lenient.Text(json, "words"))
         {
