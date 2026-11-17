@@ -24,7 +24,8 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     TafHealth? Health = null, Action<string>? AskCoachWith = null, Action? OpenUsage = null, Func<bool>? MayUseCoach = null,
     CardScreen CardOn = CardScreen.Main, bool CreditsPrevious = false, TafTrying? Trying = null, TafInTrial? InTrial = null,
     TafInstalling? Installing = null, Func<int, KnobItem, Task<KnobEventResult>>? ApproveEvent = null, TafSharing? Share = null,
-    Action<string>? AskCoachAbout = null, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null)
+    Action<string>? AskCoachAbout = null, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null,
+    Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
@@ -1083,7 +1084,9 @@ public sealed partial class TafPage : Page
     void ShowSide(bool redraw = true)
     {
         var bar = tab is TafTab.Chat or TafTab.Activity && opening?.Card is not null;
-        var wide = tab is TafTab.Chat or TafTab.Activity && opening is { InTrial: null, Cards.Count: > 0 }
+        // Its held calls, as the window holds them now.
+        var held = opening?.Held?.Invoke() ?? [];
+        var wide = tab is TafTab.Chat or TafTab.Activity && opening is { InTrial: null } && (opening.Cards is { Count: > 0 } || held.Count > 0)
             && TabBody.ActualWidth - SideWidth - 32 >= ChatAtLeast;
         CardBar.Visibility = bar && !wide ? Visibility.Visible : Visibility.Collapsed;
         SideScroll.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
@@ -1092,7 +1095,24 @@ public sealed partial class TafPage : Page
         SidePane.Children.Clear();
         if (!wide) return;
         var w = App.Words;
-        var cards = opening!.Cards!;
+        // Its held calls first, under NEEDS YOU, each on the card Needs you draws, with its answers, as the iPad's.
+        if (held.Count > 0)
+        {
+            var eyebrow = new TextBlock { Text = Tafs.Core.Home.Sidebar.Eyebrow(w, "needs_you.title"), Style = Look("TafsEyebrow") };
+            eyebrow.Foreground = ChatViews.Themed("TafsAmber");
+            SidePane.Children.Add(eyebrow);
+            var now = DateTimeOffset.UtcNow;
+            var calls = new ItemsControl
+            {
+                ItemTemplate = (DataTemplate)Application.Current.Resources["HeldCallCard"],
+                ItemsSource = held.Select(c => NeedsYouPage.ViewOf(w, c, now)).ToList(),
+                ItemsPanel = (ItemsPanelTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(
+                    "<ItemsPanelTemplate xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'><StackPanel Spacing='12' /></ItemsPanelTemplate>"),
+            };
+            AutomationProperties.SetAutomationId(calls, "side.held");
+            SidePane.Children.Add(calls);
+        }
+        if (opening!.Cards is not { Count: > 0 } cards) return;
         SidePane.Children.Add(new TextBlock
         {
             Text = w.Count("card.heading", cards.Count).ToUpper(System.Globalization.CultureInfo.GetCultureInfo(w.Language)),
@@ -1104,6 +1124,9 @@ public sealed partial class TafPage : Page
         all.Click += (_, _) => OnCardBar(all, new RoutedEventArgs());
         SidePane.Children.Add(all);
     }
+
+    /// <summary>Its held calls changed (answered, new, or out of time): the side column drawn again.</summary>
+    internal void ShowHeldBeside() => ShowSide();
 
     void OnCardBar(object sender, RoutedEventArgs e)
     {

@@ -849,6 +849,7 @@ public sealed partial class MainWindow : Window
         if (Pages.Content is NeedsYouPage page) page.Show(held);
         ShowRequestedHold();
         if (Pages.Content is OverviewPage overview) overview.ShowHeld(held, NeedsYouRest());
+        if (Pages.Content is TafPage tafPage) tafPage.ShowHeldBeside();
     }
 
     /// <summary>
@@ -1922,6 +1923,8 @@ public sealed partial class MainWindow : Window
                 // Its health's fixes: Coach with tafs cloud's words in the box, nothing sent; Plan & usage for credits.
                 Health: taf.Health, AskCoachWith: mayUseCoach ? words => CoachMode.Write(words, newConversation: true) : null,
                 // A taf's card for Coach: Coach improving this taf, its words in the box, nothing sent, as the iPad's askCoachAbout.
+                // Its held calls beside its chat at a wide width, as the window holds them when it's drawn.
+                Held: () => held.Where(h => h.Taf == taf.Name).ToList(),
                 AskCoachAbout: words =>
                 {
                     if (!mayUseCoach) return;
