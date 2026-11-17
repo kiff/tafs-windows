@@ -127,9 +127,11 @@ jobs:
           exe=src/Tafs.App/bin/x64/Release/net8.0-windows10.0.19041.0/Tafs.App.exe
           mkdir -p screenshots
           missing=0
-          for screen in sign-in signed-out overview overview-home overview-labels taf-home taf-setup-home coach-home view-only pair pair-why needs-you record calendar calendar-week usage connect-apps account coach coach-wide taf taf-setup taf-card taf-starts taf-results; do
+          for screen in sign-in signed-out overview overview-home overview-labels taf-home taf-setup-home coach-home view-only pair pair-why needs-you record calendar calendar-week usage connect-apps account coach coach-wide taf taf-setup taf-card taf-starts taf-results sidebar-new-version; do
             case $screen in
               sign-in) opts=(--page sign-in) ;;
+              # The sidebar's "a new version is out" line, for a release named here, read from nowhere.
+              sidebar-new-version) opts=(--sample --new-version v1.0.2) ;;
               signed-out) opts=(--page signed-out) ;;
               overview) opts=(--sample) ;;
               overview-home) opts=(--home shared/contracts/home.json) ;;

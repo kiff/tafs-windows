@@ -75,6 +75,31 @@ in the theme's line colour on Windows.
   window that's waiting (`App.SignedInReturned`). The URL alone connects nothing: this PC confirms its one-use code
   with planque, signed, and the connection counts only once planque says so. Connecting an app is built on this next.
 
+## A new version
+
+The app says when a newer tafs for Windows is out, and only says so, as tafs for Linux does (`NewVersions`,
+`MainWindow.NewVersion.cs`).
+
+- **When:** at start, then once a day while the app stays open. Never with `--screenshot`, `--sample` or `--home`.
+- **What it reads:** `GET https://api.github.com/repos/kiff/tafs-windows/releases/latest`, GitHub's public API. It
+  answers only the latest *published* release.
+- **What it shows:** if that release is newer than this app, one line at the sidebar's foot, above Coach, in the phones'
+  words (`update.available`, "A new version of tafs is out."), underlined like a link. It opens the release's page in the
+  browser.
+- **Rules:**
+  - **Drafts and prereleases never count:** the answer must say `draft: false` and `prerelease: false`, and a missing
+    one counts as not published.
+  - **Versions compare by number:** 1.10.0 is after 1.9.3. A tag that isn't `v` plus three numbers (`v1.0.2-rc1`,
+    `nightly`, `v1.0`) isn't a version. This app's version is its first three numbers, so a release build's run number
+    (1.0.0.763) never counts as newer.
+  - **Only our own page opens:** `github.com/kiff/tafs-windows/releases/tag/<tag>`. Any other `html_url` falls back to
+    the releases page.
+  - **Offline, refused, rate-limited or not a release:** no line and no message. The next check tries again, and a line
+    already shown stays.
+- **What it doesn't do:** download, install or run anything.
+- **Privacy:** no token and no cookie, and no redirect is followed. Nothing about the person, the account or this PC is
+  sent: only the app's User-Agent with its version, `tafs-windows/1.0.0`.
+
 ## Language
 
 The app speaks the first of the person's Windows languages that tafs ships (`AppLanguage.Pick`), otherwise English. Every line comes from `WordBook`: nothing is written in code.
@@ -89,6 +114,7 @@ The app speaks the first of the person's Windows languages that tafs ships (`App
 | `--view-only` | show the session as view-only |
 | `--sample` | show the iPad's sample held calls, Record, Plan & usage and Connect apps |
 | `--home contract.json` | read Home's list from a contract file (`shared/contracts/home.json`) in place of tafs cloud, and each taf's runs, report, Activity and Setup from the contracts beside it (Your brief from a `brief.json` beside it, if there is one); with `--page taf` or `taf-setup`, open the first taf there |
+| `--new-version v1.0.2` | show the sidebar's "a new version is out" line for that release, without reading GitHub |
 | `--screenshot out.png` | save the window (1280×800) as a PNG and quit |
 
-CI's `app` job builds the app on Windows when `src/Tafs.App/**` changes, and nightly. It saves sign-in, the Overview, Needs you, the Record, Plan & usage, Connect apps, Account and a taf's Activity, Setup and Card (with the samples), Coach mode (with the sample, and Coach's thread from the contracts), Calendar in Day and Week, the view-only notice and the pairing screen in en, fr and pt, light and dark, as the `screenshots` artifact of the run. The job fails if any of the 114 is missing: a crash at launch, or a word missing at the pin, stops the app before it saves.
+CI's `app` job builds the app on Windows when `src/Tafs.App/**` changes, and nightly. It saves sign-in, the Overview, Needs you, the Record, Plan & usage, Connect apps, Account and a taf's Activity, Setup and Card (with the samples), Coach mode (with the sample, and Coach's thread from the contracts), Calendar in Day and Week, the view-only notice, the pairing screen and the sidebar's new-version line (`sidebar-new-version`) in en, fr and pt, light and dark, as the `screenshots` artifact of the run. The job fails if any of the 156 is missing: a crash at launch, or a word missing at the pin, stops the app before it saves.

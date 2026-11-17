@@ -131,7 +131,9 @@ public sealed partial class MainWindow : Window
     /// <param name="viewOnly">The session can't approve yet: show the View only notice above every screen.</param>
     /// <param name="sample">Show the iPad's sample held calls and Record: for screenshots.</param>
     /// <param name="homeFile">Home's list from a contract file (contracts/home.json) in place of tafs cloud: for screenshots.</param>
-    public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false, string? homeFile = null)
+    /// <param name="newVersion">A release tag (v1.0.2) the sidebar says is out, read from nowhere: for screenshots.</param>
+    public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false, string? homeFile = null,
+        string? newVersion = null)
     {
         InitializeComponent();
         // The mascot in the title bar and the taskbar, as the exe's own icon.
@@ -187,6 +189,8 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetName(CoachButton, w.Get("coach.coach_mode"));
         AccountTitle.Text = foot.Account;
         AutomationProperties.SetName(AccountButton, foot.AccountLabel);
+        // A new version: GitHub read only by the person's own window, never a screenshot's, the samples' or a file's.
+        StartNewVersion(reads: screenshot is null && !sample && homeFile is null, shown: newVersion);
 
         var notice = PairingScreen.ViewOnly(w);
         ViewOnly.Title = notice.Title;

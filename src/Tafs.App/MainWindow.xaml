@@ -36,6 +36,13 @@
       <!-- Coach, then the account just under it: always in sight, never behind a menu. -->
       <NavigationView.PaneFooter>
         <StackPanel Spacing="8" Padding="16,12,16,16">
+          <!-- "A new version of tafs is out", only when GitHub's latest published release is newer: a link to its page. -->
+          <HyperlinkButton x:Name="NewVersionLine" Click="OnNewVersion" Visibility="Collapsed" Padding="4,2"
+                           HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                           AutomationProperties.AutomationId="sidebar.new_version">
+            <TextBlock x:Name="NewVersionText" FontSize="13" TextWrapping="Wrap" TextDecorations="Underline"
+                       Style="{StaticResource TafsAmberWords}" />
+          </HyperlinkButton>
           <!-- Start a new taf, as the iPad's sidebar foot: for someone who may use Coach, above Coach. -->
           <Button x:Name="NewTaf" Click="OnNewTaf" HorizontalAlignment="Stretch" MinHeight="44" Style="{StaticResource TafsPrimary}"
                   Visibility="Collapsed" AutomationProperties.AutomationId="home.new_taf">
