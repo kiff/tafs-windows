@@ -1784,8 +1784,8 @@ public sealed partial class MainWindow : Window
                 OpenUsage: () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage),
                 // Stop is for whoever manages the taf (cards.manage), as KIFF says, once read.
                 Manages: taf.Agent is { } agent && manage?.GetValueOrDefault(agent) == true,
-                // Try it on its versions, for whoever manages it on a PC whose passkey signs.
-                Trying: TryingFor(taf))
+                // Try it and Install this version on its versions, and Make it live, for whoever manages it on a PC whose passkey signs.
+                Trying: TryingFor(taf), Installing: InstallingFor(taf))
             : SampleTaf(w, key, opensOn);
 
     /// <summary>

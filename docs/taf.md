@@ -107,10 +107,15 @@ the taf's dial (`GET /v1/tafs/{id}/knob`, read as strictly as the iPad's decoder
 - **Results go to:** "At least one place stays on."; tafs' own places (reply to the sender, alert our phones, email me),
   switched at once (`PUT …/results`) from the live taf's (Home's `results`, then each answer's), the last one on never
   off; then the places in the person's connected apps as the dial has them, and Add a place from a connected app with Coach.
-- **A change waiting as the next version:** "DRAFT · V4 · NOT LIVE" and its words, for whoever manages the taf.
-- **Not here yet:** what makes a next version (a schedule's − and +, If busy, an app event's Approve or Stop, an app's
-  place) and Make it live come with the versions' own change; the doors with the Doors tab (P13); Not sent with the taf's
-  work (S17).
+- **What makes a next version** (`TafKnob.SettingBody`, the iPad's `changeKnob` and `adjustKnob`): a schedule's − and +
+  through the choices tafs cloud offers, If it is still working (Skip it or Run after), and Stop on an app event it
+  listens to. Each sends the live setting whole with one thing changed (`PUT …/knob`, `when: {busy}`), only from the
+  newest draft this PC knows; "The dial didn't change:" and why when it isn't taken.
+- **A change waiting as the next version:** "DRAFT · V4 · NOT LIVE" and its words, for whoever manages the taf, and
+  "Make 1 change live with Windows Hello" on a PC whose passkey signs: the versions and the dial read again, then the
+  same install as Versions' Install this version, to that version.
+- **Not here yet:** an app event's Approve and an app's places (their planque approval, P9); the doors with the Doors tab
+  (P13); Not sent with the taf's work (S17).
 - Only whoever manages the taf changes anything; a change goes one at a time, and why one didn't go through is said in red.
 - `--page taf-starts` or `taf-results` with `--home` opens them as whoever manages the first taf, its dial from
   `taf-knob.json` beside the Home file (`tests/fixtures/taf-knob`; CI's `taf-starts` and `taf-results`).
@@ -261,8 +266,19 @@ each its own screen with Back.
 - **Changes to how it runs:** its title and summary from its Setup (`versions`). Its screen lists its versions
   (`GET /v1/tafs/{id}/versions`) newest first: "Version 2" and Live now in green, what changed, who made it and when ("By
   Coach mode · 12 Nov 2026, 15:30 · brings a new Card"), each ended trial in a line ("Tried 11 Nov · 3 calls, 1 held ·
-  installed"), and a switch under way. One version says so. Installing a version signs a Card switch with the passkey,
-  and comes with its own change; trying one is below.
+  installed"), and a switch under way. One version says so. Trying one is below.
+- **Install this version** (`TafSwitch`, `TafPage.Install.cs`; the iPad's `prepareSwitch`, `VersionCardSheet` and
+  `useVersion`), under a version that isn't live, for whoever manages the taf on a PC whose passkey signs; off while
+  another switch is under way or a trial is open:
+  - The switch begins (`POST /v1/tafs/{id}/versions/{n}/switch`): from here the taf doesn't run. A run in the way is said
+    in tafs cloud's words, with Stop it and install (`stop_blocking`).
+  - **With a Card:** Its Card, KIFF's draft as read, and that the taf doesn't run while it switches. Install this version
+    signs exactly what was shown: one Windows Hello, this PC's passkey asserting KIFF's confirm, unless KIFF has it
+    already. A Card changed meanwhile is shown again and the switch dropped; KIFF's `card_revised` offers Draft its Card
+    again (`redraft`). Cancel drops the switch (`DELETE /v1/tafs/{id}/switching`).
+  - **Without:** one Windows Hello, the owner's presence ("Use version 2 of Rae"); nothing is signed.
+  - Then `POST /v1/tafs/{id}/versions/{n}/live`, and the versions, the dial and Home are read again. A switch under way
+    says the taf doesn't run until it's done, with Finish and Cancel.
 - **Usage:** its credits this period in tafs cloud's words (`GET /v1/usage/credits/tafs/{id}`), then its runs newest first,
   each with tafs cloud's words and when it ended, and More while there are more (`?after=`).
 - **Trying a version** (`TafTrials`, `TafPage.Trial.cs`, `MainWindow.Trials.cs`; the iPad's `TrialViews`, kiff/tafs#173),

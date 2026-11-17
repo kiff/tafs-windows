@@ -13,9 +13,8 @@ public enum SetupScreen { Main, StartsWhen, ResultsGoTo }
 /// <summary>
 /// Setup › Starts when and Results go to (P40), as the iPad's <c>StartsWhenView</c> and <c>ResultsGoToView</c>, from the taf's
 /// dial (<see cref="TafKnob"/>). What changes at once is here: a follow-up removed, every start paused or resumed, tafs' own
-/// places switched. A change that makes the taf's next version (a schedule's − and +, If busy, an app's event or place) waits
-/// on Make it live, which comes with the versions' own change: until then the dial's waiting version is said, and those show
-/// where they stand.
+/// places switched. A change that makes the taf's next version (a schedule's − and +, If busy, Stop on an app's event)
+/// waits as the dial's next version until Make it live installs it, as Versions' Install this version does.
 /// </summary>
 public sealed partial class TafPage
 {
@@ -28,6 +27,8 @@ public sealed partial class TafPage
     string? knobSaid;
     /// <summary>tafs' own places on the live taf, as Home sent them and each <c>PUT …/results</c> answers; none until known.</summary>
     IReadOnlyList<string>? liveResults;
+    /// <summary>The dial's last change made here, its next version, until a read of the dial has it (the iPad's <c>knobChanges</c>).</summary>
+    KnobChange? knobChange;
 
     /// <summary>Starts when and Results go to, under the job, each opening its own screen.</summary>
     void AddSetupLinks()
@@ -70,7 +71,12 @@ public sealed partial class TafPage
         if (opening?.CloudId is not { } id || opening.Read is not { } read) return;
         var answer = await read(TafKnob.Path(id));
         if (opening?.CloudId != id) return;
-        if (answer.Answer is { } a && TafKnob.Read(a) is { } k) (knob, knobWhy) = (k, null);
+        if (answer.Answer is { } a && TafKnob.Read(a) is { } k)
+        {
+            (knob, knobWhy) = (k, null);
+            // Live, or read back: a change made here is the dial's now.
+            if (knobChange is { } made && (k.Version >= made.Version || k.Pending?.Version >= made.Version)) knobChange = null;
+        }
         else knobWhy = answer.Why ?? App.Words.Get("kiff.kiff_did_not_answer_expected");
         if (tab == TafTab.Setup && setupScreen != SetupScreen.Main) ShowSetup();
     }
@@ -139,6 +145,7 @@ public sealed partial class TafPage
             Style = Look("TafsAmberWords"),
         });
         foreach (var line in k.DraftWords) inside.Children.Add(Words(line, 13, "TafsSoftText"));
+        if (MakeLiveButton(App.Words, pending) is { } live) inside.Children.Add(live);
         SetupPane.Children.Add(panel);
     }
 
@@ -167,13 +174,12 @@ public sealed partial class TafPage
             var line = Words(item.Line, 15, "TafsInkText");
             line.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
             schedule.Add(line);
-            if (item.Size is { } size) schedule.Add(Words(size.Shown, 13, "TafsSoftText"));
+            if (item.Size is { } size) schedule.Add(SizeStepper(k, size, manages));
         }
         if (opening?.Starts is { NextRun: { } next } starts && !paused)
             schedule.Add(Words((starts.NextRunWords ?? w.Get("taf.now.next_run", ("time", next.ToLocalTime().ToString("HH:mm", CultureInfo.InvariantCulture))))
                 + " · " + (opening.TimeZone ?? "UTC"), 13, "TafsDimText"));
-        if (schedules.Count > 0 && k.Busy is { } busy)
-            schedule.Add(Words(w.Get("setup.if_busy") + " · " + w.Get(busy == "latest" ? "setup.run_after" : "setup.skip_it"), 13, "TafsSoftText"));
+        if (schedules.Count > 0 && k.Busy is { } busy) schedule.Add(IfBusy(k, busy, manages));
         SetupPane.Children.Add(Panel([.. schedule]));
 
         var events = k.AppEvents.ToList();
@@ -192,6 +198,14 @@ public sealed partial class TafPage
                     listening.Children.Add(new FontIcon { Glyph = "", FontSize = 13, Style = Look("TafsOkIcon") });
                     listening.Children.Add(new TextBlock { Text = w.Get("setup.listening"), FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Style = Look("TafsOkText") });
                     panel.Add(listening);
+                    // Stop listening: the live setting without it, as the dial's next version.
+                    if (manages && item.Trigger is { } trigger && k.WithoutWake(trigger) is { } without && opening?.CloudId is { } tid)
+                    {
+                        var stop = new Button { Content = w.Get("setup.stop"), Style = Look("TafsOutlineNo"), IsEnabled = !knobBusy };
+                        AutomationProperties.SetName(stop, w.Get("setup.stop") + ", " + item.Label);
+                        stop.Click += async (_, _) => await ChangeDialAsync(tid, without);
+                        panel.Add(stop);
+                    }
                 }
             }
             panel.Add(Words(w.Get("setup.approve_note"), 12, "TafsDimText"));
@@ -321,6 +335,69 @@ public sealed partial class TafPage
     }
 
     /// <summary>tafs' own places set at once; the live taf's places as tafs cloud answers them, else they stay as they were.</summary>
+    /// <summary>
+    /// A schedule's size, as the iPad's <c>SizeStepper</c>: "How often · Every hour", with − and + through the choices tafs
+    /// cloud offers, each sending its whole setting; only from the newest draft this PC knows.
+    /// </summary>
+    UIElement SizeStepper(TafKnob k, KnobSize size, bool manages)
+    {
+        var w = App.Words;
+        var row = new Grid { ColumnSpacing = 8 };
+        row.ColumnDefinitions.Add(new ColumnDefinition());
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var shown = Words(size.Shown, 13, "TafsSoftText");
+        shown.VerticalAlignment = VerticalAlignment.Center;
+        row.Children.Add(shown);
+        if (!manages || opening?.CloudId is not { } id) return row;
+        foreach (var (direction, glyph, key, column) in new[] { (-1, "−", "knob.lower", 1), (1, "+", "knob.raise", 2) })
+        {
+            var choice = size.Moving(direction);
+            var b = new Button { Content = glyph, Style = Look("TafsOutlineButton"), MinWidth = 40,
+                IsEnabled = !knobBusy && choice is not null && k.AcceptsChoices(knobChange?.Version) };
+            AutomationProperties.SetName(b, w.Get(key) + ", " + size.Label);
+            if (choice is not null) b.Click += async (_, _) => await ChangeDialAsync(id, TafKnob.SettingBody(choice.Setting));
+            Grid.SetColumn(b, column);
+            row.Children.Add(b);
+        }
+        return row;
+    }
+
+    /// <summary>If it's still working when the next start comes: Skip it or Run after, as the iPad's segmented choice.</summary>
+    UIElement IfBusy(TafKnob k, string busy, bool manages)
+    {
+        var w = App.Words;
+        var panel = new StackPanel { Spacing = 6 };
+        panel.Children.Add(Words(w.Get("setup.if_busy"), 13, "TafsSoftText"));
+        var track = new Grid { ColumnSpacing = 2 };
+        AutomationProperties.SetName(track, w.Get("setup.if_still_working"));
+        foreach (var (value, key, column) in new[] { ("skip", "setup.skip_it", 0), ("latest", "setup.run_after", 1) })
+        {
+            track.ColumnDefinitions.Add(new ColumnDefinition());
+            var chosen = busy == value;
+            var b = new Button { Content = w.Get(key), Style = Look(chosen ? "TafsSegmentChosen" : "TafsSegment"),
+                IsEnabled = manages && !knobBusy && k.Setting is not null && k.AcceptsChoices(knobChange?.Version) };
+            if (chosen) AutomationProperties.SetItemStatus(b, "selected");
+            if (!chosen && opening?.CloudId is { } id && k.WithBusy(value) is { } body) b.Click += async (_, _) => await ChangeDialAsync(id, body);
+            Grid.SetColumn(b, column);
+            track.Children.Add(b);
+        }
+        panel.Children.Add(new Border { Style = Look("TafsSegmentTrack"), Child = track });
+        return panel;
+    }
+
+    /// <summary>
+    /// A change to the dial, as the iPad's <c>changeKnob</c>: the whole setting sent (<c>PUT …/knob</c>); tafs cloud makes the
+    /// next version, which runs only once it's made live. Not taken: "The dial didn't change:" and why.
+    /// </summary>
+    async Task ChangeDialAsync(string id, byte[] setting)
+    {
+        var sent = await ChangeAsync(HttpMethod.Put, TafKnob.Path(id), setting);
+        if (sent?.Answer is { } a) knobChange = KnobChange.Read(a) ?? knobChange;
+        else if (sent is not null) knobSaid = App.Words.Get("knob.dial_did_not_change", ("why", sent.Why ?? App.Words.Get("error.ours")));
+        if (sent is not null) ShowSetup();
+    }
+
     async Task SetPlacesAsync(string id, IReadOnlyList<string> places)
     {
         var sent = await ChangeAsync(HttpMethod.Put, TafKnob.ResultsPath(id), ResultPlaces.Body(places));

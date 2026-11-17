@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Tafs.Core.Words;
 
 namespace Tafs.Core.Taf;
@@ -13,6 +14,11 @@ public sealed record KnobChoice(string Label, JsonElement Setting);
 /// <summary>A stop's − and +: its label, the choice it's at, and the choices tafs cloud offers.</summary>
 public sealed record KnobSize(string Label, int Index, IReadOnlyList<KnobChoice> Choices)
 {
+    /// <summary>The choice one step down (−1) or up (+1), as the iPad's <c>choice(moving:)</c>; none past either end.</summary>
+    public KnobChoice? Moving(int direction) =>
+        direction is -1 or 1 && Index >= 0 && Index < Choices.Count && Index + direction >= 0 && Index + direction < Choices.Count
+            ? Choices[Index + direction] : null;
+
     /// <summary>The label with the choice it's at ("How often · Every hour"), as the iPad's stepper reads it.</summary>
     public string Shown => Index >= 0 && Index < Choices.Count ? $"{Label} · {Choices[Index].Label}" : Label;
 }
@@ -31,14 +37,66 @@ public sealed record KnobItem(string Id, string? Kind, string? Place, string Lab
 /// <summary>The version Make it live switches to, and how many stops it changes.</summary>
 public sealed record KnobPending(int Version, int Changes);
 
+/// <summary>What a change to the dial made: the taf's next version, and what it changes in words. Nothing runs from it until it's live.</summary>
+public sealed record KnobChange(int Version, IReadOnlyList<string> Words)
+{
+    /// <summary>tafs cloud's answer to <c>PUT …/knob</c>; none it can't read.</summary>
+    public static KnobChange? Read(JsonElement a) =>
+        a.ValueKind == JsonValueKind.Object && Lenient.Int(a, "version") is { } v
+            ? new(v, Lenient.Array(a, "words").Where(t => t.ValueKind == JsonValueKind.String).Select(t => t.GetString()!).ToList()) : null;
+}
+
 /// <summary>
 /// A taf's dial as tafs cloud sends it (<c>GET /v1/tafs/{id}/knob</c>, kiff/tafs <c>docs/api.md</c>), as the iPad's
 /// <c>TafsCloud.Knob</c>: what Setup's Starts when and Results go to read. A change to it waits as the taf's next version
 /// (<see cref="Pending"/>, its words in <see cref="DraftWords"/>) until it's made live.
 /// </summary>
 public sealed record TafKnob(bool CanPause, int? Version, KnobPending? Pending, IReadOnlyList<KnobItem> Wakes, IReadOnlyList<KnobItem> Results,
-    IReadOnlyList<string> DraftWords, string? Busy, IReadOnlyList<string>? SettingPlaces)
+    IReadOnlyList<string> DraftWords, string? Busy, IReadOnlyList<string>? SettingPlaces, JsonElement? Setting = null, int? Shown = null,
+    int? DraftVersion = null)
 {
+    /// <summary>
+    /// Whether a choice may be made now, as the iPad's <c>acceptsChoices(waitingFor:)</c>: only from the newest draft this PC
+    /// knows. A change made here and not yet read back (<paramref name="waitingFor"/>) is newer than an older read's.
+    /// </summary>
+    public bool AcceptsChoices(int? waitingFor = null)
+    {
+        var pending = Math.Max(Pending?.Version ?? DraftVersion ?? 0, waitingFor ?? 0);
+        return pending == 0 || pending <= (Version ?? 0) || Shown == pending;
+    }
+
+    /// <summary>
+    /// A setting as <c>PUT …/knob</c> takes it, as the iPad's <c>Setting.encode</c>: its triggers as tafs cloud wrote them,
+    /// <c>when: {busy}</c>, where results go, and what and why when it has them. A change copies the live one, changes one thing
+    /// and sends it whole.
+    /// </summary>
+    public static byte[] SettingBody(JsonElement setting, string? busy = null, Func<JsonElement, bool>? keepWake = null)
+    {
+        static JsonNode? Copy(JsonElement e) => JsonNode.Parse(e.GetRawText());
+        var o = new JsonObject
+        {
+            ["wakes"] = new JsonArray(Lenient.Array(setting, "wakes").Where(x => keepWake?.Invoke(x) != false).Select(Copy).ToArray()),
+            ["when"] = new JsonObject { ["busy"] = busy ?? BusyOf(setting) },
+            ["results"] = new JsonArray(Lenient.Array(setting, "results").Select(Copy).ToArray()),
+        };
+        if (Lenient.Field(setting, "what") is { ValueKind: JsonValueKind.Array } what) o["what"] = Copy(what);
+        if (Lenient.Text(setting, "why") is { } why) o["why"] = why;
+        return Encoding.UTF8.GetBytes(o.ToJsonString());
+    }
+
+    static string BusyOf(JsonElement s) =>
+        Lenient.Text(s, "busy") ?? (Lenient.Field(s, "when") is { ValueKind: JsonValueKind.Object } when ? Lenient.Text(when, "busy") : null) ?? "skip";
+
+    /// <summary>What a busy taf does, changed (<c>skip</c> or <c>latest</c>); none when that's what it does already.</summary>
+    public byte[]? WithBusy(string busy) => Setting is { } s && BusyOf(s) != busy ? SettingBody(s, busy) : null;
+
+    /// <summary>The live setting without one trigger: Stop on an app event it listens to.</summary>
+    public byte[]? WithoutWake(JsonElement trigger) =>
+        Setting is { } s && Lenient.Array(s, "wakes").Any(x => Same(x, trigger)) ? SettingBody(s, keepWake: x => !Same(x, trigger)) : null;
+
+    /// <summary>The same JSON, whatever its spacing or the order of its fields.</summary>
+    static bool Same(JsonElement a, JsonElement b) => JsonNode.DeepEquals(JsonNode.Parse(a.GetRawText()), JsonNode.Parse(b.GetRawText()));
+
     public static string Path(string taf) => "/v1/tafs/" + CloudRead.PathPart(taf) + "/knob";
 
     /// <summary><c>DELETE</c>: a follow-up the taf set itself, by the id its dial gives.</summary>
@@ -81,7 +139,8 @@ public sealed record TafKnob(bool CanPause, int? Version, KnobPending? Pending, 
                 places = Lenient.Array(s, "results").Select(ResultPlaces.Of).OfType<string>().ToList();
             }
             return new(Lenient.Field(a, "can_pause") is not { ValueKind: JsonValueKind.False }, Lenient.Int(a, "version"), pending, wakes, results,
-                draft, busy, places);
+                draft, busy, places, Lenient.Field(a, "setting") is { ValueKind: JsonValueKind.Object } setting ? setting.Clone() : null,
+                Lenient.Int(a, "shown"), Lenient.Field(a, "draft") is { ValueKind: JsonValueKind.Object } dv ? Lenient.Int(dv, "version") : null);
         }
         catch (Exception e) when (e is InvalidOperationException or KeyNotFoundException or FormatException) { return null; }
     }
