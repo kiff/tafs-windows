@@ -15,6 +15,21 @@ public class HomeListTests
 
     static HomeAnswer Home(string file) => HomeList.Read(En, ContractFile.Answer(SharedFiles.Contract(file)), TimeZoneInfo.Utc);
 
+    /// <summary>Whose clock a taf's times are in, and a schedule on another clock: tafs cloud's words, as they are.</summary>
+    [Fact]
+    public void A_taf_says_whose_clock_its_times_are_in()
+    {
+        var taf = Home("home.json").Tafs[0];
+        Assert.Equal(("Times in UTC", (string?)null), (taf.TimeZoneWords, taf.ScheduleTimeZoneWords));
+        var other = HomeList.Read(En, System.Text.Json.JsonDocument.Parse("""
+            {"tafs": [{"id": "t1", "name": "Morning inbox", "state": "idle", "color": 0, "waiting": 0,
+              "time_zone_words": " Times in Europe/Paris ", "schedule_time_zone_words": "Its schedule runs on UTC. Ask Coach to move it."},
+             {"id": "t2", "name": "Plain", "state": "idle", "color": 0, "waiting": 0, "time_zone_words": "  "}]}
+            """).RootElement, TimeZoneInfo.Utc).Tafs;
+        Assert.Equal(("Times in Europe/Paris", "Its schedule runs on UTC. Ask Coach to move it."), (other[0].TimeZoneWords, other[0].ScheduleTimeZoneWords));
+        Assert.Null(other[1].TimeZoneWords);
+    }
+
     static HomeAnswer Home(string json, TimeZoneInfo zone) => HomeList.Read(En, JsonDocument.Parse(json).RootElement, zone);
 
     [Fact]

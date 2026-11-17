@@ -24,7 +24,7 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     TafHealth? Health = null, Action<string>? AskCoachWith = null, Action? OpenUsage = null, Func<bool>? MayUseCoach = null,
     CardScreen CardOn = CardScreen.Main, bool CreditsPrevious = false, TafTrying? Trying = null, TafInTrial? InTrial = null,
     TafInstalling? Installing = null, Func<int, KnobItem, Task<KnobEventResult>>? ApproveEvent = null, TafSharing? Share = null,
-    Action<string>? AskCoachAbout = null)
+    Action<string>? AskCoachAbout = null, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
@@ -1152,6 +1152,9 @@ public sealed partial class TafPage : Page
         var w = App.Words;
         CardPane.Children.Clear();
         var shown = cards.FirstOrDefault(c => c.Id == front) ?? cards[0];
+        // Whose clock its times are in, then what to do when its schedule runs on another, as the iPad's card(_:).
+        if (opening.TimeZoneWords is { } zone) CardPane.Children.Add(Words(zone, 13, "TafsSoftText"));
+        if (opening.ScheduleTimeZoneWords is { } other) CardPane.Children.Add(Words(other, 13, "TafsAmberWords"));
         CardPane.Children.Add(CardStack(cards, ShowCards));
 
         var lines = new StackPanel { Spacing = 12 };

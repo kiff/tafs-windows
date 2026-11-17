@@ -19,7 +19,8 @@ public sealed record TafStarts(DateTimeOffset? NextRun, string? NextRunWords, bo
 public sealed record HomeTaf(string Id, string Name, int Colour, string State, string Now, string? Attention,
     IReadOnlyList<TafCard> Cards, int Waiting, DateTimeOffset? LastRun, DateTimeOffset? LastChange, string Job = "", string? Agent = null,
     bool Revoked = false, IReadOnlyList<string>? LabelIds = null, IReadOnlyList<string>? CardIdList = null, TafStarts? Starts = null,
-    Tafs.Core.Taf.TafHealth? Health = null, Tafs.Core.Taf.OpenTrial? Trial = null)
+    Tafs.Core.Taf.TafHealth? Health = null, Tafs.Core.Taf.OpenTrial? Trial = null,
+    string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null)
 {
     /// <summary>Its Cards' ids in KIFF (<c>card.ids</c>), revoked before it's removed for good; none without.</summary>
     public IReadOnlyList<string> CardIds => CardIdList ?? [];
@@ -127,7 +128,11 @@ public static class HomeList
                 Lenient.Field(t, "results") is { ValueKind: JsonValueKind.Array } r ? r.EnumerateArray().Select(Tafs.Core.Taf.ResultPlaces.Of).OfType<string>().ToList() : null),
             Health: Tafs.Core.Taf.TafHealth.Read(Lenient.Field(t, "health")),
             // Its open trial, its own entry under it in the sidebar, as the iPad's tafLinks.
-            Trial: Lenient.Field(t, "trial") is { } trial ? Tafs.Core.Taf.TafTrials.Trial(trial) : null);
+            Trial: Lenient.Field(t, "trial") is { } trial ? Tafs.Core.Taf.TafTrials.Trial(trial) : null,
+            // Whose clock its times are in ("Times in Europe/Paris"), and, only when its schedule runs on another, what to
+            // do about it: tafs cloud's words, as the iPad's Card tab draws them.
+            TimeZoneWords: Lenient.Text(t, "time_zone_words")?.Trim() is { Length: > 0 } zoneWords ? zoneWords : null,
+            ScheduleTimeZoneWords: Lenient.Text(t, "schedule_time_zone_words")?.Trim() is { Length: > 0 } other ? other : null);
     }
 
     /// <summary>What it's doing, as the iPad says it: tafs cloud's "Next run Fri 12:30" while it works on a schedule.</summary>
