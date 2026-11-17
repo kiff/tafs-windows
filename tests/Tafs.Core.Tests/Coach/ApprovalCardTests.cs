@@ -107,6 +107,18 @@ public class ApprovalCardTests
         }
     }
 
+    /// <summary>tafs cloud's settled answers, as the PM's 03:28: failed reads failed with its reason; connected reads done.</summary>
+    [Theory]
+    [InlineData("failed: the vendor refused", "Approuver · cela n'a pas abouti : le fournisseur a refusé", ApprovalState.Failed, "the vendor refused")]
+    [InlineData("connected", "Stripe est connecté ; sa Card vient ensuite", ApprovalState.Done, null)]
+    [InlineData("already approved", "Déjà approuvé", ApprovalState.Done, null)]
+    [InlineData("declined", "Refusé", ApprovalState.Declined, null)]
+    public void Tafs_cloud_s_settled_answers(string answer, string words, ApprovalState state, string? why)
+    {
+        var thread = Thread(Approval(answer: $$""", "answer": {"state": "answered", "words": "{{words}}", "answer": "{{answer}}"}"""));
+        Assert.Equal((state, why), ApprovalCard.State(thread, thread.Shown[0].Card, Grant("pending")));
+    }
+
     /// <summary>tafs cloud's stored answer decides, whatever the words' language.</summary>
     [Fact]
     public void The_stored_answer_decides_whatever_the_language()

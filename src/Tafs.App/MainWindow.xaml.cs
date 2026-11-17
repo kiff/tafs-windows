@@ -1476,7 +1476,7 @@ public sealed partial class MainWindow : Window
             },
             () => SigningTime.Next(DateTimeOffset.UtcNow), () => gen == sessions, SessionStore.Why,
             // Connecting the app the card asks for (P9): in KIFF's window, opened with this PC's passkey.
-            planque => Tafs.Core.Connections.ConnectFlow.AskedAsync(w, session.Tenant, planque, ConnectCallsFor(session, passkeyId)));
+            (planque, body) => Tafs.Core.Connections.ConnectFlow.AskedAsync(w, session.Tenant, planque, body, ConnectCallsFor(session, passkeyId)));
         try { return await Tafs.Core.Coach.CoachApproval.ApproveAsync(w, coach, card, session.Tenant, conversation, shownDigest, shownDraft, calls, shownWords); }
         // A kept passkey id that can't be read, or anything else unforeseen: the card says why, and never stays waiting.
         catch (Exception e) when (e is FormatException or System.Security.Cryptography.CryptographicException)

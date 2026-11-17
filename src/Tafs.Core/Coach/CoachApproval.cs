@@ -72,6 +72,18 @@ public static class CoachApproval
     /// <summary>The report's path, as the iPad's <c>approvalReport</c>: <c>…/approval/{ask}</c>.</summary>
     public static string ReportPath(string coach, string component, string ask) => Path(coach, component) + "/" + CloudRead.PathPart(ask);
 
+    /// <summary>
+    /// planque's approve body as this PC rebuilds it from what the card showed (the iPad's <c>approveBody</c>): the digest shown,
+    /// and KIFF's words' two digests when they were shown. None when tafs cloud's body isn't exactly that JSON: another profile,
+    /// other words, words missing, or a field more.
+    /// </summary>
+    public static byte[]? ApproveBodyShown(ApprovalPlanque p, string? shownDigest, Tafs.Core.Kiff.ProfileWords? shownWords)
+    {
+        if (shownDigest is null) return null;
+        var mine = ApprovalWindow.ApproveBody(shownDigest, shownWords?.ProfileSha256, shownWords?.WordsSha256);
+        return JsonNode.DeepEquals(JsonNode.Parse(mine), JsonNode.Parse(p.Body.GetRawText())) ? mine : null;
+    }
+
     /// <summary>The report signed as a setup call, as the iPad's <c>approvalReport</c>: <c>kiff.request.v1</c> over exactly the body sent.</summary>
     public static byte[] ReportMessage(string tenant, string path, byte[] body, string signedAt) =>
         KiffSigning.RequestV1(tenant, "POST", path, body, signedAt);
@@ -176,10 +188,13 @@ public static class CoachApproval
             return new(w.Get("coach.ask_not_this_cards"));
         if (ask.Step == "connect" && ask.Planque is { } planque && calls.Connect is { } connect)
         {
-            // Connecting the app (P9): one Windows Hello opens KIFF's approval window, planque's approve goes as a tap with the
-            // body tafs cloud built, then the vendor's sign-in and planque's confirm; reported as it came, never as an answer.
+            // Connecting the app (P9): only the approve body this PC rebuilds from what the card showed (the digest, and KIFF's
+            // words for its profile), and only when tafs cloud's is the same JSON; else nothing is sent.
+            if (ApproveBodyShown(planque, shownDigest, shownWords) is not { } approveBody) return new(w.Get("coach.ask_not_this_cards"));
+            // One Windows Hello opens KIFF's approval window, planque's approve goes as a tap, then the vendor's sign-in and
+            // planque's confirm; reported as it came, never as an answer.
             ConnectCame came;
-            try { came = await connect(planque); }
+            try { came = await connect(planque, approveBody); }
             catch (OperationCanceledException)
             {
                 return calls.Current() ? new(w.Get("approval.cancelled_nothing_approved_request_kept")) : ApproveResult.Stopped;
@@ -268,7 +283,7 @@ public sealed record ApproveCalls(
     Func<string> SignedAt,
     Func<bool> Current,
     Func<Exception, string> Why,
-    Func<ApprovalPlanque, Task<ConnectCame>>? Connect = null);
+    Func<ApprovalPlanque, byte[], Task<ConnectCame>>? Connect = null);
 
 /// <summary>What came of connecting, as the report says it: <c>connected</c>, <c>listed</c>, <c>not_connected</c> with planque's
 /// status, <c>sign_in_closed</c>, or <c>failed</c> with why.</summary>

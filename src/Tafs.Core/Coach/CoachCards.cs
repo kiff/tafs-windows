@@ -269,6 +269,8 @@ public sealed record CardReply(string Kind, string Id, string Text, string? Word
     {
         if (answer?.Trim() is not { Length: > 0 } a) return null;
         if (a.StartsWith("failed", StringComparison.Ordinal)) return a;
+        // tafs cloud's settled answer: connected, with its Card next, is done.
+        if (kind == "approval" && a == "connected") return "approved";
         string[] known = kind switch
         {
             "approval" => ["approved", "declined", "already approved"],

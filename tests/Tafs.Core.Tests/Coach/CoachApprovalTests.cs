@@ -380,4 +380,28 @@ public class CoachApprovalTests
         Assert.Equal(ApproveResult.Stopped, await fakes.Approve());
         Assert.Equal(sent, fakes.Sent.Count);
     }
+
+    /// <summary>
+    /// Coach's connect step signs only the approve body this PC rebuilds from what the card showed (kiff-qa on #156): tafs
+    /// cloud's body with another profile, other words, words missing, or a field more is refused, and nothing goes to planque.
+    /// </summary>
+    [Theory]
+    [InlineData("""{"digest": "dg", "kiff_profile": {"profile_sha256": "p1", "words_sha256": "w1"}}""", true)]
+    [InlineData("""{"kiff_profile": {"words_sha256": "w1", "profile_sha256": "p1"}, "digest": "dg"}""", true)]
+    [InlineData("""{"digest": "dg", "kiff_profile": {"profile_sha256": "p2", "words_sha256": "w1"}}""", false)]
+    [InlineData("""{"digest": "dg", "kiff_profile": {"profile_sha256": "p1", "words_sha256": "w2"}}""", false)]
+    [InlineData("""{"digest": "dg"}""", false)]
+    [InlineData("""{"digest": "dg", "kiff_profile": {"profile_sha256": "p1", "words_sha256": "w1"}, "scope": "all"}""", false)]
+    [InlineData("""{"digest": "other", "kiff_profile": {"profile_sha256": "p1", "words_sha256": "w1"}}""", false)]
+    public void Only_the_approve_body_the_card_showed_is_signed(string body, bool signed)
+    {
+        var words = new ProfileWords([], "p1", "w1");
+        var planque = new ApprovalPlanque("g_01", "dg", JsonDocument.Parse(body).RootElement.Clone());
+        var mine = CoachApproval.ApproveBodyShown(planque, "dg", words);
+        Assert.Equal(signed, mine is not null);
+        if (mine is not null) Assert.Equal("""{"digest":"dg","kiff_profile":{"profile_sha256":"p1","words_sha256":"w1"}}""", Encoding.UTF8.GetString(mine));
+        // A grant with no profile: only the digest, and no kiff_profile.
+        Assert.NotNull(CoachApproval.ApproveBodyShown(new ApprovalPlanque("g_01", "dg", JsonDocument.Parse("""{"digest": "dg"}""").RootElement.Clone()), "dg", null));
+        Assert.Null(CoachApproval.ApproveBodyShown(planque, null, words));
+    }
 }

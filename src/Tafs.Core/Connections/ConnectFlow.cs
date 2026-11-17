@@ -98,13 +98,13 @@ public static class ConnectFlow
     /// none is); then the vendor's sign-in and planque's confirm, or the code planque gave. What came of it, as the report says it.
     /// Windows Hello closed throws <see cref="OperationCanceledException"/>: nothing approved.
     /// </summary>
-    public static async Task<Tafs.Core.Coach.ConnectCame> AskedAsync(WordBook w, string tenant, Tafs.Core.Coach.ApprovalPlanque p, ConnectCalls calls)
+    /// <param name="body">The approve body this PC rebuilt from what the card showed (<see cref="Tafs.Core.Coach.CoachApproval.ApproveBodyShown"/>).</param>
+    public static async Task<Tafs.Core.Coach.ConnectCame> AskedAsync(WordBook w, string tenant, Tafs.Core.Coach.ApprovalPlanque p, byte[] body, ConnectCalls calls)
     {
         OpenWindow? window;
         try { window = await WindowAsync(calls, fresh: false); }
         catch (WindowRefused refused) { return new("failed", Why: refused.Message); }
         if (window is null) throw new OperationCanceledException();
-        var body = System.Text.Encoding.UTF8.GetBytes(p.Body.GetRawText());
         try
         {
             var approved = await TapAsync(calls, window, ApprovalWindow.ApprovePath(tenant, p.Grant), body);
