@@ -1915,6 +1915,7 @@ public sealed partial class MainWindow : Window
                 Cards: taf.Cards, IssuedBy: w.Get("card.issued_by_account"), Revoked: taf.Revoked,
                 CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof,
                 Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream, ResumeStream: cloudResume, Remove: RemoveFor(taf), ApproveEvent: EventFor(taf), Share: ShareFor(taf),
+                Revoke: RevokeFor(taf), RevokeNeedsApprover: Manages(taf) && App.Sessions.Kept()?.Mode == ApprovalMode.View,
                 // Setup › Starts when and Results go to: when it starts and where results go, as Home says, and the changes made at once.
                 Change: cloudChange, Starts: taf.Starts, Paused: taf.State == "paused", Email: kiffAccount?.Email, TimeZone: kiffAccount?.TimeZone,
                 TimeZoneWords: taf.TimeZoneWords, ScheduleTimeZoneWords: taf.ScheduleTimeZoneWords,
@@ -2011,6 +2012,30 @@ public sealed partial class MainWindow : Window
     /// Remove for good, only for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume: a
     /// removal is the approval key's act, never the device key's. None for anyone else, and no button.
     /// </summary>
+    /// <summary>Whether the person manages the taf, as KIFF says.</summary>
+    bool Manages(HomeTaf taf) => taf.Agent is { } agent && manage?.GetValueOrDefault(agent) == true;
+
+    /// <summary>
+    /// Revoke on a live taf's Card tab, as the iPad's: for whoever manages it, on a session that may approve (a view-only one
+    /// is told where it's done instead). KIFF revokes each of its Cards with the session; then Home is read again, which
+    /// shows it revoked. None for anyone else, and no button.
+    /// </summary>
+    Func<Task<string?>>? RevokeFor(HomeTaf taf)
+    {
+        if (!Manages(taf) || taf.Revoked || taf.CardIds.Count == 0 || App.Sessions.Kept() is not { Mode: not ApprovalMode.View } session) return null;
+        var (bearer, reading) = (session.AccessToken, sessions);
+        return async () =>
+        {
+            var why = await TafRemoval.RevokeCardsAsync(App.Words, taf.CardIds, async path =>
+            {
+                var (status, body) = await KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), TafRemoval.RevokeBody(), bearer, App.Words.Language);
+                return Answered(App.Words, status, body);
+            });
+            if (why is null && reading == sessions && cloudRead is { } read) _ = ReadHomeAsync(read);
+            return why;
+        };
+    }
+
     TafRemove? RemoveFor(HomeTaf taf)
     {
         if (taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is not { } read) return null;

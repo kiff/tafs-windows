@@ -97,4 +97,24 @@ public class TafRemovalTests
         var home = HomeList.Read(En, ContractFile.Answer(SharedFiles.Contract("home.json")), TimeZoneInfo.Utc);
         Assert.Equal(["card_rae"], home.Tafs[0].CardIds);
     }
+
+    [Fact]
+    public async Task Revoke_revokes_each_Card_and_stops_at_the_first_KIFF_refuses()
+    {
+        var asked = new List<string>();
+        Task<CloudRead> Ok(string path) { asked.Add(path); return Task.FromResult(CloudRead.Of(System.Text.Json.JsonDocument.Parse("{}").RootElement)); }
+        Assert.Null(await TafRemoval.RevokeCardsAsync(En, ["crd_1", "crd_2"], Ok));
+        Assert.Equal(["/v1/me/mandates/crd_1/revoke", "/v1/me/mandates/crd_2/revoke"], asked);
+
+        asked.Clear();
+        Task<CloudRead> SecondRefused(string path)
+        {
+            asked.Add(path);
+            return Task.FromResult(asked.Count == 1 ? CloudRead.Of(System.Text.Json.JsonDocument.Parse("{}").RootElement) : new CloudRead(null, "Too busy.", 429));
+        }
+        Assert.Equal("KIFF didn't revoke the Card. Too busy.", await TafRemoval.RevokeCardsAsync(En, ["crd_1", "crd_2", "crd_3"], SecondRefused));
+        Assert.Equal(2, asked.Count);
+        Assert.Equal("KIFF didn't revoke the Card. It didn't reach the server. Try again once you're online.",
+            await TafRemoval.RevokeCardsAsync(En, ["crd_1"], _ => throw new HttpRequestException("down")));
+    }
 }

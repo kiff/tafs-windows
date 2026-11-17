@@ -105,6 +105,23 @@ public static class TafRemoval
         return new(true, w.Get("connect.schedule_chats_run_reports_memory", ("cards", said), ("taf", name)));
     }
 
+    /// <summary>
+    /// Revoke, from a live taf's Card tab, as the iPad's <c>AppModel.revoke</c>: KIFF revokes each of its Cards in turn, so
+    /// nothing it holds can act. The first Card KIFF doesn't revoke stops it, with why ("KIFF didn't revoke the Card. …");
+    /// none when every one is revoked.
+    /// </summary>
+    public static async Task<string?> RevokeCardsAsync(WordBook w, IReadOnlyList<string> cards, Func<string, Task<CloudRead>> revoke)
+    {
+        foreach (var card in cards)
+        {
+            CloudRead answer;
+            try { answer = await revoke(RevokePath(card)); }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { answer = CloudRead.Unreached(w); }
+            if (answer.Answer is null) return w.Get("card.revoke_failed", ("why", answer.Why ?? w.Get("error.offline")));
+        }
+        return null;
+    }
+
     /// <summary>KIFF's revoke of one Card, a session's POST with no signature (the iPad's <c>KIFFClient.revoke</c>).</summary>
     public static string RevokePath(string card) => "/v1/me/mandates/" + CloudRead.PathPart(card) + "/revoke";
 
