@@ -218,7 +218,8 @@ public sealed partial class NeedsYouPage : Page
         }
         var b = Button(w.Get(key, ("biometry", "Windows Hello")), "TafsPrimary", sending);
         b.Click += (_, _) => HeldAnswerChosen?.Invoke(call, answer);
-        return b;
+        // Windows Hello not ready here: why and what to do, in the button's place.
+        return ApprovalGate.Wrap(b);
     }
 
     static Button Button(string text, string style, bool sending)

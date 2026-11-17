@@ -51,7 +51,7 @@ public static class ConnectDialog
             }
             dialog.PrimaryButtonText = w.Get(busy ? "approval.approving" : "approval.approve_with", ("biometry", Tafs.Core.Coach.CoachScreen.Biometry));
             // A connection with a profile is approved only with KIFF's words for it shown.
-            dialog.IsPrimaryButtonEnabled = !busy && grant is not null && (grant.Profile is null || words is not null);
+            dialog.IsPrimaryButtonEnabled = !busy && grant is not null && (grant.Profile is null || words is not null) && ApprovalGate.Ready;
         }
         dialog.PrimaryButtonClick += async (_, args) =>
         {
@@ -85,6 +85,8 @@ public static class ConnectDialog
             }
         };
         Draw();
+        // Windows Hello not ready here: why, above the request, and Approve off until it is.
+        ApprovalGate.Notice(dialog, Draw);
         await dialog.ShowAsync();
         return connected;
     }

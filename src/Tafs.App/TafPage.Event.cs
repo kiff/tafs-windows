@@ -45,6 +45,8 @@ public sealed partial class TafPage
         };
         KnobEventResult? approved = null;
         var signing = false;
+        // Windows Hello not ready here: why, above the filters, and Approve off until it is.
+        ApprovalGate.Notice(dialog, () => dialog.IsPrimaryButtonEnabled = shownFilters is not null && !signing && ApprovalGate.Ready);
         dialog.PrimaryButtonClick += async (_, args) =>
         {
             args.Cancel = true;

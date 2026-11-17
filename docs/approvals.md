@@ -91,6 +91,32 @@ computer's pairing claim without it from 1 Dec 2026, and never takes a bad proof
 - Windows Hello's prompt itself needs a person. It's checked by hand on a PC with Windows Hello: make a
   passkey, then assert with it. It's never run on CI.
 
+## Windows Hello not ready (`HelloState`, `HelloGate`, `ApprovalGate`)
+
+As the iPad's `ApprovalSetupView`: an approval's button, or, while Windows Hello can't confirm here, why and what to do
+in its place, so the person learns it before the prompt, not from a failure after it.
+- **One value for the app** (`HelloState`): Windows' `UserConsentVerifier.CheckAvailabilityAsync`, asked whenever the
+  window is activated (at launch, and coming back from Settings), and on Check again, which answers for every gate at
+  once. Ready until asked; a Windows that doesn't say leaves each approval to say what came of it. A sign-out forgets it.
+- **The words** (`HelloGate.NotReady`), the iPad's `ApprovalReadiness.short` with Windows Hello for Face ID or Touch ID:
+  - not set up: the line Your step says, until the shared words name Windows' sign-in options
+    (`approval.settings_path.windows`, then "Approving needs Windows Hello, and none is set up. Set it up in …"); with
+    **Open Settings**, which opens that very page (`ms-settings:signinoptions`), and **Check again**;
+  - busy: "Windows Hello can't be used right now. Try again in a moment.", with Check again;
+  - no Windows Hello it can use: "This device can't approve. Approve on another device signed in to your account.", alone.
+- **Where** (`ApprovalGate.Wrap`, in a button's place, the iPad's `ApprovalGate`): Needs you's Approve once and Extra
+  room, Allow from now on's Approve, Coach's Start, a halt's Resume, and Make live. A button that's hidden stays hidden.
+- **In a dialog** (`ApprovalGate.Notice`, the iPad's `ApprovalNotice`): the line and its buttons above the dialog's
+  content, and its approving button off until a check finds Windows Hello ready. Connect, Give the key, an app event's
+  Approve, Install this version (a version's and a trial's), Share, Coach's tools, Remove for good, and Devices' Sign
+  out and Remove.
+- **Your step** keeps its own line ("…to answer here, or answer on your phone"), from the same value.
+- **Nothing moves mid-approval.** Windows Hello's prompt is its own window, so tafs's window is activated again when it
+  closes, in the middle of the approval that asked for it. A check then redraws only if the answer changed. And a
+  dialog's notice only ever turns its button off, back on only where it turned it off itself, so a dialog busy approving
+  (its button off while it signs) is never turned back on. Dialogs with their own redraw keep their busy state in it
+  (Share's `sharingNow`, an app event's `signing`, Connect's and the key's `busy`).
+
 ## A taf's Cards before they're confirmed (`KiffDrafts`)
 
 What a draft would issue, read from KIFF as the session (`GET /v1/me/agent-drafts/{id}`), as the iPad's

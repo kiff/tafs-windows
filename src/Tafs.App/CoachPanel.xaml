@@ -99,6 +99,8 @@
           </ScrollViewer>
           <!-- Start, as the iPad's introBefore: dimmed with nothing to start Coach with (no session, or one that can't approve). -->
           <Button x:Name="Start" Grid.Row="1" IsEnabled="False" Style="{StaticResource TafsPrimaryOff}" Click="OnStart" />
+          <!-- Windows Hello not ready here: why and what to do, in Start's place, as the iPad's ApprovalGate. -->
+          <ContentControl x:Name="StartHello" Grid.Row="1" HorizontalContentAlignment="Stretch" Visibility="Collapsed" />
           <!-- Signed in on a PC that can't approve: why, where Start would be, as the iPad's ApprovalGate. -->
           <TextBlock x:Name="StartGateLine" Grid.Row="1" FontSize="14" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"
                      Foreground="{ThemeResource TafsSoft}" Visibility="Collapsed" />
