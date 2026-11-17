@@ -220,7 +220,34 @@ public sealed partial class CoachPanel : UserControl
     /// Approve on an approval card, as the iPad's <c>approve</c> (<see cref="CoachApproval.ApproveAsync"/>): the card, its
     /// conversation, and the digest and draft version it showed. None signed out, for the sample or a screenshot.
     /// </summary>
-    public Func<CoachCard, string?, string?, string?, Task<ApproveResult>>? Approve { get; set; }
+    public Func<CoachCard, string?, string?, string?, Tafs.Core.Kiff.ProfileWords?, Task<ApproveResult>>? Approve { get; set; }
+
+    /// <summary>KIFF's words for a grant's profile, read with the session and checked against it, or why not (P9).</summary>
+    public Func<Tafs.Core.Kiff.PlanqueGrant, Task<(Tafs.Core.Kiff.ProfileWords? Words, string? Why)>>? ReadProfileWords { get; set; }
+
+    /// <summary>Each grant's KIFF words as read, by its id and the digest they were read for; a read under way is in the set.</summary>
+    readonly Dictionary<string, (string Digest, Tafs.Core.Kiff.ProfileWords? Words, string? Why)> profileWords = [];
+    readonly HashSet<string> readingWords = [];
+
+    /// <summary>The words shown for a grant: only those read for exactly its digest; a read starts when none is.</summary>
+    (Tafs.Core.Kiff.ProfileWords? Words, string? Why) WordsFor(Tafs.Core.Kiff.PlanqueGrant grant)
+    {
+        if (profileWords.TryGetValue(grant.Id, out var read) && read.Digest == grant.Digest) return (read.Words, read.Why);
+        if (ReadProfileWords is { } reader && readingWords.Add(grant.Id))
+        {
+            var gen = generation;
+            _ = Read();
+            async Task Read()
+            {
+                var (words, why) = await reader(grant);
+                readingWords.Remove(grant.Id);
+                if (gen != generation) return;
+                profileWords[grant.Id] = (grant.Digest, words, why);
+                Redraw();
+            }
+        }
+        return (null, null);
+    }
 
     /// <summary>A session that approves with this PC's passkey: else the approval cards keep the iPad's gate line where Approve is.</summary>
     public bool Approves { get; set; }
@@ -896,7 +923,14 @@ public sealed partial class CoachPanel : UserControl
                 box.Children.Add(new Expander { Header = w.Get("common.details"), Content = lines, HorizontalAlignment = HorizontalAlignment.Stretch,
                     HorizontalContentAlignment = HorizontalAlignment.Left });
             }
-            if (grant.Profile is not null) box.Children.Add(Words(w.Get("connect.profile_words_unread"), 13, "TafsSoftText"));
+            // KIFF's words for its profile, never folded away: what KIFF can't check in amber; Approve waits until they're read.
+            if (grant.Profile is not null)
+            {
+                var (kiffWords, wordsWhy) = WordsFor(grant);
+                if (kiffWords is not null)
+                    foreach (var line in kiffWords.Lines) box.Children.Add(Words(line.Text, 13, line.Caution ? "TafsAmberWords" : "TafsSoftText"));
+                else box.Children.Add(Words(wordsWhy ?? w.Get("connect.profile_words_unread"), 13, wordsWhy is null ? "TafsSoftText" : "TafsNoText"));
+            }
             if (!grant.DigestMatches) box.Children.Add(Words(w.Get("connect.request_does_not_match_what"), 13, "TafsNoText"));
         }
         // The taf's Card as this approval signs it, or, by tafs cloud's mark, as the one approved next: under its words and
@@ -939,16 +973,17 @@ public sealed partial class CoachPanel : UserControl
         {
             // What's signed is seen first: a card with the taf's Card waits until that Card is read and drawn above.
             var connected = grant?.Connected == true;
-            // KIFF's words for a profile aren't read on this PC, so a grant that has one isn't approved here until it's connected.
+            // A grant with a profile is approved only with KIFF's words for exactly it read and shown.
+            var shownWords = grant is { Profile: not null } && !connected ? WordsFor(grant).Words : null;
             var ready = grant is not null && (connected || grant.DigestMatches) && (c.Draft is null || draft is not null) && !(connected && draft is null)
-                && !(!connected && grant.Profile is not null);
+                && !(!connected && grant.Profile is not null && shownWords is null);
             var on = Approve is not null && answer is not null && ready && !busy;
             var approve = new Button
             {
                 Content = w.Get(approving == c.Id ? "approval.approving" : failed ? "common.try_again" : "coach.answer.approve"),
                 Style = (Style)Application.Current.Resources[on ? "TafsPrimary" : "TafsPrimaryOff"], IsEnabled = on,
             };
-            approve.Click += (_, _) => _ = ApproveAsync(c, grant?.Digest, draft?.Version);
+            approve.Click += (_, _) => _ = ApproveAsync(c, grant?.Digest, draft?.Version, shownWords);
             Grid.SetColumn(approve, 1);
             buttons.Children.Add(approve);
         }
@@ -1011,7 +1046,7 @@ public sealed partial class CoachPanel : UserControl
     /// Approve tapped, as the iPad's <c>approve</c>: one approval at a time, the card's note cleared, then what it came to in
     /// its note, and the thread read again when tafs cloud says so. Signed out meanwhile, nothing is shown.
     /// </summary>
-    async Task ApproveAsync(CoachCard c, string? shownDigest, string? shownDraft)
+    async Task ApproveAsync(CoachCard c, string? shownDigest, string? shownDraft, Tafs.Core.Kiff.ProfileWords? shownWords = null)
     {
         if (Approve is not { } approve || thread is not { } shownThread) return;
         if (approving is not null)
@@ -1026,7 +1061,7 @@ public sealed partial class CoachPanel : UserControl
         Redraw();
         ApproveResult result;
         // Whatever goes wrong, the card never stays "Approving…": it says why.
-        try { result = await approve(c, shownThread.CardFor(c.Id)?.Session, shownDigest, shownDraft); }
+        try { result = await approve(c, shownThread.CardFor(c.Id)?.Session, shownDigest, shownDraft, shownWords); }
         catch (Exception e) { result = new(App.Words.Get("coach.answer_not_reached", ("why", $"0x{e.HResult:X8}")), ReadAgain: true); }
         finally { if (gen == generation) approving = null; }
         if (gen != generation || result.Stop) return;

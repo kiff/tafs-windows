@@ -47,8 +47,15 @@ public static class CoachApproval
     /// What the card showed, as the iPad's <c>ApprovalAskBody</c>: the grant, the digest shown, the draft and the version shown,
     /// and the conversation. A field with no value is left out, as Swift's encoder leaves out a nil.
     /// </summary>
-    public static byte[] AskBody(string grant, string? shownDigest, string? draft, string? shownDraft, string? session) =>
-        Encode(("grant", grant), ("shown_digest", shownDigest), ("draft", draft), ("shown_draft", shownDraft), ("session", session));
+    /// <param name="words">KIFF's words for the grant's profile as the card showed them: their two digests go as <c>words</c>, so tafs
+    /// cloud builds planque's approve body with them.</param>
+    public static byte[] AskBody(string grant, string? shownDigest, string? draft, string? shownDraft, string? session, Tafs.Core.Kiff.ProfileWords? words = null)
+    {
+        var o = JsonNode.Parse(Encode(("grant", grant), ("shown_digest", shownDigest), ("draft", draft), ("shown_draft", shownDraft)))!.AsObject();
+        if (words is not null) o["words"] = new JsonObject { ["profile_sha256"] = words.ProfileSha256, ["words_sha256"] = words.WordsSha256 };
+        if (session is not null) o["session"] = session;
+        return Encoding.UTF8.GetBytes(o.ToJsonString(Plain));
+    }
 
     /// <summary>What came of the call, as the iPad's <c>ApprovalReportBody</c>: never an answer, only what happened.</summary>
     public static byte[] ReportBody(string result, string? status, string? why, string? session) =>
@@ -142,12 +149,12 @@ public static class CoachApproval
     /// Windows Hello closed sends nothing and says nothing.
     /// </summary>
     public static async Task<ApproveResult> ApproveAsync(WordBook w, string coach, CoachCard card, string tenant, string? session,
-        string? shownDigest, string? shownDraft, ApproveCalls calls)
+        string? shownDigest, string? shownDraft, ApproveCalls calls, Tafs.Core.Kiff.ProfileWords? shownWords = null)
     {
         if (card.Grant is not { } grant) return new(null);
         var proof = await calls.Proof();
         if (!calls.Current()) return ApproveResult.Stopped;
-        var asked = await calls.Ask(Path(coach, card.Id), AskBody(grant, shownDigest, card.Draft, shownDraft, session), proof);
+        var asked = await calls.Ask(Path(coach, card.Id), AskBody(grant, shownDigest, card.Draft, shownDraft, session, shownWords), proof);
         if (!calls.Current()) return ApproveResult.Stopped;
         if (Decided(w, asked) is not { } decision) return NotReached(w, asked);
         switch (decision.Outcome)
@@ -164,9 +171,23 @@ public static class CoachApproval
         if (decision.Ask is not { } ask) return new(null);
         // What the card said this signs must be what it signs now: else it's out of date, and read again.
         if (!StepMatchesMark(card.Signs, ask.Step)) return new(w.Get("version.out_of_date_card"), ReadAgain: true);
-        if (ask.Step != "cards" || ask.Kiff is not { } kiff) return new(w.Get("coach.unknown_answer"));
         // The last check, not a signing service: only the message this card implies, rebuilt from what this PC holds.
-        if (ask.Message != ExpectedMessage(ask, grant, card.Draft, tenant, shownDigest, shownDraft)) return new(w.Get("coach.ask_not_this_cards"));
+        if (ask.Step is "cards" or "connect" && ask.Message != ExpectedMessage(ask, grant, card.Draft, tenant, shownDigest, shownDraft))
+            return new(w.Get("coach.ask_not_this_cards"));
+        if (ask.Step == "connect" && ask.Planque is { } planque && calls.Connect is { } connect)
+        {
+            // Connecting the app (P9): one Windows Hello opens KIFF's approval window, planque's approve goes as a tap with the
+            // body tafs cloud built, then the vendor's sign-in and planque's confirm; reported as it came, never as an answer.
+            ConnectCame came;
+            try { came = await connect(planque); }
+            catch (OperationCanceledException)
+            {
+                return calls.Current() ? new(w.Get("approval.cancelled_nothing_approved_request_kept")) : ApproveResult.Stopped;
+            }
+            if (!calls.Current()) return ApproveResult.Stopped;
+            return await ReportAsync(w, coach, card, tenant, session, ask, came.Result, came.Status, came.Why, calls);
+        }
+        if (ask.Step != "cards" || ask.Kiff is not { } kiff) return new(w.Get("coach.unknown_answer"));
 
         var (path, body) = ConfirmRequest(kiff);
         (string Header, string Value) signature;
@@ -192,12 +213,18 @@ public static class CoachApproval
         }
         catch (System.Net.Http.HttpRequestException) { (result, why) = ("failed", w.Get("error.offline")); }
         if (!calls.Current()) return ApproveResult.Stopped;
+        return await ReportAsync(w, coach, card, tenant, session, ask, result, null, why, calls);
+    }
 
+    /// <summary>What came of the call, reported signed by the device key with a fresh read proof, and tafs cloud's note shown.</summary>
+    static async Task<ApproveResult> ReportAsync(WordBook w, string coach, CoachCard card, string tenant, string? session, ApprovalAsk ask,
+        string result, string? status, string? why, ApproveCalls calls)
+    {
         // A fresh read proof: planque takes each signed request once.
         var reportProof = await calls.Proof();
         if (!calls.Current()) return ApproveResult.Stopped;
         var reportPath = ReportPath(coach, card.Id, ask.Id);
-        var report = ReportBody(result, null, why, session);
+        var report = ReportBody(result, status, why, session);
         var signedAt = calls.SignedAt();
         string reportSignature;
         try { reportSignature = ReportSignature(signedAt, await calls.SignReport(ReportMessage(tenant, reportPath, report, signedAt))); }
@@ -240,7 +267,12 @@ public sealed record ApproveCalls(
     Func<string, byte[], string, string?, Task<CloudRead>> Report,
     Func<string> SignedAt,
     Func<bool> Current,
-    Func<Exception, string> Why);
+    Func<Exception, string> Why,
+    Func<ApprovalPlanque, Task<ConnectCame>>? Connect = null);
+
+/// <summary>What came of connecting, as the report says it: <c>connected</c>, <c>listed</c>, <c>not_connected</c> with planque's
+/// status, <c>sign_in_closed</c>, or <c>failed</c> with why.</summary>
+public sealed record ConnectCame(string Result, string? Status = null, string? Why = null);
 
 /// <summary>What Approve came to: the card's note (none to say nothing), and whether the thread is read again.</summary>
 public sealed record ApproveResult(string? Note, bool ReadAgain = false, bool Stop = false)

@@ -1143,7 +1143,9 @@ public sealed partial class MainWindow : Window
         ShowNewTaf();
         // Approve, as the iPad's Coach cards, only for someone who may use Coach, and only a session that signs with its passkey.
         if (Tafs.Core.Coach.CoachStart.MayStart(session))
-            CoachMode.Approve = (card, conversation, digest, version) => ApproveCardAsync(session, card, conversation, digest, version);
+            CoachMode.Approve = (card, conversation, digest, version, words) => ApproveCardAsync(session, card, conversation, digest, version, words);
+            // KIFF's words for a connection's profile, shown on its approval card before Approve (P9).
+            CoachMode.ReadProfileWords = grant => ProfileWordsAsync(session, grant);
     }
 
     /// <summary>Every taf's halt, for someone who manages Cards (the iPad's <c>haltAllRow</c>'s <c>refreshHalt(nil)</c>), then its row.</summary>
@@ -1430,7 +1432,7 @@ public sealed partial class MainWindow : Window
     /// and the report signed by the TPM device key, which asks no one, with a fresh proof.
     /// </summary>
     async Task<Tafs.Core.Coach.ApproveResult> ApproveCardAsync(KeptSession session, Tafs.Core.Coach.CoachCard card, string? conversation,
-        string? shownDigest, string? shownDraft)
+        string? shownDigest, string? shownDraft, ProfileWords? shownWords = null)
     {
         var w = App.Words;
         var bearer = session.AccessToken;
@@ -1472,8 +1474,10 @@ public sealed partial class MainWindow : Window
                 }
                 catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
             },
-            () => SigningTime.Next(DateTimeOffset.UtcNow), () => gen == sessions, SessionStore.Why);
-        try { return await Tafs.Core.Coach.CoachApproval.ApproveAsync(w, coach, card, session.Tenant, conversation, shownDigest, shownDraft, calls); }
+            () => SigningTime.Next(DateTimeOffset.UtcNow), () => gen == sessions, SessionStore.Why,
+            // Connecting the app the card asks for (P9): in KIFF's window, opened with this PC's passkey.
+            planque => Tafs.Core.Connections.ConnectFlow.AskedAsync(w, session.Tenant, planque, ConnectCallsFor(session, passkeyId)));
+        try { return await Tafs.Core.Coach.CoachApproval.ApproveAsync(w, coach, card, session.Tenant, conversation, shownDigest, shownDraft, calls, shownWords); }
         // A kept passkey id that can't be read, or anything else unforeseen: the card says why, and never stays waiting.
         catch (Exception e) when (e is FormatException or System.Security.Cryptography.CryptographicException)
         {
