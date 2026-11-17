@@ -119,8 +119,14 @@
             <StackPanel x:Name="ThreadItems" Spacing="12" />
           </ScrollViewer>
           <!-- Why the last message didn't go, or the conversation couldn't be read, as the iPad's setupError over the box. -->
-          <TextBlock x:Name="ChatError" Grid.Row="2" Margin="0,0,16,4" FontSize="13" TextWrapping="Wrap"
-                     Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
+          <StackPanel Grid.Row="2" Margin="0,0,16,4" Spacing="4">
+            <!-- Improving a taf, as the iPad's: "Improve Refunds" and what Coach starts from, until its first message went. -->
+            <StackPanel x:Name="ImprovingNote" Spacing="2" Visibility="Collapsed" AutomationProperties.AutomationId="coach.improving">
+              <TextBlock x:Name="ImprovingTitle" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{ThemeResource TafsCoach}" />
+              <TextBlock x:Name="ImprovingLine" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+            </StackPanel>
+            <TextBlock x:Name="ChatError" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
+          </StackPanel>
           <!-- The composer, as the iPad's: "Ask anything about your tafs", and Send in Coach's colour. Ctrl+Enter sends. -->
           <Grid x:Name="CoachComposer" Grid.Row="3" Margin="0,4,16,12" ColumnSpacing="8" Visibility="Collapsed">
             <Grid.ColumnDefinitions>
