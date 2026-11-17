@@ -99,6 +99,9 @@ public class SharesTests
     {
         Assert.Throws<ArgumentException>(() => Shares.RemovePath("a", new(null, null)));
         Assert.Throws<ArgumentException>(() => Shares.RemovePath("a", new("", null)));
+        // An empty group beside a person is that person's share, by its person.
+        Assert.Equal("/v1/agents/a/grants?subject=sub_bo", Shares.RemovePath("a", new("", "sub_bo")));
+        Assert.Equal("""{"subject":"sub_bo"}""", System.Text.Encoding.UTF8.GetString(Shares.AddBody(new("", "sub_bo"))));
         foreach (var odd in new TafShare[] { new(null, null), new("", ""), new("grp_1", "sub_bo") })
         {
             var removing = new Calls();

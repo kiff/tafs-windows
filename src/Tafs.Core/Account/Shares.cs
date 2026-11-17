@@ -29,11 +29,11 @@ public static class Shares
     /// <summary>Taking one away: by its group, else by its person. One that names neither is never built.</summary>
     /// <exception cref="ArgumentException">The share names no group and no person, or both.</exception>
     public static string RemovePath(string agent, TafShare share) => Names(share)
-        ? Path(agent) + (share.Group is { } g ? "?group=" + Uri.EscapeDataString(g) : "?subject=" + Uri.EscapeDataString(share.Subject!))
+        ? Path(agent) + (share.Group is { Length: > 0 } g ? "?group=" + Uri.EscapeDataString(g) : "?subject=" + Uri.EscapeDataString(share.Subject!))
         : throw new ArgumentException("a share names one group or one person", nameof(share));
 
     /// <summary>What sharing sends: <c>{"group":…}</c> or <c>{"subject":…}</c>, as the iPad's encoder leaves out the other.</summary>
-    public static byte[] AddBody(TafShare share) => share.Group is { } g
+    public static byte[] AddBody(TafShare share) => share.Group is { Length: > 0 } g
         ? JsonSerializer.SerializeToUtf8Bytes(new { group = g })
         : JsonSerializer.SerializeToUtf8Bytes(new { subject = share.Subject });
 
