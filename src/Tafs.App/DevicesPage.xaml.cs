@@ -58,6 +58,20 @@ public sealed partial class DevicesPage : Page
         await LoadAsync();
     }
 
+    /// <summary>
+    /// Read again when the window comes back (the iPad's on its scene's return), so a device or passkey added meanwhile shows
+    /// without leaving Devices. Not while a removal is going: it reads again when it's done.
+    /// </summary>
+    public async Task ReadAgainAsync()
+    {
+        if (removing || reading) return;
+        reading = true;
+        try { await LoadAsync(); }
+        finally { reading = false; }
+    }
+
+    bool reading;
+
     /// <summary>Devices, then the passkeys, each read again; a failed read says why in its place.</summary>
     async Task LoadAsync()
     {
