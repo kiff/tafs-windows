@@ -6,7 +6,7 @@ using Tafs.Core.Kiff;
 namespace Tafs.Core.Tests.Kiff;
 
 /// <summary>The approval window a PC's own passkey opens, and planque's taps inside it (KIFF's desktop client contract §2.3, §3).</summary>
-[Part("connections")]
+[Part("approvals")]
 public class ApprovalWindowTests
 {
     sealed class Key : IKiffSigner
