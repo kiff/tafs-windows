@@ -15,7 +15,7 @@ public sealed record PairedSession(string AccessToken, string Tenant, string Sub
 
 /// <summary>
 /// Where a claim stands. <see cref="Refused"/>: the phone's approve was refused, and KIFF says so to this PC only, the one
-/// that proves the refused key (kiff-cloud#1706's <c>403 pairing_refused</c>).
+/// that proves the refused key (the claim's <c>403 pairing_refused</c>, KIFF's desktop client contract, §5.4).
 /// </summary>
 public enum ClaimStatus { Pending, SlowDown, Expired, InvalidProof, Paired, Failed, Refused }
 

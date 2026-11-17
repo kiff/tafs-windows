@@ -13,7 +13,7 @@ public enum PairingStep
     Waiting,
     Expired,
     Failed,
-    /// <summary>The phone's approve was refused, and KIFF told this PC (kiff-cloud#1706): said, with a new code to show.</summary>
+    /// <summary>The phone's approve was refused, and KIFF told this PC, the one that proves the refused key: said, with a new code to show.</summary>
     Refused,
     /// <summary>KIFF wasn't reached.</summary>
     Offline,

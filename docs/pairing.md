@@ -107,12 +107,12 @@ A pairing must never leave a device at KIFF that this PC can't use. So, with [th
   or that paired again beside the device it has, put a registered key in the QR, and the phone was refused with "That computer
   is already paired." while the PC waited. Now every pairing page makes a new key. Show a new code keeps it while the page is
   open, the session keeps its name once KIFF hands one over, and a key no session took leaves the TPM with the page.
-- **A phone that refuses the pairing** (KIFF's `409 key_registered` on its approve) is told to this PC, as kiff-cloud#1706
-  keeps it: the claim answers `403 {"error":"pairing_refused","reason":…}`, only to the PC that proves the refused key
+- **A phone that refuses the pairing** (KIFF's `409 key_registered` on its approve) is told to this PC: KIFF keeps
+  the refusal against the code and the refused key, and the claim answers `403 {"error":"pairing_refused","reason":…}`, only to the PC that proves the refused key
   (`ClaimStatus.Refused`, `ClaimResult.Reason`; KIFF's `message` is never shown). The screen says so in tafs's words
-  (`pair.refused_title`, `pair.refused_key_registered`, `pair.refused_other`, tafs#1288), and the refused key leaves the
+  (`pair.refused_title`, `pair.refused_key_registered`, `pair.refused_other`), and the refused key leaves the
   TPM with the passkey offered beside it, so Show a new code makes a new key. Until those words are pinned, it reads as Failed with KIFF's 403. With a key of its own per pairing,
-  `key_registered` shouldn't come; a KIFF without #1706 still answers `authorization_pending` until the code expires.
+  `key_registered` shouldn't come; a KIFF that doesn't keep refusals still answers `authorization_pending` until the code expires.
 
 **Not yet:**
 - Closing Windows Hello's prompt when the attempt is stopped (`WebAuthNCancelCurrentOperation`).

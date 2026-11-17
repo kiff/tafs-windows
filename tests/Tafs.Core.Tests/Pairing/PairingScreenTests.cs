@@ -198,7 +198,7 @@ public class PairingScreenTests
     }
 
     /// <summary>
-    /// English with legal-i18n's <c>pair.refused_*</c> words (tafs#1288): the pinned ones once they're shared, else these, as
+    /// English with legal-i18n's <c>pair.refused_*</c> words: the pinned ones once they're shared, else these, as
     /// that patch has them.
     /// </summary>
     static WordBook WithRefusedWords()
