@@ -255,6 +255,18 @@ reference:
   taking it after KIFF did, "KIFF resumed Rae, but tafs cloud didn't yet." with why. A sign-out meanwhile sends nothing
   more. A taf halted with every taf is resumed from every taf's screen.
 
+**Changes to how it runs, and Usage** (`TafVersions`, `TafCredits`, `TafPage.Versions.cs`; the iPad's `card(_:)` rows,
+`VersionsPanel` and `TafCreditsView`): two rows on the Card tab after the halt row, for whoever manages a tafs cloud taf,
+each its own screen with Back.
+- **Changes to how it runs:** its title and summary from its Setup (`versions`). Its screen lists its versions
+  (`GET /v1/tafs/{id}/versions`) newest first: "Version 2" and Live now in green, what changed, who made it and when ("By
+  Coach mode · 12 Nov 2026, 15:30 · brings a new Card"), each ended trial in a line ("Tried 11 Nov · 3 calls, 1 held ·
+  installed"), and a switch under way. One version says so. Installing and trying a version sign a Card switch with the
+  passkey, and come with their own change.
+- **Usage:** its credits this period in tafs cloud's words (`GET /v1/usage/credits/tafs/{id}`), then its runs newest first,
+  each with tafs cloud's words and when it ended, and More while there are more (`?after=`).
+- `--page taf-versions` or `taf-usage` with `--home` opens them, from `taf-versions.json` or `taf-credits.json` beside it.
+
 **Remove for good** (`TafRemoval`, ported from the iPad's `removeTaf` and `removalWords`): "Remove for good" (Narrator: "Remove Rae"),
 outlined in red, last on Setup as the iPad's (a revoked taf too), for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume (a removal
 is the approval key's act, never the device key's); a revoked taf can still be removed.
