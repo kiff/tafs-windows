@@ -14,13 +14,15 @@ namespace Tafs.App;
 /// and the trial's chat opened.
 /// </summary>
 public sealed record TafTrying(Func<Task<(OpenTrial? Open, string? Why)>> Load, Func<int, Task<(AgentDraft? Draft, string? Why)>> Card,
-    Func<int, string, Task<TrialStart>> Start, Action<OpenTrial> Open);
+    Func<int, AgentDraft, Task<TrialStart>> Start, Action<OpenTrial> Open);
 
 /// <summary>
 /// A trial open on a taf's page (the iPad's <c>TrialScreen</c>): the version's own chat under a bar that says it isn't live,
-/// with Go back and Install, each saying why when it didn't go; once either is done, back to the taf.
+/// with Go back and Install (its Card read first, and only the version shown signed), each saying why when it didn't go; once
+/// either is done, back to the taf.
 /// </summary>
-public sealed record TafInTrial(OpenTrial Open, string Taf, Func<Task<string?>> GoBack, Func<Task<string?>> Install, Action Ended);
+public sealed record TafInTrial(OpenTrial Open, string Taf, Func<Task<string?>> GoBack, Func<Task<(AgentDraft? Draft, string? Why)>> Card,
+    Func<string?, Task<TrialInstall>> Install, Action Ended);
 
 public sealed partial class TafPage
 {
@@ -133,7 +135,8 @@ public sealed partial class TafPage
             Draw();
             try
             {
-                var started = await trying.Start(v.N, read.Version);
+                // Exactly the draft read, by its id and version: never drafted again.
+                var started = await trying.Start(v.N, read);
                 if (opening != mine) { dialog.Hide(); return; }
                 if (started.Open is { } open)
                 {
@@ -192,24 +195,64 @@ public sealed partial class TafPage
             if (await ask.ShowAsync() == ContentDialogResult.Primary) await EndTrialAsync(trial, trial.GoBack);
         };
         var install = new Button { Content = w.Get(trialBusy ? "version.working" : "version.install"), Style = Look("TafsOutlineButton"), IsEnabled = !trialBusy };
-        install.Click += async (_, _) =>
-        {
-            var ask = new ContentDialog
-            {
-                XamlRoot = XamlRoot, RequestedTheme = ActualTheme, Title = w.Get("version.install_title", ("version", n)),
-                Content = new TextBlock { Text = w.Get("version.install_body", ("version", n)), TextWrapping = TextWrapping.Wrap },
-                PrimaryButtonText = w.Get("version.install_with", ("biometry", Tafs.Core.Coach.CoachScreen.Biometry)),
-                CloseButtonText = w.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
-            };
-            if (await ask.ShowAsync() == ContentDialogResult.Primary) await EndTrialAsync(trial, trial.Install);
-        };
+        install.Click += (_, _) => _ = InstallTrialAsync(trial, null);
         buttons.Children.Add(back);
         buttons.Children.Add(install);
         TrialBar.Children.Add(buttons);
         if (trialWhy is { } why) TrialBar.Children.Add(Words(why, 13, "TafsNoText"));
     }
 
-    /// <summary>Go back or Install: done, back to the taf; not, why under the bar; Windows Hello closed, nothing said.</summary>
+    /// <summary>
+    /// Install, as the iPad's: "Install version 2?", what it means, and the trial's Card as KIFF keeps it now, read before
+    /// Windows Hello; only the version shown is signed live. A Card that isn't that one opens again, to read anew.
+    /// </summary>
+    async Task InstallTrialAsync(TafInTrial trial, AgentDraft? changed)
+    {
+        if (trialBusy) return;
+        var w = App.Words;
+        var mine = opening;
+        var n = trial.Open.N.ToString(CultureInfo.InvariantCulture);
+        var (draft, why) = changed is not null ? (changed, null) : await trial.Card();
+        if (opening != mine) return;
+        var body = new StackPanel { Spacing = 10 };
+        body.Children.Add(Words(w.Get("version.install_body", ("version", n)), 14, "TafsInkText"));
+        if (draft is { Confirmed: false, Cards: not null })
+        {
+            body.Children.Add(new TextBlock { Text = w.Get("card.its_card"), Style = Look("TafsEyebrow") });
+            foreach (var line in draft.CardLines(w).SelectMany(l => l))
+            {
+                var mono = Words(line, 12, "TafsInkText");
+                mono.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas");
+                body.Children.Add(mono);
+            }
+        }
+        if (changed is not null) body.Children.Add(Words(w.Get("version.out_of_date_card"), 13, "TafsNoText"));
+        if (draft is null) body.Children.Add(Words(why ?? w.Get("version.trial_card_unreadable"), 13, "TafsNoText"));
+        var ask = new ContentDialog
+        {
+            XamlRoot = XamlRoot, RequestedTheme = ActualTheme, Title = w.Get("version.install_title", ("version", n)),
+            Content = new ScrollViewer { Content = body, MaxHeight = 480 },
+            PrimaryButtonText = w.Get("version.install_with", ("biometry", Tafs.Core.Coach.CoachScreen.Biometry)),
+            CloseButtonText = w.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
+            IsPrimaryButtonEnabled = draft is { Confirmed: true } or { Cards: not null },
+        };
+        if (await ask.ShowAsync() != ContentDialogResult.Primary || opening != mine) return;
+        (trialBusy, trialWhy) = (true, null);
+        ShowTrialBar();
+        var result = await trial.Install(draft?.Version);
+        if (opening != mine) return;
+        trialBusy = false;
+        if (result.Done)
+        {
+            trial.Ended();
+            return;
+        }
+        trialWhy = result.Changed is null ? result.Why : null;
+        ShowTrialBar();
+        if (result.Changed is { } fresh) await InstallTrialAsync(trial, fresh);
+    }
+
+    /// <summary>Go back: done, back to the taf; not, why under the bar.</summary>
     async Task EndTrialAsync(TafInTrial trial, Func<Task<string?>> run)
     {
         if (trialBusy) return;

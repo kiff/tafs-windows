@@ -270,7 +270,8 @@ each its own screen with Back.
   - **Try it** under each version that isn't live; off while another trial is open (one a taf). Its sheet: "Try version 2:
     what changed", While you try it (the four lines), and Its Card, KIFF's draft as read (`POST /v1/tafs/{id}/versions/{n}/try`,
     then `GET /v1/me/agent-drafts/{draft}`).
-  - **Start trying:** the draft read is the one signed (changed since, it's shown again to read, nothing signed). One
+  - **Start trying:** the draft read is the one signed: read again by its id, never drafted again, and signed only at the
+    same id and version (else it's shown again to read, nothing signed). One
     Windows Hello: this PC's passkey asserts KIFF's confirm `{"version", "as": "trial"}`. Only KIFF's "trying" opens
     the trial (`PUT /v1/tafs/{id}/trial`); "confirmed" or anything else says KIFF didn't start one. Its chat opens.
   - **The trial:** its own row under its taf in the sidebar ("Rae · v2", "Trying version 2 · ends 24 Nov if unused",
@@ -279,7 +280,8 @@ each its own screen with Back.
     (`/trial/conversation`, `/trial/messages`, words only).
   - **Go back** asks first, then ends the trial's Card in KIFF (`DELETE /v1/me/agent-drafts/{draft}/trial`, signed by the
     session's TPM key, no Windows Hello; 404 or 409 is ended already), then tafs cloud (`DELETE /v1/tafs/{id}/trial`).
-    **Install** asks first, confirms the Card live with one Windows Hello unless KIFF has it confirmed, then
+    **Install** asks first, with the trial's Card as KIFF keeps it now; only the version shown is confirmed live, with one
+    Windows Hello (another is shown again, nothing signed; KIFF having it confirmed already needs none), then
     `POST /v1/tafs/{id}/trial/install`. Either, done, goes back to the taf; not, why under the bar.
 - `--page taf-versions` or `taf-usage` with `--home` opens them, from `taf-versions.json` or `taf-credits.json` beside it.
 

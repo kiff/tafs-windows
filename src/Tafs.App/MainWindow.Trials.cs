@@ -58,13 +58,18 @@ public sealed partial class MainWindow
         var session = App.Sessions.Kept();
         Task<string?> Run(Func<TrialCalls, Task<string?>> act) =>
             session is null ? Task.FromResult<string?>(w.Get("error.signed_out")) : act(TrialCallsFor(session));
+        Task<TrialInstall> Install(string? shown) =>
+            session is null ? Task.FromResult(new TrialInstall(false, Why: w.Get("error.signed_out")))
+                : TafTrials.InstallAsync(w, taf.Id, open, shown, TrialCallsFor(session));
+        Task<(AgentDraft? Draft, string? Why)> Card() =>
+            session is null ? Task.FromResult<(AgentDraft?, string?)>((null, w.Get("error.signed_out"))) : TafTrials.TrialCardAsync(w, open, TrialCallsFor(session));
         return OpenTaf(w, taf.Id, TafTab.Chat) with
         {
             Head = TafScreen.Head(w, open.ChatName(w, taf.Name), taf.Colour, taf.StateKey),
             Card = null, Stream = null, Manages = false, Halt = null, Remove = null, Trying = null, Starts = null, Health = null,
             InTrial = new TafInTrial(open, taf.Name,
                 () => Run(calls => TafTrials.GoBackAsync(w, taf.Id, open, calls)),
-                () => Run(calls => TafTrials.InstallAsync(w, taf.Id, open, calls)),
+                Card, Install,
                 () =>
                 {
                     Pages.Navigate(typeof(TafPage), OpenTaf(App.Words, taf.Id));

@@ -55,6 +55,12 @@ public sealed record OpenTrial(string Id, int N, string Draft, string? Session, 
 public sealed record TrialStart(OpenTrial? Open, AgentDraft? Changed, string? Why);
 
 /// <summary>
+/// What Install came to: done, or the trial's Card that isn't the one shown (to read again, nothing signed), or why not. All
+/// empty: Windows Hello closed, nothing said.
+/// </summary>
+public sealed record TrialInstall(bool Done, AgentDraft? Changed = null, string? Why = null);
+
+/// <summary>
 /// The calls a trial makes, given by the app: tafs cloud's, KIFF's as the session, the confirm signed by this PC's passkey (one
 /// Windows Hello; closed, it throws <see cref="OperationCanceledException"/>), the end of a trial signed by this session's device
 /// key (taking authority away, so no Windows Hello), and whether the session it began in is still the one signed in.
@@ -159,20 +165,20 @@ public static class TafTrials
     }
 
     /// <summary>
-    /// Start trying version n, as the iPad's <c>startTrying</c>: tafs cloud gives the draft of its trial Card; the one the owner
-    /// read (<paramref name="shownVersion"/>) is the one signed, else it's shown again to read; one Windows Hello, this PC's
-    /// passkey, confirms it in KIFF as a trial; only a KIFF that answers "trying" runs one, and only then does tafs cloud open it.
-    /// Windows Hello closed sends nothing and says nothing.
+    /// Start trying version n, as the iPad's <c>startTrying</c>: the very draft the owner read (<paramref name="shown"/>), read
+    /// again by its id, never drafted again, is the one signed, at the version shown; changed since, it's shown again to read.
+    /// One Windows Hello, this PC's passkey, confirms it in KIFF as a trial; only a KIFF that answers "trying" runs one, and only
+    /// then does tafs cloud open it. Windows Hello closed sends nothing and says nothing.
     /// </summary>
-    public static async Task<TrialStart> StartAsync(WordBook w, string taf, int n, string shownVersion, TrialCalls calls)
+    public static async Task<TrialStart> StartAsync(WordBook w, string taf, int n, AgentDraft shown, TrialCalls calls)
     {
         var none = new TrialStart(null, null, null);
         TrialStart Failed(string why) => new(null, null, w.Get("version.trial.not_started", ("n", N(n)), ("why", why)));
-        var (draft, why) = await DraftAsync(w, taf, n, calls);
+        var (draft, why) = KiffDrafts.Read(w, await calls.KiffGet(KiffDrafts.Path(shown.Id)));
         if (!calls.Current()) return none;
         if (draft is null) return new(null, null, w.Get("version.trial.cant_try", ("n", N(n)), ("why", why ?? "")));
-        // What the owner read is what's signed: changed since, it's read again.
-        if (draft.Version != shownVersion) return new(null, draft, w.Get("version.trial.changed"));
+        // What the owner read is what's signed: the same draft at the same version, else it's read again.
+        if (draft.Id != shown.Id || draft.Version != shown.Version) return new(null, draft, w.Get("version.trial.changed"));
 
         var (path, body) = Confirm(draft.Id, draft.Version, asTrial: true);
         (string Header, string Value) signature;
@@ -212,41 +218,52 @@ public static class TafTrials
         catch (JsonException) { return null; }
     }
 
-    /// <summary>
-    /// Install, as the iPad's <c>installTrial</c>: the trial's Card, unless KIFF has it confirmed already, confirmed live with
-    /// one Windows Hello; then tafs cloud makes the version live and ends the trial. None once done, else why; Windows Hello
-    /// closed is nothing done and nothing said (<c>""</c>).
-    /// </summary>
-    public static async Task<string?> InstallAsync(WordBook w, string taf, OpenTrial open, TrialCalls calls)
+    /// <summary>The trial's Card as KIFF keeps it, shown before Install asks Windows Hello; or why not.</summary>
+    public static async Task<(AgentDraft? Draft, string? Why)> TrialCardAsync(WordBook w, OpenTrial open, TrialCalls calls)
     {
-        string Unfinished(string why) => w.Get("version.trial.install_unfinished", ("n", N(open.N)), ("why", why));
+        var (draft, why) = KiffDrafts.Read(w, await calls.KiffGet(KiffDrafts.Path(open.Draft)));
+        return draft is not null ? (draft, null) : (null, w.Get("version.trial.card_not_read", ("n", N(open.N)), ("why", why ?? "")));
+    }
+
+    /// <summary>
+    /// Install, as the iPad's <c>installTrial</c>: the trial's Card confirmed live with one Windows Hello, at exactly the version
+    /// the Install question showed (<paramref name="shownVersion"/>); a Card that isn't that one is shown again, nothing signed.
+    /// KIFF having it confirmed already grants nothing new: no Windows Hello. Then tafs cloud makes the version live and ends the
+    /// trial.
+    /// </summary>
+    public static async Task<TrialInstall> InstallAsync(WordBook w, string taf, OpenTrial open, string? shownVersion, TrialCalls calls)
+    {
+        var none = new TrialInstall(false);
+        TrialInstall Unfinished(string why) => new(false, Why: w.Get("version.trial.install_unfinished", ("n", N(open.N)), ("why", why)));
         var read = await calls.KiffGet(KiffDrafts.Path(open.Draft));
-        if (!calls.Current()) return "";
+        if (!calls.Current()) return none;
         var (draft, why) = KiffDrafts.Read(w, read);
         if (draft is null) return Unfinished(why ?? "");
         if (!draft.Confirmed)
         {
+            // What the owner read is what's signed: another version, it's read again.
+            if (draft.Version != shownVersion) return new(false, draft, w.Get("version.out_of_date_card"));
             var (path, body) = Confirm(draft.Id, draft.Version, asTrial: false);
             (string Header, string Value) signature;
             try { signature = await calls.SignConfirm(path, body); }
-            catch (OperationCanceledException) { return ""; }
+            catch (OperationCanceledException) { return none; }
             catch (Exception e) when (e is PasskeyRefusedException or InvalidDataException or System.Runtime.InteropServices.COMException
                 or System.Security.Cryptography.CryptographicException or InvalidOperationException or UnauthorizedAccessException)
             {
-                return calls.Current() ? Unfinished(e is PasskeyRefusedException ? e.Message : calls.Why(e)) : "";
+                return calls.Current() ? Unfinished(e is PasskeyRefusedException ? e.Message : calls.Why(e)) : none;
             }
-            if (!calls.Current()) return "";
+            if (!calls.Current()) return none;
             try
             {
                 var (status, answer) = await calls.KiffPost(path, body, signature);
-                if (!calls.Current()) return "";
+                if (!calls.Current()) return none;
                 if (status is < 200 or > 299) return Unfinished(CoachStart.KiffRefused(w, status, answer));
             }
-            catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { return calls.Current() ? Unfinished(w.Get("error.offline")) : ""; }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { return calls.Current() ? Unfinished(w.Get("error.offline")) : none; }
         }
         var installed = await calls.Cloud(HttpMethod.Post, InstallPath(taf), null);
-        if (!calls.Current()) return "";
-        return installed.Answer is not null ? null : Unfinished(installed.Why ?? w.Get("error.offline"));
+        if (!calls.Current()) return none;
+        return installed.Answer is not null ? new(true) : Unfinished(installed.Why ?? w.Get("error.offline"));
     }
 
     /// <summary>

@@ -128,15 +128,18 @@ public class TafTrialsTests
         Assert.Equal("Version 2's trial Card couldn't be read. This version can't be tried.", (await TafTrials.CardAsync(En, "depl_1", 2, unread.Make())).Why);
     }
 
+    /// <summary>The draft the owner read: d_02 at v7.</summary>
+    static readonly AgentDraft Shown = new("d_02", "rae-k3f9", "draft", "v7");
+
     [Fact]
     public async Task Start_trying_confirms_its_Card_as_a_trial_then_opens_it()
     {
         var calls = Trying();
-        var started = await TafTrials.StartAsync(En, "depl_1", 2, "v7", calls.Make());
+        var started = await TafTrials.StartAsync(En, "depl_1", 2, Shown, calls.Make());
         Assert.Null(started.Why);
         Assert.Equal(2, started.Open!.N);
+        // The draft read, by its id: never drafted again.
         Assert.Equal([
-            "POST /v1/tafs/depl_1/versions/2/try",
             "KIFF GET /v1/me/agent-drafts/d_02",
             "sign /v1/me/agent-drafts/d_02/confirm",
             "KIFF POST /v1/me/agent-drafts/d_02/confirm KIFF-Passkey-Assertion",
@@ -150,7 +153,7 @@ public class TafTrialsTests
     {
         var calls = Trying();
         calls.KiffDraft["/v1/me/agent-drafts/d_02"] = """{"id":"d_02","agent_id":"rae-k3f9","status":"draft","version":"v8"}""";
-        var started = await TafTrials.StartAsync(En, "depl_1", 2, "v7", calls.Make());
+        var started = await TafTrials.StartAsync(En, "depl_1", 2, Shown, calls.Make());
         Assert.Equal("v8", started.Changed!.Version);
         Assert.Equal("What you're asked to approve changed since it was shown. Read it again, then start.", started.Why);
         Assert.DoesNotContain(calls.Said, s => s.StartsWith("sign", StringComparison.Ordinal));
@@ -161,7 +164,7 @@ public class TafTrialsTests
     {
         var calls = Trying();
         calls.Confirmed = (200, """{"id":"d_02","agent_id":"rae-k3f9","status":"confirmed","version":"v7"}""");
-        var started = await TafTrials.StartAsync(En, "depl_1", 2, "v7", calls.Make());
+        var started = await TafTrials.StartAsync(En, "depl_1", 2, Shown, calls.Make());
         Assert.Null(started.Open);
         Assert.StartsWith("KIFF didn't start a trial: it issued these Cards as the taf's own.", started.Why);
         Assert.DoesNotContain(calls.Said, s => s.StartsWith("PUT", StringComparison.Ordinal));
@@ -172,13 +175,24 @@ public class TafTrialsTests
     {
         var calls = Trying();
         calls.SignFails = new OperationCanceledException();
-        Assert.Equal(new TrialStart(null, null, null), await TafTrials.StartAsync(En, "depl_1", 2, "v7", calls.Make()));
+        Assert.Equal(new TrialStart(null, null, null), await TafTrials.StartAsync(En, "depl_1", 2, Shown, calls.Make()));
         Assert.DoesNotContain(calls.Said, s => s.StartsWith("KIFF POST", StringComparison.Ordinal));
 
         var refused = Trying();
         refused.SignFails = new PasskeyRefusedException("only this PC's passkey confirms a Card change");
         Assert.Equal("Trying version 2 didn't start. only this PC's passkey confirms a Card change",
-            (await TafTrials.StartAsync(En, "depl_1", 2, "v7", refused.Make())).Why);
+            (await TafTrials.StartAsync(En, "depl_1", 2, Shown, refused.Make())).Why);
+    }
+
+    [Fact]
+    public async Task Another_draft_with_the_same_version_is_shown_again_and_never_signed()
+    {
+        // KIFF answers for the shown id with another draft: the same version, but not the one read.
+        var calls = Trying();
+        calls.KiffDraft["/v1/me/agent-drafts/d_02"] = """{"id":"d_09","agent_id":"rae-k3f9","status":"draft","version":"v7"}""";
+        var started = await TafTrials.StartAsync(En, "depl_1", 2, Shown, calls.Make());
+        Assert.Equal("d_09", started.Changed!.Id);
+        Assert.DoesNotContain(calls.Said, s => s.StartsWith("sign", StringComparison.Ordinal) || s.StartsWith("POST", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -189,7 +203,7 @@ public class TafTrialsTests
         calls.KiffDraft["/v1/me/agent-drafts/d_02"] = """{"id":"d_02","agent_id":"rae-k3f9","status":"trying","version":"v7"}""";
         calls.Confirmed = (200, """{"id":"d_02","agent_id":"rae-k3f9","status":"confirmed","version":"v7"}""");
         calls.Cloud["POST /v1/tafs/depl_1/trial/install"] = Answer("""{"live": 2, "ended": {"why": "installed"}}""");
-        Assert.Null(await TafTrials.InstallAsync(En, "depl_1", open, calls.Make()));
+        Assert.Equal(new TrialInstall(true), await TafTrials.InstallAsync(En, "depl_1", open, "v7", calls.Make()));
         Assert.Equal([
             "KIFF GET /v1/me/agent-drafts/d_02",
             "sign /v1/me/agent-drafts/d_02/confirm",
@@ -198,12 +212,27 @@ public class TafTrialsTests
         ], calls.Said);
         Assert.Equal("""{"version":"v7"}""", calls.ConfirmBody);
 
-        // KIFF has it confirmed already: no Windows Hello, tafs cloud finishes it.
+        // KIFF has it confirmed already: nothing new is granted, so no Windows Hello; tafs cloud finishes it.
         var confirmed = new Calls();
         confirmed.KiffDraft["/v1/me/agent-drafts/d_02"] = """{"id":"d_02","agent_id":"rae-k3f9","status":"confirmed","version":"v7"}""";
         confirmed.Cloud["POST /v1/tafs/depl_1/trial/install"] = Answer("""{"live": 2}""");
-        Assert.Null(await TafTrials.InstallAsync(En, "depl_1", open, confirmed.Make()));
-        Assert.DoesNotContain(confirmed.Said, s => s.StartsWith("sign", StringComparison.Ordinal));
+        Assert.True((await TafTrials.InstallAsync(En, "depl_1", open, null, confirmed.Make())).Done);
+        Assert.Equal(["KIFF GET /v1/me/agent-drafts/d_02", "POST /v1/tafs/depl_1/trial/install"], confirmed.Said);
+    }
+
+    [Fact]
+    public async Task A_trial_Card_that_moved_since_it_was_shown_is_shown_again_and_never_signed()
+    {
+        var open = TafTrials.Read(JsonDocument.Parse(Open).RootElement)!;
+        var calls = new Calls();
+        calls.KiffDraft["/v1/me/agent-drafts/d_02"] = """{"id":"d_02","agent_id":"rae-k3f9","status":"trying","version":"v8"}""";
+        var result = await TafTrials.InstallAsync(En, "depl_1", open, "v7", calls.Make());
+        Assert.Equal("v8", result.Changed!.Version);
+        Assert.Equal(["KIFF GET /v1/me/agent-drafts/d_02"], calls.Said);
+        // Nothing shown, nothing signed.
+        var unshown = new Calls();
+        unshown.KiffDraft["/v1/me/agent-drafts/d_02"] = calls.KiffDraft["/v1/me/agent-drafts/d_02"];
+        Assert.Equal("v8", (await TafTrials.InstallAsync(En, "depl_1", open, null, unshown.Make())).Changed!.Version);
     }
 
     [Fact]
