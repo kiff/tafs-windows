@@ -183,7 +183,11 @@ Ported from the iPad's `DevicesView` and `KIFFClient.Device`, opened from **Peop
 - **Passkeys** (P11, `Passkeys`), as the iPad's section, from `GET /v1/me/passkeys`: each by its name, else "A device";
   a computer's own (with a `device_id`) says "Goes with its computer" and has no Remove, since it's removed with its
   computer. Remove, for the person's own, shows for an owner or an admin (`GET /v1/me`'s `role`) on a PC that approves.
-  It asks "Remove iPhone?", then approves `DELETE /v1/me/passkeys/{id}` the same way. A failed read says "Couldn't load
+  It asks "Remove iPhone?", then approves `DELETE /v1/me/passkeys/{id}` the same way. When removing it leaves no passkey
+  that can approve (every one KIFF lists counts, a computer's own included), the question says so under it
+  (`settings.devices.passkey_remove_last`): it warns and
+  never refuses, since a lost or stolen passkey is when Remove is most needed. Sign out's question shows the device's last
+  use under it, so two devices with one name read apart. A failed read says "Couldn't load
   your passkeys." with why. **Add a passkey** stays the phone's: its words say "this phone".
 - **Not for Windows:** the iPad's **Add a device** (`PairComputerView`), where a phone adds a computer by its code. On
   Windows, this PC is the computer, and it's added from the phone.
