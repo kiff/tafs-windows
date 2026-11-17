@@ -102,12 +102,12 @@ A pairing must never leave a device at KIFF that this PC can't use. So, with [th
   it isn't kept, the screen says it wasn't added, with Windows' error code only.
 - **The view-only sign-in it replaces** is signed out at KIFF, and its key leaves the TPM.
 - **A relaunch after pairing** opens this screen on Added (`PairingScreen.Opening`), never a new code.
-
-**Not yet:**
-- Closing Windows Hello's prompt when the attempt is stopped (`WebAuthNCancelCurrentOperation`).
 - **The key is this pairing's own** (the owner's test, 17 Nov). It was once one fixed name, so a PC whose device was removed,
   or that paired again beside the device it has, put a registered key in the QR, and the phone was refused with "That computer
   is already paired." while the PC waited. Now every pairing page makes a new key. Show a new code keeps it while the page is
   open, the session keeps its name once KIFF hands one over, and a key no session took leaves the TPM with the page.
 - **A phone that refuses the pairing** (KIFF's `409` on its approve) isn't told to this PC: the claim only answers
   `authorization_pending` until the code expires. With a key of its own, the "already paired" refusal can't happen.
+
+**Not yet:**
+- Closing Windows Hello's prompt when the attempt is stopped (`WebAuthNCancelCurrentOperation`).
