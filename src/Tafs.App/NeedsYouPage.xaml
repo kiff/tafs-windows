@@ -6,9 +6,10 @@
       xmlns:local="using:Tafs.App"
       Background="{ThemeResource TafsBackground}">
   <ScrollViewer>
-    <Grid Padding="24">
+    <!-- The iPad's NeedsYouView: padded 16 by 12, its cards across the page's width. -->
+    <Grid Padding="16,12">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" MaxWidth="760" />
+        <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
       <StackPanel Spacing="14">
