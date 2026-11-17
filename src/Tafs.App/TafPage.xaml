@@ -34,6 +34,15 @@
         <!-- Who uses it, as the iPad's ShareLine: "Shared with Support and ana@acme.com", for any taf KIFF runs. -->
         <TextBlock x:Name="SharedWithText" FontSize="13" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource TafsSoft}"
                    Visibility="Collapsed" AutomationProperties.AutomationId="taf.shared-with" />
+        <!-- Its live version, which opens its versions, as the iPad's versionLine: 13 semibold, quiet, with its mark and caret. -->
+        <HyperlinkButton x:Name="VersionLine" Padding="0" Margin="0,2,0,0" Visibility="Collapsed" Click="OnVersionLine"
+                         AutomationProperties.AutomationId="taf.version-line">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <FontIcon Glyph="&#xE81C;" FontSize="13" Foreground="{ThemeResource TafsSoft}" />
+            <TextBlock x:Name="VersionLineText" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource TafsSoft}" />
+            <FontIcon Glyph="&#xE76C;" FontSize="11" Foreground="{ThemeResource TafsDim}" />
+          </StackPanel>
+        </HyperlinkButton>
       </StackPanel>
       <!-- Working: green on the same green at 15%, in a capsule; Paused, the soft colour the same way. -->
       <Grid x:Name="WorkingChip" Grid.Column="2" VerticalAlignment="Center">
