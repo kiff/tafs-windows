@@ -1,0 +1,71 @@
+<!--
+  The setup's words in Dutch (installer/words/en.wxl has the English and the rules), by legal-i18n. Derived from
+  WiX Toolset v5.0.2's HyperlinkTheme.wxl, Copyright (c) .NET Foundation and contributors, under the Microsoft Reciprocal
+  License (MS-RL).
+-->
+<WixLocalization Culture="nl-nl" Language="1043" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="Caption" Value="Installatie van [WixBundleName]" />
+  <String Id="Title" Value="[WixBundleName]" />
+  <String Id="CheckingForUpdatesLabel" Value="Zoeken naar updates" />
+  <String Id="UpdateButton" Value="&amp;Bijwerken naar versie [WixStdBAUpdateAvailable]" />
+  <String Id="InstallHeader" Value="Welkom" />
+  <String Id="InstallMessage" Value="Setup installeert [WixBundleName] op deze pc. Klik op Installeren om door te gaan of op Annuleren om af te sluiten." />
+  <String Id="InstallMessageOptions" Value="Setup installeert [WixBundleName] op deze pc. Klik op Installeren om door te gaan, op Opties om installatieopties in te stellen of op Annuleren om af te sluiten." />
+  <String Id="InstallVersion" Value="Versie [WixBundleVersion]" />
+  <String Id="ConfirmCancelMessage" Value="Weet u zeker dat u wilt annuleren?" />
+  <String Id="ExecuteUpgradeRelatedBundleMessage" Value="Vorige versie" />
+  <String Id="HelpHeader" Value="Help bij Setup" />
+  <String Id="HelpText" Value="/install | /repair | /uninstall | /layout [directory] - installeert, herstelt, verwijdert of&#xA;   maakt een volledige lokale kopie van het pakket in de map. Installeren is de standaard.&#xA;&#xA;/passive | /quiet -  toont een minimale interface zonder vragen, of geen interface en&#xA;   geen vragen. Standaard worden de interface en alle vragen getoond.&#xA;&#xA;/norestart   - voorkomt elke poging tot opnieuw opstarten. Standaard vraagt de interface dit eerst.&#xA;/log log.txt - schrijft het logboek naar een bepaald bestand. Standaard wordt een logboekbestand gemaakt in %TEMP%." />
+  <String Id="HelpCloseButton" Value="&amp;Sluiten" />
+  <String Id="InstallLicenseLinkText" Value="&lt;a href=&quot;#&quot;&gt;Licentievoorwaarden&lt;/a&gt; van [WixBundleName]." />
+  <String Id="InstallAcceptCheckbox" Value="Ik &amp;ga akkoord met de licentievoorwaarden" />
+  <String Id="InstallOptionsButton" Value="&amp;Opties" />
+  <String Id="InstallInstallButton" Value="&amp;Installeren" />
+  <String Id="InstallCancelButton" Value="&amp;Annuleren" />
+  <String Id="OptionsHeader" Value="Installatieopties" />
+  <String Id="OptionsLocationLabel" Value="Installatielocatie:" />
+  <String Id="OptionsBrowseButton" Value="&amp;Bladeren" />
+  <String Id="OptionsOkButton" Value="&amp;OK" />
+  <String Id="OptionsCancelButton" Value="&amp;Annuleren" />
+  <String Id="ProgressHeader" Value="Voortgang van Setup" />
+  <String Id="ProgressLabel" Value="Bezig met verwerken:" />
+  <String Id="OverallProgressPackageText" Value="Initialiseren..." />
+  <String Id="ProgressCancelButton" Value="&amp;Annuleren" />
+  <String Id="ModifyHeader" Value="Setup wijzigen" />
+  <String Id="ModifyRepairButton" Value="&amp;Herstellen" />
+  <String Id="ModifyUninstallButton" Value="&amp;Verwijderen" />
+  <String Id="ModifyCancelButton" Value="&amp;Annuleren" />
+  <String Id="SuccessHeader" Value="Setup voltooid" />
+  <String Id="SuccessCacheHeader" Value="Opslaan in cache voltooid" />
+  <String Id="SuccessInstallHeader" Value="[WixBundleName] is geïnstalleerd" />
+  <String Id="SuccessLayoutHeader" Value="Lokale kopie voltooid" />
+  <String Id="SuccessModifyHeader" Value="Wijziging voltooid" />
+  <String Id="SuccessRepairHeader" Value="Herstel voltooid" />
+  <String Id="SuccessUninstallHeader" Value="Verwijderen voltooid" />
+  <String Id="SuccessUnsafeUninstallHeader" Value="Verwijderen voltooid" />
+  <String Id="SuccessLaunchButton" Value="tafs &amp;openen" />
+  <String Id="SuccessRestartText" Value="U moet de computer opnieuw opstarten voordat u de software kunt gebruiken." />
+  <String Id="SuccessUninstallRestartText" Value="U moet de computer opnieuw opstarten om het verwijderen van de software te voltooien." />
+  <String Id="SuccessRestartButton" Value="&amp;Herstarten" />
+  <String Id="SuccessCloseButton" Value="&amp;Sluiten" />
+  <String Id="FailureHeader" Value="Setup mislukt" />
+  <String Id="FailureCacheHeader" Value="Opslaan in cache mislukt" />
+  <String Id="FailureInstallHeader" Value="Setup mislukt" />
+  <String Id="FailureLayoutHeader" Value="Lokale kopie mislukt" />
+  <String Id="FailureModifyHeader" Value="Wijzigen mislukt" />
+  <String Id="FailureRepairHeader" Value="Herstellen mislukt" />
+  <String Id="FailureUninstallHeader" Value="Verwijderen mislukt" />
+  <String Id="FailureUnsafeUninstallHeader" Value="Verwijderen mislukt" />
+  <String Id="FailureHyperlinkLogText" Value="Door een of meer problemen is Setup mislukt. Los de problemen op en voer Setup daarna opnieuw uit. Zie het &lt;a href=&quot;#&quot;&gt;logboekbestand&lt;/a&gt; voor meer informatie." />
+  <String Id="FailureRestartText" Value="U moet de computer opnieuw opstarten om het terugdraaien van de software te voltooien." />
+  <String Id="FailureRestartButton" Value="&amp;Herstarten" />
+  <String Id="FailureCloseButton" Value="&amp;Sluiten" />
+  <String Id="FilesInUseTitle" Value="Bestanden in gebruik" />
+  <String Id="FilesInUseLabel" Value="De volgende toepassingen gebruiken bestanden die moeten worden bijgewerkt:" />
+  <String Id="FilesInUseNetfxCloseRadioButton" Value="De &amp;toepassingen sluiten." />
+  <String Id="FilesInUseCloseRadioButton" Value="De &amp;toepassingen sluiten en proberen ze opnieuw te starten." />
+  <String Id="FilesInUseDontCloseRadioButton" Value="Toepassingen &amp;niet sluiten. Opnieuw opstarten is dan nodig." />
+  <String Id="FilesInUseRetryButton" Value="&amp;Opnieuw" />
+  <String Id="FilesInUseIgnoreButton" Value="Ne&amp;geren" />
+  <String Id="FilesInUseExitButton" Value="&amp;Afsluiten" />
+</WixLocalization>
