@@ -32,7 +32,7 @@ public sealed partial class MainWindow
         async Task<((string Grant, bool NeedsKey)?, string?)> Start(ConnectApp app, string taf)
         {
             // As the iPad's: planque set up by this session first.
-            if (!planqueReady) return (null, w.Get("connect.start_connected_tools_first", ("device", w.Get("device.windows"))));
+            if (await PlanqueFirstAsync(session) is { } notReady) return (null, notReady);
             // A fresh signed grants read: planque takes each once. With it, tafs cloud decides the taf needs the app.
             string? proof;
             try { proof = await SetupProofAsync(session); }

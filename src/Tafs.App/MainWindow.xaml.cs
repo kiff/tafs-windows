@@ -1033,6 +1033,7 @@ public sealed partial class MainWindow : Window
         CoachMode.StartCoach = null;
         CoachMode.StartGate = false;
         planqueReady = false;
+        PlanqueKept.Forget();
         CoachMode.Report = null;
         CoachMode.Grants = null;
         CoachMode.Approve = null;
@@ -1041,8 +1042,30 @@ public sealed partial class MainWindow : Window
         CoachMode.Forget();
     }
 
-    /// <summary>This session set planque up, as the iPad's <c>planqueReady</c>: kept until sign-out, not across launches.</summary>
-    bool planqueReady;
+    /// <summary>
+    /// This PC is set up with planque for the signed-in account and device, as the iPad's <c>planqueReady</c>: kept across
+    /// launches (the iPad keeps it in its Keychain), forgotten at sign-out.
+    /// </summary>
+    bool planqueReady
+    {
+        get => App.Sessions.Kept() is { } s && PlanqueKept.Is(s.Tenant, s.DeviceId);
+        set
+        {
+            if (value && App.Sessions.Kept() is { } s) PlanqueKept.Keep(s.Tenant, s.DeviceId);
+            else if (!value) PlanqueKept.Forget();
+        }
+    }
+
+    /// <summary>
+    /// planque set up before an approval needs it, as the iPad sets it up from the approval itself: with Coach already there,
+    /// Start is one Windows Hello and planque's enrolment, nothing else. Why not, else none.
+    /// </summary>
+    async Task<string?> PlanqueFirstAsync(KeptSession session)
+    {
+        if (planqueReady) return null;
+        var started = await StartCoachAsync(session);
+        return planqueReady ? null : started.Why ?? App.Words.Get("connect.start_connected_tools_first", ("device", App.Words.Get("device.windows")));
+    }
 
     /// <summary>
     /// Start, as the iPad's <c>startSetup</c> (<c>CoachStart</c>): planque set up first with the session's TPM key, as its
@@ -1440,7 +1463,8 @@ public sealed partial class MainWindow : Window
         if (CoachMode.CoachId is not { } coach || session.PasskeyId is not { } passkeyId) return new(null);
         // As the iPad's approveAsked: planque set up by this session first, before anything is sent. It isn't kept across
         // launches here yet, so after one the person starts again from Coach's Start or Connected apps.
-        if (!planqueReady) return new(w.Get("connect.start_connected_tools_first", ("device", w.Get("device.windows"))));
+        // planque set up first, when it isn't yet on this PC: one Windows Hello and its enrolment.
+        if (await PlanqueFirstAsync(session) is { } notReady) return gen == sessions ? new(notReady) : Tafs.Core.Coach.ApproveResult.Stopped;
         var calls = new Tafs.Core.Coach.ApproveCalls(
             async () => { try { return await SetupProofAsync(session); } catch (System.Security.Cryptography.CryptographicException) { return null; } },
             async (path, body, proof) =>
