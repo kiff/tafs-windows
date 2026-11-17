@@ -122,6 +122,28 @@ public sealed record LiveAnswer(string? Session, string? Run, string? MessageId,
     /// words or Coach's note with "…", "Working…", "Waiting for you", nothing at done); before it, the step at work, else
     /// "Thinking…".
     /// </summary>
+    /// <summary>
+    /// The steps done so far, as the iPad's <c>LiveWork</c> draws them under the live line: every step but the one running,
+    /// folded by <see cref="Tafs.Core.Coach.WorkLog.Rows"/> (tries of one step as one row, failures left out while it works, so
+    /// what shows is what got done). A step with no words is left out: the app has nothing to say for it.
+    /// </summary>
+    public IReadOnlyList<Tafs.Core.Coach.WorkRow> DoneRows()
+    {
+        var running = Steps.Select((s, i) => (s, i)).LastOrDefault(x => x.s.Status == "running", (null!, -1)).Item2;
+        var done = Steps.Where((s, i) => i != running && s.Words is { Length: > 0 })
+            .Select(s => (s.Words!, Status(s.Status))).ToList();
+        return Tafs.Core.Coach.WorkLog.Rows(done, running: true);
+    }
+
+    static Tafs.Core.Coach.StepStatus Status(string status) => status switch
+    {
+        "error" => Tafs.Core.Coach.StepStatus.Error,
+        "held" => Tafs.Core.Coach.StepStatus.Held,
+        "not_made" => Tafs.Core.Coach.StepStatus.NotMade,
+        "running" => Tafs.Core.Coach.StepStatus.Running,
+        _ => Tafs.Core.Coach.StepStatus.Done,
+    };
+
     public string? Line(WordBook w) => State switch
     {
         "done" => null,

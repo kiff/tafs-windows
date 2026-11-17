@@ -96,4 +96,26 @@ public class TafChatStreamTests
         Assert.True(broken is { Ended: true, Broken: true });
         Assert.Equal("/v1/tafs/taf%2F1/messages/stream", TafChatStream.Path("taf/1"));
     }
+
+    /// <summary>
+    /// While it works, the steps done under the live line, as the iPad's LiveWork: tries of one step as one row with the last
+    /// one's outcome, failures left out, the running step on the live line only, and a step with no words left out.
+    /// </summary>
+    [Fact]
+    public void While_it_works_the_steps_done_fold_their_tries_and_hide_failures()
+    {
+        var live = LiveAnswer.Start with
+        {
+            Steps =
+            [
+                new LiveStep("c1", "Reading the inbox…", "error", "timeout"),
+                new LiveStep("c2", "Reading the inbox…", "done"),
+                new LiveStep("c3", "Drafting a reply…", "error", "refused"),
+                new LiveStep("c4", null, "done"),
+                new LiveStep("c5", "Sending…", "running"),
+            ],
+        };
+        var rows = live.DoneRows();
+        Assert.Equal([new Tafs.Core.Coach.WorkRow("Reading the inbox…", Tafs.Core.Coach.StepStatus.Done, 2)], rows);
+    }
 }

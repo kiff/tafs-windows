@@ -191,13 +191,8 @@ public sealed partial class TafPage : Page
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetLiveSetting(row, Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite);
             block.Children.Add(row);
         }
-        foreach (var step in answer.Steps.Where(s => s.Words is { Length: > 0 }))
-        {
-            var text = CoachPanel.Words(Tafs.Core.Coach.WorkLog.Past(step.Words!), 12, "TafsDimText");
-            if (step.Status == "error") text.Foreground = brush("TafsNo");
-            block.Children.Add(text);
-            if (step.Why is { } why) block.Children.Add(CoachPanel.Words(why, 12, "TafsSoftText"));
-        }
+        // The steps done so far, as the iPad's LiveWork: tries of one step as one row, failures left out while it works.
+        if (answer.DoneRows() is { Count: > 0 } rows) block.Children.Add(ChatViews.StepList(rows, brush));
         if (answer.Text.Length > 0) block.Children.Add(CoachPanel.Words(answer.Text, 16, "TafsInkText"));
         return block;
     }
