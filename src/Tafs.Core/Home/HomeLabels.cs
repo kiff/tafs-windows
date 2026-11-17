@@ -41,7 +41,7 @@ public static class LabelChips
     public static IReadOnlyList<string> Ids(JsonElement taf) =>
         Lenient.Array(taf, "labels").Where(i => i.ValueKind == JsonValueKind.String).Select(i => i.GetString()!).ToList();
 
-    /// <summary>The first chip: tafs cloud's word, else Home's own "All" (<c>home.labels_all</c>, as the iPad's tafs#1241).</summary>
+    /// <summary>The first chip: tafs cloud's word, else Home's own "All" (<c>home.labels_all</c>, as the iPad's).</summary>
     public static string All(WordBook w, HomeLabels labels) => labels.All ?? w.Get("home.labels_all");
 
     /// <summary>A taf's labels, in the account's order; an id the account doesn't list is left out.</summary>

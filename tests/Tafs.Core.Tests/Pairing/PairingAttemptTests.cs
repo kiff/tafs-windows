@@ -168,7 +168,7 @@ public class PairingAttemptTests
 
     /// <summary>
     /// KIFF answered, then the code expired (or the page closed) while the session was being kept: the passkey KIFF just
-    /// registered is never released (kiff-qa on #109). Before an answer, an expiry releases it once.
+    /// registered is never released (review on #109). Before an answer, an expiry releases it once.
     /// </summary>
     [Fact]
     public void A_passkey_KIFF_answered_for_is_never_released()

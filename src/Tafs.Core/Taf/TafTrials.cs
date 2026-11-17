@@ -75,7 +75,7 @@ public sealed record TrialCalls(Func<HttpMethod, string, byte[]?, Task<CloudRead
     Func<string, Task<(int Status, string Body)>> KiffEnd, Func<bool> Current, Func<Exception, string> Why);
 
 /// <summary>
-/// Trying a version (the iPad's <c>TrialViews</c>, kiff/tafs#173): tafs cloud drafts the version's trial Card, the owner reads
+/// Trying a version (the iPad's <c>TrialViews</c>): tafs cloud drafts the version's trial Card, the owner reads
 /// it, this PC's passkey confirms it in KIFF as a trial, and the trial opens with a chat of its own; Install confirms that Card
 /// live and makes the version live; Go back ends the trial's Card in KIFF and tafs cloud deletes its chat.
 /// </summary>

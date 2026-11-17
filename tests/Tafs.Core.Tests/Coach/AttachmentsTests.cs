@@ -6,7 +6,7 @@ using Tafs.Core.Words;
 
 namespace Tafs.Core.Tests.Coach;
 
-/// <summary>Photos and files on a message (kiff/tafs#209), as the iPad's FilePrep and TafsCloud.attach.</summary>
+/// <summary>Photos and files on a message, as the iPad's FilePrep and TafsCloud.attach.</summary>
 [Part("coach")]
 public class AttachmentsTests
 {

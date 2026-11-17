@@ -131,7 +131,7 @@ public class CoachChatsTests
             (_, _) => Task.FromResult(CloudRead.Of(Json("""{"ok": true}""")))));
     }
 
-    /// <summary>As Android's Chat.steady (kiff/tafs#1233): what's drawn keeps its place, new goes after, gone goes.</summary>
+    /// <summary>As Android's Chat.steady: what's drawn keeps its place, new goes after, gone goes.</summary>
     [Fact]
     public void A_read_again_keeps_the_order_already_drawn()
     {

@@ -1,7 +1,7 @@
 # The Record
 
 The iPad's Record (`RecordView`, `RecordRow`), on Windows: everything the tafs did, were refused, or
-asked, newest first, by day. The reference set's `record.png` (kiff/tafs#1054) is what it's matched
+asked, newest first, by day. The reference set's `record.png` is what it's matched
 against. What it says is in `Tafs.Core.Record` (`RecordScreen`), tested in the `record` part.
 `RecordPage` places it.
 

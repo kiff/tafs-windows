@@ -12,7 +12,7 @@ using Tafs.Core.Words;
 namespace Tafs.Core.Record;
 
 /// <summary>
-/// This PC's check of a KIFF receipt (kiff/tafs#167), as iOS's and Android's <c>ReceiptCheck</c> and KIFF's own verification:
+/// This PC's check of a KIFF receipt, as iOS's and Android's <c>ReceiptCheck</c> and KIFF's own verification:
 /// the signed digest is keccak256(ascii(sha256hex(causal_chain))), and the signer recovered from the 65-byte signature must
 /// be KIFF's. The chain's bytes are taken from the answer as KIFF wrote them, never re-encoded (<see cref="RawJson"/>). Only
 /// the chain is signed: what the sheet shows as checked comes from its steps.
@@ -29,7 +29,7 @@ public abstract record ReceiptCheck
     public sealed record Failed(string Why) : ReceiptCheck;
 
     /// <summary>
-    /// KIFF's receipt signer in production (kiff/tafs#167): one key for every account, the deployer of KIFF's anchor contract
+    /// KIFF's receipt signer in production: one key for every account, the deployer of KIFF's anchor contract
     /// and the sender of its anchor transactions. A rotation ships in a new build first.
     /// </summary>
     public const string KiffSigner = "0x2f297affd7b62ef712a1e3158421ccb4bf2efcbe";

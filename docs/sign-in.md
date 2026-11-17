@@ -43,7 +43,7 @@ the `pairing` part.
 ## Signed out, the whole window (`SignedOut`, `SignedOutPage`, `ConnectedPage`)
 
 The approved mockup (16 Nov), as the iPad's and the
-Mac's `SignInView` (tafs#1240), on tafs#1232's words.
+Mac's `SignInView`, on tafs's shared words.
 
 - **When:** with no session at launch, and after a sign-out, the whole window signs in, over the app; never the app with
   nothing in it. Not over the sample, nor a screenshot of another screen (`SignedOut.AtLaunch`).

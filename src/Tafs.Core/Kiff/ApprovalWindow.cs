@@ -16,7 +16,7 @@ public sealed record OpenWindow(string Id, DateTimeOffset? Expires, bool Open, s
 public sealed record PlanqueApproved(string Status, Uri? SignIn, string? ConfirmCode);
 
 /// <summary>
-/// The approval window a computer's own passkey opens (KIFF's desktop client contract §2.6 and §3, kiff-cloud#1705): one
+/// The approval window a computer's own passkey opens (KIFF's desktop client contract §2.6 and §3): one
 /// Windows Hello opens it (<c>POST /v1/me/window</c>, approved by this PC's passkey's assertion over exactly that request);
 /// inside it, for a few minutes, this session's TPM key signs planque's <c>approve</c> and <c>confirm</c> as taps
 /// (<c>planque.request.v2</c>, with the window's id), with no prompt. KIFF's own approval routes never take a window's tap: a

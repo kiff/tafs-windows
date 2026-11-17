@@ -42,7 +42,7 @@ The iPad's `AppConnectionsView` and its model (`refreshConnections`, `connection
 - **The account's connections** are read with the list: planque's grants, signed by this device as Setup's read is
   (`Planque-Device-Signature`), never with KIFF's token. An app's are those whose `entry` is the app's, or the grant tafs
   cloud names for it, and not ended (`disconnected`, `failed`).
-- **Which rows open them** (`AppConnections.Opens`, as Android's and the iPad's `opensConnections`, kiff/tafs#1219): a
+- **Which rows open them** (`AppConnections.Opens`, as Android's and the iPad's `opensConnections`): a
   connected app always does, and so does one this PC holds a connection to that isn't connected, such as a sign-in kept
   after its card was declined (planque's `listed`), so it can be ended. `connected` keeps its meaning. Such a row ends in a ›
   named "Your Stripe connections"; it opens in the same place, with ‹ Back.
@@ -73,7 +73,7 @@ The iPad's `AppConnectionsView` and its model (`refreshConnections`, `connection
 ## Connecting an app (P9: `ConnectFlow`, `ApprovalWindow`, `ProfileWords`, `ConnectDialog`, `MainWindow.Connect.cs`)
 
 The iPad's `startConnect`, `ConnectApprovalSheet.signIn` and `connect(grantID:shown:)`, for whoever manages a taf, on a PC that
-approves with its own passkey (kiff-cloud#1705). Anyone else sees Connect dimmed.
+approves with its own passkey. Anyone else sees Connect dimmed.
 
 - **Which taf is this for?** Among the tafs tafs cloud says need the app (`needed_by`), else every taf the person manages;
   asked only when there's more than one.

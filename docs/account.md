@@ -59,7 +59,7 @@ The sections, in the iPad's order:
   - **At launch,** `--theme light|dark` wins, for CI's screenshots. A screenshot never reads what this PC kept, so the
     same command gives the same picture anywhere.
 - **Language:** the app's language, by its own name ("Français"), and Change language, which opens the app's own picker,
-  as Android's (tafs#1214):
+  as Android's:
   - **"Language"**, with "This Windows PC's language" first (`settings.language_device`), then English, Deutsch, Français,
     Español, Italiano, Português, Nederlands and Polski, each named in itself (`AppLanguage.Named`), the current one marked.
   - **Choosing one** keeps it in `%LOCALAPPDATA%\tafs\language` (a bare code; this PC's language removes it) and starts tafs
@@ -86,7 +86,7 @@ The sections, in the iPad's order:
 ## Alerts (`AlertPrefs`, `AlertsScreen`, `AlertsPage`)
 
 Ported from the iPad's `NotificationSettingsView` and `LockScreenAlert`, for this PC's own alerts (the notifications a
-held call raises while tafs runs, `needs-you.md`). tafs-macos #68 is a second reference.
+held call raises while tafs runs, `needs-you.md`).
 - **What an alert looks like:** the iPad's two, on the raised colour with corners of 18. Each has the mascot, its title
   and line, and the sound mark: "Chargebacks needs you" with sound, and "Refunds answered maria@…" silent. Narrator reads
   "With sound: …" or "Silent: …".
@@ -108,8 +108,7 @@ held call raises while tafs runs, `needs-you.md`). tafs-macos #68 is a second re
   - Haptics, the phone's.
 ## People & groups (`People`, `PeoplePage`)
 
-Ported from the iPad's `PeopleGroupsView` and `refreshPeople`, first in **People & apps**. tafs-macos #67 is a second
-reference, read-only as here.
+Ported from the iPad's `PeopleGroupsView` and `refreshPeople`, first in **People & apps**, read-only as here.
 - **The read:** `GET /v1/groups`, `GET /v1/tenant/members` and `GET /v1/me` as the session, when it opens and every 20
   seconds while open. A group needs its id, name, members and agents; a person their subject, role and status. A field
   of the wrong kind fails the read, which says "People and groups couldn't be read." with why, over what was shown.
@@ -127,7 +126,7 @@ reference, read-only as here.
 ## Export my chats (`ChatsExport`, `ShareFiles`)
 
 Ported from the iPad's `ExportChatsSection` (ExportChatsView.swift), `AppModel.exportChats` and `TafsCloud.exportChats`
-/ `splitExport`, for a KIFF account, after Language. tafs-macos #79 is a second reference.
+/ `splitExport`, for a KIFF account, after Language.
 - **The read:** `GET /v1/me/chats/export` from tafs cloud, as the session. `readable` is the text file; the rest is the
   JSON file, indented, its keys sorted at every level, slashes and letters left as they are. An answer that isn't an
   object, or a read that fails, says "Your chats weren't exported. Check your connection and try again."

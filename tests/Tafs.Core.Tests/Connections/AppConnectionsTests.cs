@@ -7,8 +7,7 @@ using Tafs.Core.Words;
 namespace Tafs.Core.Tests.Connections;
 
 /// <summary>
-/// An app's connections in Connect apps, as the iPad's AppConnectionsView and its model, and Android's opensConnections
-/// (kiff/tafs#1219).
+/// An app's connections in Connect apps, as the iPad's AppConnectionsView and its model, and Android's opensConnections.
 /// </summary>
 [Part("connections")]
 public class AppConnectionsTests
@@ -20,7 +19,7 @@ public class AppConnectionsTests
 
     static readonly ConnectApp Stripe = new("stripe") { Vendor = "stripe", Title = "Stripe" };
 
-    /// <summary>A sign-in kept after its card was declined (listed) opens the app's connections, so it can be ended (tafs#1219).</summary>
+    /// <summary>A sign-in kept after its card was declined (listed) opens the app's connections, so it can be ended.</summary>
     [Fact]
     public void A_declined_sign_in_s_app_opens_its_connections()
     {

@@ -162,7 +162,7 @@ work, where the iPad's decoder fails the thread.
       buttons, as the iPad's `requestRefused`; the refused digests it keeps aren't on this PC yet.
     - **One approval at a time:** while one goes through, every approval card's buttons are off, as the iPad's
       `connecting`.
-    - **A sign-in wider than the job** (kiff/tafs#1218): where tafs cloud marks the card `wider: {words}` (planque couldn't
+    - **A sign-in wider than the job**: where tafs cloud marks the card `wider: {words}` (planque couldn't
       narrow the sign-in, `usual_access`), its words show in amber after a warning mark, above the buttons, so they're read
       before anyone approves. Blank, or of another shape, is no line. tafs cloud marks it only on a conversation read that
       carries this PC's planque proof (`Planque-Device-Signature`, kiff/tafs `markSigns`, `markWider`), so Coach's
@@ -181,7 +181,7 @@ work, where the iPad's decoder fails the thread.
       app and the passkey, as for Start.
     - **Closed,** nothing is approved and the card says so: "Cancelled, so nothing was approved. The request is kept:
       approve again when you're ready.", as Refuse and Your step do. Start Coach's closed prompt says "Cancelled. Nothing
-      changed." once that word is on the pin (kiff/tafs#1225); until then it says nothing.
+      changed." once that word is on the pin; until then it says nothing.
     - **tafs cloud decides first.** This PC sends what the card showed (the grant, the digest and the Card's version
       shown, its conversation) with planque's read proof (`POST …/components/{card}/approval`). If tafs cloud answers
       Coach itself (`answered`) or the card is out of date (`read_again`), the card shows its note and the thread is read
@@ -227,7 +227,7 @@ work, where the iPad's decoder fails the thread.
 
 ## Taking shape (`CoachShape`, `CoachPanel.Shape.cs`)
 
-As the iPad's `SetupShapePanel` (kiff/tafs#85): beside the conversation, once the panel is 780 across or more
+As the iPad's `SetupShapePanel`: beside the conversation, once the panel is 780 across or more
 (`CoachScreen.Shaping`, its edge's strip aside), a column 420 wide on Coach's deeper blue (`TafsCoachPanel`, the iPad's
 `Theme.coachPanel`) says what the conversation has made so far. It needs Coach's thread and planque (the session's
 grants); narrower, or without them, the conversation is alone. It's read only from what this PC already holds (the
@@ -284,8 +284,7 @@ thread, planque's grants and KIFF's drafts) and asks no server for more; the car
 ## Reporting an answer (`AnswerReport`, `ReportAnswerDialog`)
 
 Ported from the iPad's `ReportAnswerSheet` and `reportable`, `AppModel.canReport`/`reportAnswer`/`ReportOutcome` and
-`TafsCloud.ReportReason`/`reportAnswer` (kiff/tafs#421, Google Play's rule for content an AI generates). tafs-macos #77 is
-a second reference.
+`TafsCloud.ReportReason`/`reportAnswer` (Google Play's rule for content an AI generates).
 - **Which answers:** Coach's, with words, not a run's start, with tafs cloud's id, for a KIFF account. Right-click (or
   the menu key) on one gives **Report this answer**, with its flag. Copy stays on Ctrl+C.
 - **The dialog:** "What's wrong with it?" with Offensive, Harmful, Wrong and Other; the note ("Add a note (optional)"),

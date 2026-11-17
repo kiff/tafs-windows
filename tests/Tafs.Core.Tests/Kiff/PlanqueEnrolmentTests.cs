@@ -8,7 +8,7 @@ using Tafs.Core.Words;
 namespace Tafs.Core.Tests.Kiff;
 
 /// <summary>
-/// Setting this device up with planque, as the iPad's setUpPlanque and enrolPlanque with iOS #1106: planque asked first
+/// Setting this device up with planque, as the iPad's setUpPlanque and enrolPlanque: planque asked first
 /// with no key, a key minted only when planque needs one. Nothing here reaches planque or KIFF: both are stubs.
 /// </summary>
 [Part("approvals")]

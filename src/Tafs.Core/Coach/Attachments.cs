@@ -10,7 +10,7 @@ namespace Tafs.Core.Coach;
 public sealed record FileUpload(Uri Url, string Method, IReadOnlyDictionary<string, string> Headers);
 
 /// <summary>
-/// What a person may attach to a message, and making it ready (kiff/tafs#209, docs/attachments.md), as the iPad's
+/// What a person may attach to a message, and making it ready (docs/attachments.md), as the iPad's
 /// <c>FilePrep</c>: the types and limits kiff/agents keeps, checked here first so a file over its limit is refused before any
 /// upload; five a message. Every image goes as a JPEG redrawn on this PC (<see cref="LongEdge"/>), so it carries only its pixels.
 /// </summary>

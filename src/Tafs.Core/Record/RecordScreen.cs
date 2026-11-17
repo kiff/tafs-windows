@@ -42,7 +42,7 @@ public static class EntryKinds
 /// <summary>A line's dot's colour: green, amber or red.</summary>
 public enum Dot { Went, Waiting, Stopped }
 
-/// <summary>The Record's filters, as the iPad's (kiff/tafs#167).</summary>
+/// <summary>The Record's filters, as the iPad's.</summary>
 public enum RecordFilter { All, MoneyMoved, Stopped, Waiting }
 
 /// <summary>One day of the Record: its eyebrow ("TODAY · NOV 15") and its lines, newest first.</summary>

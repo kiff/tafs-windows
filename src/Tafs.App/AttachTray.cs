@@ -10,7 +10,7 @@ using Windows.Storage.Streams;
 namespace Tafs.App;
 
 /// <summary>
-/// The files picked for the next message, in a taf's chat or Coach mode (P5, kiff/tafs#209, docs/attachments.md), as the
+/// The files picked for the next message, in a taf's chat or Coach mode (P5, docs/attachments.md), as the
 /// iPad's <c>AttachViews</c>: the paperclip picks up to five; each is made ready on this PC (an image redrawn as a JPEG on
 /// white, its long edge at most 2,576, so only its pixels go), declared to tafs cloud, and its bytes go straight to storage
 /// with no session. The tray shows each going up, ready, or why not, with Remove.

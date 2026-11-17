@@ -6,7 +6,7 @@ using Tafs.Core.Coach;
 namespace Tafs.App;
 
 /// <summary>
-/// "Taking shape" (P31), as the iPad's <c>SetupShapePanel</c> (kiff/tafs#85): beside Coach's conversation on a wide panel,
+/// "Taking shape" (P31), as the iPad's <c>SetupShapePanel</c>: beside Coach's conversation on a wide panel,
 /// what it has made so far, read only from what this PC holds (<see cref="CoachShape"/>): the taf's name, the plan, the
 /// tools it connects and the Card KIFF drafted. The cards to answer stay in the conversation.
 /// </summary>

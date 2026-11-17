@@ -21,7 +21,7 @@ public static class AppConnections
         grants.Where(g => (g.Entry == app.Entry || (app.Grant is { } id && g.Id == id)) && g.Status is not ("disconnected" or "failed")).ToList();
 
     /// <summary>
-    /// Whether an app's row opens its connections, as Android's and the iPad's <c>opensConnections</c> (kiff/tafs#1219): a
+    /// Whether an app's row opens its connections, as Android's and the iPad's <c>opensConnections</c>: a
     /// connected app always does, and so does one this PC holds a connection to that isn't connected (a sign-in kept after its
     /// card was declined, planque's <c>listed</c>), so its Remove access is in reach. <c>connected</c> keeps its meaning.
     /// </summary>

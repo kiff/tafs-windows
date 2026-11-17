@@ -117,7 +117,7 @@ public class CoachContractTests
     }
 
     /// <summary>
-    /// tafs cloud's own <c>coach-wider.json</c> (kiff/tafs#1263): the conversation as a proven read answers it, its approval
+    /// tafs cloud's own <c>coach-wider.json</c>: the conversation as a proven read answers it, its approval
     /// marked <c>wider</c>. Windows reads tafs cloud's words on the card, as sent.
     /// </summary>
     [Fact]

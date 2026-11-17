@@ -18,7 +18,7 @@ public sealed record ShapeTool(string Id, string Vendor, ShapeToolState State, s
 public sealed record ShapeCard(string Title, IReadOnlyList<string> Lines, bool Confirmed);
 
 /// <summary>
-/// What Coach's conversation has made so far, for "Taking shape" beside it on a wide panel (kiff/tafs#85), as the iPad's
+/// What Coach's conversation has made so far, for "Taking shape" beside it on a wide panel, as the iPad's
 /// <c>SetupShape</c>: the taf's name, the plan, the tools it connects and the Card KIFF drafted. Read only from what this PC
 /// already holds (the thread, planque's grants and KIFF's drafts); nothing here asks a server for more.
 /// </summary>

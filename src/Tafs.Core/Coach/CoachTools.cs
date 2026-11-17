@@ -34,7 +34,7 @@ public sealed record CoachTools(string State, string? Taken, StartRequest? Conne
                 .Where(c => c.Title is not null || c.Lines.Count > 0).Select(c => new CardWords(c.Title ?? "", c.Lines)).ToList();
             return new(name, "POST", path, gateway, Encoding.UTF8.GetBytes(body.GetRawText()), lines, Lenient.Text(r, "card_title"), cards);
         }
-        // A Coach that exists, with tools and Cards missing: the pair, signed once, as a first start's (kiff/tafs#881). Only one
+        // A Coach that exists, with tools and Cards missing: the pair, signed once, as a first start's. Only one
         // this PC may sign, with KIFF's words for the Cards.
         var pair = Lenient.Field(t, "requests") is { ValueKind: JsonValueKind.Array } ? FirstStart.Read(Wrap(t)) : null;
         var together = pair is { Together: true, Startable: true } ? pair : null;
