@@ -1090,6 +1090,11 @@ public sealed partial class TafPage : Page
             lines.Children.Add(line);
         }
         if (shown.Rules.Count > 0) CardPane.Children.Add(Panel(lines));
+        // Its totals for each item apart ("1 call in any 7 days for each invoice id"), as tafs cloud says them.
+        foreach (var each in shown.EachItem ?? []) CardPane.Children.Add(Words(each, 14, "TafsInkText"));
+        // How KIFF counts each of its tools, as the owner approved it: its own screen, as the iPad's CountedView.
+        if (shown.Counted is { Count: > 0 })
+            CardPane.Children.Add(CardRow(w.Get("card.how_counted"), null, "\uE8FD", "card-counted", CardScreen.Counted));
 
         // A revoked taf can't be halted. Remove for good is on Setup, as the iPad's.
         if (revoked) return;

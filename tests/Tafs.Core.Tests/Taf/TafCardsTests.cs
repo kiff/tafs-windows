@@ -30,6 +30,26 @@ public class TafCardsTests
         Assert.Equal(TafCards.Read(En, Card("home.json")).Select(c => c.Id), TafCards.Shown(En, Card("home.json"), "Refunds").Select(c => c.Id));
     }
 
+    /// <summary>How this is counted and the totals for each item apart: KIFF's and tafs cloud's words, as they are.</summary>
+    [Fact]
+    public void A_Card_carries_how_it_is_counted_and_its_totals_for_each_item()
+    {
+        var card = Assert.Single(TafCards.Read(En, JsonDocument.Parse("""
+            {"cards": [{"id": "crd_1", "title": "Inbox", "rules": [],
+              "counted": [{"tool": "gmail_list", "title": "List emails", "lines": ["Each list is one call.", " ", 3]},
+                          {"tool": "gmail_read", "title": "", "lines": ["no title"]},
+                          {"tool": "gmail_send", "title": "Send", "lines": []}],
+              "each_item": ["1 call in any 7 days for each invoice id", "  "]},
+             {"id": "crd_2", "title": "Plain", "rules": [], "counted": []}]}
+            """).RootElement).Take(1));
+        Assert.Equal("List emails", Assert.Single(card.Counted!).Title);
+        Assert.Equal(["Each list is one call."], card.Counted![0].Lines);
+        Assert.Equal(["1 call in any 7 days for each invoice id"], card.EachItem);
+        var plain = TafCards.Read(En, JsonDocument.Parse("""{"cards": [{"id": "crd_2", "title": "Plain", "rules": [], "counted": []}]}""").RootElement)[0];
+        Assert.Null(plain.Counted);
+        Assert.Empty(plain.EachItem!);
+    }
+
     /// <summary>
     /// Each sample taf's Card holds its template's rules, in the iPad's TafTemplates order, so its Card tab lists them;
     /// Refunds keeps its own Card.
