@@ -343,26 +343,26 @@ public sealed partial class TafPage
         return row;
     }
 
-    /// <summary>tafs' own places set at once; the live taf's places as tafs cloud answers them, else they stay as they were.</summary>
     /// <summary>
-    /// A schedule's size, as the iPad's <c>SizeStepper</c>: "How often · Every hour", with − and + through the choices tafs
-    /// cloud offers, each sending its whole setting; only from the newest draft this PC knows.
+    /// A schedule's size, as the iPad's <c>SizeStepper</c>: "Time · 08:00" in the middle, 15 semibold, between a wide − and a
+    /// wide +, three equal parts of the row, through the choices tafs cloud offers, each sending its whole setting; only from
+    /// the newest draft this PC knows. For anyone who can't change it, the words alone.
     /// </summary>
     UIElement SizeStepper(TafKnob k, KnobSize size, bool manages)
     {
         var w = App.Words;
-        var row = new Grid { ColumnSpacing = 8 };
-        row.ColumnDefinitions.Add(new ColumnDefinition());
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var shown = Words(size.Shown, 13, "TafsSoftText");
-        shown.VerticalAlignment = VerticalAlignment.Center;
+        if (!manages || opening?.CloudId is not { } id) return Words(size.Shown, 13, "TafsSoftText");
+        var row = new Grid { ColumnSpacing = 12 };
+        for (var i = 0; i < 3; i++) row.ColumnDefinitions.Add(new ColumnDefinition());
+        var shown = Words(size.Shown, 15, "TafsInkText");
+        (shown.FontWeight, shown.VerticalAlignment, shown.HorizontalAlignment, shown.TextAlignment) =
+            (Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment.Center, HorizontalAlignment.Center, TextAlignment.Center);
+        Grid.SetColumn(shown, 1);
         row.Children.Add(shown);
-        if (!manages || opening?.CloudId is not { } id) return row;
-        foreach (var (direction, glyph, key, column) in new[] { (-1, "−", "knob.lower", 1), (1, "+", "knob.raise", 2) })
+        foreach (var (direction, glyph, key, column) in new[] { (-1, "−", "knob.lower", 0), (1, "+", "knob.raise", 2) })
         {
             var choice = size.Moving(direction);
-            var b = new Button { Content = glyph, Style = Look("TafsOutlineButton"), MinWidth = 40,
+            var b = new Button { Content = glyph, Style = Look("TafsOutlineButton"), HorizontalAlignment = HorizontalAlignment.Stretch, FontSize = 20,
                 IsEnabled = !knobBusy && choice is not null && k.AcceptsChoices(knobChange?.Version) };
             AutomationProperties.SetName(b, w.Get(key) + ", " + size.Label);
             if (choice is not null) b.Click += async (_, _) => await ChangeDialAsync(id, TafKnob.SettingBody(choice.Setting));
@@ -407,6 +407,7 @@ public sealed partial class TafPage
         if (sent is not null) ShowSetup();
     }
 
+    /// <summary>tafs' own places set at once; the live taf's places as tafs cloud answers them, else they stay as they were.</summary>
     async Task SetPlacesAsync(string id, IReadOnlyList<string> places)
     {
         var sent = await ChangeAsync(HttpMethod.Put, TafKnob.ResultsPath(id), ResultPlaces.Body(places));
