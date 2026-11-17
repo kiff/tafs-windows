@@ -88,8 +88,10 @@ public sealed record ThreadItem(ChatMessage? Message, ShownCard? Card)
 }
 
 /// <summary>Coach's thread, as tafs cloud answers <c>…/conversation</c>: its messages, its cards, its lines, and the session at work.</summary>
+/// <param name="WorkingRun">The run at work (<c>working.run</c>): a message written now goes to it (<see cref="Taf.TafSteer"/>).</param>
+/// <param name="Steering">What the thread says of messages written while it works.</param>
 public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyList<CoachLine> Lines, string? Working,
-    IReadOnlyList<ShownCard>? Cards = null)
+    IReadOnlyList<ShownCard>? Cards = null, string? WorkingRun = null, Taf.Steering? Steering = null)
 {
     public IReadOnlyList<ShownCard> Shown => Cards ?? [];
 
@@ -115,7 +117,8 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
             .OfType<CoachLine>().ToList();
         // A card the app can't read is left out, never the thread with it.
         var cards = ShownCard.Fold(Lenient.Array(answer, "components").Select(ShownCard.Read).OfType<ShownCard>());
-        return new(messages, lines, Lenient.Text(Lenient.Field(answer, "working") ?? default, "session"), cards);
+        return new(messages, lines, Lenient.Text(Lenient.Field(answer, "working") ?? default, "session"), cards,
+            Taf.TafSteer.WorkingRun(answer), Taf.TafSteer.Read(answer));
     }
 
     static ChatMessage? Message(JsonElement m)

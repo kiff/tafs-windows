@@ -262,6 +262,8 @@ public sealed partial class TafPage : Page
     /// </summary>
     async Task<bool?> SendTextAsync(string text)
     {
+        // While it works, words alone go to the run at work, once (P34, the iPad's submitChat); files go on their own after.
+        if (text.Trim().Length > 0 && ReadyFiles().Count == 0 && SteerRun() is { } run) return await SteerAsync(run, text);
         if (sending || opening is not { CloudId: { } id, Send: { } send } mine) return null;
         var w = App.Words;
         var pending = TafChatSend.Pending(text, chat?.Messages ?? [], DateTimeOffset.UtcNow);
@@ -306,6 +308,76 @@ public sealed partial class TafPage : Page
         (unsent, var at) = Unsent.Take(unsent, m.Id);
         if (await SendTextAsync(m.Text) is null) unsent = Unsent.PutBack(unsent, m, at);
         ShowChat();
+    }
+
+    /// <summary>
+    /// The run a message written now goes to: the answer streaming here, else the thread's run at work. None for a trial's
+    /// chat, or while the message that starts the run is still on its way (no run yet: it stays in the box).
+    /// </summary>
+    string? SteerRun() => opening is { InTrial: null, CloudId: not null, Send: not null } && (live?.Run ?? chat?.WorkingRun) is { Length: > 0 } run
+        && (sending || chat?.WorkingRun is not null) ? run : null;
+
+    /// <summary>
+    /// Words to the run at work, as the iPad's <c>submitChat</c>: taken, or kept by tafs cloud (sent at once, or held until
+    /// the taf is done), then the thread is read again, which shows where they are. More than tafs cloud holds: its words, and
+    /// they stay in the box. Not reached: kept in the thread as not sent, with Retry; never sent again on its own.
+    /// </summary>
+    async Task<bool?> SteerAsync(string run, string text)
+    {
+        if (opening is not { CloudId: { } id, Send: { } send } mine) return null;
+        var w = App.Words;
+        chatNote = null;
+        var steered = await TafSteer.SteerAsync(w, id, run, text, send);
+        if (opening != mine) return null;
+        switch (steered)
+        {
+            case Steered.Full full:
+                (chatNote, chatNoteIsError) = (full.Why, true);
+                ShowChat();
+                return null;
+            case Steered.Refused { Why.Consent: true }:
+                ShowChat();
+                return null;
+            case Steered.Refused refused:
+                unsent.Add(UnsentMessage.Of(text, refused.Why.Why, DateTimeOffset.UtcNow, refused.Why.Halted));
+                ShowChat();
+                return false;
+            default:
+                // Shown where the thread puts it once read: untaken under the run, or held for after.
+                if (steered is Steered.Taken) steeredNow.Add(new SteerMessage(text, DateTimeOffset.UtcNow));
+                ShowChat();
+                await LoadChatAsync();
+                return true;
+        }
+    }
+
+    /// <summary>What this page wrote to the run that the thread doesn't show yet: shown at once, as the iPad's.</summary>
+    readonly List<SteerMessage> steeredNow = [];
+
+    /// <summary>
+    /// What the thread says of messages written while it works (the iPad's steering rows): each the run hasn't read, on the
+    /// right, with "Refunds reads this at its next step" (or "…when it carries on"); what waits until it's done, with "Waits
+    /// until it's done, then goes as your next message"; what a stopped run never read, with tafs cloud's why.
+    /// </summary>
+    void AddSteering(Func<string, Microsoft.UI.Xaml.Media.Brush> brush)
+    {
+        var w = App.Words;
+        var name = opening?.Head.Name ?? "";
+        var steering = chat?.Steering;
+        // Shown at once until the thread has it: then the thread's own.
+        steeredNow.RemoveAll(s => steering?.Untaken.Any(u => u.Text == s.Text) == true || chat?.WorkingRun is null && !sending);
+        void Row(string text, string line, bool error = false)
+        {
+            var said = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0) };
+            said.Children.Add(ChatViews.OwnerBubble(text, brush));
+            var under = CoachPanel.Words(line, 12, error ? "TafsNoText" : "TafsDimText", HorizontalAlignment.Right);
+            said.Children.Add(under);
+            ChatPane.Children.Add(said);
+        }
+        foreach (var m in (steering?.Untaken ?? []).Concat(steeredNow))
+            Row(m.Text, TafSteer.ReadsLine(w, name, steering?.Paused == true));
+        if (steering?.Held is { } held) Row(held.Text, w.Get("chat.held"));
+        foreach (var m in steering?.NotSent ?? []) Row(m.Text, m.Why, error: true);
     }
 
     /// <summary>Edit, as the iPad's <c>editUnsentChat</c>: out of the thread, its words in the box to change.</summary>
@@ -470,6 +542,8 @@ public sealed partial class TafPage : Page
             if (m.RefusedLines is { } refused) lines.Children.Add(ChatViews.RefusedLines(refused, Brush));
             ChatPane.Children.Add(lines);
         }
+        // Written while it works: what the run hasn't read, what waits for after, what a stopped run never read.
+        AddSteering(Brush);
         // What tafs cloud didn't take, after the thread, where it was written.
         foreach (var m in unsent)
             ChatPane.Children.Add(ChatViews.UnsentBubble(w, m, Brush, sending, () => RetryUnsent(m), () => EditUnsent(m), () => DeleteUnsent(m),
