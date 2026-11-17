@@ -116,7 +116,8 @@ public sealed partial class DevicesPage : Page
                 signOut.Click += async (_, _) =>
                 {
                     var named = device.Name is { } n ? w.Get("settings.devices.sign_out_named", ("device", n)) : w.Get("settings.devices.sign_out_this");
-                    if (!await AskAsync(named, w.Get("settings.devices.sign_out"))) return;
+                    // Its last use under the question: two devices with one name read apart.
+                    if (!await AskAsync(named, w.Get("settings.devices.sign_out"), used.Text)) return;
                     await RemoveAsync(Devices.DevicePath(device.Id),
                         w.Get("settings.devices.sign_out_prompt", ("device", device.Name ?? w.Get("settings.devices.this_device"))), Error);
                 };
@@ -174,12 +175,13 @@ public sealed partial class DevicesPage : Page
         return button;
     }
 
-    /// <summary>The iPad's confirmation: its question, then the act, or Cancel.</summary>
-    async Task<bool> AskAsync(string question, string act)
+    /// <summary>The iPad's confirmation: its question, then the act, or Cancel; <paramref name="detail"/> under the question.</summary>
+    async Task<bool> AskAsync(string question, string act, string? detail = null)
     {
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot, RequestedTheme = ActualTheme, Title = question, PrimaryButtonText = act,
+            Content = detail is null ? null : new TextBlock { Text = detail, TextWrapping = TextWrapping.Wrap, Style = Look("TafsSoftText") },
             CloseButtonText = App.Words.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
         };
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
