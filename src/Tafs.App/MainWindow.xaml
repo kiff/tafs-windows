@@ -99,6 +99,28 @@
     </NavigationView>
     <!-- Coach mode: over everything, the sidebar too, as on the iPad. -->
     <local:CoachPanel x:Name="CoachMode" Visibility="Collapsed" />
+    <!-- A sheet over the window, as the iPad's (Explore jobs): the window dimmed behind it, Close and its title on top. -->
+    <Grid x:Name="Sheet" Visibility="Collapsed">
+      <Border Background="#66000000" Tapped="OnSheetDim" />
+      <Border Width="580" Margin="0,48" CornerRadius="24" Background="{ThemeResource TafsBackground}" BorderBrush="{ThemeResource TafsLine}"
+              BorderThickness="1" HorizontalAlignment="Center">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <Grid Padding="16,14">
+            <Button x:Name="SheetClose" Click="OnSheetClose" HorizontalAlignment="Left" MinHeight="36" Padding="16,6"
+                    Style="{StaticResource TafsOutlineButton}" Foreground="{ThemeResource TafsAmberText}"
+                    AutomationProperties.AutomationId="sheet.close" />
+            <TextBlock x:Name="SheetTitle" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Margin="96,0" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource TafsInk}"
+                       AutomationProperties.HeadingLevel="Level1" />
+          </Grid>
+          <Frame x:Name="SheetFrame" Grid.Row="1" />
+        </Grid>
+      </Border>
+    </Grid>
     <!-- Signed out, and the celebration after signing in: the whole window, over the app. -->
     <Frame x:Name="Gate" Visibility="Collapsed" />
   </Grid>

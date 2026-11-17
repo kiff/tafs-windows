@@ -1820,9 +1820,32 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>The sidebar row of the screen showing, which Explore jobs' sheet goes back to without drawing it again.</summary>
+    NavigationViewItem? screenRow;
+
+    /// <summary>The selection going back to <see cref="screenRow"/> after the sheet opened: nothing to draw.</summary>
+    bool restoringRow;
+
     void OnSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is not NavigationViewItem item) return;
+        if (restoringRow)
+        {
+            restoringRow = false;
+            return;
+        }
+        // Explore jobs is a sheet over the screen: the row opens it, and the sidebar stays on the screen beneath.
+        if (item.Tag is GalleryRow sheet)
+        {
+            OpenGallery(sheet);
+            if (screenRow is not null)
+            {
+                restoringRow = true;
+                Nav.SelectedItem = screenRow;
+            }
+            return;
+        }
+        screenRow = item;
         ShowAccountChosen(false);
         // Another screen chosen: Needs you's row opens the brief again.
         if (item != needsYouRow) needsYouUnderBrief = false;
@@ -1850,7 +1873,7 @@ public sealed partial class MainWindow : Window
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
         else if (item.Tag is TafRow trial && TrialFromRow(trial.Key) is { } inTrial) Pages.Navigate(typeof(TafPage), inTrial);
         else if (item.Tag is TafRow taf) Pages.Navigate(typeof(TafPage), OpenTaf(App.Words, taf.Key));
-        else if (item.Tag is GalleryRow job) OpenGallery(job);
+
         else Pages.Navigate(typeof(ComingPage), item.Content);
     }
 
