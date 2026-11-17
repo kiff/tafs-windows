@@ -10,8 +10,55 @@ public sealed record NewPasskey(byte[] CredentialId, byte[] PublicKeyDer)
     public PasskeyCreationProof? Proof { get; init; }
 }
 
-/// <summary>What the create returned, kept as it is: KIFF reads the credential from it and checks the challenge.</summary>
-public sealed record PasskeyCreationProof(byte[] ClientDataJson, byte[] AttestationObject);
+/// <summary>
+/// The creation proof KIFF takes: the create's clientDataJSON, kept as it is (KIFF checks its type, origin and challenge),
+/// and an attestation object with no attestation (KIFF reads the credential from its authenticator data).
+/// </summary>
+public sealed record PasskeyCreationProof(byte[] ClientDataJson, byte[] AttestationObject)
+{
+    /// <summary>
+    /// The proof with the attestation object built here from the authenticator data the create returned:
+    /// <c>{"fmt": "none", "attStmt": {}, "authData": …}</c>, as WebAuthn's "none" conveyance writes it. KIFF takes only
+    /// <c>fmt</c> "none" with an empty <c>attStmt</c>, and refuses any other as <c>credential_proof_invalid</c>, so whatever
+    /// statement the authenticator's own object carries never reaches it. The authenticator data goes as it came.
+    /// </summary>
+    public static PasskeyCreationProof WithNoAttestation(byte[] clientDataJson, byte[] authenticatorData) =>
+        new(clientDataJson, NoneAttestation(authenticatorData));
+
+    /// <summary>
+    /// CBOR, in CTAP2's canonical order (shorter keys first): a map of three, <c>fmt</c> "none", <c>attStmt</c> an empty
+    /// map, <c>authData</c> the bytes.
+    /// </summary>
+    public static byte[] NoneAttestation(byte[] authenticatorData)
+    {
+        var cbor = new List<byte> { 0xA3 };
+        Text(cbor, "fmt");
+        Text(cbor, "none");
+        Text(cbor, "attStmt");
+        cbor.Add(0xA0);
+        Text(cbor, "authData");
+        Head(cbor, 2, authenticatorData.Length);
+        cbor.AddRange(authenticatorData);
+        return [.. cbor];
+    }
+
+    static void Text(List<byte> cbor, string text)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(text);
+        Head(cbor, 3, bytes.Length);
+        cbor.AddRange(bytes);
+    }
+
+    /// <summary>A CBOR head: the major type and the length, in the fewest bytes.</summary>
+    static void Head(List<byte> cbor, int major, int length)
+    {
+        var m = (byte)(major << 5);
+        if (length < 24) cbor.Add((byte)(m | length));
+        else if (length <= byte.MaxValue) cbor.AddRange([(byte)(m | 24), (byte)length]);
+        else if (length <= ushort.MaxValue) cbor.AddRange([(byte)(m | 25), (byte)(length >> 8), (byte)length]);
+        else cbor.AddRange([(byte)(m | 26), (byte)(length >> 24), (byte)(length >> 16), (byte)(length >> 8), (byte)length]);
+    }
+}
 
 /// <summary>
 /// Reads the authenticator data of a newly made passkey (attested credential data, then the COSE key)
