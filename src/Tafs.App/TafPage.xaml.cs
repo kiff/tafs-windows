@@ -587,6 +587,7 @@ public sealed partial class TafPage : Page
         {
             if (setupScreen == SetupScreen.StartsWhen) ShowStartsWhen();
             else if (setupScreen == SetupScreen.ResultsGoTo) ShowResultsGoTo();
+            else if (setupScreen == SetupScreen.Door) ShowDoor();
             else ShowCloudSetup(setup);
             return;
         }
