@@ -34,6 +34,9 @@ public static class HelloState
             };
         }
         catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException) { now = HelloReadiness.Ready; }
+        // Only a change redraws the gates: the window is activated again each time Windows Hello's own prompt closes, in the
+        // middle of the approval that asked for it, and nothing must move then.
+        if (now == Readiness) return;
         Readiness = now;
         Changed?.Invoke();
     }
@@ -41,6 +44,7 @@ public static class HelloState
     /// <summary>A sign-out: ready again until asked for the next session.</summary>
     public static void Forget()
     {
+        if (Readiness == HelloReadiness.Ready) return;
         Readiness = HelloReadiness.Ready;
         Changed?.Invoke();
     }
@@ -85,9 +89,10 @@ public static class ApprovalGate
 
     /// <summary>
     /// A dialog whose primary button approves, as the iPad's <c>ApprovalNotice</c>: while Hello can't confirm, the line and its
-    /// buttons above the dialog's content, and the primary button off until a check finds it ready. A dialog that turns its
-    /// button on and off itself passes its own <paramref name="redraw"/>, which reads <see cref="Ready"/>; it's called again
-    /// with each answer from Windows.
+    /// buttons above the dialog's content, and the primary button off until a check finds it ready. The notice only ever turns
+    /// the button off; it turns it back on only where it was the one that turned it off, so a dialog busy approving (its button
+    /// off while it signs) is never turned back on by a check. A dialog that turns its button on and off itself passes its own
+    /// <paramref name="redraw"/>, which reads <see cref="Ready"/> and its own busy state; it's called again with each change.
     /// </summary>
     public static void Notice(ContentDialog dialog, Action? redraw = null)
     {
@@ -95,14 +100,15 @@ public static class ApprovalGate
         var content = new StackPanel { Spacing = 12, Children = { notice } };
         if (dialog.Content is UIElement before) content.Children.Add(before);
         dialog.Content = content;
-        var wanted = dialog.IsPrimaryButtonEnabled;
+        var offByNotice = false;
         void Draw()
         {
             var notReady = HelloGate.NotReady(App.Words, HelloState.Readiness);
             notice.Content = notReady is null ? null : NotReadyView(notReady);
             notice.Visibility = notReady is null ? Visibility.Collapsed : Visibility.Visible;
             if (redraw is not null) redraw();
-            else dialog.IsPrimaryButtonEnabled = wanted && notReady is null;
+            else if (notReady is not null && dialog.IsPrimaryButtonEnabled) (dialog.IsPrimaryButtonEnabled, offByNotice) = (false, true);
+            else if (notReady is null && offByNotice) (dialog.IsPrimaryButtonEnabled, offByNotice) = (true, false);
         }
         Draw();
         void OnChanged() => dialog.DispatcherQueue?.TryEnqueue(Draw);

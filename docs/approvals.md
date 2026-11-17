@@ -111,6 +111,11 @@ in its place, so the person learns it before the prompt, not from a failure afte
   Approve, Install this version (a version's and a trial's), Share, Coach's tools, Remove for good, and Devices' Sign
   out and Remove.
 - **Your step** keeps its own line ("…to answer here, or answer on your phone"), from the same value.
+- **Nothing moves mid-approval.** Windows Hello's prompt is its own window, so tafs's window is activated again when it
+  closes, in the middle of the approval that asked for it. A check then redraws only if the answer changed. And a
+  dialog's notice only ever turns its button off, back on only where it turned it off itself, so a dialog busy approving
+  (its button off while it signs) is never turned back on. Dialogs with their own redraw keep their busy state in it
+  (Share's `sharingNow`, an app event's `signing`, Connect's and the key's `busy`).
 
 ## A taf's Cards before they're confirmed (`KiffDrafts`)
 
