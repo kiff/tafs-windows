@@ -158,8 +158,7 @@ public sealed partial class TafPage
         if (tab == TafTab.Card && cardScreen == CardScreen.Usage) ShowCards();
     }
 
-    /// <summary>Its credits this period, in tafs cloud's words, then its runs newest first, More while there are more.</summary>
-/// <summary>
+    /// <summary>
     /// How this is counted, as the iPad's <c>CountedView</c>: for each tool the front Card covers with a profile the owner
     /// approved, its title, then KIFF's lines for it, the same lines approved. The app adds no words of its own.
     /// </summary>
@@ -178,6 +177,7 @@ public sealed partial class TafPage
         }
     }
 
+    /// <summary>Its credits this period, in tafs cloud's words, then its runs newest first, More while there are more.</summary>
     void ShowCredits(Tafs.Core.Words.WordBook w)
     {
         var title = Words(w.Get("usage.label"), 22, "TafsInkText");
