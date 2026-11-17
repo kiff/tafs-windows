@@ -16,6 +16,7 @@ using System.Runtime.InteropServices;
 public static class Screen {
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+  [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hwnd, uint msg, IntPtr w, IntPtr l);
 }
 '@
 [void][Screen]::SetProcessDPIAware()
@@ -34,11 +35,14 @@ function Find-Window {
     $class = New-Object System.Windows.Automation.PropertyCondition($ua::ClassNameProperty, 'WixStdBA')
     $ua::RootElement.FindFirst($tree::Children, $class)
 }
+# WiX's buttons are Win32 Buttons that UI Automation shows as panes with no Invoke, so they're found by their window class
+# and name, and pressed with BM_CLICK.
 function Find-Button($window, [string] $name) {
-    $button = New-Object System.Windows.Automation.PropertyCondition($ua::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
+    $button = New-Object System.Windows.Automation.PropertyCondition($ua::ClassNameProperty, 'Button')
     $named = New-Object System.Windows.Automation.PropertyCondition($ua::NameProperty, $name)
     $window.FindFirst($tree::Descendants, (New-Object System.Windows.Automation.AndCondition($button, $named)))
 }
+function Press($button) { [void][Screen]::SendMessage([IntPtr]$button.Current.NativeWindowHandle, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero) }
 function Wait-For([scriptblock] $what, [int] $seconds, [string] $why) {
     $until = (Get-Date).AddSeconds($seconds)
     while ((Get-Date) -lt $until) { $found = & $what; if ($found) { return $found }; Start-Sleep -Milliseconds 500 }
@@ -60,11 +64,11 @@ try {
     $window = Wait-For { Find-Window } 60 'the setup window'
     $installButton = Wait-For { Find-Button $window $install } 60 "the '$install' button"
     Save-Window $window (Join-Path $Out "setup-$Lang-first.png")
-    $installButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Press $installButton
     # The finished screen is the one with Open tafs; a failed one has only Close.
     [void](Wait-For { Find-Button $window $open } 300 "the '$open' button, the finished screen")
     Save-Window $window (Join-Path $Out "setup-$Lang-last.png")
-    (Find-Button $window $close).GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+    Press (Find-Button $window $close)
     if (-not $p.WaitForExit(60000)) { throw 'the setup did not close' }
 }
 finally {
