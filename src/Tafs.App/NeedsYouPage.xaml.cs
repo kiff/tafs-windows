@@ -191,17 +191,26 @@ public sealed partial class NeedsYouPage : Page
                 panel.Children.Add(allow);
             }
         }
-        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        // The other answers side by side at equal width across the card, Refuse last, as the iPad's.
+        var answers = new List<Button>();
         foreach (var step in call.NextSteps)
         {
             var next = Button(step, "TafsOutlineButton", sending);
             next.Click += (_, _) => HeldAnswerChosen?.Invoke(call, new HeldAnswer.NextStep(step));
-            row.Children.Add(next);
+            answers.Add(next);
         }
         var refuse = Button(w.Get("needs_you.refuse"), "TafsOutlineButton", sending);
         refuse.Foreground = ThemeBrush("TafsNo");
         refuse.Click += (_, _) => HeldAnswerChosen?.Invoke(call, new HeldAnswer.Refuse());
-        row.Children.Add(refuse);
+        answers.Add(refuse);
+        var row = new Grid { ColumnSpacing = 8 };
+        foreach (var (answer, at) in answers.Select((b, i) => (b, i)))
+        {
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            answer.HorizontalAlignment = HorizontalAlignment.Stretch;
+            Grid.SetColumn(answer, at);
+            row.Children.Add(answer);
+        }
         panel.Children.Add(row);
         return panel;
     }
@@ -216,7 +225,9 @@ public sealed partial class NeedsYouPage : Page
             add.Click += OnAddThisDevice;
             return new StackPanel { Spacing = 8, Children = { Line(gate.Lead, 13, "TafsSoftText"), add } };
         }
+        // One full-width gradient button across the card, as the iPad's.
         var b = Button(w.Get(key, ("biometry", "Windows Hello")), "TafsPrimary", sending);
+        b.HorizontalAlignment = HorizontalAlignment.Stretch;
         b.Click += (_, _) => HeldAnswerChosen?.Invoke(call, answer);
         // Windows Hello not ready here: why and what to do, in the button's place.
         return ApprovalGate.Wrap(b);

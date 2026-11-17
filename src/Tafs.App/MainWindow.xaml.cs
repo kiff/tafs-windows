@@ -23,7 +23,7 @@ namespace Tafs.App;
 
 public sealed partial class MainWindow : Window
 {
-    /// <summary>A laptop's window: the size the PR screenshots are taken at.</summary>
+    /// <summary>A laptop's window: the size the PR screenshots are taken at (else it opens sized to the screen).</summary>
     static readonly SizeInt32 LaptopSize = new(1280, 800);
 
     /// <summary>The held calls Needs you shows: KIFF's, read with each refresh of Home's list, or the iPad's samples.</summary>
@@ -146,7 +146,8 @@ public sealed partial class MainWindow : Window
         this.sample = sample;
         var w = App.Words;
         Title = w.Get("app.name");
-        AppWindow.Resize(LaptopSize);
+        if (screenshot is not null) AppWindow.Resize(LaptopSize);
+        else WindowMinimum.Open(this);
 
         Brand.Text = w.Get("app.name");
         AutomationProperties.SetName(BrandItem, w.Get("home.overview.title"));
