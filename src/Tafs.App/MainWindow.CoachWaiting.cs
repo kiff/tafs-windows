@@ -39,7 +39,7 @@ public sealed partial class MainWindow
         if (Pages.Content is NeedsYouPage page)
             page.ShowCoachWaiting(shown, CoachWaitings.SetAllAside(coachWaitingClear, shown.Count, signedIn), signedIn,
                 mayUseCoach: CoachMode.Answer is not null, busy: settingAside.Count > 0);
-        if (needsYouRow is { } row) ShowCount(row, App.Words, NeedsYouTitle);
+        ShowNeedsYouTotal();
     }
 
     /// <summary>Open Coach, from a waiting chat's card: Coach opens on that chat, where its card waits (the iPad's openCoachWaiting).</summary>

@@ -19,7 +19,7 @@ public sealed record HeldLine(string Title, string AnswerBy)
 /// the account's labels.
 /// </summary>
 public sealed record OverviewOpening(IReadOnlyList<HeldCall> Held, IReadOnlyList<OverviewRow> Rows, HomeLabels? Labels = null,
-    GalleryOpening? Recipes = null);
+    GalleryOpening? Recipes = null, string? Rest = null);
 
 public sealed partial class OverviewPage : Page
 {
@@ -59,7 +59,7 @@ public sealed partial class OverviewPage : Page
         var w = App.Words;
         var opening = e.Parameter as OverviewOpening;
         NeedsYouLabel.Text = Sidebar.Eyebrow(w, "needs_you.title");
-        ShowHeld(opening?.Held ?? []);
+        ShowHeld(opening?.Held ?? [], opening?.Rest);
         ShowRows(opening?.Rows ?? [], opening?.Labels);
         ShowRecipes(opening?.Rows.Count == 0 ? opening.Recipes : null);
     }
@@ -79,12 +79,19 @@ public sealed partial class OverviewPage : Page
     }
 
     /// <summary>NEEDS YOU's lines, drawn again with each read of KIFF's held calls; none, no section.</summary>
-    internal void ShowHeld(IReadOnlyList<HeldCall> held)
+    /// <param name="rest">
+    /// What waits beyond the held calls listed (Coach's chats, steps, "Did this happen?"), in tafs cloud's words, as the
+    /// iPad's line under them: one raised row with a chevron, opening Needs you; none when the held calls are all.
+    /// </param>
+    internal void ShowHeld(IReadOnlyList<HeldCall> held, string? rest = null)
     {
         var w = App.Words;
         Held.ItemsSource = held.Select(c => NeedsYouScreen.OverviewRow(w, c, TimeZoneInfo.Local))
             .Select(r => new HeldLine(r.Title, r.AnswerBy)).ToList();
-        NeedsYou.Visibility = held.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        RestWords.Text = rest ?? "";
+        AutomationProperties.SetName(Rest, rest ?? "");
+        Rest.Visibility = rest is null ? Visibility.Collapsed : Visibility.Visible;
+        NeedsYou.Visibility = held.Count > 0 || rest is not null ? Visibility.Visible : Visibility.Collapsed;
     }
 
     /// <summary>
