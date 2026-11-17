@@ -139,17 +139,17 @@ public sealed partial class CoachPanel
             }
         }
         foreach (var m in coachSent)
-            ThreadItems.Children.Add(new StackPanel
+            ThreadItems.Children.Add(ChatPinner.Own(new StackPanel
             {
                 HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0),
                 Children = { ChatViews.OwnerBubble(m.Text, Brush) },
-            });
+            }, m.Text));
         // What tafs cloud didn't take, after it, where it was written.
         foreach (var m in coachUnsent)
-            ThreadItems.Children.Add(ChatViews.UnsentBubble(App.Words, m, Brush, coachSending,
+            ThreadItems.Children.Add(ChatPinner.Own(ChatViews.UnsentBubble(App.Words, m, Brush, coachSending,
                 () => RetryCoachUnsent(m), () => EditCoachUnsent(m), () => DeleteCoachUnsent(m),
                 // Refused because the account is halted: Resume opens Halt all, Coach mode closing first.
-                Unsent.ResumesWith(m, inTafChat: false) is HaltScreen.Account ? () => { Close(); ChatViews.ChooseResume(null, ""); } : null));
+                Unsent.ResumesWith(m, inTafChat: false) is HaltScreen.Account ? () => { Close(); ChatViews.ChooseResume(null, ""); } : null), m.Text));
         Intro.Visibility = Visibility.Collapsed;
         ChatsView.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Visible;
@@ -157,12 +157,18 @@ public sealed partial class CoachPanel
         // Read again while Coach works, a sent message waits, or a new version is still being prepared.
         if (thread?.Working is not null || coachSent.Count > 0 || thread?.AwaitsImprovement(DateTimeOffset.UtcNow) == true) coachClock.Start();
         else coachClock.Stop();
-        if (toEnd) DispatcherQueue.TryEnqueue(() =>
+        // What was just sent at the top, Coach's answer growing under it, as the iPad's SetupChatView; else the thread's end.
+        if (!Pinner.Pin() && toEnd) DispatcherQueue.TryEnqueue(() =>
         {
             ThreadScroll.UpdateLayout();
             ThreadScroll.ChangeView(null, ThreadScroll.ScrollableHeight, null, disableAnimation: true);
         });
     }
+
+    ChatPinner? pinner;
+
+    /// <summary>Coach's pin (<see cref="ChatPinner"/>): its thread's scroll and panel, the scroll's 16 under it, only while it shows.</summary>
+    ChatPinner Pinner => pinner ??= new ChatPinner(ThreadScroll, ThreadItems, 16, () => IsOpen && ThreadView.Visibility == Visibility.Visible);
 
     /// <summary>
     /// New conversation, as the iPad's ✎: an empty one, and the next message starts it. One that's already empty stays,
@@ -198,6 +204,8 @@ public sealed partial class CoachPanel
     /// <summary>A new, empty conversation; one that's already empty stays, with what's typed.</summary>
     void StartNewConversation()
     {
+        // Another conversation: nothing of the last one's is pinned.
+        pinner?.Clear();
         // A new conversation starts with an empty tray.
         coachTray?.Clear();
         // A new conversation improves no taf, as the iPad's newSetupChat.
@@ -245,6 +253,7 @@ public sealed partial class CoachPanel
     /// <summary>A conversation from the list, reopened: shown alone, and messages go on in it, as the iPad's <c>openSetupChat</c>.</summary>
     void OpenChat(string chosenSession)
     {
+        pinner?.Clear();
         conversationGen++;
         (conversation, session, thread, chatError, coachSending, drawnOrder) = (CoachConversation.Of(chosenSession), chosenSession, null, null, false, null);
         coachSent.Clear();
@@ -279,9 +288,15 @@ public sealed partial class CoachPanel
             ShowChatTools();
             return;
         }
-        // Out of the box at once, as it shows in the thread; not tried at all, back in the box unless something new is there.
+        // Out of the box at once, as it shows in the thread, and to the top; not tried at all, back in the box unless something
+        // new is there, and nothing pinned.
         CoachDraft.Text = "";
-        if (await SendCoachAsync(text) is null && CoachDraft.Text.Length == 0) CoachDraft.Text = text;
+        Pinner.Next(text);
+        if (await SendCoachAsync(text) is null)
+        {
+            Pinner.Clear();
+            if (CoachDraft.Text.Length == 0) CoachDraft.Text = text;
+        }
     }
 
     /// <summary>

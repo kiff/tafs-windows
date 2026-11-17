@@ -518,7 +518,7 @@ public sealed partial class CoachPanel : UserControl
                         if (await AttachTray.OpenAsync(c, file, read) is { } why) { chatError = why; ShowChatTools(); }
                     }));
                 if (m.Answers is not null) said.Children.Add(ChatViews.AnsweredCardLine());
-                if (said.Children.Count > 0) ThreadItems.Children.Add(said);
+                if (said.Children.Count > 0) ThreadItems.Children.Add(ChatPinner.Own(said, m.Text));
             }
             else
             {
