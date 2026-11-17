@@ -299,6 +299,26 @@ a second reference.
   One answered after the person signed out says "You signed out."
 - **Not yet:** a taf's and a trial's answers.
 
+**Coach's tools still to give** (P8), as the iPad's `CoachToolsRow` and `CoachToolsSheet`, for a Coach that already exists:
+- **Read** with each conversation read, from `GET /v1/setup`'s `tools` (`CoachTools.Read`): `given`, `to_give` or `taken`,
+  the pair tafs cloud built (the batch for KIFF's gateway and Coach's Cards' draft, with KIFF's words for them), and the
+  step's words. This PC builds none of the requests.
+- **The row,** over the box, only while they're to give and only for a session that signs with this PC's passkey: tafs
+  cloud's `row` words, else "Give Coach its tools".
+- **The step,** opened from the row: its title and intro, each group, then under Details each tool with what it does and
+  why, and Coach's Cards in KIFF's words. Give, or Not now.
+- **Give** (`CoachToolsGive.GiveAsync`) reads tafs cloud again, then:
+  - `given`: done; `taken`: which name holds it ("another tool in KIFF is named list_tafs"), nothing sent;
+  - with the pair: one Windows Hello of this PC's passkey over both (`kiff.requests.v1`), the batch to KIFF's gateway,
+    and Coach's Cards' draft only once the batch answered;
+  - with Coach's Cards alone: one Windows Hello over the draft;
+  - anything else is said, and nothing goes.
+  Only what the step showed is signed (`CoachTools.SignsAsShown`): the read at the tap must ask for the same requests,
+  byte for byte, with the same words for Coach's Cards. Otherwise nothing is signed, the step is drawn again from that
+  read with "Setup changed this request: see below" above it, and Give asks again.
+  Windows Hello closed says nothing. A refusal stays in the step, in KIFF's words. tafs cloud's read after says whether
+  they're given, and the row goes once they are.
+
 **Not yet:**
 - **Coach's words as Markdown:** they show as written until `MarkdownText` is ported.
 - **See version 3,** which opens the taf's Versions on the iPad: Versions aren't ported, so the made line shows instead,
@@ -314,7 +334,6 @@ a second reference.
 - **Starting Coach, the rest of `startSetup`:**
   - the tools step for a first start without tafs cloud's words (`CoachToolsStep`), and its Not now;
   - KIFF's alerts (`keepKIFFAlerts`);
-  - the tools step (`loadCoachTools`);
   - keeping planque's enrolment across launches (the iPad's Keychain `planqueTenant`). Here it's asked again after each
     sign-in, and planque keeps its key (`kept`), so nothing is minted;
   - then the recipes;
