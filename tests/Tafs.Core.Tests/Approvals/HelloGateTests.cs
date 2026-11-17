@@ -21,7 +21,8 @@ public class HelloGateTests
         var notSetUp = HelloGate.NotReady(En, HelloReadiness.NotSetUp)!;
         Assert.True(notSetUp.OpensSettings);
         Assert.True(notSetUp.ChecksAgain);
-        Assert.Contains("Windows Hello", notSetUp.Line);
+        // With the shared words' Windows path pinned, the iPad's line, naming where to set it up.
+        Assert.Equal("Approving needs Windows Hello, and none is set up. Set it up in Settings → Accounts → Sign-in options.", notSetUp.Line);
 
         Assert.Equal(new HelloNotReady("Windows Hello can't be used right now. Try again in a moment.", false, true),
             HelloGate.NotReady(En, HelloReadiness.Busy));
