@@ -245,8 +245,11 @@ jobs:
           # it can't harvest, say) fail the build instead of shipping an installer with nothing in it.
           app=$(cygpath -w "$PWD/artifacts/zip/tafs-$PLATFORM")
           msi=$(cygpath -w "$PWD/artifacts/installer/tafs-$version-$arch.msi")
-          dotnet wix build installer/Package.wxs -wx -arch "$arch" -d AppDir="$app" -d Version="$version" -o "$msi"
-          dotnet wix build installer/Bundle.wxs -wx -arch "$arch" -ext "$bal" -d Msi="$msi" -d Version="$version" \
+          # tafs's mark and icon, as absolute paths, as the MSI's: the setup window's corner and Windows' installed-apps list.
+          logo=$(cygpath -w "$PWD/installer/logo.png")
+          icon=$(cygpath -w "$PWD/src/Tafs.App/Assets/tafs.ico")
+          dotnet wix build installer/Package.wxs -wx -arch "$arch" -d AppDir="$app" -d Version="$version" -d Icon="$icon" -o "$msi"
+          dotnet wix build installer/Bundle.wxs -wx -arch "$arch" -ext "$bal" -d Msi="$msi" -d Version="$version" -d Logo="$logo" -d Icon="$icon" \
             -o "artifacts/installer/tafs-setup-$version-$arch.exe"
           ls -la artifacts/installer
       # On x64: the setup installs quietly, tafs starts from where it put it and saves its sign-in screen, and it uninstalls.
