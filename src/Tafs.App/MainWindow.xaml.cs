@@ -237,6 +237,12 @@ public sealed partial class MainWindow : Window
             CoachMode.Close();
             OpenBeside(typeof(TafPage), OpenTaf(w, key));
         };
+        // An improvement's new version: its taf's Card › Versions, where Try it and Install are.
+        CoachMode.VersionsChosen += key =>
+        {
+            CoachMode.Close();
+            OpenBeside(typeof(TafPage), OpenTaf(w, key, TafTab.Card) with { CardOn = CardScreen.Versions });
+        };
         CoachMode.HomeWanted += () =>
         {
             if (cloudRead is { } read) _ = ReadHomeAsync(read);

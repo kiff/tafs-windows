@@ -251,6 +251,15 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
     /// <summary>tafs cloud's words when the taf was made with no plan, so no run started, as the iPad's <c>planNeeded</c>.</summary>
     public string? PlanNeeded(string cardRef) => Shown.FirstOrDefault(c => c.Ref == cardRef)?.Answer?.Outcome?.PlanNeeded;
 
+    /// <summary>
+    /// An improvement still preparing, shown in the last 10 minutes: the thread is read again until tafs cloud settles it, as the
+    /// iPad re-reads while an improvement has no outcome. tafs cloud settles it seconds after Coach shows it, often after the run
+    /// has ended (the owner's test: "Preparing the new version…" stayed, though version 2 was made 3 s later).
+    /// </summary>
+    public bool AwaitsImprovement(DateTimeOffset now) =>
+        Shown.Any(c => c.Card.Kind == "result" && c.Card.Taf?.Improves is not null && c.FirstAt > now.AddMinutes(-10)
+            && Improvement(c.Ref).State == ImprovementState.Preparing);
+
     /// <summary>What became of an improvement, as the iPad's <c>improvement</c>: the version made, why none was, or still preparing.</summary>
     public (ImprovementState State, int Version, string? Why) Improvement(string cardRef)
     {
