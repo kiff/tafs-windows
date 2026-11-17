@@ -578,6 +578,9 @@ public sealed partial class CoachPanel : UserControl
     /// <summary>A result card's Open: the taf's page, by its tafs cloud id; Coach closes, as the iPad's beside the sidebar.</summary>
     public event Action<string>? TafChosen;
 
+    /// <summary>An improvement's "See version 2": the taf's Card › Versions, by its tafs cloud id, where it's tried or installed.</summary>
+    public event Action<string>? VersionsChosen;
+
     /// <summary>A result card's Choose a plan: Plan &amp; usage, where a plan is chosen, as the iPad's <c>usageRequested</c>.</summary>
     public event Action? PlanChosen;
 
@@ -622,9 +625,12 @@ public sealed partial class CoachPanel : UserControl
             var (state, version, why) = thread.Improvement(shown.Ref);
             switch (state)
             {
-                // Its Versions aren't ported yet: the line the iPad shows when it can't open them.
+                // Its Versions, as the iPad's: where the new version is tried or installed; the line when the taf isn't listed.
                 case ImprovementState.Made:
-                    Line(w.Get("coach.result.version_made", ("version", version.ToString())), 13, "TafsDimText");
+                    if (improved is not null)
+                        Wide(w.Get("coach.result.see_version", ("version", version.ToString(System.Globalization.CultureInfo.InvariantCulture))), "TafsPrimary")
+                            .Click += (_, _) => VersionsChosen?.Invoke(improved.Id);
+                    else Line(w.Get("coach.result.version_made", ("version", version.ToString())), 13, "TafsDimText");
                     break;
                 case ImprovementState.Failed:
                     Line(CoachChat.NotImproved(w, name, why!), 13, "TafsNoText");

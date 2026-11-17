@@ -151,7 +151,9 @@ public sealed partial class CoachPanel
         ChatsView.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Visible;
         ShowChatTools();
-        if (thread?.Working is not null || coachSent.Count > 0) coachClock.Start(); else coachClock.Stop();
+        // Read again while Coach works, a sent message waits, or a new version is still being prepared.
+        if (thread?.Working is not null || coachSent.Count > 0 || thread?.AwaitsImprovement(DateTimeOffset.UtcNow) == true) coachClock.Start();
+        else coachClock.Stop();
         if (toEnd) DispatcherQueue.TryEnqueue(() =>
         {
             ThreadScroll.UpdateLayout();

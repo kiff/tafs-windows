@@ -308,6 +308,14 @@ public class CoachCardsTests
         Assert.Equal("Rae's new version wasn't made: the Card didn't change.", CoachChat.NotImproved(En, "Rae", "the Card didn't change"));
         var preparing = OneResult(improves);
         Assert.Equal(ImprovementState.Preparing, On(preparing).Improvement(preparing.Ref).State);
+
+        // Read again until tafs cloud settles it, often after the run has ended (the owner's test); not once it's settled, nor
+        // for a card long past.
+        var shownAt = preparing.FirstAt;
+        Assert.True(On(preparing).AwaitsImprovement(shownAt.AddSeconds(3)));
+        Assert.False(On(made).AwaitsImprovement(shownAt.AddSeconds(3)));
+        Assert.False(On(failed).AwaitsImprovement(shownAt.AddSeconds(3)));
+        Assert.False(On(preparing).AwaitsImprovement(shownAt.AddMinutes(11)));
     }
 
     /// <summary>As the iPad's KIFFMapping.toolWords: after its server and dots, a generated prefix dropped, words for the rest.</summary>
