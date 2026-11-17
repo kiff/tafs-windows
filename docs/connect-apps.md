@@ -95,9 +95,20 @@ approves with its own passkey (kiff-cloud#1705). Anyone else sees Connect dimmed
   5. **planque's confirm** with that code, as a tap; connected only once planque's grants say so. The list is read again.
 - Windows Hello closed, or the sign-in that never came back, changes nothing and says nothing.
 
+**An app connected by its key** (`needs_key`; `KeySheet`, `KeyDialog`, `ConnectFlow.GiveKeyAsync`; the iPad's `keySheet` and `giveKey`):
+- **The sheet is tafs cloud's words** (`GET /v1/connect/grants/{grant}/sheet`, with this PC's grants read proof): its title, its
+  host with a lock, its lines, what to paste, the legal line, its Connect, and Details (its lines and the grant's own words).
+  KIFF's words for the profile are shown too. A sheet that can't be read shows why, with nothing to paste: the app's own
+  fallback lines speak of a phone. A "reads only" line that isn't true of the grant this PC read shows nothing to paste or sign.
+- **Paste** reads the clipboard on that click only, then clears it; only the key's last 4 characters are ever shown.
+- **Connect:** the grant read again and given its key only as shown, in KIFF's window (one Windows Hello when none is open),
+  planque's `POST …/grants/{id}/key` as a tap over `{"digest", "key_sha256", "kiff_profile"}`: the key's SHA-256 is signed,
+  and the key itself goes only in planque's `Planque-Vendor-Key` header. Connected only once planque says so; then the receipt,
+  "connected with …last4", and Done. The key is forgotten with the sheet.
+
 **Not yet:**
 - **A failed read's words** show on the page; the iPad shows them in its app-wide error line.
-- **Connecting an app by its key** (the protected key sheet, `needs_key`): its Connect stays dimmed.
+
 - **On an app's connections:** Sign in again and Replace the key, a connection's own detail page (planque's `row`), a
   connection made under a taf that doesn't need it (`misplaced`), its last failed call, and the other tafs whose Card uses
   its tools ("Also on Ana's Card", and in Remove access's question).

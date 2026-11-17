@@ -220,8 +220,11 @@ public sealed partial class ConnectAppsPage : Page
             if (why is not null) (Problem.Text, Problem.Visibility) = (why, Visibility.Visible);
             return;
         }
-        if (start.NeedsKey) return;
-        if (await ConnectDialog.ShowAsync(XamlRoot, ActualTheme, app, start.Grant, connecting)) await ReadAsync(query);
+        // A key-based app: its own sheet, in tafs cloud's words, with Paste.
+        var connected = start.NeedsKey
+            ? connecting.GiveKey is not null && await KeyDialog.ShowAsync(XamlRoot, ActualTheme, app, start.Grant, connecting)
+            : await ConnectDialog.ShowAsync(XamlRoot, ActualTheme, app, start.Grant, connecting);
+        if (connected) await ReadAsync(query);
     }
 
     void Open(ConnectApp app, ConnectionsCalls calls)
@@ -310,7 +313,7 @@ public sealed partial class ConnectAppsPage : Page
                 UsedBy = said.Setup is null ? said.UsedBy ?? "" : "", HasUsedBy = Seen(said.Setup is null && said.UsedBy is not null),
                 Button = button ?? "", HasButton = Seen(button is not null),
                 // Connecting by a key comes with its own change; by a sign-in, for a taf that needs the app.
-                CanConnect = route == ConnectRoute.AskCoach || (route == ConnectRoute.Ask && !app.TakesKey),
+                CanConnect = route == ConnectRoute.AskCoach || (route == ConnectRoute.Ask && (!app.TakesKey || opening?.Connecting?.GiveKey is not null)),
                 ConnectName = (button ?? "") + ", " + app.DisplayName,
                 Logo = ConnectAppsScreen.LogoUrl(app.Logo) is { } logo ? new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(logo) : null,
                 HasLogo = Seen(ConnectAppsScreen.LogoUrl(app.Logo) is not null),
