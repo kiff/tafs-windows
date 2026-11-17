@@ -285,6 +285,23 @@ each its own screen with Back.
     `POST /v1/tafs/{id}/trial/install`. Either, done, goes back to the taf; not, why under the bar.
 - `--page taf-versions` or `taf-usage` with `--home` opens them, from `taf-versions.json` or `taf-credits.json` beside it.
 
+**Doors** (P13, `TafDoors`, `TafPage.Doors.cs`; the iPad's `DoorsList` in Starts when, and `DoorsView.only`): where work reaches
+the taf from outside the app, the answer going back the same way. For whoever manages the taf, read with the session
+(`GET /v1/tafs/{id}/doors`) when Starts when opens.
+- **On Starts when:** a Doors panel, each door with where it stands (tafs cloud's words, else Open, Resting until tomorrow or
+  Closed) and Edit; Add a door…; strangers' knocks waiting; and that only paired people can give work.
+- **Add a door:** the apps that can still have one (one door of each kind a taf), those that know who's writing first. Email
+  is added at once (`POST …/doors`) and its screen opens. WhatsApp's sign-up and a Slack channel's subscription aren't on
+  Windows yet: picking one says where it's added.
+- **A door's screen:** Open (`PATCH …/doors/{door}`), its address with Copy address for email, its day ("3 of 20 from you
+  and paired senders today…", anyone else's). Who's paired, "You" on this person's own key, each with Unpair (`DELETE
+  …/keys/{sender}`), and Pair someone (`POST …/keys`, their address or number and a name); or that this door can't tell who
+  writes, so everything knocks. Remove door, asked first (`DELETE …/doors/{door}`).
+- **Knocks:** by which app, who wrote and about what, their words, attachments not opened, a sender check that failed or a
+  door that can't tell; Do it (the person's own words, the message only information), Pair them when the check passed,
+  Ignore (`POST …/doors/knocks/{knock}`). A day's line says how many were dropped, with OK. Too many at once is said in
+  the app's words.
+
 **Remove for good** (`TafRemoval`, ported from the iPad's `removeTaf` and `removalWords`): "Remove for good" (Narrator: "Remove Rae"),
 outlined in red, last on Setup as the iPad's (a revoked taf too), for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume (a removal
 is the approval key's act, never the device key's); a revoked taf can still be removed.
