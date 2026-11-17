@@ -52,6 +52,39 @@ public static class Shares
         return shares;
     }
 
+    /// <summary>
+    /// Who uses it, under the taf's name, as the iPad's <c>ShareLine.sharedWith</c>: "Shared with Support and ana@acme.com";
+    /// "Shared with everyone" for KIFF's default group alone; "Not shared" when no one else does (the person reading it is
+    /// never named); "Sharing…" while it's read.
+    /// </summary>
+    /// <param name="you">Whether a subject is the person reading the line.</param>
+    public static string SharedWith(WordBook w, IReadOnlyList<TafShare>? shares, IReadOnlyList<PeopleGroup> groups, Func<string, bool> you,
+        Func<string, string> label)
+    {
+        if (shares is null) return w.Get("people.sharing");
+        if (shares is [{ Group: { Length: > 0 } only }] && groups.FirstOrDefault(g => g.Id == only)?.Everyone == true)
+            return w.Get("people.shared_with_everyone");
+        var names = shares.Select(s => s.Group is { Length: > 0 } g ? groups.FirstOrDefault(x => x.Id == g) is { } found ? People.ShownName(w, found) : null
+                : s.Subject is { } subject && !you(subject) ? label(subject) : null)
+            .OfType<string>().ToList();
+        return names.Count == 0 ? w.Get("people.not_shared") : w.Get("people.shared_with_prefix") + Lists.And(w.Language, names);
+    }
+
+    /// <summary>
+    /// The line from KIFF's three reads, or none unless all three answered: without the groups a group share would drop out
+    /// ("Not shared", untrue), and without the people the reader could be named by their id. The reader is KIFF's <c>you</c>,
+    /// else whoever's email, or subject, is the account's email, as the iPad's.
+    /// </summary>
+    public static string? SharedWithLine(WordBook w, IReadOnlyList<TafShare>? shares, IReadOnlyList<PeopleGroup>? groups,
+        IReadOnlyList<Person>? people, string? email)
+    {
+        if (shares is null || groups is null || people is null) return null;
+        Person? Find(string subject) => people.FirstOrDefault(p => p.Subject == subject);
+        bool Same(string? a) => email is { Length: > 0 } && string.Equals(a, email, StringComparison.OrdinalIgnoreCase);
+        bool You(string subject) => Find(subject) is { } p && (p.You == true || Same(p.Email)) || Same(subject);
+        return SharedWith(w, shares, groups, You, subject => Find(subject)?.Label ?? subject);
+    }
+
     /// <summary>"Maria (manager), Ana, Luis", or "No one yet", as the iPad's <c>people(of:)</c>.</summary>
     public static string PeopleOf(WordBook w, PeopleGroup group, Func<string, Person?> person)
     {

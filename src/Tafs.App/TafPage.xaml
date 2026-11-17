@@ -28,8 +28,13 @@
         <TextBlock x:Name="Initial" FontSize="17" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center"
                    VerticalAlignment="Center" />
       </Border>
-      <TextBlock x:Name="NameText" Grid.Column="1" FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis"
-                 VerticalAlignment="Center" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
+      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+        <TextBlock x:Name="NameText" FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis"
+                   Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
+        <!-- Who uses it, as the iPad's ShareLine: "Shared with Support and ana@acme.com", for any taf KIFF runs. -->
+        <TextBlock x:Name="SharedWithText" FontSize="13" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource TafsSoft}"
+                   Visibility="Collapsed" AutomationProperties.AutomationId="taf.shared-with" />
+      </StackPanel>
       <!-- Working: green on the same green at 15%, in a capsule; Paused, the soft colour the same way. -->
       <Grid x:Name="WorkingChip" Grid.Column="2" VerticalAlignment="Center">
         <Border Background="{ThemeResource TafsOk}" Opacity="0.15" CornerRadius="11" />

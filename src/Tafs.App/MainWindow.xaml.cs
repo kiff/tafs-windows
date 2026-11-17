@@ -1975,17 +1975,22 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Sharing a taf (P32, <see cref="Tafs.Core.Account.Shares.ApplyAsync"/>), for whoever manages it on a PC whose own passkey
-    /// approves: KIFF's people, groups and shares read as the session; each new share approved by this PC's passkey behind
-    /// Windows Hello; each one taken away signed by this session's TPM key. None for anyone else, and no Share.
+    /// Who uses a taf KIFF runs, under its name, for anyone signed in (the iPad's <c>ShareLine</c>), and sharing it (P32,
+    /// <see cref="Tafs.Core.Account.Shares.ApplyAsync"/>) for whoever manages it on a PC whose own passkey approves: KIFF's
+    /// people, groups and shares read as the session; each new share approved by this PC's passkey behind Windows Hello; each
+    /// one taken away signed by this session's TPM key. None for a taf KIFF doesn't run.
     /// </summary>
     TafSharing? ShareFor(HomeTaf taf)
     {
-        if (taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || kiffRead is not { } read) return null;
-        if (App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session) || session.PasskeyId is not { } id) return null;
+        if (taf.Agent is not { } agent || kiffRead is not { } read) return null;
+        // The person reading is never named: KIFF's "you", else their email.
+        var email = kiffAccount?.Email;
+        if (manage?.GetValueOrDefault(agent) != true || App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session)
+            || session.PasskeyId is not { } id)
+            return new(agent, read, email, null);
         var reading = sessions;
         var kiff = Tafs.Core.SignIn.DeviceSignIn.Api;
-        return new(agent, read, (add, remove) => Tafs.Core.Account.Shares.ApplyAsync(App.Words, session.Tenant, taf.Name, agent, add, remove,
+        return new(agent, read, email, (add, remove) => Tafs.Core.Account.Shares.ApplyAsync(App.Words, session.Tenant, taf.Name, agent, add, remove,
             async (path, body) =>
             {
                 var passkey = new PasskeyApprover(new WindowsHello(() => App.WindowHandle), KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);

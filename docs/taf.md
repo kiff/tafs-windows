@@ -393,7 +393,10 @@ passkey approves.
   nothing; a refusal says "Share Refunds didn't go through." with KIFF's reason, in the sheet. New shares go first, then
   removals, as the iPad's: one that fails midway leaves the earlier ones done, and the next read shows where it stands.
   A share that names no group and no person (or both) is never signed or sent.
-- **Not here yet:** the line under a taf's name that says who uses it (`ShareLine`).
+- **Who uses it,** under the taf's name, for anyone signed in, as the iPad's `ShareLine`: "Sharing…" while KIFF is read,
+  then "Shared with Support and ana@acme.com", "Shared with everyone" for KIFF's default group alone, or "Not shared". The
+  person reading it is never named (KIFF's `you`, else their email), so a taf only they use is "Not shared". A read that
+  fails, any of the three (groups, people, shares), shows nothing rather than something untrue. Read again after Share.
 
 ## Photos and files on a message (P5, `FilePrep`, `Attachments`, `TafPage.Attach.cs`)
 
