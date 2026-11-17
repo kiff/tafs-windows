@@ -133,4 +133,21 @@ public class ConnectFlowTests
         var tampered = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(answer).Replace("as you", "as anyone"));
         Assert.Equal("KIFF's words don't match their check. Nothing can be approved.", ProfileWords.Checked(En, tampered, profile).Why);
     }
+
+    [Fact]
+    public void Which_taf_lists_the_tafs_that_need_it_and_the_start_names_its_grant()
+    {
+        IReadOnlyList<(string, string)> mine = [("t1", "Rae"), ("t2", "Ana"), ("t3", "Bo")];
+        var list = ConnectAppsScreen.Read("""
+            {"apps": [{"entry": "gmail", "title": "Gmail", "needed_by": [{"taf": "t2", "name": "Ana"}, {"taf": "t9", "name": "Gone"}, {"name": "no id"}]},
+                      {"entry": "slack", "title": "Slack"}]}
+            """);
+        Assert.Equal([("t2", "Ana")], ConnectAppsScreen.ConnectableTafs(mine, list.Apps[0]));
+        Assert.Equal(mine, ConnectAppsScreen.ConnectableTafs(mine, list.Apps[1]));
+        Assert.Equal("/v1/connect/apps/connector%3Acomposio%3Agmail", ConnectAppsScreen.StartPath("connector:composio:gmail").Replace(":", "%3A"));
+        Assert.Equal("""{"taf":"t2"}""", Encoding.UTF8.GetString(ConnectAppsScreen.StartBody("t2")));
+        Assert.Equal(("grt_1", false), ConnectAppsScreen.Started(System.Text.Json.JsonDocument.Parse("""{"grant": "grt_1"}""").RootElement));
+        Assert.Equal(("grt_2", true), ConnectAppsScreen.Started(System.Text.Json.JsonDocument.Parse("""{"grant": {"id": "grt_2"}, "needs_key": true}""").RootElement));
+        Assert.Null(ConnectAppsScreen.Started(System.Text.Json.JsonDocument.Parse("""{"grant": ""}""").RootElement));
+    }
 }
