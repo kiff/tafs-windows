@@ -2008,17 +2008,14 @@ public sealed partial class MainWindow : Window
             Tafs.Core.Account.Passkeys.MayRemove(kiffAccount?.Role, approves: true));
     }
 
-    /// <summary>
-    /// Remove for good, only for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume: a
-    /// removal is the approval key's act, never the device key's. None for anyone else, and no button.
-    /// </summary>
     /// <summary>Whether the person manages the taf, as KIFF says.</summary>
     bool Manages(HomeTaf taf) => taf.Agent is { } agent && manage?.GetValueOrDefault(agent) == true;
 
     /// <summary>
     /// Revoke on a live taf's Card tab, as the iPad's: for whoever manages it, on a session that may approve (a view-only one
-    /// is told where it's done instead). KIFF revokes each of its Cards with the session; then Home is read again, which
-    /// shows it revoked. None for anyone else, and no button.
+    /// is told where it's done instead). KIFF revokes each of its Cards with the session; then, once any Card was revoked,
+    /// even when a later one was refused, Home is read again, which shows KIFF's real state. None for anyone else, and no
+    /// button.
     /// </summary>
     Func<Task<string?>>? RevokeFor(HomeTaf taf)
     {
@@ -2026,16 +2023,20 @@ public sealed partial class MainWindow : Window
         var (bearer, reading) = (session.AccessToken, sessions);
         return async () =>
         {
-            var why = await TafRemoval.RevokeCardsAsync(App.Words, taf.CardIds, async path =>
+            var (why, revoked) = await TafRemoval.RevokeCardsAsync(App.Words, taf.CardIds, async path =>
             {
                 var (status, body) = await KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), TafRemoval.RevokeBody(), bearer, App.Words.Language);
                 return Answered(App.Words, status, body);
             });
-            if (why is null && reading == sessions && cloudRead is { } read) _ = ReadHomeAsync(read);
+            if (revoked > 0 && reading == sessions && cloudRead is { } read) _ = ReadHomeAsync(read);
             return why;
         };
     }
 
+    /// <summary>
+    /// Remove for good, only for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume: a
+    /// removal is the approval key's act, never the device key's. None for anyone else, and no button.
+    /// </summary>
     TafRemove? RemoveFor(HomeTaf taf)
     {
         if (taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is not { } read) return null;

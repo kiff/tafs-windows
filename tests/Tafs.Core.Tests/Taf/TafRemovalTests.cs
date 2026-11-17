@@ -103,7 +103,7 @@ public class TafRemovalTests
     {
         var asked = new List<string>();
         Task<CloudRead> Ok(string path) { asked.Add(path); return Task.FromResult(CloudRead.Of(System.Text.Json.JsonDocument.Parse("{}").RootElement)); }
-        Assert.Null(await TafRemoval.RevokeCardsAsync(En, ["crd_1", "crd_2"], Ok));
+        Assert.Equal((null, 2), await TafRemoval.RevokeCardsAsync(En, ["crd_1", "crd_2"], Ok));
         Assert.Equal(["/v1/me/mandates/crd_1/revoke", "/v1/me/mandates/crd_2/revoke"], asked);
 
         asked.Clear();
@@ -112,9 +112,10 @@ public class TafRemovalTests
             asked.Add(path);
             return Task.FromResult(asked.Count == 1 ? CloudRead.Of(System.Text.Json.JsonDocument.Parse("{}").RootElement) : new CloudRead(null, "Too busy.", 429));
         }
-        Assert.Equal("KIFF didn't revoke the Card. Too busy.", await TafRemoval.RevokeCardsAsync(En, ["crd_1", "crd_2", "crd_3"], SecondRefused));
+        // The first was revoked before the second was refused: counted, so Home is read back.
+        Assert.Equal(("KIFF didn't revoke the Card. Too busy.", 1), await TafRemoval.RevokeCardsAsync(En, ["crd_1", "crd_2", "crd_3"], SecondRefused));
         Assert.Equal(2, asked.Count);
-        Assert.Equal("KIFF didn't revoke the Card. It didn't reach the server. Try again once you're online.",
+        Assert.Equal(("KIFF didn't revoke the Card. It didn't reach the server. Try again once you're online.", 0),
             await TafRemoval.RevokeCardsAsync(En, ["crd_1"], _ => throw new HttpRequestException("down")));
     }
 }
