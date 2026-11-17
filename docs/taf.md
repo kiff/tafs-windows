@@ -29,6 +29,13 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
   come keeps the thread there was and says "The thread couldn't be loaded." and why, in red at 13. A sample taf's
   thread is its greeting (`sample.hello`), with what it's doing as its Overview line says it. Coach's thread draws
   its bubbles, run starts and work the same way (`ChatViews`).
+  **While it works** (P34, the iPad's `submitChat` and `steer`), words alone go to the run at work, once
+  (`POST /v1/tafs/{id}/steer` with `{run, text, hold: true}`): the run streaming here, else the thread's `working.run`.
+  Taken, it shows on the right with "Refunds reads this at its next step" ("…when it carries on" for a paused run).
+  Kept by tafs cloud: sent at once as the next message, or held with "Waits until it's done, then goes as your next
+  message", and tafs cloud sends it then, never the app. More than tafs cloud holds (`409 held_full`): its words, and
+  the words stay in the box. Not reached: kept as not sent, with Retry. What a stopped run never read shows with tafs
+  cloud's why. A message with files goes on its own, never into the run; a trial's chat doesn't steer.
   A taf's answer, or a trial's, is reported with a right-click, as Coach's (the iPad's `reportable`): the reasons, the
   note, Send, and tafs cloud's answer, sent against this taf with the message's session
   (`POST /v1/tafs/{id}/messages/{message}/report`), for a KIFF account, on an answer tafs cloud has an id for.
@@ -358,7 +365,6 @@ is the approval key's act, never the device key's); a revoked taf can still be r
 **Not yet:**
 - **The revision as If-None-Match:** the server's ETag is the quoted form of `revision`; each read is whole for now. Its
   days are titled as sent, in 12 semibold, not in the sample's capitals. Pull to refresh has no Windows gesture yet.
-- **Chat's Retry** on a message kept unsent, and steering a run at work (`/steer`).
 - **Chat's other items:** held calls in the thread and the Needs you pill, what became of an approved call, a door's
   knocks, a setting handed to Coach, a run stopped at its cap, opening a sent file full size
   (it's named only, until its bytes are read), and a connected tool's title

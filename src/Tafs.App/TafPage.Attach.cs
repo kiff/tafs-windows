@@ -10,7 +10,7 @@ public sealed partial class TafPage
 
     AttachTray Tray => attachTray ??= new AttachTray(FileTray, AttachButton, () => this,
         // Send waits while a file is still going up.
-        () => SendButton.IsEnabled = !attachTray!.Uploading && !sending);
+        () => SendButton.IsEnabled = !attachTray!.Uploading && (!sending || SteerRun() is not null));
 
     IReadOnlyList<string> ReadyFiles() => Tray.Ready;
 
