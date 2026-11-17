@@ -88,11 +88,19 @@
 
     <!-- 12 apart, as margins: a row that's collapsed (the Card bar on Setup) takes no room. -->
     <!-- The tab's page, scrolling; under it, pinned at the foot, the chat's composer (only on Chat). -->
-    <Grid Grid.Row="3">
+    <Grid x:Name="TabBody" Grid.Row="3">
     <Grid.RowDefinitions>
       <RowDefinition Height="*" />
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="Auto" />
+    </Grid.ColumnDefinitions>
+    <!-- At a wide width, beside the chat or the activity, as the iPad's side column: the Cards and All of the Card. -->
+    <ScrollViewer x:Name="SideScroll" Grid.Column="1" Grid.RowSpan="2" Width="360" Margin="16,12,0,0" Visibility="Collapsed">
+      <StackPanel x:Name="SidePane" Spacing="16" Padding="0,4,0,24" />
+    </ScrollViewer>
     <ScrollViewer x:Name="PageScroll" Margin="0,12,0,0">
       <Grid Padding="0,4,0,24">
       <!-- Setup, and the Card: built in code from the taf's job, notes, Cards and state. -->

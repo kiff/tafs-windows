@@ -97,6 +97,8 @@ public sealed partial class TafPage : Page
     public TafPage()
     {
         InitializeComponent();
+        // A resize can take the side column in or out.
+        TabBody.SizeChanged += (_, _) => ShowSide(redraw: false);
         // The thread read again every 2 s while the taf works or a sent message waits for it, only while Chat shows.
         chatClock = new DispatcherTimer { Interval = TafChatSend.WhileWorking };
         chatClock.Tick += (_, _) => { if (tab == TafTab.Chat) _ = LoadChatAsync(); };
@@ -754,7 +756,8 @@ public sealed partial class TafPage : Page
         ChatPane.Visibility = tab == TafTab.Chat ? Visibility.Visible : Visibility.Collapsed;
         ShowComposer();
         // Over the Chat and the Activity, as the iPad's (section < 2).
-        CardBar.Visibility = tab is TafTab.Chat or TafTab.Activity && opening?.Card is not null ? Visibility.Visible : Visibility.Collapsed;
+        // The Card bar above the chat or the activity, or at a wide width the side column beside them.
+        ShowSide();
         if (tab == TafTab.Setup) ShowSetup();
         if (tab == TafTab.Card) ShowCards();
         if (tab == TafTab.Chat) ShowChat();
@@ -1039,6 +1042,67 @@ public sealed partial class TafPage : Page
         _ => false,
     };
 
+    /// <summary>
+    /// The Cards stacked, the front one in full and each behind it as a band; a band brings its Card to the front, then
+    /// <paramref name="redraw"/> draws it again. As the iPad's <c>CardStack</c>, on the Card tab and in the side column.
+    /// </summary>
+    Grid CardStack(IReadOnlyList<TafCard> cards, Action redraw)
+    {
+        var w = App.Words;
+        var shown = cards.FirstOrDefault(c => c.Id == front) ?? cards[0];
+        var ordered = cards.Where(c => c.Id != shown.Id).Reverse().Append(shown).ToList();
+        var stack = new Grid { Width = CardWidth, HorizontalAlignment = HorizontalAlignment.Center };
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            var card = ordered[i];
+            var depth = ordered.Count - 1 - i;
+            var face = new Button { Style = Look("TafsBox"), Margin = new Thickness(0, i * Edge, 0, 0), VerticalAlignment = VerticalAlignment.Top,
+                Content = Face(card, depth) };
+            AutomationProperties.SetName(face, depth == 0 ? card.Spoken(w, opening?.IssuedBy ?? "", revoked) : w.Get("taf.show_card", ("title", card.Title)));
+            face.Click += (_, _) => { front = card.Id; redraw(); };
+            // Each Card casts the iPad's shadow up onto the one behind (black at 16%, radius 4, 2 up), so the bands read apart.
+            if (i > 0) stack.Children.Add(CastShadow(i * Edge));
+            stack.Children.Add(face);
+        }
+        return stack;
+    }
+
+    /// <summary>The iPad's side column: 360 wide, shown only while the chat keeps 430 beside it (an iPhone's width).</summary>
+    const double SideWidth = 360, ChatAtLeast = 430;
+
+    /// <summary>Whether the side column showed when it was last drawn, so a resize redraws it only when that changes.</summary>
+    bool? sideShown;
+
+    /// <summary>
+    /// At a wide width, beside the chat or the activity, as the iPad's <c>sideColumn</c> (TafDetailView): the CARD heading, the
+    /// Cards stacked, and All of the Card, which opens the Card tab; the Card bar above then goes. Narrower, the Card bar stays
+    /// and there's no side column. Never in a trial, which has its own bar.
+    /// </summary>
+    void ShowSide(bool redraw = true)
+    {
+        var bar = tab is TafTab.Chat or TafTab.Activity && opening?.Card is not null;
+        var wide = tab is TafTab.Chat or TafTab.Activity && opening is { InTrial: null, Cards.Count: > 0 }
+            && TabBody.ActualWidth - SideWidth - 32 >= ChatAtLeast;
+        CardBar.Visibility = bar && !wide ? Visibility.Visible : Visibility.Collapsed;
+        SideScroll.Visibility = wide ? Visibility.Visible : Visibility.Collapsed;
+        if (!redraw && sideShown == wide) return;
+        sideShown = wide;
+        SidePane.Children.Clear();
+        if (!wide) return;
+        var w = App.Words;
+        var cards = opening!.Cards!;
+        SidePane.Children.Add(new TextBlock
+        {
+            Text = w.Count("card.heading", cards.Count).ToUpper(System.Globalization.CultureInfo.GetCultureInfo(w.Language)),
+            Style = Look("TafsEyebrow"),
+        });
+        SidePane.Children.Add(CardStack(cards, () => ShowSide()));
+        var all = new Button { Content = w.Count("card.all_of", cards.Count), Style = Look("TafsOutlineButton"), HorizontalAlignment = HorizontalAlignment.Stretch };
+        AutomationProperties.SetAutomationId(all, "side.allOfTheCard");
+        all.Click += (_, _) => OnCardBar(all, new RoutedEventArgs());
+        SidePane.Children.Add(all);
+    }
+
     void OnCardBar(object sender, RoutedEventArgs e)
     {
         if (!Built(TafTab.Card)) return;
@@ -1088,21 +1152,7 @@ public sealed partial class TafPage : Page
         var w = App.Words;
         CardPane.Children.Clear();
         var shown = cards.FirstOrDefault(c => c.Id == front) ?? cards[0];
-        var ordered = cards.Where(c => c.Id != shown.Id).Reverse().Append(shown).ToList();
-        var stack = new Grid { Width = CardWidth, HorizontalAlignment = HorizontalAlignment.Center };
-        for (var i = 0; i < ordered.Count; i++)
-        {
-            var card = ordered[i];
-            var depth = ordered.Count - 1 - i;
-            var face = new Button { Style = Look("TafsBox"), Margin = new Thickness(0, i * Edge, 0, 0), VerticalAlignment = VerticalAlignment.Top,
-                Content = Face(card, depth) };
-            AutomationProperties.SetName(face, depth == 0 ? card.Spoken(w, opening.IssuedBy, revoked) : w.Get("taf.show_card", ("title", card.Title)));
-            face.Click += (_, _) => { front = card.Id; ShowCards(); };
-            // Each Card casts the iPad's shadow up onto the one behind (black at 16%, radius 4, 2 up), so the bands read apart.
-            if (i > 0) stack.Children.Add(CastShadow(i * Edge));
-            stack.Children.Add(face);
-        }
-        CardPane.Children.Add(stack);
+        CardPane.Children.Add(CardStack(cards, ShowCards));
 
         var lines = new StackPanel { Spacing = 12 };
         foreach (var rule in shown.Rules)
