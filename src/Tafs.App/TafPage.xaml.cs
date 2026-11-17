@@ -325,7 +325,7 @@ public sealed partial class TafPage : Page
         if (refused is not null)
         {
             sent.Remove(pending);
-            unsent.Add(UnsentMessage.Of(text, refused.Why, DateTimeOffset.UtcNow, refused.Halted, mine.InTrial is null ? mid : null));
+            unsent.Add(UnsentMessage.After(text, refused, DateTimeOffset.UtcNow, mine.InTrial is null ? mid : null));
             ShowChat();
             return false;
         }
@@ -375,7 +375,7 @@ public sealed partial class TafPage : Page
                 ShowChat();
                 return null;
             case Steered.Refused refused:
-                unsent.Add(UnsentMessage.Of(text, refused.Why.Why, DateTimeOffset.UtcNow, refused.Why.Halted, messageId));
+                unsent.Add(UnsentMessage.After(text, refused.Why, DateTimeOffset.UtcNow, messageId));
                 ShowChat();
                 return false;
             default:

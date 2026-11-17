@@ -98,4 +98,27 @@ public class MessageIdTests
         // Another 409 keeps tafs cloud's words.
         Assert.Equal("Two messages already wait.", CloudRead.Refused(En, 409, """{"code": "held_full", "words": "Two messages already wait."}""").Why);
     }
+
+    [Fact]
+    public async Task Retry_keeps_the_id_only_when_the_first_send_may_have_landed()
+    {
+        var id = TafChatSend.NewMessageId();
+        async Task<UnsentMessage> NotSent(CloudRead answer) =>
+            UnsentMessage.After("Hi", (await TafChatSend.SendAsync(En, "taf_1", "Hi", (_, _) => Task.FromResult(answer), messageId: id))!, DateTimeOffset.UtcNow, id);
+        // Not reached, a 503, another 5xx, a timeout: it may have landed, so Retry goes under the same id.
+        Assert.Equal(id, (await NotSent(CloudRead.Unreached(En))).MessageId);
+        Assert.Equal(id, (await NotSent(CloudRead.Refused(En, 503, """{"words": "Try again."}"""))).MessageId);
+        Assert.Equal(id, (await NotSent(CloudRead.Refused(En, 502, ""))).MessageId);
+        Assert.Equal(id, (await NotSent(CloudRead.Refused(En, 408, ""))).MessageId);
+        // The id is another message's (409 dedup_key_conflict), or any other refusal: Retry is a new message with a new id.
+        Assert.Null((await NotSent(CloudRead.Refused(En, 409, """{"code": "dedup_key_conflict"}"""))).MessageId);
+        Assert.Null((await NotSent(CloudRead.Refused(En, 400, """{"error": "bad"}"""))).MessageId);
+        Assert.Null((await NotSent(CloudRead.Refused(En, 429, """{"words": "Too busy."}"""))).MessageId);
+
+        // Retry after a 409: the body carries a new id, never the refused one.
+        var bodies = new List<string>();
+        var retry = (await NotSent(CloudRead.Refused(En, 409, """{"code": "dedup_key_conflict"}"""))).MessageId ?? TafChatSend.NewMessageId();
+        await TafChatSend.SendAsync(En, "taf_1", "Hi", (_, b) => { bodies.Add(Encoding.UTF8.GetString(b)); return Task.FromResult(CloudRead.Of(JsonDocument.Parse("{}").RootElement)); }, messageId: retry);
+        Assert.DoesNotContain(id, Assert.Single(bodies));
+    }
 }

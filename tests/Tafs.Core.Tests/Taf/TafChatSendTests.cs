@@ -80,7 +80,7 @@ public class TafChatSendTests
         Assert.Equal(("/v1/tafs/taf%2F1/stop", """{"session":"s9"}"""), calls[1]);
 
         Func<string, byte[], Task<CloudRead>> refused = (_, _) => Task.FromResult(new CloudRead(null, "Too busy.", 429));
-        Assert.Equal(new Refusal("Too busy."), await TafChatSend.SendAsync(En, "t", "Hi", refused));
+        Assert.Equal(new Refusal("Too busy.", Status: 429), await TafChatSend.SendAsync(En, "t", "Hi", refused));
         Assert.Equal("Not stopped. Too busy.", await TafChatSend.StopAsync(En, "t", "s", refused));
     }
 }

@@ -122,10 +122,10 @@ public class CoachChatsTests
         Assert.Equal([("/v1/tafs/depl_1/improve", """{"text":"How is it going?"}""")], asked);
         Assert.Equal(("s2", (Refusal?)null), await CoachSend.SendAsync(En, "c", "Hi", CoachConversation.New,
             (_, _) => Task.FromResult(CloudRead.Of(Json("""{"session": "s2", "new_session": true}""")))));
-        Assert.Equal((null, new Refusal("Try again in a minute.")), await CoachSend.SendAsync(En, "c", "Hi", CoachConversation.New,
+        Assert.Equal((null, new Refusal("Try again in a minute.", Status: 503)), await CoachSend.SendAsync(En, "c", "Hi", CoachConversation.New,
             (_, _) => Task.FromResult(CloudRead.Refused(En, 503, """{"words": "Try again in a minute."}"""))));
         // Refused because the account is halted: the bubble then offers Resume.
-        Assert.Equal((null, new Refusal("Your account is halted.", "account")), await CoachSend.SendAsync(En, "c", "Hi", CoachConversation.New,
+        Assert.Equal((null, new Refusal("Your account is halted.", "account", Status: 409)), await CoachSend.SendAsync(En, "c", "Hi", CoachConversation.New,
             (_, _) => Task.FromResult(CloudRead.Refused(En, 409, """{"words": "Your account is halted.", "halted": "account"}"""))));
         Assert.Equal((null, new Refusal(En.Get("error.ours"))), await CoachSend.SendAsync(En, "c", "Hi", CoachConversation.New,
             (_, _) => Task.FromResult(CloudRead.Of(Json("""{"ok": true}""")))));
