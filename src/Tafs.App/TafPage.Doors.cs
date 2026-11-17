@@ -75,7 +75,21 @@ public sealed partial class TafPage
             row.Children.Add(edit);
             panel.Add(row);
         }
-        var add = new Button { Content = w.Get("setup.add_door"), Style = Look("TafsOutlineButton"), IsEnabled = doors is { } d && d.Addable.Any() && !doorsBusy };
+        // "+ Add a door…", an amber link, as the iPad's.
+        var add = new HyperlinkButton
+        {
+            Padding = new Thickness(0), IsEnabled = doors is { } d && d.Addable.Any() && !doorsBusy,
+            Content = new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 8,
+                Children =
+                {
+                    new FontIcon { Glyph = "", FontSize = 14, Style = Look("TafsAmberIcon") },
+                    new TextBlock { Text = w.Get("setup.add_door"), FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Style = Look("TafsAmberWords") },
+                },
+            },
+        };
+        AutomationProperties.SetName(add, w.Get("setup.add_door"));
         add.Click += (_, _) => _ = AddDoorAsync();
         panel.Add(add);
         if (doors is null && doorsWhy is null) panel.Add(new ProgressRing { IsActive = true, Width = 20, Height = 20, HorizontalAlignment = HorizontalAlignment.Left });
