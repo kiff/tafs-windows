@@ -226,6 +226,7 @@ public sealed partial class MainWindow : Window
             _ = ReadUnprovenAsync(sessions);
         };
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
+        ConnectAppsPage.AskCoachAnew += () => { if (mayUseCoach) CoachMode.Write("", newConversation: true); else OnCoach(this, new RoutedEventArgs()); };
         // Focus goes back to the sidebar's Coach when Coach mode has gone.
         CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
         OverviewPage.TafChosen += key => OpenBeside(typeof(TafPage), OpenTaf(w, key));
@@ -1705,7 +1706,7 @@ public sealed partial class MainWindow : Window
             var keep = beforeAccount;
             var back = connectAppsFromAccount ? () => { OnAccount(this, new RoutedEventArgs()); beforeAccount = keep; } : (Action?)null;
             connectAppsFromAccount = false;
-            Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof, ConnectionsFor(), Back: back));
+            Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof, ConnectionsFor(), Back: back, Connecting: ConnectingFor()));
         }
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
         else if (item.Tag is TafRow trial && TrialFromRow(trial.Key) is { } inTrial) Pages.Navigate(typeof(TafPage), inTrial);

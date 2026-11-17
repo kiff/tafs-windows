@@ -9,6 +9,9 @@ namespace Tafs.Core.Connections;
 /// State is connected, available, needs_reconnect, needs_setup or signed_in; SetupWords is tafs cloud's line for
 /// needs_setup; Whose and UsedBy are tafs cloud's words and names, null when it sends none.
 /// </summary>
+/// <summary>What Connect does: nothing (no taf to connect for), ask which taf, or Ask Coach (no taf needs the app).</summary>
+public enum ConnectRoute { NoTaf, Ask, AskCoach }
+
 public sealed record ConnectApp(string Entry)
 {
     public string Vendor { get; init; } = "";
@@ -26,6 +29,11 @@ public sealed record ConnectApp(string Entry)
     public string? Logo { get; init; }
     /// <summary>The grant tafs cloud names for it, when it names one: its connections are planque's under this app too.</summary>
     public string? Grant { get; init; }
+    /// <summary>
+    /// The tafs that need it, by tafs cloud's id and name (<c>needed_by</c>): "Which taf?" lists only these. None from a tafs
+    /// cloud before it: every taf the person manages.
+    /// </summary>
+    public IReadOnlyList<(string Taf, string Name)>? NeededBy { get; init; }
 
     public string DisplayName => Name ?? Title;
     public bool Connected => State == "connected" || ConnectedFlag;
@@ -88,6 +96,9 @@ public static class ConnectAppsScreen
                         UsedBy = Names(a),
                         Logo = Text(a, "logo"),
                         Grant = Text(a, "grant"),
+                        NeededBy = a.TryGetProperty("needed_by", out var n) && n.ValueKind == JsonValueKind.Array
+                            ? n.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Object && Text(x, "taf") is not null)
+                                .Select(x => (Text(x, "taf")!, Text(x, "name") ?? "")).ToList() : null,
                     });
         var byKey = root.TryGetProperty("by_key", out var k) && k.ValueKind == JsonValueKind.True;
         return new ConnectAppsList(apps, byKey, Text(root, "next_cursor"), Text(root, "provider")) { RemovedTafs = Removed(root) };
@@ -180,6 +191,34 @@ public static class ConnectAppsScreen
     /// wasn't opened from a taf, and no taf can have them. This PC reads no tafs yet, so none can.
     /// </summary>
     public static bool SaysMakeATaf(int discover, bool forTaf = false, int connectableTafs = 0) => discover > 0 && !forTaf && connectableTafs == 0;
+
+    /// <summary>
+    /// The tafs an app can be connected for, as the iPad's <c>connectableTafs(for:)</c>: of those on tafs cloud that the person
+    /// manages, the ones tafs cloud says need it, in its order; all of them when it doesn't say.
+    /// </summary>
+    public static IReadOnlyList<(string Id, string Name)> ConnectableTafs(IReadOnlyList<(string Id, string Name)> tafs, ConnectApp app) =>
+        app.NeededBy is not { } needed ? tafs : needed.Select(n => tafs.FirstOrDefault(t => t.Id == n.Taf)).Where(t => t.Id is not null).ToList();
+
+    /// <summary>
+    /// What Connect does for an app, as the iPad's <c>ConnectRow.connectFor</c>: with tafs cloud's <c>needed_by</c>, ask which of
+    /// the tafs that need it, or, when none does, Ask Coach (Coach sets one up, never a guess); without it, ask among every taf
+    /// the person manages, or nothing when there's none.
+    /// </summary>
+    public static ConnectRoute Route(ConnectApp app, IReadOnlyList<(string Id, string Name)> connectable) =>
+        connectable.Count > 0 ? ConnectRoute.Ask : app.NeededBy is null ? ConnectRoute.NoTaf : ConnectRoute.AskCoach;
+
+    /// <summary>Starting a connection for a taf: <c>POST /v1/connect/apps/{entry}</c> with <c>{"taf"}</c>, this PC's grants read proof beside it.</summary>
+    public static string StartPath(string entry) => "/v1/connect/apps/" + Tafs.Core.Taf.CloudRead.PathPart(entry);
+
+    public static byte[] StartBody(string taf) => System.Text.Encoding.UTF8.GetBytes(new System.Text.Json.Nodes.JsonObject { ["taf"] = taf }.ToJsonString());
+
+    /// <summary>tafs cloud's answer: the grant to approve (its id, or planque's grant with it), and whether it takes a key.</summary>
+    public static (string Grant, bool NeedsKey)? Started(JsonElement a)
+    {
+        if (a.ValueKind != JsonValueKind.Object || !a.TryGetProperty("grant", out var g)) return null;
+        var id = g.ValueKind == JsonValueKind.String ? g.GetString() : g.ValueKind == JsonValueKind.Object ? Text(g, "id") : null;
+        return string.IsNullOrEmpty(id) ? null : (id, a.TryGetProperty("needs_key", out var k) && k.ValueKind == JsonValueKind.True);
+    }
 
     /// <summary>An app tafs cloud hasn't set up for anyone has its name in the soft colour; the others in the ink.</summary>
     public static bool NameIsSoft(ConnectApp app) => app.NeedsSetup;

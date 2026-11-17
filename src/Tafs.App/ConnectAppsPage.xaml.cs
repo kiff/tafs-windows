@@ -53,6 +53,9 @@ public sealed class ConnectRowView
     public Visibility IsConnected { get; init; } = Visibility.Collapsed;
     public Visibility IsReconnect { get; init; } = Visibility.Collapsed;
     public Visibility HasButton { get; init; } = Visibility.Collapsed;
+    /// <summary>Connect works: on a PC that approves, for an app connected by its sign-in, with a taf that needs it.</summary>
+    public bool CanConnect { get; init; }
+    public string ConnectName { get; init; } = "";
     public Microsoft.UI.Xaml.Media.ImageSource? Logo { get; init; }
     public Visibility HasLogo { get; init; } = Visibility.Collapsed;
     /// <summary>Its connections open (<see cref="AppConnections.Opens"/>), named "Your Stripe connections".</summary>
@@ -74,7 +77,7 @@ public sealed record ConnectionsCalls(Func<Task<IReadOnlyList<Tafs.Core.Kiff.Pla
 /// signed grants read (the proof, as Setup sends it); with neither, only its title.
 /// </summary>
 public sealed record ConnectAppsOpening(ConnectAppsList? Sample, Func<string, string?, Task<Tafs.Core.Taf.CloudRead>>? Read, Func<Task<string?>>? Proof,
-    ConnectionsCalls? Connections = null, bool OpenFirst = false, Action? Back = null);
+    ConnectionsCalls? Connections = null, bool OpenFirst = false, Action? Back = null, ConnectAppsConnecting? Connecting = null);
 
 /// <summary>
 /// Connect apps: tafs cloud's list read as the session, searched as the person types, More apps for its next page; or the
@@ -91,6 +94,8 @@ public sealed partial class ConnectAppsPage : Page
     CancellationTokenSource? typing;
 
     public static event Action? AskCoachChosen;
+    /// <summary>Ask Coach on an app no taf needs: a new conversation, so Coach sets one up from a clean start (the owner's test).</summary>
+    public static event Action? AskCoachAnew;
 
     public ConnectAppsPage() => InitializeComponent();
 
@@ -180,6 +185,45 @@ public sealed partial class ConnectAppsPage : Page
         if ((sender as FrameworkElement)?.DataContext is ConnectRowView { App: { } app } && opening?.Connections is { } calls) Open(app, calls);
     }
 
+    /// <summary>
+    /// Connect, as the iPad's: "Which taf is this for?" among the tafs that need the app (asked only when there's more than one),
+    /// tafs cloud starts the connection for it, then its approval sheet. Connected, the list is read again.
+    /// </summary>
+    async void OnConnect(object sender, RoutedEventArgs e)
+    {
+        if ((sender as FrameworkElement)?.DataContext is not ConnectRowView { App: { } app } || opening?.Connecting is not { } connecting) return;
+        var w = App.Words;
+        var tafs = ConnectAppsScreen.ConnectableTafs(connecting.Tafs, app);
+        if (ConnectAppsScreen.Route(app, tafs) == ConnectRoute.AskCoach)
+        {
+            AskCoachAnew?.Invoke();
+            return;
+        }
+        if (tafs.Count == 0) return;
+        var taf = tafs[0].Id;
+        if (tafs.Count > 1)
+        {
+            var choices = new RadioButtons { SelectedIndex = 0 };
+            foreach (var (_, name) in tafs) choices.Items.Add(name);
+            var which = new ContentDialog
+            {
+                XamlRoot = XamlRoot, RequestedTheme = ActualTheme, Title = w.Get("connect.which_taf"), Content = choices,
+                PrimaryButtonText = w.Get("connect.apps.connect"), CloseButtonText = w.Get("common.cancel"), DefaultButton = ContentDialogButton.Primary,
+            };
+            if (await which.ShowAsync() != ContentDialogResult.Primary || choices.SelectedIndex < 0) return;
+            taf = tafs[choices.SelectedIndex].Id;
+        }
+        Problem.Visibility = Visibility.Collapsed;
+        var (started, why) = await connecting.Start(app, taf);
+        if (started is not { } start)
+        {
+            if (why is not null) (Problem.Text, Problem.Visibility) = (why, Visibility.Visible);
+            return;
+        }
+        if (start.NeedsKey) return;
+        if (await ConnectDialog.ShowAsync(XamlRoot, ActualTheme, app, start.Grant, connecting)) await ReadAsync(query);
+    }
+
     void Open(ConnectApp app, ConnectionsCalls calls)
     {
         if (shown is { } list)
@@ -230,7 +274,7 @@ public sealed partial class ConnectAppsPage : Page
         YoursTitle.Visibility = YoursPanel.Visibility = Seen(yours.Count > 0);
         DiscoverTitle.Visibility = DiscoverPanel.Visibility = Seen(discover.Count > 0);
         MakeOneText.Text = w.Get("connect.apps_connect_taf_make_one");
-        MakeOne.Visibility = Seen(ConnectAppsScreen.SaysMakeATaf(discover.Count));
+        MakeOne.Visibility = Seen(ConnectAppsScreen.SaysMakeATaf(discover.Count, connectableTafs: opening?.Connecting?.Tafs.Count ?? 0));
         AskCoachPanel.Visibility = Seen(list?.ByKey == true);
         MorePanel.Visibility = Seen(list?.NextCursor is not null);
     }
@@ -251,7 +295,9 @@ public sealed partial class ConnectAppsPage : Page
         foreach (var app in apps)
         {
             var said = ConnectAppsScreen.Row(w, app);
-            var button = ConnectAppsScreen.Button(w, app);
+            var route = opening?.Connecting is { } c ? ConnectAppsScreen.Route(app, ConnectAppsScreen.ConnectableTafs(c.Tafs, app)) : ConnectRoute.NoTaf;
+            // No taf needs it: Ask Coach, which sets one up.
+            var button = ConnectAppsScreen.Button(w, app) is { } b && route == ConnectRoute.AskCoach ? w.Get("coach.ask") : ConnectAppsScreen.Button(w, app);
             rows.Add(new ConnectRowView
             {
                 Columns = columns,
@@ -263,6 +309,9 @@ public sealed partial class ConnectAppsPage : Page
                 IsConnected = Seen(app.Connected && said.Setup is null), IsReconnect = Seen(app.NeedsReconnect && said.Setup is null),
                 UsedBy = said.Setup is null ? said.UsedBy ?? "" : "", HasUsedBy = Seen(said.Setup is null && said.UsedBy is not null),
                 Button = button ?? "", HasButton = Seen(button is not null),
+                // Connecting by a key comes with its own change; by a sign-in, for a taf that needs the app.
+                CanConnect = route == ConnectRoute.AskCoach || (route == ConnectRoute.Ask && !app.TakesKey),
+                ConnectName = (button ?? "") + ", " + app.DisplayName,
                 Logo = ConnectAppsScreen.LogoUrl(app.Logo) is { } logo ? new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(logo) : null,
                 HasLogo = Seen(ConnectAppsScreen.LogoUrl(app.Logo) is not null),
                 Opens = Seen(opening?.Connections is not null && AppConnections.Opens(app, grants)),

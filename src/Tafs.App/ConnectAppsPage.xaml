@@ -51,8 +51,8 @@
           </StackPanel>
           <FontIcon Grid.Column="1" Glyph="&#xE73E;" FontSize="20" Visibility="{x:Bind IsConnected}" Foreground="{ThemeResource TafsOk}"
                     AutomationProperties.Name="{x:Bind Status}" />
-          <Button Grid.Column="1" Content="{x:Bind Button}" Visibility="{x:Bind HasButton}" IsEnabled="False"
-                  Style="{StaticResource TafsOutlineButton}" Padding="16,0" />
+          <Button Grid.Column="1" Content="{x:Bind Button}" Visibility="{x:Bind HasButton}" IsEnabled="{x:Bind CanConnect}" Click="OnConnect"
+                  Style="{StaticResource TafsOutlineButton}" Padding="16,0" AutomationProperties.Name="{x:Bind ConnectName}" />
           <!-- Its connections, as the iPad's NavigationLink: for a connected app, and one this PC holds a connection to. -->
           <Button Grid.Column="2" Click="OnOpenConnections" Visibility="{x:Bind Opens}" Style="{StaticResource TafsArrow}" Width="32"
                   AutomationProperties.Name="{x:Bind OpensName}" ToolTipService.ToolTip="{x:Bind OpensName}">
