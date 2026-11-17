@@ -194,7 +194,18 @@ public sealed partial class TafPage
                 label.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
                 panel.Add(label);
                 if (item.Words.Length > 0) panel.Add(Words(item.Words, 13, "TafsSoftText"));
-                if (item.Approval?.State == "approved" || (item.On && item.Approval?.State != "needed"))
+                // Needed: Approve opens its filters first (P4), for whoever manages it on a PC that signs.
+                if (KnobEvent.Asks(item))
+                {
+                    if (manages && opening?.ApproveEvent is { } approve && k.Version is { } at)
+                    {
+                        var go = new Button { Content = w.Get("setup.approve"), Style = Look("TafsPrimary"), IsEnabled = !knobBusy };
+                        AutomationProperties.SetName(go, w.Get("setup.approve") + ", " + item.Label);
+                        go.Click += async (_, _) => await ApproveEventAsync(item, at, approve);
+                        panel.Add(go);
+                    }
+                }
+                else if (item.Approval?.State == "approved" || (item.On && item.Approval?.State != "needed"))
                 {
                     var listening = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
                     listening.Children.Add(new FontIcon { Glyph = "", FontSize = 13, Style = Look("TafsOkIcon") });

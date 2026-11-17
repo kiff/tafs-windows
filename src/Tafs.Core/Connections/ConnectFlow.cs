@@ -196,10 +196,10 @@ public static class ConnectFlow
     static ConnectResult Failed(WordBook w, string vendor, string why) => new(false, Why: w.Get("connect.could_not_connected", ("vendor", vendor), ("why", why)));
 
     /// <summary>KIFF or planque refused opening a window: its words, said in place of a connection.</summary>
-    sealed class WindowRefused(string why) : Exception(why);
+    internal sealed class WindowRefused(string why) : Exception(why);
 
     /// <summary>The window open now, else one opened with Windows Hello; <paramref name="fresh"/> opens a new one whatever is read.</summary>
-    static async Task<OpenWindow?> WindowAsync(ConnectCalls calls, bool fresh)
+    internal static async Task<OpenWindow?> WindowAsync(ConnectCalls calls, bool fresh)
     {
         if (!fresh && await calls.ReadWindow() is { } open && ApprovalWindow.Usable(open, DateTimeOffset.UtcNow)) return open;
         if (!calls.Current()) return null;
@@ -209,7 +209,7 @@ public static class ConnectFlow
     }
 
     /// <summary>A tap inside the window; one that ended meanwhile (<c>window_required</c>) is opened again with Windows Hello, once.</summary>
-    static async Task<(int Status, string Body, OpenWindow? Window)> TapAsync(ConnectCalls calls, OpenWindow window, string path, byte[] body)
+    internal static async Task<(int Status, string Body, OpenWindow? Window)> TapAsync(ConnectCalls calls, OpenWindow window, string path, byte[] body)
     {
         var (status, answer) = await calls.Tap(window.Id, path, body);
         if (status != 403 || Code(answer) != ApprovalWindow.Ended || !calls.Current()) return (status, answer, null);

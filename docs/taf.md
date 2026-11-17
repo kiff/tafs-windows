@@ -116,8 +116,21 @@ the taf's dial (`GET /v1/tafs/{id}/knob`, read as strictly as the iPad's decoder
 - **A change waiting as the next version:** "DRAFT · V4 · NOT LIVE" and its words, for whoever manages the taf, and
   "Make 1 change live with Windows Hello" on a PC whose passkey signs: the versions and the dial read again, then the
   same install as Versions' Install this version, to that version.
-- **Not here yet:** an app event's Approve and an app's places (their planque approval, P9); the doors with the Doors tab
-  (P13); Not sent with the taf's work (S17).
+- **An app event's Approve** (P4, `KnobEvent`, `TafPage.Event.cs`; the iPad's `AppEventApprovalSheet` and
+  `approveKnobEvent`), for whoever manages the taf on a PC whose passkey signs:
+  - **The sheet:** "Approve event", the stop's label and words, "Listen only for events matching these filters.", then every
+    filter tafs cloud wrote, in mono, keys sorted, nothing added or left out; Approve with Windows Hello, or Cancel.
+  - **Approve** reads the dial again first. Another version, grant, event or filters (compared canonically) signs nothing:
+    "This event changed. Read the dial again before approving it." Already approved elsewhere is done.
+  - **Then:** planque set up by this session, this taf's own connection with its account ("Connect this app for the taf
+    before approving its event." otherwise), a window opened with Windows Hello each time (a window already open isn't
+    enough, as the iPad asks Face ID for each), and planque's `POST …/grants/{grant}/triggers` with the account, the event
+    and the filters as written, signed by this PC's key. tafs cloud then records the subscription
+    (`POST /v1/tafs/{id}/knob/subscriptions` with `{trigger, subscription, version}`), and the dial it answers must say
+    approved with that subscription.
+  - **A subscription tafs cloud didn't record** is kept, by taf and stop, and recorded on the next Approve without
+    subscribing again. Windows Hello closed says nothing.
+- **Not here yet:** an app's places (their planque approval); Not sent with the taf's work (S17).
 - Only whoever manages the taf changes anything; a change goes one at a time, and why one didn't go through is said in red.
 - `--page taf-starts` or `taf-results` with `--home` opens them as whoever manages the first taf, its dial from
   `taf-knob.json` beside the Home file (`tests/fixtures/taf-knob`; CI's `taf-starts` and `taf-results`).

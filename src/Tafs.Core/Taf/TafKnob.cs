@@ -5,8 +5,11 @@ using Tafs.Core.Words;
 
 namespace Tafs.Core.Taf;
 
-/// <summary>An app event's approval at planque: <c>needed</c> until the owner's phone or PC approves it, <c>approved</c> after.</summary>
-public sealed record KnobApproval(string State, string Grant, string Event, string? Subscription);
+/// <summary>
+/// An app event's approval at planque: <c>needed</c> until the owner's phone or PC approves it, <c>approved</c> after.
+/// <see cref="Config"/>: the filters tafs cloud wrote, kept as sent; they go to planque as they are, and the person reads them first.
+/// </summary>
+public sealed record KnobApproval(string State, string Grant, string Event, string? Subscription, JsonElement? Config = null);
 
 /// <summary>One choice of a stop's size, and the whole <c>PUT …/knob</c> body that makes it, kept as tafs cloud wrote it.</summary>
 public sealed record KnobChoice(string Label, JsonElement Setting);
@@ -171,7 +174,8 @@ public sealed record TafKnob(bool CanPause, int? Version, KnobPending? Pending, 
     static KnobApproval? Approval(JsonElement i) =>
         Lenient.Field(i, "approval") is { ValueKind: JsonValueKind.Object } a
             ? new KnobApproval(a.GetProperty("state").GetString()!, a.GetProperty("grant").GetString()!, a.GetProperty("event").GetString()!,
-                Lenient.Text(a, "subscription"))
+                Lenient.Text(a, "subscription"),
+                Lenient.Field(a, "config") is { ValueKind: JsonValueKind.Object } config ? config.Clone() : null)
             : null;
 
     static KnobSize? Size(JsonElement i) =>

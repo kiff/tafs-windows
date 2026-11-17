@@ -1836,7 +1836,7 @@ public sealed partial class MainWindow : Window
                 // isn't read on this PC yet, so its issuer is the iPad's for anyone else: "The account".
                 Cards: taf.Cards, IssuedBy: w.Get("card.issued_by_account"), Revoked: taf.Revoked,
                 CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof,
-                Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream, Remove: RemoveFor(taf),
+                Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream, Remove: RemoveFor(taf), ApproveEvent: EventFor(taf),
                 // Setup › Starts when and Results go to: when it starts and where results go, as Home says, and the changes made at once.
                 Change: cloudChange, Starts: taf.Starts, Paused: taf.State == "paused", Email: kiffAccount?.Email, TimeZone: kiffAccount?.TimeZone,
                 // Coach on improving this taf, as the iPad's improveTaf; offered while KIFF says this person may use Coach.
@@ -1865,6 +1865,32 @@ public sealed partial class MainWindow : Window
     /// Remove for good, only for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume: a
     /// removal is the approval key's act, never the device key's. None for anyone else, and no button.
     /// </summary>
+    /// <summary>
+    /// Approving an app event's filters (P4, <see cref="Tafs.Core.Taf.KnobEvent.ApproveAsync"/>), for whoever manages the taf
+    /// on a PC that signs with its passkey, as Remove for good: planque set up first, then its subscription inside a window
+    /// opened with Windows Hello, then tafs cloud's record. A subscription tafs cloud didn't record is kept for the next try.
+    /// </summary>
+    Func<int, KnobItem, Task<Tafs.Core.Taf.KnobEventResult>>? EventFor(HomeTaf taf)
+    {
+        if (taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is not { } read || cloudChange is not { } change) return null;
+        if (App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session) || session.PasskeyId is not { } id) return null;
+        return async (version, item) =>
+        {
+            if (await PlanqueFirstAsync(session) is { } notReady) return new(false, notReady);
+            var key = (taf.Id, item.Id);
+            var calls = new Tafs.Core.Taf.KnobEventCalls(() => read(Tafs.Core.Taf.TafKnob.Path(taf.Id)), ConnectCallsFor(session, id),
+                body => change(HttpMethod.Post, Tafs.Core.Taf.KnobEvent.RecordPath(taf.Id), body));
+            var result = await Tafs.Core.Taf.KnobEvent.ApproveAsync(App.Words, session.Tenant, agent, version, item, calls,
+                eventReceipts.GetValueOrDefault(key));
+            if (result.Approved || result.Kept is null) eventReceipts.Remove(key);
+            else eventReceipts[key] = result.Kept;
+            return result;
+        };
+    }
+
+    /// <summary>Subscriptions planque made that tafs cloud hasn't recorded, by taf and stop: recorded on the next try, never made twice.</summary>
+    readonly Dictionary<(string Taf, string Item), Tafs.Core.Taf.KnobEventReceipt> eventReceipts = [];
+
     TafRemove? RemoveFor(HomeTaf taf)
     {
         if (taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is not { } read) return null;
