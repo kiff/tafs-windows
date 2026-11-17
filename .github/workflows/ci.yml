@@ -19,6 +19,10 @@ on:
         type: boolean
         required: false
         default: false
+      release:
+        description: "A version to make a draft release of, such as 1.0.0 (main only). Empty: none. Publishing is by hand."
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -197,14 +201,30 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Words and contracts at the pin
         run: dotnet run --project tools/Tafs.Ci -- sync
+      # The build's version: 0.1.<run>.0, or for a release run (docs/install.md, Releasing) <release>.<run>, the setup named
+      # by the release alone (tafs-setup-1.0.0-x64.exe). A release is three numbers, from main only.
+      - name: This build's version
+        env:
+          RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.release || '' }}
+          RUN: ${{ github.run_number }}
+        run: |
+          if [ -n "$RELEASE" ]; then
+            [[ "$RELEASE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::a release is three numbers, such as 1.0.0"; exit 1; }
+            [ "$GITHUB_REF" = refs/heads/main ] || { echo "::error::a release is made from main only"; exit 1; }
+            echo "VERSION=$RELEASE.$RUN" >> "$GITHUB_ENV"
+            echo "SETUP_NAME=$RELEASE" >> "$GITHUB_ENV"
+          else
+            echo "VERSION=0.1.$RUN.0" >> "$GITHUB_ENV"
+            echo "SETUP_NAME=0.1.$RUN.0" >> "$GITHUB_ENV"
+          fi
       - name: The app, self-contained
         env:
           PLATFORM: ${{ matrix.platform }}
         run: |
           rid=win-$(echo "$PLATFORM" | tr '[:upper:]' '[:lower:]')
-          # The run's version, as the MSIX's, and its commit: a report names the build it came from. No debug symbols.
+          # The build's version, as the MSIX's, and its commit: a report names the build it came from. No debug symbols.
           dotnet publish src/Tafs.App -c Release -p:Platform="$PLATFORM" -r "$rid" --self-contained -o "artifacts/zip/tafs-$PLATFORM" \
-            -p:DebugType=none -p:Version=0.1.${{ github.run_number }}.0 -p:SourceRevisionId=${{ github.sha }}
+            -p:DebugType=none -p:Version="$VERSION" -p:SourceRevisionId=${{ github.sha }}
           test -f "artifacts/zip/tafs-$PLATFORM/Tafs.App.exe"
       # The x64 build opens its sign-in screen and saves it, or the job fails: a download that doesn't start never ships.
       - name: It starts
@@ -235,7 +255,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
         run: |
           arch=$(echo "$PLATFORM" | tr '[:upper:]' '[:lower:]')
-          version=0.1.${{ github.run_number }}.0
+          version="$VERSION"
           dotnet tool restore
           dotnet wix extension add WixToolset.Bal.wixext/5.0.2
           # The 5.0.2 package names its DLL after the bootstrapper applications, so it's named by its path.
@@ -250,7 +270,7 @@ jobs:
           icon=$(cygpath -w "$PWD/src/Tafs.App/Assets/tafs.ico")
           dotnet wix build installer/Package.wxs -wx -arch "$arch" -d AppDir="$app" -d Version="$version" -d Icon="$icon" -o "$msi"
           dotnet wix build installer/Bundle.wxs -wx -arch "$arch" -ext "$bal" -d Msi="$msi" -d Version="$version" -d Logo="$logo" -d Icon="$icon" \
-            -o "artifacts/installer/tafs-setup-$version-$arch.exe"
+            -o "artifacts/installer/tafs-setup-$SETUP_NAME-$arch.exe"
           ls -la artifacts/installer
       # On x64: the setup installs quietly, tafs starts from where it put it and saves its sign-in screen, and it uninstalls.
       - name: It installs, starts and uninstalls
@@ -281,6 +301,35 @@ jobs:
           name: tafs-windows-setup-${{ matrix.platform }}
           path: artifacts/installer/
           if-no-files-found: error
+
+  # A draft release (docs/install.md, Releasing): on demand from main with a version, the two setups this run built and
+  # checked, attached to a draft tagged v<release> at this commit. A draft never shows on kiff.dev's download page;
+  # publishing it is by hand, once the owner's test of this build passed.
+  release:
+    needs: [zip]
+    if: >-
+      always() && needs.zip.result == 'success'
+      && github.event_name == 'workflow_dispatch' && inputs.release != '' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: tafs-windows-setup-*
+          path: setup
+          merge-multiple: true
+      - name: A draft, never published here
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ inputs.release }}
+        run: |
+          [[ "$RELEASE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::a release is three numbers, such as 1.0.0"; exit 1; }
+          x64="setup/tafs-setup-$RELEASE-x64.exe"; arm64="setup/tafs-setup-$RELEASE-arm64.exe"
+          test -s "$x64" && test -s "$arm64"
+          gh release create "v$RELEASE" "$x64" "$arm64" --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" \
+            --title "tafs for Windows v$RELEASE" \
+            --notes "tafs for Windows $RELEASE, built by CI run $GITHUB_RUN_NUMBER at $GITHUB_SHA. A draft until the owner's test of this build passes."
 
   # The MSIX (docs/install.md), kept for the day it's signed: Windows installs no unsigned package that holds an app.
   # x64 and ARM64, from main and on demand only until then. Each build's version is 0.1.<run number>.0.

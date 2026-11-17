@@ -53,9 +53,24 @@ signed. Everyone else waits for the signed package.
   dotnet wix build installer/Bundle.wxs -wx -arch x64 -ext .wix/extensions/WixToolset.Bal.wixext/5.0.2/wixext5/WixToolset.BootstrapperApplications.wixext.dll \
     -d Msi="$msi" -d Version=0.1.0.0 -o artifacts/installer/tafs-setup-0.1.0.0-x64.exe
   ```
-- **Not yet:** signed (the setup's engine and the .exe, in CI's sign job once Azure exists), its words in the app's 8
-  languages (WiX's standard setup is in English), and the app's own icon (the app has no `.ico` yet, so Start shows
-  Windows' default).
+- **Its icon** is the mascot's (`src/Tafs.App/Assets/tafs.ico`): the app's, in Start and the taskbar, and the setup's and
+  Windows' installed-apps list.
+- **Not yet:** signed (the setup's engine and the .exe, in CI's sign job once Azure exists), and its words in the app's 8
+  languages (WiX's standard setup is in English).
+
+## Releasing (a draft, published by hand)
+
+- **What kiff.dev's download page shows** (kiff-cloud `docs/reference/download-page.md`): tafs-windows' latest release, once
+  it's published (not a draft, not a prerelease) and carries the x64 setup, `*-x64.exe`. Until then, Windows is "Coming
+  soon".
+- **Making one:** Actions › CI › Run workflow on `main`, with **release** set to the version, such as `1.0.0`. That run
+  builds and checks everything as any run does, with the app and its setups at `<release>.<run>` (the setups named
+  `tafs-setup-1.0.0-x64.exe` and `-arm64.exe`), then its `release` job makes a **draft** release, tagged `v1.0.0` at that
+  commit, with both setups attached. A draft never shows on the page. Another run for the same version needs the last
+  draft deleted first, and its setup installs over the last one in place.
+- **Publishing it** is by hand, and only once the owner says that build's test passed, as for every computer: then that
+  build's draft is published as it is, and the page shows it within 10 minutes.
+- **The team's own builds** stay at `0.1.<run>.0`, below a release, so a team setup won't install over a released one.
 
 ## The MSIX (once it's signed)
 
