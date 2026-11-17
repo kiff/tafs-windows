@@ -20,7 +20,22 @@ public static class TafCards
             Lenient.Text(c, "environment") ?? "",
             Live: Lenient.Field(c, "live") is not { ValueKind: JsonValueKind.False },
             Active: Lenient.Field(c, "active") is not { ValueKind: JsonValueKind.False },
-            Expires: Lenient.At(c, "expires"))).ToList();
+            Expires: Lenient.At(c, "expires"),
+            Counted: Counted(c),
+            EachItem: Lenient.Array(c, "each_item").Where(l => l.ValueKind == JsonValueKind.String).Select(l => l.GetString()!.Trim())
+                .Where(l => l.Length > 0).ToList())).ToList();
+
+    /// <summary>
+    /// How this is counted, as tafs cloud passes KIFF's on (<c>counted: [{tool, title, lines}]</c>): each tool with its lines,
+    /// in their order. A tool without a title or a line is left out, and none at all reads as none, so the row doesn't show.
+    /// </summary>
+    static IReadOnlyList<CardCounted>? Counted(JsonElement card)
+    {
+        var tools = Lenient.Array(card, "counted").Select(t => new CardCounted(Lenient.Text(t, "tool") ?? "", Lenient.Text(t, "title")?.Trim() ?? "",
+                Lenient.Array(t, "lines").Where(l => l.ValueKind == JsonValueKind.String).Select(l => l.GetString()!.Trim()).Where(l => l.Length > 0).ToList()))
+            .Where(t => t.Title.Length > 0 && t.Lines.Count > 0).ToList();
+        return tools.Count > 0 ? tools : null;
+    }
 
     /// <summary>
     /// The Cards a taf's page shows, as the iPad's <c>Taf.shownCards</c>: KIFF's Cards as tafs cloud read them, in its order;

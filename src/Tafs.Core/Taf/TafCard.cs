@@ -58,11 +58,20 @@ public sealed record CardRule(string Action, string Label, CardWindow Window, Ki
 }
 
 /// <summary>
+/// How KIFF counts one tool the Card covers, as the owner approved it (the iPad's <c>CardCounted</c>): the tool, its title,
+/// and KIFF's lines, word for word.
+/// </summary>
+public sealed record CardCounted(string Tool, string Title, IReadOnlyList<string> Lines);
+
+/// <summary>
 /// One KIFF Card (the iPad's TafCard): a taf can hold several, each with its own limits and totals, and a Card scoped to a
 /// test environment is kept apart from the live one. Its money total and its count of calls are KIFF's, never worked out here.
+/// How this is counted (<see cref="Counted"/>) and its totals for each item apart (<see cref="EachItem"/>) are KIFF's and tafs
+/// cloud's words; none when they send none.
 /// </summary>
 public sealed record TafCard(string Id, string Title, IReadOnlyList<CardRule> Rules, CardTotal? Total = null, CallsTotal? Calls = null,
-    string Environment = "", bool Live = true, bool Active = true, DateTimeOffset? Expires = null)
+    string Environment = "", bool Live = true, bool Active = true, DateTimeOffset? Expires = null,
+    IReadOnlyList<CardCounted>? Counted = null, IReadOnlyList<string>? EachItem = null)
 {
     /// <summary>The pill on its face when it's scoped to an environment that isn't production ("TEST"); none for a live Card.</summary>
     public string? EnvironmentLabel => Live || Environment.Length == 0 ? null : Environment.ToUpperInvariant();

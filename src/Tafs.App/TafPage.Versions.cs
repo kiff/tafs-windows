@@ -7,7 +7,7 @@ using Tafs.Core.Taf;
 namespace Tafs.App;
 
 /// <summary>Which of the Card tab's screens shows: the Card itself, its versions, or its usage.</summary>
-public enum CardScreen { Main, Versions, Usage }
+public enum CardScreen { Main, Versions, Usage, Counted }
 
 /// <summary>
 /// The Card tab's two rows for whoever manages a tafs cloud taf, as the iPad's <c>card(_:)</c>: "Changes to how it runs"
@@ -70,7 +70,7 @@ public sealed partial class TafPage
     /// <summary>The Card tab on one of its screens: Back to the Card, its title, then what it shows. False on the Card itself.</summary>
     bool ShowCardScreen()
     {
-        if (cardScreen == CardScreen.Main || opening?.CloudId is null) return false;
+        if (cardScreen == CardScreen.Main || (opening?.CloudId is null && cardScreen != CardScreen.Counted)) return false;
         var w = App.Words;
         CardPane.Children.Clear();
         var back = new HyperlinkButton { Padding = new Thickness(0) };
@@ -82,6 +82,7 @@ public sealed partial class TafPage
         back.Click += (_, _) => { cardScreen = CardScreen.Main; ShowCards(); };
         CardPane.Children.Add(back);
         if (cardScreen == CardScreen.Versions) ShowVersions(w);
+        else if (cardScreen == CardScreen.Counted) ShowCounted(w);
         else ShowCredits(w);
         return true;
     }
@@ -158,6 +159,25 @@ public sealed partial class TafPage
     }
 
     /// <summary>Its credits this period, in tafs cloud's words, then its runs newest first, More while there are more.</summary>
+/// <summary>
+    /// How this is counted, as the iPad's <c>CountedView</c>: for each tool the front Card covers with a profile the owner
+    /// approved, its title, then KIFF's lines for it, the same lines approved. The app adds no words of its own.
+    /// </summary>
+    void ShowCounted(Tafs.Core.Words.WordBook w)
+    {
+        var title = Words(w.Get("card.how_counted"), 22, "TafsInkText");
+        title.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
+        CardPane.Children.Add(title);
+        var shown = opening?.Cards is { Count: > 0 } cards ? cards.FirstOrDefault(c => c.Id == front) ?? cards[0] : null;
+        foreach (var tool in shown?.Counted ?? [])
+        {
+            var lines = new StackPanel { Spacing = 8 };
+            lines.Children.Add(Words(tool.Title, 13, "TafsSoftText"));
+            foreach (var line in tool.Lines) lines.Children.Add(Words(line, 15, "TafsInkText"));
+            CardPane.Children.Add(Panel(lines));
+        }
+    }
+
     void ShowCredits(Tafs.Core.Words.WordBook w)
     {
         var title = Words(w.Get("usage.label"), 22, "TafsInkText");
