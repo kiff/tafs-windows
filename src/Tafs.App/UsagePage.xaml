@@ -9,9 +9,13 @@
       <TextBlock x:Name="NavTitle" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource TafsInk}"
                  AutomationProperties.HeadingLevel="Level1" />
 
+      <!-- The balance couldn't be read, and none was before: tafs cloud's words, in red. -->
+      <TextBlock x:Name="BalanceUnread" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
       <!-- The balance: its line around in the tone's colour when it isn't calm. -->
       <Border x:Name="BalancePanel" Style="{StaticResource TafsCard}">
         <StackPanel Spacing="12">
+          <!-- A read again that failed keeps what was read and says why, as the iPad's. -->
+          <TextBlock x:Name="BalanceWhy" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
           <TextBlock x:Name="BalanceWords" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{ThemeResource TafsInk}" />
           <!-- The bar: 5 high, the ink at 10% under the tone's colour (calm is green). -->
           <Grid x:Name="Meter" Height="5" SizeChanged="OnMeterSized">
@@ -42,6 +46,7 @@
               <Button x:Name="ThisPeriod" Grid.Column="1" Click="OnThisPeriod" />
             </Grid>
           </Border>
+          <TextBlock x:Name="CreditsWhy" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
           <TextBlock x:Name="CreditsWords" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{ThemeResource TafsInk}" />
         </StackPanel>
       </Border>

@@ -41,9 +41,14 @@ public sealed partial class UsagePage
         var manages = calls.ManagesBilling();
         await Task.WhenAll(balance, current, previous, usage, manages);
         if (!ReferenceEquals(Calls, calls)) return;
-        reads = new(Text(balance.Result) is { } b ? UsageScreen.ReadBalance(b) : null,
+        // A read that failed keeps what was read before, and says why in tafs cloud's words, as the iPad's balanceError and
+        // creditsError; a tafs cloud without the read (404) says nothing, as before.
+        var (b0, c0, p0) = (Text(balance.Result) is { } b ? UsageScreen.ReadBalance(b) : null,
             Text(current.Result) is { } c ? UsageScreen.ReadCredits(c) : null,
             Text(previous.Result) is { } p ? UsageScreen.ReadCredits(p) : null);
+        balanceWhy = b0 is null ? Why(balance.Result) : null;
+        (creditsWhy, previousWhy) = (c0 is null ? Why(current.Result) : null, p0 is null ? Why(previous.Result) : null);
+        reads = new(b0 ?? reads.Balance, c0 ?? reads.This, p0 ?? reads.Previous);
         kiff = usage.Result.Answer is { } u ? KiffUsage.Read(u) : null;
         kiffWhy = kiff is null ? usage.Result.Why ?? App.Words.Get("kiff.kiff_did_not_answer_expected") : null;
         managesBilling = manages.Result;
@@ -53,6 +58,11 @@ public sealed partial class UsagePage
     }
 
     static string? Text(CloudRead r) => r.Answer?.GetRawText();
+
+    /// <summary>Why a read didn't come, in tafs cloud's words; none for a tafs cloud without it (404), as the iPad's.</summary>
+    static string? Why(CloudRead r) => r.Status == 404 ? null : r.Why;
+
+    string? balanceWhy, creditsWhy, previousWhy;
 
     /// <summary>Who bills, the member's ask or members' requests, and Raise's line, under the balance.</summary>
     void ShowKiff()

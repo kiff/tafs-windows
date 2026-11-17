@@ -39,6 +39,9 @@ public sealed partial class UsagePage : Page
     void ShowBalance(Balance? b)
     {
         BalancePanel.Visibility = Seen(b is not null);
+        BalanceUnread.Text = BalanceWhy.Text = balanceWhy ?? "";
+        BalanceUnread.Visibility = Seen(b is null && balanceWhy is not null);
+        BalanceWhy.Visibility = Seen(b is not null && balanceWhy is not null);
         if (b is null) return;
         BalancePanel.Style = Look(b.State switch { Tone.Waiting => "TafsCardWaiting", Tone.Warning => "TafsCardWarning", _ => "TafsCard" });
         BalanceWords.Text = b.Words;
@@ -66,10 +69,15 @@ public sealed partial class UsagePage : Page
     void ShowCredits()
     {
         var c = previous ? reads.Previous : reads.This;
-        CreditsPanel.Visibility = Seen((reads.This ?? reads.Previous) is not null && reads.Balance?.CreditsPanel != false);
+        // Shown with a period read, or to say why this period's read didn't come; not when tafs cloud says to leave it out.
+        CreditsPanel.Visibility = Seen(((reads.This ?? reads.Previous) is not null || creditsWhy is not null) && reads.Balance?.CreditsPanel != false);
         LastPeriod.Style = Look(previous ? "TafsSegmentChosen" : "TafsSegment");
         ThisPeriod.Style = Look(previous ? "TafsSegment" : "TafsSegmentChosen");
         CreditsWords.Text = c?.Words ?? "";
+        // This period's or the period before's read that failed: why, under the picker.
+        var why = previous ? previousWhy : creditsWhy;
+        CreditsWhy.Text = why ?? "";
+        CreditsWhy.Visibility = Seen(why is not null);
         CreditsRows.Children.Clear();
         if (c is null || CreditsPanel.Visibility == Visibility.Collapsed) return;
         // Each taf that used credits, most first, in its own panel: it opens its credits and runs in that period, as the
