@@ -51,7 +51,7 @@ their lines here are d14217f's.
 | :- | -: | :- | :- |
 | AIConsentView.swift | 74 | The AI-data consent screen | |
 | AllowSheetView.swift | 96 | "Allow this from now on" (#80, open, with `HoldAllow.swift` and `TafsCloud+Allow.swift`) | |
-| AppEventApprovalSheet.swift | 54 | An app event's filters before signing a subscription | |
+| AppEventApprovalSheet.swift | 54 | An app event's filters before signing a subscription | The sheet, the dial read again, planque's subscription in a window opened with Windows Hello, tafs cloud's record, a kept subscription recorded again (`TafPage.Event.cs`, `KnobEvent.cs`) | |
 | AttachViews.swift | 267 | Attaching photos and files in a chat | Attachment |
 | DeleteAccountView.swift | 60 | Deleting the account | |
 | DiscardSettingUp.swift | 35 | Discard a taf being set up | |
