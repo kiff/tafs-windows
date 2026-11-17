@@ -302,7 +302,7 @@ public sealed partial class MainWindow : Window
         AccountPage.SignInChosen += OpenSignIn;
         // The choices only for a KIFF account, as the iPad's mode == .kiff: never over the sample.
         AccountPage.AlertsChosen += () => OpenBeside(typeof(AlertsPage), new AlertsOpening(sample ? null : App.Sessions.Kept()?.Tenant));
-        AccountPage.DevicesChosen += () => OpenBeside(typeof(DevicesPage), new DevicesOpening(kiffRead));
+        AccountPage.DevicesChosen += () => OpenBeside(typeof(DevicesPage), new DevicesOpening(kiffRead, DevicesSigning()));
         // Connect apps and Plan & usage from Account, as the iPad's People & apps and Plan rows: the sidebar's screens.
         // From Account, Connect apps has Back to it; from the sidebar, none.
         AccountPage.ConnectAppsChosen += () =>
@@ -1865,6 +1865,38 @@ public sealed partial class MainWindow : Window
     /// Remove for good, only for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume: a
     /// removal is the approval key's act, never the device key's. None for anyone else, and no button.
     /// </summary>
+    /// <summary>
+    /// Signing another device out and removing a passkey from Devices (P11): approvals at KIFF, so only on a PC that signs
+    /// with its own passkey, which approves exactly that <c>DELETE</c> behind Windows Hello. Removing a passkey is an owner's or
+    /// an admin's, as on the iPad. None for anyone else: the list says to use a device that can approve.
+    /// </summary>
+    DevicesSigning? DevicesSigning()
+    {
+        if (App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session) || session.PasskeyId is not { } id) return null;
+        var bearer = session.AccessToken;
+        var reading = sessions;
+        var kiff = Tafs.Core.SignIn.DeviceSignIn.Api;
+        return new(
+            async path =>
+            {
+                var windowsHello = new WindowsHello(() => App.WindowHandle);
+                var passkey = new PasskeyApprover(windowsHello, KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);
+                return (PasskeyApprover.HeaderName, await passkey.ApproveAsync(session.Tenant, "DELETE", path, [], SigningTime.Next(DateTimeOffset.UtcNow)));
+            },
+            async (path, signature) =>
+            {
+                try
+                {
+                    var (status, body) = await KiffHttp.DeleteAsync(new Uri(kiff, path), bearer, App.Words.Language, signature: signature);
+                    return status is >= 200 and <= 299 ? new CloudRead(null, Status: status)
+                        : new CloudRead(null, Tafs.Core.Kiff.KiffErrors.Words(App.Words, status), status);
+                }
+                catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(App.Words); }
+            },
+            () => reading == sessions && App.Sessions.Kept()?.AccessToken == bearer,
+            Tafs.Core.Account.Passkeys.MayRemove(kiffAccount?.Role, approves: true));
+    }
+
     TafRemove? RemoveFor(HomeTaf taf)
     {
         if (taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is not { } read) return null;
