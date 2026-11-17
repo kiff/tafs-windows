@@ -51,7 +51,14 @@ signed. Everyone else waits for the signed package.
 - **Its icon** is the mascot's (`src/Tafs.App/Assets/tafs.ico`): the app's, in Start and the taskbar, and the setup's and
   Windows' installed-apps list.
 - **Signed** in CI's `sign` job (Signing, below): the app's files inside it, the MSI, the setup's engine and the setup.
-- **Not yet:** its words in the app's 8 languages (WiX's standard setup is in English for v1.0).
+- **Its words are in the app's 8 languages,** in the PC's display language, with English as the fallback.
+  - **Where they live:** `installer/words/<lang>.wxl` holds every line of WiX's standard setup (64), and legal-i18n writes them. WiX v5 ships these screens in English only.
+  - **How the setup picks one:** it looks for `<LCID>\thm.wxl` for each of the person's preferred UI languages, then for their language's default variant (fr-BE finds fr-FR's). Spanish is held under 3082 and 1034, and Portuguese under 2070 and 1046. Burn's `/lang <LCID>` chooses one by hand.
+  - **What's checked:**
+    - `SetupWordsTests`: each language has exactly English's ids, keeps each line's placeholders, link and key shortcut, and its buttons fit;
+    - `ci/installer.sh`: every LCID is read back out of the setup it built;
+    - on x64, CI keeps `setup-screens`, the first and last screens in French and German, from the real setup with `/lang` (`ci/setup-screens.ps1`).
+- **No Options page:** the MSI always installs under `Program Files\tafs`, so a folder chosen there would have been ignored.
 
 ## Releasing (a draft; the owner publishes)
 

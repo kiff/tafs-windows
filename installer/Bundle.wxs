@@ -2,13 +2,30 @@
   The setup .exe people download (docs/install.md): WiX's standard bootstrapper around the platform's MSI (Package.wxs),
   with "Open tafs" on its last page, the tafs mark in its corner (installer/logo.png, 64 square, shapes only) and tafs's icon.
   Built by `wix build` with -ext WixToolset.Bal.wixext -d Msi=<the MSI> -d Version=<0.1.n.0> -d Logo=<logo.png>
-  -d Icon=<tafs.ico> -arch <x64|arm64>. Signed with the app, in CI's sign job, once Azure exists. The UpgradeCode never changes.
+  -d Icon=<tafs.ico> -d Words=<installer/words> -arch <x64|arm64> (ci/installer.sh). Signed in CI's sign job. The
+  UpgradeCode never changes.
+
+  Its words are in the PC's display language, among the app's 8 (installer/words, legal-i18n's). WiX's standard setup looks
+  for <LCID>\thm.wxl for each of the person's preferred UI languages, then for their language's default variant, and falls
+  back to English. So Spanish is under 3082 and 1034 (Spanish's default variant), and Portuguese under 2070 and 1046 (its
+  default). There's no Options page: the MSI always installs under Program Files\tafs, so a folder chosen there would be
+  ignored.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
   <Bundle Name="tafs" Manufacturer="KIFF" Version="$(Version)" UpgradeCode="02331400-3DFF-486C-B4B3-511AC3EBA656" IconSourceFile="$(Icon)">
     <BootstrapperApplication>
       <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense" LicenseUrl="" ShowVersion="yes" LogoFile="$(Logo)"
+                                              LocalizationFile="$(Words)\en.wxl" SuppressOptionsUI="yes"
                                               LaunchTarget="[ProgramFiles64Folder]tafs\Tafs.App.exe" />
+      <Payload Id="words1031" Name="1031\thm.wxl" SourceFile="$(Words)\de.wxl" />
+      <Payload Id="words3082" Name="3082\thm.wxl" SourceFile="$(Words)\es.wxl" />
+      <Payload Id="words1034" Name="1034\thm.wxl" SourceFile="$(Words)\es.wxl" />
+      <Payload Id="words1036" Name="1036\thm.wxl" SourceFile="$(Words)\fr.wxl" />
+      <Payload Id="words1040" Name="1040\thm.wxl" SourceFile="$(Words)\it.wxl" />
+      <Payload Id="words1043" Name="1043\thm.wxl" SourceFile="$(Words)\nl.wxl" />
+      <Payload Id="words1045" Name="1045\thm.wxl" SourceFile="$(Words)\pl.wxl" />
+      <Payload Id="words2070" Name="2070\thm.wxl" SourceFile="$(Words)\pt.wxl" />
+      <Payload Id="words1046" Name="1046\thm.wxl" SourceFile="$(Words)\pt.wxl" />
     </BootstrapperApplication>
     <Chain>
       <MsiPackage SourceFile="$(Msi)" />

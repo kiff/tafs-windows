@@ -34,8 +34,17 @@ case "${1:-}" in
     bal=.wix/extensions/WixToolset.Bal.wixext/5.0.2/wixext5/WixToolset.BootstrapperApplications.wixext.dll
     # tafs's mark and icon: the setup window's corner and Windows' installed-apps list.
     logo=$(cygpath -w "$PWD/installer/logo.png")
+    # Its words: English and the 7 others (installer/words), each under its LCID.
+    words=$(cygpath -w "$PWD/installer/words")
     dotnet wix build installer/Bundle.wxs -wx -arch "$arch" -ext "$bal" -d Msi="$msi" -d Version="$VERSION" -d Logo="$logo" \
-      -d Icon="$icon" -o "$setup"
+      -d Icon="$icon" -d Words="$words" -o "$setup"
+    # Every language is in the setup it made: each LCID's thm.wxl, read back out of the setup itself.
+    check=$(mktemp -d)
+    dotnet wix burn extract "$setup" -oba "$check/ba" > /dev/null
+    for lcid in 1031 3082 1034 1036 1040 1043 1045 2070 1046; do
+      test -s "$check/ba/$lcid/thm.wxl" || { echo "::error::the setup has no words for $lcid"; exit 1; }
+    done
+    rm -rf "$check"
     ;;
   detach)
     dotnet wix burn detach "$setup" -engine "$engine"

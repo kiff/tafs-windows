@@ -1,0 +1,71 @@
+<!--
+  The setup's words in Italian (installer/words/en.wxl has the English and the rules), by legal-i18n. Derived from
+  WiX Toolset v5.0.2's HyperlinkTheme.wxl, Copyright (c) .NET Foundation and contributors, under the Microsoft Reciprocal
+  License (MS-RL).
+-->
+<WixLocalization Culture="it-it" Language="1040" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="Caption" Value="Installazione di [WixBundleName]" />
+  <String Id="Title" Value="[WixBundleName]" />
+  <String Id="CheckingForUpdatesLabel" Value="Ricerca di aggiornamenti" />
+  <String Id="UpdateButton" Value="&amp;Aggiorna alla versione [WixStdBAUpdateAvailable]" />
+  <String Id="InstallHeader" Value="Benvenuti" />
+  <String Id="InstallMessage" Value="Il programma di installazione installerà [WixBundleName] su questo PC. Fare clic su Installa per continuare o su Annulla per uscire." />
+  <String Id="InstallMessageOptions" Value="Il programma di installazione installerà [WixBundleName] su questo PC. Fare clic su Installa per continuare, su Opzioni per impostare le opzioni di installazione o su Annulla per uscire." />
+  <String Id="InstallVersion" Value="Versione [WixBundleVersion]" />
+  <String Id="ConfirmCancelMessage" Value="Annullare l'operazione?" />
+  <String Id="ExecuteUpgradeRelatedBundleMessage" Value="Versione precedente" />
+  <String Id="HelpHeader" Value="Guida dell'installazione" />
+  <String Id="HelpText" Value="/install | /repair | /uninstall | /layout [directory] - installa, ripristina, disinstalla o&#xA;   crea una copia locale completa del pacchetto nella directory. L'installazione è l'opzione predefinita.&#xA;&#xA;/passive | /quiet -  mostra un'interfaccia minima senza domande, oppure nessuna interfaccia e&#xA;   nessuna domanda. Per impostazione predefinita vengono mostrate l'interfaccia e tutte le domande.&#xA;&#xA;/norestart   - impedisce qualsiasi tentativo di riavvio. Per impostazione predefinita l'interfaccia chiede prima di riavviare.&#xA;/log log.txt - scrive il log in un file specifico. Per impostazione predefinita viene creato un file di log in %TEMP%." />
+  <String Id="HelpCloseButton" Value="&amp;Chiudi" />
+  <String Id="InstallLicenseLinkText" Value="&lt;a href=&quot;#&quot;&gt;Condizioni di licenza&lt;/a&gt; di [WixBundleName]." />
+  <String Id="InstallAcceptCheckbox" Value="&amp;Accetto i termini e le condizioni di licenza" />
+  <String Id="InstallOptionsButton" Value="&amp;Opzioni" />
+  <String Id="InstallInstallButton" Value="&amp;Installa" />
+  <String Id="InstallCancelButton" Value="A&amp;nnulla" />
+  <String Id="OptionsHeader" Value="Opzioni di installazione" />
+  <String Id="OptionsLocationLabel" Value="Percorso di installazione:" />
+  <String Id="OptionsBrowseButton" Value="&amp;Sfoglia" />
+  <String Id="OptionsOkButton" Value="&amp;OK" />
+  <String Id="OptionsCancelButton" Value="A&amp;nnulla" />
+  <String Id="ProgressHeader" Value="Avanzamento dell'installazione" />
+  <String Id="ProgressLabel" Value="Elaborazione:" />
+  <String Id="OverallProgressPackageText" Value="Inizializzazione..." />
+  <String Id="ProgressCancelButton" Value="A&amp;nnulla" />
+  <String Id="ModifyHeader" Value="Modifica dell'installazione" />
+  <String Id="ModifyRepairButton" Value="&amp;Ripristina" />
+  <String Id="ModifyUninstallButton" Value="&amp;Disinstalla" />
+  <String Id="ModifyCancelButton" Value="A&amp;nnulla" />
+  <String Id="SuccessHeader" Value="Installazione completata" />
+  <String Id="SuccessCacheHeader" Value="Memorizzazione nella cache completata" />
+  <String Id="SuccessInstallHeader" Value="[WixBundleName] è installato" />
+  <String Id="SuccessLayoutHeader" Value="Copia locale completata" />
+  <String Id="SuccessModifyHeader" Value="Modifica completata" />
+  <String Id="SuccessRepairHeader" Value="Ripristino completato" />
+  <String Id="SuccessUninstallHeader" Value="Disinstallazione completata" />
+  <String Id="SuccessUnsafeUninstallHeader" Value="Disinstallazione completata" />
+  <String Id="SuccessLaunchButton" Value="&amp;Apri tafs" />
+  <String Id="SuccessRestartText" Value="È necessario riavviare il computer prima di poter usare il software." />
+  <String Id="SuccessUninstallRestartText" Value="È necessario riavviare il computer per completare la rimozione del software." />
+  <String Id="SuccessRestartButton" Value="&amp;Riavvia" />
+  <String Id="SuccessCloseButton" Value="&amp;Chiudi" />
+  <String Id="FailureHeader" Value="Installazione non riuscita" />
+  <String Id="FailureCacheHeader" Value="Memorizzazione nella cache non riuscita" />
+  <String Id="FailureInstallHeader" Value="Installazione non riuscita" />
+  <String Id="FailureLayoutHeader" Value="Copia locale non riuscita" />
+  <String Id="FailureModifyHeader" Value="Modifica non riuscita" />
+  <String Id="FailureRepairHeader" Value="Ripristino non riuscito" />
+  <String Id="FailureUninstallHeader" Value="Disinstallazione non riuscita" />
+  <String Id="FailureUnsafeUninstallHeader" Value="Disinstallazione non riuscita" />
+  <String Id="FailureHyperlinkLogText" Value="Uno o più problemi hanno impedito il completamento dell'installazione. Correggere i problemi e ripetere l'installazione. Per altre informazioni, vedere il &lt;a href=&quot;#&quot;&gt;file di log&lt;/a&gt;." />
+  <String Id="FailureRestartText" Value="È necessario riavviare il computer per completare l'annullamento delle modifiche al software." />
+  <String Id="FailureRestartButton" Value="&amp;Riavvia" />
+  <String Id="FailureCloseButton" Value="&amp;Chiudi" />
+  <String Id="FilesInUseTitle" Value="File in uso" />
+  <String Id="FilesInUseLabel" Value="Le seguenti applicazioni usano file che devono essere aggiornati:" />
+  <String Id="FilesInUseNetfxCloseRadioButton" Value="Chiudi le &amp;applicazioni." />
+  <String Id="FilesInUseCloseRadioButton" Value="Chiudi le &amp;applicazioni e prova a riavviarle." />
+  <String Id="FilesInUseDontCloseRadioButton" Value="&amp;Non chiudere le applicazioni. Sarà necessario un riavvio." />
+  <String Id="FilesInUseRetryButton" Value="&amp;Riprova" />
+  <String Id="FilesInUseIgnoreButton" Value="&amp;Ignora" />
+  <String Id="FilesInUseExitButton" Value="&amp;Esci" />
+</WixLocalization>
