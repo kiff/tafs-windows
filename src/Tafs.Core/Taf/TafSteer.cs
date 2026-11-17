@@ -43,7 +43,9 @@ public static class TafSteer
 {
     public static string Path(string taf) => "/v1/tafs/" + CloudRead.PathPart(taf) + "/steer";
 
-    public static byte[] Body(string run, string text) => JsonSerializer.SerializeToUtf8Bytes(new { run, text, hold = true });
+    public static byte[] Body(string run, string text, string? messageId = null) => messageId is null
+        ? JsonSerializer.SerializeToUtf8Bytes(new { run, text, hold = true })
+        : JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, object> { ["run"] = run, ["text"] = text, ["hold"] = true, [TafChatSend.MessageIdField] = messageId });
 
     /// <summary>The run a message would go to: the thread's at work (<c>working.run</c>).</summary>
     public static string? WorkingRun(JsonElement thread) =>
@@ -80,6 +82,7 @@ public static class TafSteer
         return new Steered.Kept(Lenient.Field(a, "sent") is { ValueKind: JsonValueKind.Object }, held);
     }
 
-    public static async Task<Steered> SteerAsync(WordBook w, string taf, string run, string text, Func<string, byte[], Task<CloudRead>> send) =>
-        Answer(w, await send(Path(taf), Body(run, text)));
+    public static async Task<Steered> SteerAsync(WordBook w, string taf, string run, string text, Func<string, byte[], Task<CloudRead>> send,
+        string? messageId = null) =>
+        Answer(w, await send(Path(taf), Body(run, text, messageId)));
 }

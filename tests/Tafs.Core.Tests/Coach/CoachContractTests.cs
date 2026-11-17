@@ -125,7 +125,7 @@ public class CoachContractTests
     {
         var thread = CoachThread.Read(ContractFile.Answer(SharedFiles.Contract("coach-wider.json")))!;
         var approval = Assert.Single(thread.Shown, s => s.Card.Kind == "approval");
-        Assert.Equal("The sign-in for Google Sheets can't be narrowed to this job: it asks for more access than the taf uses. The taf still uses only its own tools.",
+        Assert.Equal("The sign-in for Google Sheets can't be narrowed to this job: its screen will ask for more access than the taf uses. The taf can still use only the tools on its Card, and tafs refuses any other call. The code that does this is public, so you can check it.",
             approval.Card.Wider);
     }
 }

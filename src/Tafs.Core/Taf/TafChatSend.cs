@@ -27,10 +27,28 @@ public static class TafChatSend
 
     public static byte[] Body(string text) => JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, string> { ["text"] = text });
 
-    /// <summary>A message with the files ready to go with it (<c>{text, attachments: [id]}</c>); words alone with none.</summary>
-    public static byte[] Body(string text, IReadOnlyList<string>? attachments) =>
-        attachments is not { Count: > 0 } ids ? Body(text)
-        : JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, object> { ["text"] = text, ["attachments"] = ids });
+    /// <summary>
+    /// A message with the files ready to go with it (<c>{text, attachments: [id]}</c>; words alone with none) and the id it's
+    /// sent under (<c>client_message_id</c>), when it has one.
+    /// </summary>
+    public static byte[] Body(string text, IReadOnlyList<string>? attachments, string? messageId = null)
+    {
+        if (attachments is not { Count: > 0 } && messageId is null) return Body(text);
+        var body = new Dictionary<string, object> { ["text"] = text };
+        if (attachments is { Count: > 0 } ids) body["attachments"] = ids;
+        if (messageId is not null) body[MessageIdField] = messageId;
+        return JsonSerializer.SerializeToUtf8Bytes(body);
+    }
+
+    /// <summary>
+    /// The id a composed message is sent under (<c>client_message_id</c>, kiff/tafs docs/api.md › A taf's chat), as Android's:
+    /// one UUID per message, the same on the stream, on the plain send that takes its place, on a steer, and on Retry, so
+    /// tafs cloud acts on it once however often it arrives. A new or edited message gets a new one.
+    /// </summary>
+    public static string NewMessageId() => Guid.NewGuid().ToString("D");
+
+    /// <summary>The message id's field, at the top level of the body.</summary>
+    public const string MessageIdField = "client_message_id";
 
     public static byte[] StopBody(string session) => JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, string> { ["session"] = session });
 
@@ -90,9 +108,9 @@ public static class TafChatSend
     /// </summary>
     /// <param name="path">Another chat's path, sent to the same way: a trial's (<see cref="TafTrials.MessagesPath"/>).</param>
     public static async Task<Refusal?> SendAsync(WordBook w, string taf, string text, Func<string, byte[], Task<CloudRead>> send,
-        IReadOnlyList<string>? attachments = null, string? path = null)
+        IReadOnlyList<string>? attachments = null, string? path = null, string? messageId = null)
     {
-        var answer = await send(path ?? MessagesPath(taf), Body(text, attachments));
+        var answer = await send(path ?? MessagesPath(taf), Body(text, attachments, messageId));
         return answer.Answer is not null ? null : Refusal.Of(answer, w.Get("error.offline"));
     }
 

@@ -162,6 +162,26 @@ public static class TafChatStream
     public static string Path(string taf) => $"/v1/tafs/{CloudRead.PathPart(taf)}/messages/stream";
 
     /// <summary>
+    /// A message's stream opened, as the iPad's send: open, its answer to read as it comes. Not reached, or no stream route
+    /// there (404, 405, an older tafs cloud or the stream's host), the plain send takes its place under the same id
+    /// (<c>client_message_id</c>), so a stream that reached tafs cloud before failing is acted on once. Any other answer is a
+    /// refusal, said and never sent again.
+    /// </summary>
+    /// <returns>The open stream; else whether the plain send took it (no refusal) or why not.</returns>
+    public static async Task<(System.Net.Http.HttpResponseMessage? Open, Refusal? Refused)> OpenAsync(WordBook w, string taf, string text,
+        IReadOnlyList<string>? files, string? messageId,
+        Func<string, byte[], Task<(int Status, string Body, System.Net.Http.HttpResponseMessage? Open)>> stream,
+        Func<string, byte[], Task<CloudRead>> send)
+    {
+        (int Status, string Body, System.Net.Http.HttpResponseMessage? Open) answer;
+        try { answer = await stream(Path(taf), TafChatSend.Body(text, files, messageId)); }
+        catch (System.Net.Http.HttpRequestException) { return (null, await TafChatSend.SendAsync(w, taf, text, send, files, messageId: messageId)); }
+        if (answer.Open is null && answer.Status is 404 or 405) return (null, await TafChatSend.SendAsync(w, taf, text, send, files, messageId: messageId));
+        if (answer.Open is not { } open) return (null, Refusal.Of(CloudRead.Refused(w, answer.Status, answer.Body), w.Get("error.ours")));
+        return (open, null);
+    }
+
+    /// <summary>
     /// A run of the person's picked back up (the iPad's <c>resumeRun</c>): its steps so far, then the rest as it goes, until it
     /// stops (<c>GET /v1/tafs/{id}/runs/{run}/stream?after=0</c>). Only their own run; another's is a 404.
     /// </summary>

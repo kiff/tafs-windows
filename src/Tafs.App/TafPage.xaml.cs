@@ -286,10 +286,13 @@ public sealed partial class TafPage : Page
     /// A message to the taf: null when it wasn't tried (already sending, or nothing to send it to); true once sent; false
     /// when tafs cloud didn't take it, and the thread keeps it as not sent.
     /// </summary>
-    async Task<bool?> SendTextAsync(string text)
+    /// <param name="messageId">The id it was sent under before (Retry); none for a new message, which gets its own.</param>
+    async Task<bool?> SendTextAsync(string text, string? messageId = null)
     {
+        // One id for this message wherever it goes: the stream, the plain send in its place, a steer, and Retry.
+        var mid = messageId ?? TafChatSend.NewMessageId();
         // While it works, words alone go to the run at work, once (P34, the iPad's submitChat); files go on their own after.
-        if (text.Trim().Length > 0 && ReadyFiles().Count == 0 && SteerRun() is { } run) return await SteerAsync(run, text);
+        if (text.Trim().Length > 0 && ReadyFiles().Count == 0 && SteerRun() is { } run) return await SteerAsync(run, text, mid);
         if (sending || opening is not { CloudId: { } id, Send: { } send } mine) return null;
         var w = App.Words;
         var pending = TafChatSend.Pending(text, chat?.Messages ?? [], DateTimeOffset.UtcNow);
@@ -300,8 +303,10 @@ public sealed partial class TafPage : Page
         // The files ready in the tray go with it; the tray empties once it's taken.
         var files = ReadyFiles();
         // A trial's message goes to its own chat, words only, never the live taf's.
+        // A trial's chat is its own route, which takes no id.
         var refused = mine.InTrial is not null ? await TafChatSend.SendAsync(w, id, text, send, path: TafTrials.MessagesPath(id))
-            : mine.Stream is { } stream ? await StreamAsync(w, id, text, stream, send, mine, files) : await TafChatSend.SendAsync(w, id, text, send, files);
+            : mine.Stream is { } stream ? await StreamAsync(w, id, text, stream, send, mine, files, mid)
+            : await TafChatSend.SendAsync(w, id, text, send, files, messageId: mid);
         if (refused is null && files.Count > 0) ClearSentFiles(files);
         if (opening != mine) return null;
         (sending, live) = (false, null);
@@ -316,7 +321,7 @@ public sealed partial class TafPage : Page
         if (refused is not null)
         {
             sent.Remove(pending);
-            unsent.Add(UnsentMessage.Of(text, refused.Why, DateTimeOffset.UtcNow, refused.Halted));
+            unsent.Add(UnsentMessage.Of(text, refused.Why, DateTimeOffset.UtcNow, refused.Halted, mine.InTrial is null ? mid : null));
             ShowChat();
             return false;
         }
@@ -332,7 +337,8 @@ public sealed partial class TafPage : Page
     {
         if (sending) return;
         (unsent, var at) = Unsent.Take(unsent, m.Id);
-        if (await SendTextAsync(m.Text) is null) unsent = Unsent.PutBack(unsent, m, at);
+        // Under the id it was sent under: if the first send reached tafs cloud after all, it's that message, not a second.
+        if (await SendTextAsync(m.Text, m.MessageId) is null) unsent = Unsent.PutBack(unsent, m, at);
         ShowChat();
     }
 
@@ -348,12 +354,12 @@ public sealed partial class TafPage : Page
     /// the taf is done), then the thread is read again, which shows where they are. More than tafs cloud holds: its words, and
     /// they stay in the box. Not reached: kept in the thread as not sent, with Retry; never sent again on its own.
     /// </summary>
-    async Task<bool?> SteerAsync(string run, string text)
+    async Task<bool?> SteerAsync(string run, string text, string? messageId = null)
     {
         if (opening is not { CloudId: { } id, Send: { } send } mine) return null;
         var w = App.Words;
         chatNote = null;
-        var steered = await TafSteer.SteerAsync(w, id, run, text, send);
+        var steered = await TafSteer.SteerAsync(w, id, run, text, send, messageId);
         if (opening != mine) return null;
         switch (steered)
         {
@@ -365,7 +371,7 @@ public sealed partial class TafPage : Page
                 ShowChat();
                 return null;
             case Steered.Refused refused:
-                unsent.Add(UnsentMessage.Of(text, refused.Why.Why, DateTimeOffset.UtcNow, refused.Why.Halted));
+                unsent.Add(UnsentMessage.Of(text, refused.Why.Why, DateTimeOffset.UtcNow, refused.Why.Halted, messageId));
                 ShowChat();
                 return false;
             default:
@@ -433,15 +439,11 @@ public sealed partial class TafPage : Page
     /// never sent again. A stream that breaks leaves the rest to the thread.
     /// </summary>
     async Task<Refusal?> StreamAsync(Tafs.Core.Words.WordBook w, string id, string text, TafStream stream,
-        Func<string, byte[], Task<CloudRead>> send, TafOpening mine, IReadOnlyList<string>? files = null)
+        Func<string, byte[], Task<CloudRead>> send, TafOpening mine, IReadOnlyList<string>? files = null, string? messageId = null)
     {
-        (int Status, string Body, System.Net.Http.HttpResponseMessage? Open) answer;
-        try { answer = await stream(TafChatStream.Path(id), TafChatSend.Body(text, files), CancellationToken.None); }
-        catch (System.Net.Http.HttpRequestException) { return await TafChatSend.SendAsync(w, id, text, send, files); }
-        // No stream route there (404, 405): the plain send takes it, as the iPad's (an older tafs cloud, or the stream's host).
-        if (answer.Open is null && answer.Status is 404 or 405) return await TafChatSend.SendAsync(w, id, text, send, files);
-        if (answer.Open is not { } open)
-            return Refusal.Of(CloudRead.Refused(w, answer.Status, answer.Body), w.Get("error.ours"));
+        // Not reached, or no stream route: the plain send in its place, under the same id, so it's acted on once.
+        var (opened, refused) = await TafChatStream.OpenAsync(w, id, text, files, messageId, (path, body) => stream(path, body, CancellationToken.None), send);
+        if (opened is not { } open) return refused;
         using (open)
         {
             live = LiveAnswer.Start;

@@ -4,12 +4,14 @@ namespace Tafs.Core.Taf;
 
 /// <summary>
 /// A message that wasn't taken, kept where it was written, as the iPad's <c>UnsentMessage</c>: its words,
-/// why, and when, until Retry sends it again, Edit puts its words back in the box, or Delete drops it.
+/// why, and when, until Retry sends it again, Edit puts its words back in the box, or Delete drops it. It keeps the id it was
+/// sent under (<see cref="MessageId"/>), so Retry goes under the same one: a send that dropped with no answer may have reached
+/// tafs cloud, and Retry then gets that message back rather than a second run.
 /// </summary>
-public sealed record UnsentMessage(string Id, string Text, string Why, DateTimeOffset At, string? Halted = null)
+public sealed record UnsentMessage(string Id, string Text, string Why, DateTimeOffset At, string? Halted = null, string? MessageId = null)
 {
-    public static UnsentMessage Of(string text, string why, DateTimeOffset at, string? halted = null) =>
-        new(Guid.NewGuid().ToString("N"), text, why, at, halted);
+    public static UnsentMessage Of(string text, string why, DateTimeOffset at, string? halted = null, string? messageId = null) =>
+        new(Guid.NewGuid().ToString("N"), text, why, at, halted, messageId);
 }
 
 /// <summary>
