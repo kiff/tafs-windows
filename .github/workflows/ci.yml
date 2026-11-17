@@ -56,6 +56,12 @@ jobs:
           if [ -n "$INPUT_RELEASE" ]; then
             # A release runs everything, unfiltered, as the nightly run: never one part alone.
             [ -z "$INPUT_PART" ] || { echo "::error::a release runs the full suite: leave part empty"; exit 1; }
+            # GitHub refuses the run's token a release at a commit that changes .github/ (403 "Resource not accessible
+            # by integration", seen on 17 Nov), so such a commit is refused here, before anything builds.
+            if git diff --name-only HEAD~1 HEAD | grep -q '^\.github/'; then
+              echo "::error::this commit changes .github/, which GitHub won't let a run release: release from a commit after it"
+              exit 1
+            fi
             parts=$($ci parts --only all)
           elif [ -n "$INPUT_PART" ]; then
             parts=$($ci parts --only "$INPUT_PART")   # refuses anything but a declared part or all

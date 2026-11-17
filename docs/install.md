@@ -62,8 +62,10 @@ signed. Everyone else waits for the signed package.
   unfiltered, as the nightly run (a part with it is refused), with the app and its setups at `<release>.<run>`. Its
   `release` job runs only when every check of that run passed, none skipped (the tests, the app, the TPM keys, and the
   zip's install), and, with **sign** ticked, only when signing passed. It makes a **draft** release, tagged `v1.0.0` at
-  that commit. A draft never shows on the page. Another run for the same version needs the last draft deleted first, and
-  its setup installs over the last one in place.
+  that commit. A draft never shows on the page. Another run for the same version makes another draft beside the last
+  (delete the one not wanted), and its setup installs over the last one in place.
+- **Not from a commit that changes `.github/`:** GitHub refuses the run's token a release there (a 403), so `plan`
+  refuses it first. Main's next commit releases fine.
 - **Signed** (sign ticked): the draft carries the signed setups, `tafs-setup-1.0.0-x64.exe` and `-arm64.exe`, with each
   one's SHA-256 in its notes.
 - **Unsigned** (sign not ticked, for the owner's install test before signing exists): the setups are named
