@@ -24,7 +24,7 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     TafHealth? Health = null, Action<string>? AskCoachWith = null, Action? OpenUsage = null, Func<bool>? MayUseCoach = null,
     CardScreen CardOn = CardScreen.Main, bool CreditsPrevious = false, TafTrying? Trying = null, TafInTrial? InTrial = null,
     TafInstalling? Installing = null, Func<int, KnobItem, Task<KnobEventResult>>? ApproveEvent = null, TafSharing? Share = null,
-    Action<string>? AskCoachAbout = null, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null,
+    Action<string>? AskCoachAbout = null, Func<Task<string?>>? Revoke = null, bool RevokeNeedsApprover = false, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null,
     Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null)
 {
     /// <summary>
@@ -1221,8 +1221,13 @@ public sealed partial class TafPage : Page
         if (opening.Halt is { } halt) CardPane.Children.Add(HaltRow(halt));
         // "Changes to how it runs" and Usage, as the iPad's, for whoever manages it.
         AddCardRows();
-        // Revoke reaches nothing yet, so it's the sample's only: on a real taf it would look done when KIFF revoked nothing.
-        if (opening?.CloudId is not null) return;
+        // Revoke, for whoever manages it: on a live taf, KIFF revokes its Cards; a view-only session says where it's done.
+        if (opening?.CloudId is not null && opening.Revoke is null)
+        {
+            if (opening.RevokeNeedsApprover) CardPane.Children.Add(Words(w.Get("taf.revoke_needs_approver"), 13, "TafsSoftText"));
+            return;
+        }
+        if (revokeWhy is { } why) CardPane.Children.Add(Words(why, 13, "TafsNoText"));
         var revoke = new Button { Content = w.Get("taf.revoke"), Style = Look("TafsOutlineNo"), HorizontalAlignment = HorizontalAlignment.Stretch };
         revoke.Click += async (_, _) => await RevokeAsync();
         CardPane.Children.Add(revoke);
@@ -1444,10 +1449,27 @@ public sealed partial class TafPage : Page
             RequestedTheme = ActualTheme,
         };
         if (await ask.ShowAsync() != ContentDialogResult.Primary) return;
+        // A live taf: KIFF revokes its Cards first; one it doesn't stops it, said on the Card tab, and nothing looks revoked.
+        if (opening?.Revoke is { } live)
+        {
+            var mine = opening;
+            revokeWhy = null;
+            var why = await live();
+            if (opening != mine) return;
+            if (why is not null)
+            {
+                revokeWhy = why;
+                ShowCards();
+                return;
+            }
+        }
         revoked = true;
         ShowState();
         ShowCards();
     }
+
+    /// <summary>Why KIFF didn't revoke its Card, on the Card tab; none once it did, or before Revoke.</summary>
+    string? revokeWhy;
 
     /// <summary>
     /// A theme colour in this page's theme. Theme.xaml's dictionaries are merged into the app's, so they're looked for
