@@ -40,7 +40,8 @@ public class ConnectFlowTests
             },
             (window, path, body) => { Said.Add($"tap {window[..5]}{window[^1]} {path} {Encoding.UTF8.GetString(body)}"); return Task.FromResult(Taps.Dequeue()); },
             (page, grant) => { Said.Add($"sign in {page.Host} {grant}"); return Task.FromResult(Code); },
-            () => true, e => e.Message);
+            () => true, e => e.Message,
+            (window, path, body, key) => { Said.Add($"key {window[..5]}{window[^1]} {path} {Encoding.UTF8.GetString(body)} {key}"); return Task.FromResult(Taps.Dequeue()); });
     }
 
     [Fact]
@@ -153,5 +154,49 @@ public class ConnectFlowTests
         Assert.Equal(("grt_1", false), ConnectAppsScreen.Started(System.Text.Json.JsonDocument.Parse("""{"grant": "grt_1"}""").RootElement));
         Assert.Equal(("grt_2", true), ConnectAppsScreen.Started(System.Text.Json.JsonDocument.Parse("""{"grant": {"id": "grt_2"}, "needs_key": true}""").RootElement));
         Assert.Null(ConnectAppsScreen.Started(System.Text.Json.JsonDocument.Parse("""{"grant": ""}""").RootElement));
+    }
+
+    [Fact]
+    public async Task A_key_is_given_in_the_window_its_hash_signed_never_the_key()
+    {
+        var calls = new Calls();
+        calls.Taps.Enqueue((200, """{"id": "grt_1", "status": "connected"}"""));
+        Assert.Equal(new ConnectResult(true), await ConnectFlow.GiveKeyAsync(En, "t_1", "grt_1", "d1", null, "  sk_test_0123456789abcdef " + (char)10, calls.Make()));
+        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData("sk_test_0123456789abcdef"u8.ToArray())).ToLowerInvariant();
+        Assert.Equal(["read window", "hello", $$"""key win_az /v1/accounts/t_1/grants/grt_1/key {"digest":"d1","key_sha256":"{{hash}}"} sk_test_0123456789abcdef"""], calls.Said);
+
+        // Only as shown, and nothing without a key.
+        var changed = new Calls { Now = [Grant(digest: "d2")] };
+        Assert.Equal("d2", (await ConnectFlow.GiveKeyAsync(En, "t_1", "grt_1", "d1", null, "sk_x", changed.Make())).Changed!.Digest);
+        Assert.Empty(changed.Said);
+        var empty = new Calls();
+        Assert.Equal(new ConnectResult(false), await ConnectFlow.GiveKeyAsync(En, "t_1", "grt_1", "d1", null, "  ", empty.Make()));
+        Assert.Empty(empty.Said);
+    }
+
+    [Fact]
+    public void A_key_sheet_reads_tafs_cloud_s_words_and_fills_only_the_last_4()
+    {
+        var sheet = KeySheet.Read(System.Text.Json.JsonDocument.Parse("""
+            {"vendor": {"name": "Qonto", "host": "thirdparty.qonto.com"}, "title": "Connect Qonto with a key",
+             "lines": [{"kind": "reads_only", "text": "It only reads."}, {"kind": "sealed", "text": "The key is sealed."}],
+             "paste": {"button": "Paste the key", "what": "Your Qonto key", "pasted": "Key …{last4} pasted", "cleared": "Clipboard cleared", "next": "Tap Connect"},
+             "details": {"title": "Details", "lines": [{"label": "Server", "value": "thirdparty.qonto.com"}]},
+             "legal": {"text": "By connecting you accept {terms} and {privacy}.", "terms": {"words": "Qonto's terms", "url": "https://qonto.com/terms"}},
+             "button": "Connect", "receipt": {"text": "{vendor} connected with …{last4}", "disconnect": "Disconnect"}}
+            """).RootElement)!;
+        Assert.Equal(("Qonto", "Connect", "Paste the key"), (sheet.Vendor, sheet.Button, sheet.PasteButton));
+        Assert.Equal("Key …cdef pasted", sheet.Filled(sheet.Pasted, KeySheet.Last4("sk_test_0123456789abcdef")));
+        Assert.Equal("Qonto connected with …cdef", sheet.Filled(sheet.Receipt!, "cdef"));
+        Assert.Equal("", KeySheet.Last4("short_key"));
+        Assert.Equal("By connecting you accept Qonto's terms and .", sheet.LegalWords);
+        // "It only reads." only when every tool of the grant read is a read.
+        var reads = Grant() with { Request = new GrantRequest("qonto", "a", [new GrantTool("list", ReadOnly: true)]) };
+        var writes = Grant() with { Request = new GrantRequest("qonto", "a", [new GrantTool("list", ReadOnly: true), new GrantTool("pay")]) };
+        Assert.True(sheet.SaysTrue(reads));
+        Assert.False(sheet.SaysTrue(writes));
+        Assert.False(sheet.SaysTrue(Grant()));
+        Assert.Null(KeySheet.Read(System.Text.Json.JsonDocument.Parse("""{"vendor": {"name": "Q"}, "title": "t", "button": "b"}""").RootElement));
+        Assert.Equal("/v1/connect/grants/grt_1/sheet", KeySheet.Path("grt_1"));
     }
 }

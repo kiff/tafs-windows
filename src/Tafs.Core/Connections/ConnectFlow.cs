@@ -11,9 +11,11 @@ namespace Tafs.Core.Connections;
 /// to planque (a path and body, signed <c>v2</c> with the window's id); the vendor's sign-in opened in the browser, waiting for
 /// planque's <c>tafs:</c> return with its one-use code (none when it didn't come); and whether the session is still the one.
 /// </summary>
+/// <param name="TapKey">A tap carrying a vendor key in planque's own header (<see cref="KeySheet.KeyHeader"/>), never in what's signed.</param>
 public sealed record ConnectCalls(Func<Task<IReadOnlyList<PlanqueGrant>?>> Grants, Func<Task<OpenWindow?>> ReadWindow,
     Func<Task<(OpenWindow? Window, string? Why)>> OpenWindow, Func<string, string, byte[], Task<(int Status, string Body)>> Tap,
-    Func<Uri, string, Task<string?>> SignIn, Func<bool> Current, Func<Exception, string> Why);
+    Func<Uri, string, Task<string?>> SignIn, Func<bool> Current, Func<Exception, string> Why,
+    Func<string, string, byte[], string, Task<(int Status, string Body)>>? TapKey = null);
 
 /// <summary>
 /// What approving a connection came to: connected (or planque holding the sign-in, <c>listed</c>), the grant that changed since
@@ -138,6 +140,57 @@ public static class ConnectFlow
             return doc.RootElement.ValueKind == JsonValueKind.Object ? Lenient.Text(doc.RootElement, "status") : null;
         }
         catch (JsonException) { return null; }
+    }
+
+    /// <summary>
+    /// Gives a key-based grant its key (P9), as the iPad's <c>giveKey(grantID:shown:key:)</c>: the grant read again and given its
+    /// key only as shown (its digest, KIFF's words for exactly its profile), in KIFF's window opened with Windows Hello; planque's
+    /// <c>…/key</c> as a tap over <see cref="KeySheet.KeyBody"/> (the key's SHA-256, never the key), the key itself only in
+    /// planque's header. Connected only once planque says so. Windows Hello closed, nothing said.
+    /// </summary>
+    public static async Task<ConnectResult> GiveKeyAsync(WordBook w, string tenant, string grantId, string? shownDigest, ProfileWords? shownWords,
+        string key, ConnectCalls calls)
+    {
+        var none = new ConnectResult(false);
+        if (KeySheet.Taken(key) is not { } given || calls.TapKey is not { } tapKey) return none;
+        var grants = await calls.Grants();
+        if (!calls.Current()) return none;
+        if (grants?.FirstOrDefault(g => g.Id == grantId) is not { } grant)
+            return new(false, Why: grants is null ? w.Get("connect.approve_not_read", ("why", w.Get("kiff.kiff_did_not_answer_expected"))) : w.Get("connect.no_such_connection"));
+        if (!grant.DigestMatches) return new(false, Why: w.Get("error.request_mismatch"));
+        if (grant.Digest != shownDigest) return new(false, Changed: grant);
+        if (grant.Profile is { } profile && shownWords?.For(profile) != true) return new(false, Why: w.Get("connect.profile_words_unread"));
+
+        OpenWindow? window;
+        try { window = await WindowAsync(calls, fresh: false); }
+        catch (OperationCanceledException) { return none; }
+        catch (WindowRefused refused) { return calls.Current() ? new(false, Why: refused.Message) : none; }
+        if (!calls.Current() || window is null) return none;
+        var body = KeySheet.KeyBody(grant.Digest, given, shownWords?.ProfileSha256, shownWords?.WordsSha256);
+        var path = KeySheet.KeyPath(tenant, grant.Id);
+        (int Status, string Body) answer;
+        try
+        {
+            answer = await tapKey(window.Id, path, body, given);
+            // The window ended meanwhile: opened again with Windows Hello, once.
+            if (answer.Status == 403 && Code(answer.Body) == ApprovalWindow.Ended && calls.Current())
+            {
+                if (await WindowAsync(calls, fresh: true) is not { } again) return none;
+                answer = await tapKey(again.Id, path, body, given);
+            }
+        }
+        catch (OperationCanceledException) { return none; }
+        catch (WindowRefused refused) { return calls.Current() ? new(false, Why: refused.Message) : none; }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+        {
+            return calls.Current() ? new(false, Why: w.Get("connect.key_not_given", ("why", w.Get("error.offline")))) : none;
+        }
+        if (!calls.Current()) return none;
+        if (answer.Status is < 200 or > 299) return new(false, Why: w.Get("connect.key_not_given", ("why", Refusal(w, answer.Status, answer.Body))));
+        var after = await calls.Grants();
+        if (!calls.Current()) return none;
+        return after?.FirstOrDefault(g => g.Id == grant.Id) is { Connected: true } or { Listed: true }
+            ? new(true) : new(false, Why: w.Get("coach.not_connected", ("vendor", grant.Vendor)));
     }
 
     static ConnectResult Failed(WordBook w, string vendor, string why) => new(false, Why: w.Get("connect.could_not_connected", ("vendor", vendor), ("why", why)));
