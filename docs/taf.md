@@ -29,6 +29,8 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
   come keeps the thread there was and says "The thread couldn't be loaded." and why, in red at 13. A sample taf's
   thread is its greeting (`sample.hello`), with what it's doing as its Overview line says it. Coach's thread draws
   its bubbles, run starts and work the same way (`ChatViews`).
+  While the taf works, the step running is on the live line, and the steps done are under it (`TafChatStream.DoneRows`,
+  the iPad's `LiveWork`): tries of one step as one row, and failures left out until it's done.
 - **The Card bar:** a small Card in the taf's colour with the Card's mark, its Card's figure and words ("€1,960 left
   today of €2,000"), and under it the Card's name, its environment when it isn't production, and "· 3 Cards" when the
   taf holds more than one (`TafCard.Bar`).

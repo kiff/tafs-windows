@@ -149,7 +149,7 @@ public sealed partial class TafPage
         if (more && credits?.Next is null) return;
         creditsMore = more;
         if (more) ShowCards();
-        var answer = await read(TafCredits.Path(id, more ? credits!.Next : null, opening.CreditsPrevious));
+        var answer = await read(TafCredits.Path(id, more ? credits!.Next : null, opening?.CreditsPrevious ?? false));
         creditsMore = false;
         if (opening?.CloudId != id) return;
         if (answer.Answer is { } a && TafCredits.Read(a) is { } page) (credits, creditsWhy) = (more && credits is { } before ? before.With(page) : page, null);
@@ -163,6 +163,8 @@ public sealed partial class TafPage
         var title = Words(w.Get("usage.label"), 22, "TafsInkText");
         title.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
         CardPane.Children.Add(title);
+        // Opened on the period before (Plan & usage's credits): said, so its numbers don't read as this period's.
+        if (opening?.CreditsPrevious == true) CardPane.Children.Add(Words(w.Get("usage.last_period"), 13, "TafsDimText"));
         var inside = new StackPanel { Spacing = 10 };
         if (credits is { } c)
         {

@@ -118,11 +118,6 @@ public sealed record LiveAnswer(string? Session, string? Run, string? MessageId,
     }
 
     /// <summary>
-    /// The live line, as kiff/tafs <c>docs/chat.md</c>'s: tafs cloud's <c>state</c> once it's sent ("Thinking…", the step's
-    /// words or Coach's note with "…", "Working…", "Waiting for you", nothing at done); before it, the step at work, else
-    /// "Thinking…".
-    /// </summary>
-    /// <summary>
     /// The steps done so far, as the iPad's <c>LiveWork</c> draws them under the live line: every step but the one running,
     /// folded by <see cref="Tafs.Core.Coach.WorkLog.Rows"/> (tries of one step as one row, failures left out while it works, so
     /// what shows is what got done). A step with no words is left out: the app has nothing to say for it.
@@ -144,6 +139,11 @@ public sealed record LiveAnswer(string? Session, string? Run, string? MessageId,
         _ => Tafs.Core.Coach.StepStatus.Done,
     };
 
+    /// <summary>
+    /// The live line, as kiff/tafs <c>docs/chat.md</c>'s: tafs cloud's <c>state</c> once it's sent ("Thinking…", the step's
+    /// words or Coach's note with "…", "Working…", "Waiting for you", nothing at done); before it, the step at work, else
+    /// "Thinking…".
+    /// </summary>
     public string? Line(WordBook w) => State switch
     {
         "done" => null,

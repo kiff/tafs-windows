@@ -216,10 +216,6 @@ static class ChatViews
     }
 
     /// <summary>
-    /// A finished answer's work, folded, as the iPad's <c>WorkSummary</c>: "Worked for 12 s ›", which opens its steps, each with
-    /// its mark, "2 tries" after a step tried again.
-    /// </summary>
-    /// <summary>
     /// Steps done, as the iPad's <c>StepList</c>: each row's mark (a check, a failure, not made), its words without the trailing
     /// "…", and not made or the tries it took; under a line at its left. Under "Worked for", and under the live line while a taf works.
     /// </summary>
@@ -241,6 +237,10 @@ static class ChatViews
         return steps;
     }
 
+    /// <summary>
+    /// A finished answer's work, folded, as the iPad's <c>WorkSummary</c>: "Worked for 12 s ›", which opens its steps, each with
+    /// its mark, "2 tries" after a step tried again.
+    /// </summary>
     public static StackPanel WorkSummary(IReadOnlyList<WorkRow> rows, int ms, Func<string, Brush> brush)
     {
         var w = App.Words;
