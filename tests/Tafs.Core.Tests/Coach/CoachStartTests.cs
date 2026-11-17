@@ -47,6 +47,8 @@ public class CoachStartTests
         public string? SignOutAfter;
         /// <summary>KIFF's alerts kept at Start, as the iPad's keepKIFFAlerts.</summary>
         public bool KeepsAlerts;
+        /// <summary>Keeping KIFF's alerts fails with this, past every catch of its own.</summary>
+        public Exception? AlertsFail;
         bool current = true;
 
         void Did(string call)
@@ -76,7 +78,7 @@ public class CoachStartTests
             body => { Did("claim"); ClaimSent = body; return Task.FromResult(Claimed); },
             () => "2026-11-15T18:00:00.123Z",
             () => current,
-            KeepsAlerts ? () => { Did("alerts"); return Task.CompletedTask; } : null);
+            KeepsAlerts ? () => { Did("alerts"); return AlertsFail is { } e ? Task.FromException(e) : Task.CompletedTask; } : null);
 
         public Task<StartResult> Run(KeptSession session, bool planqueReady = false) =>
             CoachStart.StartAsync(En, session, planqueReady, Calls_());
@@ -89,6 +91,14 @@ public class CoachStartTests
         var stubs = new Stubs { KeepsAlerts = true };
         Assert.True((await stubs.Run(Session(ApprovalMode.Passkey, "AQI"))).Started);
         Assert.Equal(["read", "sign draft", "alerts", "enrol", "draft", "claim"], stubs.Calls);
+
+        // Whatever fails keeping them, Start goes on to Setup's draft and its claim.
+        foreach (var failure in new Exception[] { new ArgumentException("uri"), new ObjectDisposedException("key"), new System.Text.Json.JsonException() })
+        {
+            var failing = new Stubs { KeepsAlerts = true, AlertsFail = failure };
+            Assert.True((await failing.Run(Session(ApprovalMode.Passkey, "AQI"))).Started);
+            Assert.Equal(["read", "sign draft", "alerts", "enrol", "draft", "claim"], failing.Calls);
+        }
 
         // Windows Hello closed: no alerts either.
         var closed = new Stubs { KeepsAlerts = true, Hello = () => Task.FromException(new OperationCanceledException()) };
