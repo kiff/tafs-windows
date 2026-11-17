@@ -303,7 +303,8 @@ public sealed partial class CoachPanel
     /// A message to Coach: null when it wasn't tried (already sending, or no Coach to send it to); true once sent; false
     /// when tafs cloud didn't take it, and the thread keeps it as not sent.
     /// </summary>
-    async Task<bool?> SendCoachAsync(string text)
+    /// <param name="messageId">The id it was sent under before (Retry); none for a new message, which gets its own.</param>
+    async Task<bool?> SendCoachAsync(string text, string? messageId = null)
     {
         if (coachSending || coach is not { } id || answer is not { } send) return null;
         var w = App.Words;
@@ -316,8 +317,10 @@ public sealed partial class CoachPanel
         var files = CoachTray.Ready;
         // Improving a taf: its first message goes to that taf's improve route, as the iPad's; then Coach's as usual.
         var improves = improving;
+        // Coach's messages carry their id; the improve route takes none, so a taf's first message to Coach goes without.
+        var mid = improves is null ? messageId ?? TafChatSend.NewMessageId() : null;
         var (into, refused) = improves is { } taf ? await CoachSend.ImproveAsync(w, taf.Id, text, send, files)
-            : await CoachSend.SendAsync(w, id, text, conversation, send, files);
+            : await CoachSend.SendAsync(w, id, text, conversation, send, files, mid);
         if (refused is null && files.Count > 0) CoachTray.Sent(files);
         if (improves is not null && refused is null)
         {
@@ -336,7 +339,7 @@ public sealed partial class CoachPanel
         if (refused is not null)
         {
             coachSent.Remove(pending);
-            coachUnsent.Add(UnsentMessage.Of(text, refused.Why, DateTimeOffset.UtcNow, refused.Halted));
+            coachUnsent.Add(UnsentMessage.Of(text, refused.Why, DateTimeOffset.UtcNow, refused.Halted, mid));
             ShowConversation();
             return false;
         }
@@ -452,7 +455,8 @@ public sealed partial class CoachPanel
     {
         if (coachSending) return;
         (coachUnsent, var at) = Unsent.Take(coachUnsent, m.Id);
-        if (await SendCoachAsync(m.Text) is null) coachUnsent = Unsent.PutBack(coachUnsent, m, at);
+        // Under the id it was sent under: if the first send reached tafs cloud after all, it's that message, not a second.
+        if (await SendCoachAsync(m.Text, m.MessageId) is null) coachUnsent = Unsent.PutBack(coachUnsent, m, at);
         ShowConversation();
     }
 
