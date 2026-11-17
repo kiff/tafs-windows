@@ -98,7 +98,8 @@ The app says when a newer tafs for Windows is out, and only says so, as tafs for
     already shown stays.
 - **What it doesn't do:** download, install or run anything.
 - **Privacy:** no token and no cookie, and no redirect is followed. Nothing about the person, the account or this PC is
-  sent: only the app's User-Agent with its version, `tafs-windows/1.0.0`.
+  sent: only the app's User-Agent with its version, `tafs-windows/1.0.0`. GitHub still sees the PC's IP address, as for
+  any web request, at start and once a day.
 
 ## Language
 
