@@ -17,7 +17,17 @@ public sealed partial class WordBook
         ["de"] = ("sßxz", "'", "s"),
     };
 
-    [GeneratedRegex(@"\{(\w+)(\|possessive)?\}")]
+    /// <summary>
+    /// "This name" by the language's rule (`THIS` in the shared generate.py): French "ce Mac", "cet appareil".
+    /// Right for the device kinds the apps name: every h is taken as mute and y as a vowel. Other languages keep the name.
+    /// </summary>
+    static readonly Dictionary<string, (string Starts, string Before, string Other)> This = new()
+    {
+        ["fr"] = ("aeiouyhàâäéèêëîïôöùûüœæ", "cet ", "ce "),
+    };
+
+    /// <summary>`{name}`, or `{name|form}`: `possessive`, `this`, or `This` to open a sentence.</summary>
+    [GeneratedRegex(@"\{(\w+)(?:\|(\w+))?\}")]
     private static partial Regex Placeholder();
 
     readonly Dictionary<string, Line> lines;
@@ -61,7 +71,7 @@ public sealed partial class WordBook
         return new WordBook(language, lines);
     }
 
-    /// <summary>A line with no count: values fill {name} and {name|possessive}.</summary>
+    /// <summary>A line with no count: values fill {name}, {name|possessive}, {name|this} and {name|This}.</summary>
     public string Get(string key, params (string Name, string Value)[] values)
     {
         var line = Find(key);
@@ -96,7 +106,26 @@ public sealed partial class WordBook
     {
         var line = Find(key);
         var texts = line.Text is not null ? new[] { line.Text } : line.Forms!.Values.ToArray();
-        return texts.Any(t => Placeholder().Matches(t).Any(m => m.Groups[2].Success));
+        return texts.Any(t => Placeholder().Matches(t).Any(m => m.Groups[2].Value == "possessive"));
+    }
+
+    /// <summary>True when a line uses {name|this} or {name|This}: only languages with a rule may.</summary>
+    public bool UsesThis(string key)
+    {
+        var line = Find(key);
+        var texts = line.Text is not null ? new[] { line.Text } : line.Forms!.Values.ToArray();
+        return texts.Any(t => Placeholder().Matches(t).Any(m => m.Groups[2].Value is "this" or "This"));
+    }
+
+    /// <summary>"This name" in this book's language: "ce PC", "cet appareil"; <paramref name="capital"/> opens a sentence.</summary>
+    public string ThisOf(string name, bool capital = false) => Demonstrative(Language, name, capital);
+
+    /// <summary>"This name" by a language's rule (<see cref="This"/>); the name as it is in a language with none.</summary>
+    public static string Demonstrative(string language, string name, bool capital = false)
+    {
+        if (name.Length == 0 || !This.TryGetValue(language, out var rule)) return name;
+        var word = rule.Starts.Contains(char.ToLowerInvariant(name[0])) ? rule.Before : rule.Other;
+        return (capital ? char.ToUpperInvariant(word[0]) + word[1..] : word) + name;
     }
 
     public string PossessiveOf(string name)
@@ -115,7 +144,15 @@ public sealed partial class WordBook
         {
             if (!byName.TryGetValue(m.Groups[1].Value, out var value))
                 throw new ArgumentException($"'{key}' needs a value for {{{m.Groups[1].Value}}}");
-            return m.Groups[2].Success ? PossessiveOf(value) : value;
+            return m.Groups[2].Value switch
+            {
+                "" => value,
+                "possessive" => PossessiveOf(value),
+                "this" => ThisOf(value),
+                "This" => ThisOf(value, capital: true),
+                // A form this app doesn't read is an error, like a missing value: never a hole on screen.
+                var form => throw new ArgumentException($"'{key}' asks for {{{m.Groups[1].Value}|{form}}}, a form this app doesn't read"),
+            };
         });
     }
 

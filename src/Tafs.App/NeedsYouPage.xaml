@@ -14,6 +14,12 @@
       <StackPanel Spacing="14">
         <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
 
+        <!-- Why the last answer to a step didn't go through, as the iPad's lastError, in red. -->
+        <TextBlock x:Name="Error" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
+
+        <!-- Your step: a step a taf handed its owner, first, as the iPad's. Drawn in code. -->
+        <StackPanel x:Name="Steps" Spacing="14" />
+
         <!-- Did this happen?: a money call whose outcome KIFF can't prove, before the held calls, as the iPad's. Drawn in code. -->
         <StackPanel x:Name="UnprovenCalls" Spacing="14" />
 
@@ -21,6 +27,8 @@
         <Border x:Name="Empty" Background="{ThemeResource TafsPanel}" BorderBrush="{ThemeResource TafsLine}" BorderThickness="1"
                 CornerRadius="18" Padding="16">
           <StackPanel Spacing="12">
+            <!-- Board 6, above the words that say it: shapes only (rule 14), hidden from Narrator. -->
+            <Border x:Name="EmptyArt" HorizontalAlignment="Center" />
             <TextBlock x:Name="EmptyLead" FontSize="15" FontWeight="SemiBold" Foreground="{ThemeResource TafsInk}" />
             <TextBlock x:Name="EmptyHint" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
           </StackPanel>
@@ -82,17 +90,10 @@
                                IsTextSelectionEnabled="True" Foreground="{ThemeResource TafsSoft}" />
                   </Expander>
 
-                  <TextBlock Text="{x:Bind Lines.Footer, Mode=OneWay}" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+                  <TextBlock Text="{x:Bind Lines.Footer, Mode=OneWay}" Visibility="{x:Bind FooterShown}" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
 
-                  <!-- The answers, as the iPad's: who answers, or the line over a Card total; and, until this PC approves, the gate
-                       (why it can't, and the way to add it) only where the iPad's ApprovalGate stands, never buttons that can't work. -->
-                  <StackPanel Spacing="8" Visibility="{x:Bind local:HeldCallView.Shown(Lines.Answerable), Mode=OneWay}">
-                    <TextBlock Text="{x:Bind AnswerLine}" Visibility="{x:Bind local:HeldCallView.Seen(AnswerLine)}" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
-                    <StackPanel Spacing="8" Visibility="{x:Bind GateShown}">
-                      <TextBlock Text="{x:Bind GateLead}" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
-                      <Button Content="{x:Bind GateAdd}" Click="OnAddThisDevice" Style="{StaticResource TafsOutlineButton}" />
-                    </StackPanel>
-                  </StackPanel>
+                  <!-- The answers, as the iPad's HeldCallCard.answers: drawn in code for who's answering and how this PC signs. -->
+                  <ContentPresenter Content="{x:Bind Answers}" Visibility="{x:Bind local:HeldCallView.Shown(Lines.Answerable), Mode=OneWay}" />
                 </StackPanel>
               </Border>
             </DataTemplate>

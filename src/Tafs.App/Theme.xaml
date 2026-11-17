@@ -13,6 +13,10 @@
       <SolidColorBrush x:Key="TafsAmberText" Color="#B35500" />
       <!-- Coach's wash (the iPad's Theme.coachWash), and the dim at 22% (a primary button that's off). -->
       <SolidColorBrush x:Key="TafsCoachWash" Color="#EEF3FF" />
+      <!-- What a button or row shows while pointed at: the ink at 7%, the same in every custom template. -->
+      <SolidColorBrush x:Key="TafsHover" Color="#121B1726" />
+      <!-- What Coach has made so far, beside the conversation: a shade deeper than its wash (the iPad's Theme.coachPanel). -->
+      <SolidColorBrush x:Key="TafsCoachPanel" Color="#E3EBFF" />
       <SolidColorBrush x:Key="TafsDimFaint" Color="#38736D7F" />
       <!-- A segmented control's track: the system grey, #767680 at 12% (24% in dark), as the iPad's. -->
       <SolidColorBrush x:Key="TafsSegmentGrey" Color="#1F767680" />
@@ -32,6 +36,7 @@
       <SolidColorBrush x:Key="TafsNo" Color="#DB1F25" />
       <SolidColorBrush x:Key="TafsNoEdge" Color="#80DB1F25" />
       <SolidColorBrush x:Key="TafsNoLine" Color="#66DB1F25" />
+      <SolidColorBrush x:Key="TafsOkLine" Color="#66198056" />
       <!-- The taf's own words on a held call: the soft colour at 8%. -->
       <SolidColorBrush x:Key="TafsSoftWash" Color="#144F4A5E" />
       <!-- The sidebar's chosen row: a rounded fill of the ink, as the iPad's list draws it, not a side bar. -->
@@ -64,6 +69,8 @@
       <SolidColorBrush x:Key="TafsLine" Color="#1FF2EFE9" />
       <SolidColorBrush x:Key="TafsAmberText" Color="#F0A45A" />
       <SolidColorBrush x:Key="TafsCoachWash" Color="#1A2033" />
+      <SolidColorBrush x:Key="TafsHover" Color="#17F2EFE9" />
+      <SolidColorBrush x:Key="TafsCoachPanel" Color="#232B42" />
       <SolidColorBrush x:Key="TafsDimFaint" Color="#3896918A" />
       <SolidColorBrush x:Key="TafsSegmentGrey" Color="#3D767680" />
       <SolidColorBrush x:Key="TafsCoach" Color="#7FA2FF" />
@@ -80,6 +87,7 @@
       <SolidColorBrush x:Key="TafsNo" Color="#FF8A73" />
       <SolidColorBrush x:Key="TafsNoEdge" Color="#80FF8A73" />
       <SolidColorBrush x:Key="TafsNoLine" Color="#66FF8A73" />
+      <SolidColorBrush x:Key="TafsOkLine" Color="#664CC38A" />
       <SolidColorBrush x:Key="TafsSoftWash" Color="#14A8A49C" />
       <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#24F2EFE9" />
       <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#2EF2EFE9" />
@@ -174,11 +182,41 @@
     <Setter Property="FontWeight" Value="Medium" />
     <Setter Property="MinHeight" Value="48" />
     <Setter Property="Padding" Value="18,8" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="UseSystemFocusVisuals" Value="True" />
+    <!-- Its own template, as TafsBox's: pointed at, the hover tint stays while the pointer does; off, it's dimmed. -->
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Grid x:Name="Root" MinHeight="{TemplateBinding MinHeight}">
+            <VisualStateManager.VisualStateGroups>
+              <VisualStateGroup x:Name="CommonStates">
+                <VisualState x:Name="Normal" />
+                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1" /><Setter Target="Root.Opacity" Value="0.85" /></VisualState.Setters></VisualState>
+                <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.45" /></VisualState.Setters></VisualState>
+              </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" />
+            <Border x:Name="Hover" Background="{ThemeResource TafsHover}" CornerRadius="{TemplateBinding CornerRadius}" Opacity="0" IsHitTestVisible="False" />
+            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Foreground="{TemplateBinding Foreground}" />
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
   </Style>
   <!-- Revoke: the outline in the refusal's red, at 40% as the iPad's OutlineLook. -->
   <Style x:Key="TafsOutlineNo" TargetType="Button" BasedOn="{StaticResource TafsOutlineButton}">
     <Setter Property="BorderBrush" Value="{ThemeResource TafsNoLine}" />
     <Setter Property="Foreground" Value="{ThemeResource TafsNo}" />
+  </Style>
+  <!-- Resume every start: the outline in KIFF's green, at 40%. -->
+  <Style x:Key="TafsOutlineOk" TargetType="Button" BasedOn="{StaticResource TafsOutlineButton}">
+    <Setter Property="BorderBrush" Value="{ThemeResource TafsOkLine}" />
+    <Setter Property="Foreground" Value="{ThemeResource TafsOk}" />
   </Style>
 
   <!-- A list's section label, as the iPad's grouped list heads a section (the reference set's account.png): 17 semibold,
@@ -246,16 +284,21 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
-          <Border x:Name="Root" Background="{TemplateBinding Background}" CornerRadius="12" Padding="{TemplateBinding Padding}">
+          <Grid x:Name="Root">
             <VisualStateManager.VisualStateGroups>
               <VisualStateGroup x:Name="CommonStates">
                 <VisualState x:Name="Normal" />
-                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.85" /></VisualState.Setters></VisualState>
-                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.7" /></VisualState.Setters></VisualState>
+                <!-- Pointed at: the hover tint, kept for as long as the pointer stays. -->
+                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1" /><Setter Target="Root.Opacity" Value="0.85" /></VisualState.Setters></VisualState>
+                <VisualState x:Name="CheckedPointerOver"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                <VisualState x:Name="CheckedPressed"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1" /><Setter Target="Root.Opacity" Value="0.85" /></VisualState.Setters></VisualState>
               </VisualStateGroup>
             </VisualStateManager.VisualStateGroups>
-            <ContentPresenter HorizontalContentAlignment="Stretch" />
-          </Border>
+            <Border Background="{TemplateBinding Background}" CornerRadius="12" />
+            <Border x:Name="Hover" Background="{ThemeResource TafsHover}" CornerRadius="12" Opacity="0" IsHitTestVisible="False" />
+            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalContentAlignment="Stretch" />
+          </Grid>
         </ControlTemplate>
       </Setter.Value>
     </Setter>
@@ -271,6 +314,8 @@
     <Setter Property="Padding" Value="2" />
   </Style>
   <Style x:Key="TafsNoText" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsNo}" /></Style>
+  <Style x:Key="TafsOkText" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsOk}" /></Style>
+  <Style x:Key="TafsOkIcon" TargetType="FontIcon"><Setter Property="Foreground" Value="{ThemeResource TafsOk}" /></Style>
   <Style x:Key="TafsAmberWords" TargetType="TextBlock"><Setter Property="Foreground" Value="{ThemeResource TafsAmberText}" /></Style>
   <Style x:Key="TafsAmberIcon" TargetType="FontIcon"><Setter Property="Foreground" Value="{ThemeResource TafsAmberText}" /></Style>
   <!-- The iPad's Panel: the panel colour, corners of 18, a line around (amber or red at 50% for a warning or a wait), 16 in. -->
@@ -300,19 +345,23 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
-          <Border x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"
-                  Padding="{TemplateBinding Padding}" MinHeight="{TemplateBinding MinHeight}">
+          <Grid x:Name="Root" MinHeight="{TemplateBinding MinHeight}">
             <VisualStateManager.VisualStateGroups>
               <VisualStateGroup x:Name="CommonStates">
                 <VisualState x:Name="Normal" />
-                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.85" /></VisualState.Setters></VisualState>
-                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.7" /></VisualState.Setters></VisualState>
+                <!-- Pointed at: the hover tint, kept for as long as the pointer stays. -->
+                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1" /><Setter Target="Root.Opacity" Value="0.85" /></VisualState.Setters></VisualState>
+                <VisualState x:Name="CheckedPointerOver"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                <VisualState x:Name="CheckedPressed"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1" /><Setter Target="Root.Opacity" Value="0.85" /></VisualState.Setters></VisualState>
               </VisualStateGroup>
             </VisualStateManager.VisualStateGroups>
-            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" />
+            <Border x:Name="Hover" Background="{ThemeResource TafsHover}" CornerRadius="{TemplateBinding CornerRadius}" Opacity="0" IsHitTestVisible="False" />
+            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Foreground="{TemplateBinding Foreground}" />
-          </Border>
+          </Grid>
         </ControlTemplate>
       </Setter.Value>
     </Setter>
@@ -344,19 +393,23 @@
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="ToggleButton">
-          <Border x:Name="Root" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}"
-                  Padding="{TemplateBinding Padding}" MinHeight="{TemplateBinding MinHeight}">
+          <Grid x:Name="Root" MinHeight="{TemplateBinding MinHeight}">
             <VisualStateManager.VisualStateGroups>
               <VisualStateGroup x:Name="CommonStates">
                 <VisualState x:Name="Normal" />
-                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.85" /></VisualState.Setters></VisualState>
-                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Root.Opacity" Value="0.7" /></VisualState.Setters></VisualState>
+                <!-- Pointed at: the hover tint, kept for as long as the pointer stays. -->
+                <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1" /><Setter Target="Root.Opacity" Value="0.85" /></VisualState.Setters></VisualState>
+                <VisualState x:Name="CheckedPointerOver"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1" /></VisualState.Setters></VisualState>
+                <VisualState x:Name="CheckedPressed"><VisualState.Setters><Setter Target="Hover.Opacity" Value="1" /><Setter Target="Root.Opacity" Value="0.85" /></VisualState.Setters></VisualState>
               </VisualStateGroup>
             </VisualStateManager.VisualStateGroups>
-            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" />
+            <Border x:Name="Hover" Background="{ThemeResource TafsHover}" CornerRadius="{TemplateBinding CornerRadius}" Opacity="0" IsHitTestVisible="False" />
+            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
-          </Border>
+          </Grid>
         </ControlTemplate>
       </Setter.Value>
     </Setter>
@@ -440,6 +493,7 @@
     <Setter Property="BorderThickness" Value="1.5" />
   </Style>
   <Style x:Key="TafsHourLine" TargetType="Border"><Setter Property="BorderBrush" Value="{ThemeResource TafsLine}" /></Style>
+  <Style x:Key="TafsHourGrid" TargetType="Grid"><Setter Property="BorderBrush" Value="{ThemeResource TafsLine}" /></Style>
 
   <!-- The sidebar's rows: 15 semibold, 52 apart, as the iPad's items, on a rounded fill when chosen. -->
   <Style x:Key="TafsSidebarItem" TargetType="NavigationViewItem">

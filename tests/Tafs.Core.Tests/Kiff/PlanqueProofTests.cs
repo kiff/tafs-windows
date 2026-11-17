@@ -92,6 +92,33 @@ public class PlanqueProofTests
         await setup.LoadAsync("t", Read, () => Task.FromResult<string?>(null));
         await setup.LoadAsync("t", Read);
 
-        Assert.Equal(new string?[] { "t=1,v1=s,d=dev_1", null, null, null }, sent);
+        // With a proof: the quick read without it, and the signed one; without one, the quick read alone, never twice.
+        Assert.Equal(new string?[] { null, "t=1,v1=s,d=dev_1", null, null, null }, sent);
+    }
+
+    /// <summary>
+    /// Setup doesn't wait for planque: the quick read draws the page while the signed one is on its way, keeping the
+    /// connections already shown; the signed answer then replaces it, its connections with it.
+    /// </summary>
+    [Fact]
+    public async Task Setup_draws_from_the_quick_read_while_planque_is_read()
+    {
+        var signed = new TaskCompletionSource<CloudRead>();
+        static CloudRead Page(string job, string? app) => CloudRead.Of(System.Text.Json.JsonDocument.Parse(
+            $$$"""{"workflow": {"title": "{{{job}}}"}, "connections": [{{{(app is null ? "" : $$"""{"id": "c1", "name": "{{app}}"}""")}}}]}""").RootElement);
+        Task<CloudRead> Read(string path, string? proof) => proof is null ? Task.FromResult(Page("quick", null)) : signed.Task;
+        var setup = new SetupRead();
+        var drawn = 0;
+        var loading = setup.LoadAsync("t", Read, () => Task.FromResult<string?>("t=1,v1=s,d=dev_1"), () => drawn++);
+
+        Assert.Equal(1, drawn);
+        Assert.True(setup.ConnectionsPending);
+        Assert.Equal("quick", setup.Page!.Workflow.Title);
+        Assert.Empty(setup.Page.Connections);
+
+        signed.SetResult(Page("signed", "Stripe"));
+        await loading;
+        Assert.False(setup.ConnectionsPending);
+        Assert.Equal(("signed", "Stripe"), (setup.Page!.Workflow.Title, setup.Page.Connections.Single().Name));
     }
 }

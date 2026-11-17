@@ -1,0 +1,22 @@
+{
+  "about": "A stand-in for KIFF's GET /v1/me/agent-drafts/{id}, for the Coach panel's screenshots: the Card the approval in coach-conversation.json names, as a draft.",
+  "answer": {
+    "id": "drf_s1",
+    "agent_id": "refunds",
+    "status": "pending",
+    "version": "v1",
+    "label": "Refunds",
+    "cards": [
+      {
+        "grants": [
+          {
+            "action": "stripe.refund_payment",
+            "title": "Refund a payment",
+            "per_action_max": [{ "quantity": "sum(amount_cents)", "max": 5000, "unit": "EUR", "scale": 2 }]
+          }
+        ],
+        "aggregates": [{ "quantity": "sum(amount_cents)", "limit": 50000, "window": "calendar_day", "unit": "EUR", "scale": 2 }]
+      }
+    ]
+  }
+}

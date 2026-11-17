@@ -25,7 +25,8 @@ public sealed partial class PairingPage : Page
     CancellationTokenSource cancel = new();
     PairingOffer? offer;
     TpmKey? deviceKey;
-    NewPasskey? passkey;
+    /// <summary>The passkey the QR offers; claimed the moment KIFF answers, so nothing removes a registered one.</summary>
+    readonly OfferedPasskey offered = new();
     bool offline;
 
     /// <summary>KIFF handed over this PC's session. It's kept in memory for now.</summary>
@@ -36,7 +37,12 @@ public sealed partial class PairingPage : Page
         InitializeComponent();
         clock.Tick += (_, _) =>
         {
-            if (offer is not null && offer.IsExpired(DateTimeOffset.UtcNow)) Show(PairingStep.Expired);
+            if (offer is not null && offer.IsExpired(DateTimeOffset.UtcNow))
+            {
+                Show(PairingStep.Expired);
+                // Its passkey was never registered: out of Windows' list. A new code makes another.
+                ForgetPasskey();
+            }
         };
         Unloaded += (_, _) =>
         {
@@ -44,12 +50,42 @@ public sealed partial class PairingPage : Page
             cancel.Cancel();
             deviceKey?.Dispose();
             deviceKey = null;
+            ForgetPasskey();
         };
     }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
-        offline = e.Parameter is true;
+        // "why": the card for a screenshot (--page pair-why), offline as every screenshot is.
+        offline = e.Parameter is true or "why";
+        // First, why: the card says what the passkey is for, and its button asks Windows Hello. Never a prompt out of nowhere.
+        if (e.Parameter is "why" || PairingScreen.AsksWhyFirst(App.Sessions.Kept(), WindowsHello.IsAvailable(), offline))
+        {
+            ShowWhy();
+            return;
+        }
+        await ShowNewCodeAsync();
+    }
+
+    /// <summary>The card before Windows Hello: the illustration, why, and the button. Nothing else of the pairing yet.</summary>
+    void ShowWhy()
+    {
+        var w = App.Words;
+        var (title, body, go) = PairingScreen.PasskeyWhy(w);
+        Heading.Text = w.Get("pair.title", ("device", PairingScreen.Device(w)));
+        Steps.Visibility = CheckCard.Visibility = QrCard.Visibility = NewCode.Visibility = Visibility.Collapsed;
+        Busy.IsActive = false;
+        Status.Text = "";
+        // An already-approved board, unchanged (board 6): no new drawing for this card.
+        WhyArt.Child ??= Illustrations.NothingWaiting();
+        (WhyTitle.Text, WhyBody.Text, WhyGo.Content) = (title, body, go);
+        WhyCard.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>The card's button: now Windows Hello asks, and the code follows.</summary>
+    async void OnWhyGo(object sender, RoutedEventArgs e)
+    {
+        WhyCard.Visibility = Visibility.Collapsed;
         await ShowNewCodeAsync();
     }
 
@@ -85,8 +121,10 @@ public sealed partial class PairingPage : Page
                 ? (challenge, c) => new WindowsHello(() => App.WindowHandle)
                     .CreateAsync(PairingAttempt.PasskeyUserId(deviceKey.PublicKeyDer), name, name, challenge, c)
                 : null;
-            (offer, passkey) = await PairingAttempt.OfferAsync(deviceKey.PublicKeyDer, name, make, passkey,
-                DateTimeOffset.UtcNow, Features.PairingPasskeyProof, token);
+            (offer, var made) = await PairingAttempt.OfferAsync(deviceKey.PublicKeyDer, name, make, offered.Current,
+                () => DateTimeOffset.UtcNow, Features.PairingPasskeyProof, token);
+            // A new code that made another passkey leaves the one before unused: out of Windows' list.
+            PairingAttempt.Discard(offered.Offer(made), WindowsHello.DeletePlatformCredential);
             if (token.IsCancellationRequested) return;
             await ShowQrAsync();
 
@@ -94,12 +132,15 @@ public sealed partial class PairingPage : Page
                 (body, c) => KiffHttp.PostAsync(PairingClaim.Path, body, c), () => DateTimeOffset.UtcNow, Task.Delay, token);
             if (result.Session is { } session)
             {
+                // Claimed before anything is awaited: a code expiring, or the page closing, while it's kept removes nothing.
+                offered.Claim();
+                clock.Stop();
                 // Kept before Added shows, so a relaunch reads it instead of pairing the same key again.
                 // A passkey session keeps its passkey's credential id, the one the QR offered, so Windows Hello can be asked for it.
                 await App.Sessions.KeepAsync(KeptSession.Of(DeviceSignIn.Api, session.AccessToken, session.Tenant, session.Subject,
                     session.DeviceId, session.Mode, session.ExpiresIn, DateTimeOffset.UtcNow, TpmKey.PairingKeyName) with
                 {
-                    PasskeyId = session.Mode == ApprovalMode.Passkey && passkey is { } made ? KiffSigning.Base64Url(made.CredentialId) : null,
+                    PasskeyId = session.Mode == ApprovalMode.Passkey && offered.Current is { } passkey ? KiffSigning.Base64Url(passkey.CredentialId) : null,
                 });
                 Paired?.Invoke(session);
             }
@@ -128,6 +169,16 @@ public sealed partial class PairingPage : Page
         }
     }
 
+    /// <summary>
+    /// The passkey the QR offered, removed when no session holds it (<see cref="OfferedPasskey.Release"/>). Gone or not (an older
+    /// Windows keeps it), it's no longer offered: a new code makes another. Once KIFF answered, nothing.
+    /// </summary>
+    void ForgetPasskey()
+    {
+        if (offline) return;
+        PairingAttempt.Discard(offered.Release(), WindowsHello.DeletePlatformCredential);
+    }
+
     async Task ShowQrAsync()
     {
         Qr.Source = await QrImageAsync(offer!.ToQrJson());
@@ -149,7 +200,9 @@ public sealed partial class PairingPage : Page
         Busy.Visibility = step == PairingStep.Waiting ? Visibility.Visible : Visibility.Collapsed;
         NewCode.Content = lines.NewCode;
         NewCode.Visibility = Shown(lines.NewCode);
-        QrCard.Visibility = lines.ShowsQr ? Visibility.Visible : Visibility.Collapsed;
+        // The QR's white card only with its code on it: while the key is made there's nothing to scan, so no empty square.
+        if (!lines.ShowsQr || offer is null) Qr.Source = null;
+        QrCard.Visibility = lines.ShowsQr && Qr.Source is not null ? Visibility.Visible : Visibility.Collapsed;
         if (step != PairingStep.Waiting)
         {
             clock.Stop();

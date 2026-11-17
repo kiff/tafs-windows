@@ -6,6 +6,8 @@
   <ScrollViewer>
     <StackPanel Margin="40,32" Spacing="16" MaxWidth="760" HorizontalAlignment="Left">
       <TextBlock x:Name="Heading" FontSize="28" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
+      <!-- Board 4, once every taf reads halted, as the iPad's HaltScreen: shapes only, hidden from Narrator. -->
+      <Border x:Name="Art" HorizontalAlignment="Left" Visibility="Collapsed" />
 
       <Border Style="{StaticResource TafsCard}">
         <StackPanel Spacing="8">
@@ -27,6 +29,8 @@
       </StackPanel>
       <Button x:Name="AgainButton" Style="{StaticResource TafsOutlineNo}" HorizontalAlignment="Left" Click="OnHalt" Visibility="Collapsed" />
       <!-- Resuming gives authority back, so it's signed: until this PC can sign it, the line for an approval made elsewhere. -->
+      <Button x:Name="ResumeButton" Style="{StaticResource TafsOutlineButton}" HorizontalAlignment="Left" Click="OnResume" Visibility="Collapsed"
+              AutomationProperties.AutomationId="halt.resume" />
       <TextBlock x:Name="ResumeElsewhere" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" Visibility="Collapsed" />
       <TextBlock x:Name="Error" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
     </StackPanel>

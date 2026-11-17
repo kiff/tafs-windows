@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Tafs.Core.Words;
 
 namespace Tafs.Core.Tests.Strings;
@@ -53,6 +54,101 @@ public class WordBookTests
         var users = book.Keys.Where(book.UsesPossessive).ToList();
         if (language is "en" or "de") Assert.NotEmpty(users);
         else Assert.Empty(users);
+    }
+
+    [Theory, MemberData(nameof(Languages))]
+    public void Only_a_language_with_a_this_rule_uses_it(string language)
+    {
+        var book = WordBook.Load(SharedFiles.Strings, language);
+        if (language != "fr") Assert.Empty(book.Keys.Where(book.UsesThis));
+    }
+
+    [Theory, MemberData(nameof(Languages))]
+    public void Every_line_fills_with_no_brace_left(string language)
+    {
+        // Every line at the pin, each value given: a form this app can't read fails here, never on screen.
+        var book = WordBook.Load(SharedFiles.Strings, language);
+        foreach (var key in book.Keys)
+        {
+            var values = book.Placeholders(key).Where(n => n != "count").Select(n => (n, "PC")).ToArray();
+            var filled = book.Forms(key).Count == 0
+                ? new[] { book.Get(key, values) }
+                : Enumerable.Range(0, 26).Select(n => book.Count(key, n, values)).ToArray();
+            Assert.All(filled, text => Assert.DoesNotContain("{", text));
+        }
+    }
+
+    [Fact]
+    public void The_this_rule_is_the_pinned_generator_s()
+    {
+        // The rule is copied from the shared generate.py's THIS table: once the pin carries it, each language's letters and words
+        // must be this app's, letter by letter, so the copy can't drift. Before the pin carries it, no line may use the form.
+        var generator = Path.Combine(SharedFiles.Strings, "generate.py");
+        var table = File.Exists(generator)
+            ? Regex.Match(File.ReadAllText(generator), @"^THIS = \{(?<rules>.*)\}\s*$", RegexOptions.Multiline)
+            : Match.Empty;
+        if (!table.Success)
+        {
+            foreach (var language in Shipped)
+            {
+                var book = WordBook.Load(SharedFiles.Strings, language);
+                Assert.Empty(book.Keys.Where(book.UsesThis));
+            }
+            return;
+        }
+        var rules = Regex.Matches(table.Groups["rules"].Value, "\"(\\w+)\": \\(\"([^\"]*)\", \"([^\"]*)\", \"([^\"]*)\"\\)");
+        Assert.NotEmpty(rules);
+        const string Letters = "abcdefghijklmnopqrstuvwxyzàâäçéèêëîïôöùûüœæ";
+        foreach (Match rule in rules)
+        {
+            var (language, starts, before, other) = (rule.Groups[1].Value, rule.Groups[2].Value, rule.Groups[3].Value, rule.Groups[4].Value);
+            foreach (var letter in Letters + starts)
+            {
+                var name = letter + "x";
+                Assert.Equal((starts.Contains(letter) ? before : other) + name, WordBook.Demonstrative(language, name));
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("Mac", false, "ce Mac")]
+    [InlineData("PC", false, "ce PC")]
+    [InlineData("PC Windows", false, "ce PC Windows")]
+    [InlineData("appareil", false, "cet appareil")]
+    [InlineData("écran", false, "cet écran")]
+    [InlineData("hôte", false, "cet hôte")]
+    [InlineData("PC", true, "Ce PC")]
+    [InlineData("appareil", true, "Cet appareil")]
+    public void French_says_this_by_the_name(string name, bool capital, string expected) =>
+        Assert.Equal(expected, WordBook.Demonstrative("fr", name, capital));
+
+    [Fact]
+    public void A_language_with_no_this_rule_keeps_the_name()
+    {
+        Assert.Equal("PC", WordBook.Demonstrative("en", "PC"));
+        Assert.Equal("", WordBook.Demonstrative("fr", "", capital: true));
+    }
+
+    [Fact]
+    public void A_line_fills_this_and_refuses_a_form_it_does_not_read()
+    {
+        var root = Directory.CreateTempSubdirectory("words").FullName;
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "fr"));
+            File.WriteAllText(Path.Combine(root, "fr", "a.json"),
+                """{"a.on": "Alertes sur {device|this}", "a.added": "{device|This} est ajouté.", "a.odd": "Sur {device|that}"}""");
+            var fr = WordBook.Load(root, "fr");
+            Assert.Equal("Alertes sur ce PC", fr.Get("a.on", ("device", "PC")));
+            Assert.Equal("Cet appareil est ajouté.", fr.Get("a.added", ("device", "appareil")));
+            Assert.Equal(new[] { "device" }, fr.Placeholders("a.on"));
+            Assert.True(fr.UsesThis("a.added"));
+            Assert.Throws<ArgumentException>(() => fr.Get("a.odd", ("device", "PC")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     [Fact]

@@ -23,6 +23,35 @@ From the top:
   - **Its rows** are the tafs relevant now, as the iPad's one sidebar for the whole app (`Sidebar.RelevantNow`): a call
     of its waits, a step or a knock is open, or it ran or changed in the last 24 hours. All of them are on the
     Overview.
+  - **Their order** (`ListOrder`, the iPad's `listedTafs` and `byRecent`): a taf waiting on the person first (a call held
+    for an answer, or tafs cloud's own count), then the one used most recently (its latest call in the Record), then tafs
+    cloud's order. It's settled when the list's tafs change, the first time the Record is read, and when the window comes
+    back to the front, never on each read, so it doesn't move under the person; a taf that comes to wait still goes to the
+    top at once.
+  - **Shared with you** (`ListOrder.Split`, the iPad's `tafSections`): under its own heading, after the person's own, the
+    tafs KIFF says are shared with them to use, not manage. A taf whose answer isn't in yet counts as theirs, so nothing
+    moves under the heading and back.
+  - **Tafs being set up** (`setting_up`, `HomeList.SettingUp`, the iPad's `settingUp`): after the person's own and before
+    Shared with you, by the name Coach gave them. Where the setup stopped, tafs cloud's line under the name in amber; being
+    set up in someone else's Coach chat, the name alone. A row whose chat is Coach's own, for someone who may use Coach
+    (`SettingUp.Finishes`, the iPad's `canFinishSetup`), opens Coach on that chat (`CoachPanel.OpenOn`, the iPad's
+    `finishSetup`); reading it makes the taf at tafs cloud, and the next Home read lists it with the tafs. Any other row
+    opens nothing, and none is selected.
+  - **Discard** (`SetupDiscard`, the iPad's `DiscardSettingUpButton` and `discardSettingUp`), beside the row, for the
+    person whose setup it was (tafs cloud sends its words only to them), on a PC that approves with its passkey, as
+    Resume; any other session has no button. Every word is tafs cloud's: the button, then the confirmation (its title,
+    else the button; its text; yes and no). Its yes:
+    1. **Signed first,** behind one Windows Hello: this PC's passkey asserts `kiff.request.v1` over `POST`, the discard
+       path and the empty body, sent as `KIFF-Passkey-Assertion`, as a removal is. Closed or refused, nothing is sent:
+       "Not removed. Nothing changed."
+    2. **Its Cards revoked in KIFF** (`POST /v1/me/mandates/{id}/revoke`): Home's `discard.cards`, and any a refused
+       Discard named.
+    3. **tafs cloud asked** (`POST /v1/home/setting-up/{kiff_agent}/discard`). Done, Home is read again and the row goes.
+       Refused while KIFF still holds Cards in force (409 `cards_in_force`), "KIFF didn't revoke 1 of its Cards: revoke
+       them in KIFF.", and the Cards it named are revoked on the next Discard. Any other refusal says tafs cloud's words.
+    - While it goes, the button reads Loading… and is off. A sign-out ends it quietly.
+    - tafs cloud reads `KIFF-Passkey-Assertion` on this route from kiff/tafs#1247 on, and asks KIFF whether this PC's
+      passkey signed it.
   - **Each row:** the avatar (34), the name in 15 semibold, and what it's doing in 13 soft, on one line each. A row
     opens its taf's page.
   - **The sample's** are Deploys and Bill pay, the two a call waits on, as overview.png.
@@ -66,6 +95,26 @@ page, and Narrator reads it as one:
 Refunds, Chargebacks and Access. Without it, and with no tafs from tafs cloud, it shows "No tafs yet." under the
 headings.
 
+## Labels (`LabelChips`, `HomeLabels`)
+
+Chips on the tafs list, for the person to filter it by, as kiff/tafs `docs/labels.md` and the iPad's `LabelChips`,
+`TafLabels` and `AppModel.filterList` (iOS #1173). tafs-macos #120 is a second reference. The app never changes a label;
+Coach does.
+- **What Home sends:** `labels: [id]` on each taf that has any; `labels: [{id, name, color, count, waiting, headline}]`
+  for the account, in the order to show them; and `labels_words.all`, the first chip's word. Each label is read on its
+  own: one with no id or name, or of another shape, is left out, and `waiting` sent as yes/no reads as one. A list of
+  another shape reads as none, and Home still reads. With no labelled taf, Home sends none and the Overview is as before.
+- **The chips,** under NEEDS YOU and above the table: All (tafs cloud's word, else Home's own `home.labels_all`, never the Record's filter word: in French "Tous", not "Tout"), two labels with
+  their count and an amber dot while one of their tafs waits, then "+N", which shows the rest once clicked. The chosen
+  chip is filled; clicked again, it goes back to All. They use the Record's filter chips' look.
+- **Filtering:** a chip shows only its tafs, in Home's order: it never reorders. A label that's gone goes back to All.
+  The Overview opens on All every time.
+- **A taf's line** shows its labels under its name, in the account's order, as small grey chips: two, then "+1" (a taf
+  carries at most three). Narrator reads them with the line.
+- **Not here:** Your tafs in the sidebar isn't filtered, as on the iPad's sidebar. The colour token isn't drawn, as on
+  the iPad's chips.
+- **Screenshot:** `--home tests/fixtures/home-labels/home.json`, three tafs and three labels (CI's `overview-labels`).
+
 ## Home's list from tafs cloud
 
 Signed in, once the window is up, the app reads `GET /v1/home` on tafs cloud (`https://cloud.tafs.kiff.dev`) as the
@@ -99,7 +148,41 @@ An answer that can't be read, or isn't a 200, leaves the Overview as it was. A s
 `--home shared/contracts/home.json` reads the contracts instead: Home's from that file, and each taf's runs and report
 from `taf-runs.json` and `taf-run-report.json` beside it (CI's `overview-home`).
 
+## The jobs' gallery (`Gallery`, `GalleryPage`)
+
+The iPad's `RecipeGallerySheet`, `RecipeStrip`, `RecipeRow` and `RecipeSheet`, read with Home's list from tafs cloud's
+`GET /v1/recipes/gallery`. Every word, order and colour is tafs cloud's; the app has none of its own here.
+
+- **In the sidebar,** under Your tafs, as the iPad's `HomeSplitView`:
+  - **Explore jobs** (tafs cloud's `words.explore`), with or without tafs, and for anyone, since browsing creates nothing.
+    None when tafs cloud sends no words or no job.
+  - With tafs, **the strip** (`strip.shown`): its title, then a few jobs the account doesn't run yet, in tafs cloud's order,
+    each led by the problem it ends on an edge in its category's colour; an id the gallery doesn't list is skipped.
+    Then **See all jobs** (`words.see_all`, else `words.all`), unless the strip already shows every job.
+- **The gallery,** opened from Explore jobs or See all jobs, titled "Explore jobs": "All jobs", a chip per category
+  (in its colour, filled once picked; picked again, every job shows), then each category's jobs. A job's card has the
+  problem it ends (else its title), its line, and its apps, each after its logo where tafs cloud serves one.
+  - **Logos** load only from tafs cloud's own `/v1/logos/` and 32 lowercase hex (`Gallery.IsLogo`), so no one else sees
+    this PC's address. A logo that doesn't load leaves the name alone.
+  - **A colour** is tafs cloud's `#RRGGBB` for light and for dark, as the window's theme is; one it can't read is none.
+- **A job's sheet** (a strip job opens on it): what it ends, what that costs today, its Card in zones (does on its own,
+  asks first, never does; an empty zone left out), tafs cloud's line for a passed proof run and what the job reported,
+  then **Try it with Coach** (`words.try`, else `labels.hand`) for someone who may use Coach. As the iPad's
+  `handRecipeToCoach`, it starts a new Coach conversation with the job's `say` in the box, to edit and send; nothing is sent.
+- **Start a new taf,** above Coach at the sidebar's foot, for someone who may use Coach (the iPad's `canStartTafs`), never
+  over the sample: the gallery to create, titled "New taf", with **Say it in your own words** first (Coach in a new
+  conversation, its box empty) and each job's sheet ending on **Hand it to Coach** (`labels.hand`): a new conversation with
+  the job's words in the box. With no gallery from tafs cloud, it opens Coach in a new conversation, as the iPad's.
+- **Home's recipes with no taf** (the iPad's `HomeRecipes` and `homeListsRecipes`): while the account has no taf, Home's
+  list reads `GET /v1/recipes`. Where tafs cloud lists them (`home.shown`, the sheet's words, a category with a job), the
+  Overview shows them in place of its empty table, under its own heading: tafs cloud's line ("Pick a job for your first
+  taf."), "Say it in your own words" for someone who may use Coach, the category chips and the jobs, each opening its
+  sheet, whose Hand it to Coach starts a new conversation with its words. Otherwise the empty table, as before.
+- **Signed out,** the rows go.
+
 ## Not yet
+
+- **Home's recipes with no taf:** done below.
 
 - **+ New**, above Coach on the iPad, comes with Coach: on Windows it would have nothing to open yet.
 - **Where a held call opens.** On the iPad, a held call opens its taf's page, from the sidebar and from

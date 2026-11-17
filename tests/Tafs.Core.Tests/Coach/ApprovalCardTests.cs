@@ -43,6 +43,20 @@ public class ApprovalCardTests
         Assert.Equal((null, null), (blank.ConnectionDone, blank.Signs!.Words));
     }
 
+    /// <summary>
+    /// A sign-in wider than the job (kiff/tafs#1218): tafs cloud's words, kept as sent less their spaces; blank, or of another
+    /// shape, is no line and never fails the card.
+    /// </summary>
+    [Fact]
+    public void A_sign_in_wider_than_the_job_keeps_tafs_cloud_s_words()
+    {
+        const string words = "The sign-in for Google Sheets can't be narrowed to this job: it asks for more access than the taf uses.";
+        Assert.Equal(words, Thread(Approval(more: $$""", "wider": {"words": " {{words}} "}""")).Shown[0].Card.Wider);
+        Assert.Null(Thread(Approval(more: """, "wider": {"words": "  "}""")).Shown[0].Card.Wider);
+        Assert.Null(Thread(Approval(more: """, "wider": true""")).Shown[0].Card.Wider);
+        Assert.Null(Thread(Approval()).Shown[0].Card.Wider);
+    }
+
     /// <summary>As the iPad's setupCardState: done only by its answer, failed with why, planque's failure with its reason.</summary>
     [Theory]
     [InlineData("", "pending", null, ApprovalState.NeedsYou, null)]

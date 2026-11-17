@@ -30,13 +30,31 @@ public class PairingAttemptTests
         public void Dispose() => Key.Dispose();
     }
 
+    /// <summary>The code's 4.5 minutes start once Windows Hello is done: minutes in its prompt never show a code already expired.</summary>
+    [Fact]
+    public async Task The_code_s_lifetime_starts_after_Windows_Hello()
+    {
+        using var device = new TestSigner();
+        using var hello = new FakeHello();
+        var now = Now;
+        // The person reads Windows Hello's prompt and types a password for five minutes.
+        async Task<NewPasskey> Slow(string? challenge, CancellationToken c)
+        {
+            now = now.AddMinutes(5);
+            return await hello.Make(challenge, c);
+        }
+        var (offer, _) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", Slow, null, () => now, false, default);
+        Assert.False(offer.IsExpired(Now.AddMinutes(5)));
+        Assert.Equal(Now.AddMinutes(5) + PairingOffer.Lifetime, offer.Expires);
+    }
+
     [Fact]
     public async Task The_QR_carries_this_PC_s_passkey_and_a_new_code_keeps_it()
     {
         using var device = new TestSigner();
         using var hello = new FakeHello();
-        var (first, keep) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, Now, false, default);
-        var (second, _) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, keep, Now, false, default);
+        var (first, keep) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, () => Now, false, default);
+        var (second, _) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, keep, () => Now, false, default);
 
         Assert.Single(hello.Challenges); // one Windows Hello prompt, one passkey in Windows' list
         Assert.Null(hello.Challenges[0]);
@@ -50,8 +68,8 @@ public class PairingAttemptTests
     {
         using var device = new TestSigner();
         using var hello = new FakeHello();
-        var (first, keep) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, Now, true, default, Nonce);
-        var (second, _) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, keep, Now, true, default);
+        var (first, keep) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, () => Now, true, default, Nonce);
+        var (second, _) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, keep, () => Now, true, default);
 
         Assert.Equal(2, hello.Challenges.Count);
         Assert.Equal(PairingClaim.PasskeyChallenge(KiffSigning.Base64Url(Nonce), device.PublicKeyDer), hello.Challenges[0]);
@@ -69,12 +87,12 @@ public class PairingAttemptTests
         {
             Fails = how == "closed" ? new OperationCanceledException() : new PasskeyRefusedException("NotAllowedError"),
         };
-        var (offer, keep) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, Now, false, default);
+        var (offer, keep) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, () => Now, false, default);
         Assert.Null(offer.Credential);
         Assert.Null(keep);
         Assert.Equal(ApprovalKind.Passkey, offer.Kind);
 
-        var (none, _) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", makePasskey: null, null, Now, false, default);
+        var (none, _) = await PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", makePasskey: null, null, () => Now, false, default);
         Assert.Null(none.Credential);
     }
 
@@ -86,7 +104,7 @@ public class PairingAttemptTests
         using var stop = new CancellationTokenSource();
         stop.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, Now, false, stop.Token));
+            PairingAttempt.OfferAsync(device.PublicKeyDer, "tafs", hello.Make, null, () => Now, false, stop.Token));
     }
 
     [Fact]
@@ -111,5 +129,62 @@ public class PairingAttemptTests
         Assert.Equal(PairingAttempt.PasskeyUserId(device.PublicKeyDer), PairingAttempt.PasskeyUserId(device.PublicKeyDer));
         Assert.NotEqual(PairingAttempt.PasskeyUserId(device.PublicKeyDer), PairingAttempt.PasskeyUserId(other.PublicKeyDer));
         Assert.Equal(32, PairingAttempt.PasskeyUserId(device.PublicKeyDer).Length);
+    }
+
+    static NewPasskey Passkey(byte id) => new([id, 1, 2], [9]);
+
+    /// <summary>
+    /// A new code that made another passkey (the claim's proof makes one per attempt) leaves the one before unused, to be
+    /// removed; one kept for the new code isn't.
+    /// </summary>
+    [Fact]
+    public void A_passkey_a_new_code_replaced_is_left_unused()
+    {
+        var (a, b) = (Passkey(1), Passkey(2));
+        Assert.Same(a, PairingAttempt.Replaced(a, b));
+        Assert.Null(PairingAttempt.Replaced(a, Passkey(1)));
+        Assert.Null(PairingAttempt.Replaced(null, b));
+        // Windows Hello closed on the new code: none made, the one before isn't offered either.
+        Assert.Null(PairingAttempt.Replaced(a, null));
+    }
+
+    /// <summary>A code that expires, or a page that closes, unpaired: its passkey goes; a paired session's stays.</summary>
+    [Fact]
+    public void An_unpaired_passkey_is_removed_and_a_paired_one_kept()
+    {
+        var a = Passkey(1);
+        Assert.Same(a, PairingAttempt.LeftOver(a, paired: false));
+        Assert.Null(PairingAttempt.LeftOver(a, paired: true));
+        Assert.Null(PairingAttempt.LeftOver(null, paired: false));
+
+        var deleted = new List<byte[]>();
+        Assert.True(PairingAttempt.Discard(a, id => { deleted.Add(id); return true; }));
+        Assert.Equal(a.CredentialId, Assert.Single(deleted));
+        Assert.False(PairingAttempt.Discard(null, _ => throw new InvalidOperationException("never asked")));
+        // Windows can't, or refuses: quietly kept, never a failure of the pairing.
+        Assert.False(PairingAttempt.Discard(a, _ => false));
+        Assert.False(PairingAttempt.Discard(a, _ => throw new System.Runtime.InteropServices.COMException("no")));
+    }
+
+    /// <summary>
+    /// KIFF answered, then the code expired (or the page closed) while the session was being kept: the passkey KIFF just
+    /// registered is never released (kiff-qa on #109). Before an answer, an expiry releases it once.
+    /// </summary>
+    [Fact]
+    public void A_passkey_KIFF_answered_for_is_never_released()
+    {
+        var (a, b) = (Passkey(1), Passkey(2));
+        var offered = new OfferedPasskey();
+        Assert.Null(offered.Offer(a));
+        Assert.Same(a, offered.Offer(b));
+        Assert.Same(b, offered.Release());
+        Assert.Null(offered.Release());
+
+        var claimed = new OfferedPasskey();
+        claimed.Offer(a);
+        claimed.Claim();
+        Assert.Null(claimed.Release());
+        Assert.Same(a, claimed.Current);
+        Assert.Null(claimed.Offer(b));
     }
 }

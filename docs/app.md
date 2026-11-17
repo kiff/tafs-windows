@@ -21,6 +21,8 @@ One sidebar for the whole app, as on the iPad ([the sidebar and the Overview](ho
 
 The chosen screen opens beside it. The colours are the iPad's `Theme.swift`, light and dark (`Theme.xaml`), and they follow Windows' setting. The chosen row is a rounded fill, as on the iPad.
 
+The app's icon is the mascot (`Assets/tafs.ico`, 16 to 160 px, made from `mascot.png`), in Start, the taskbar and the title bar.
+
 The shared controls are the iPad's:
 - **An outline button** (Pause, Connect, Add this Windows PC, Revoke) is the iPad's `OutlineLook`: its edge in the ink at 40% (`TafsInkLine`), 48 high. Revoke's edge is the red at 40% (`TafsNoLine`).
 - **A segmented control** (Day / Week / Month, Last / This period, Theme, a taf's tabs) is the system's: a capsule track in the system grey (radius 17), and a capsule segment (radius 15). In dark the chosen segment is the system's #636366, so it stands out from the track.
@@ -40,6 +42,39 @@ Built so far:
 
 Signing in is the only screen that reaches KIFF so far. Other screens show only their title until they're built, in the order of the desktop spec. 
 
+## Illustrations
+
+The owner's approved boards (kiff/work#10, rows S37–S48), drawn in code from iOS's `Illustrations.swift`, number for
+number, on each board's own grid (`Illustrations`). Rule 14: shapes only, never a letter, a number or a word; the
+screen's own shared words say what it means, and every drawing is hidden from Narrator (`IllustrationsRuleTests`). Each
+paints itself in its own theme once it's in the window, and again when the theme changes. A card's shadow is a hairline
+in the theme's line colour on Windows.
+
+| Board | Where on Windows | Shown when |
+|---|---|---|
+| 1 First run | the KIFF half of the signed-out window, in place of its old drawing | signed out |
+| 2 No tafs yet | the Overview, above the empty table's words | no taf, and tafs cloud lists no recipes |
+| 3 Brief, nothing to decide | Your brief, where decisions go | the brief has none |
+| 4 All halted | the Halt screen for every taf | every taf reads halted |
+| 6 Needs you, nothing waiting | Needs you's empty panel | nothing waits |
+| 7 Coach, nothing or one taf | Coach's empty conversation | the account has no taf or one |
+| 8 New taf, small | the gallery's create mode, in Say it in your own words | Start a new taf |
+| 9 Coach starting | Coach's start, above its words | before Coach is started |
+| 10 Overview | the Overview, under its title | always (a desktop is the iPad's regular width) |
+
+- **Board 5 (an app connected):** drawn, and placed once connecting an app with a key
+  comes to Windows. **Boards 11 and 12** are the watches'.
+
+## One tafs, and its scheme
+
+- **One window holds the session** (`Program.cs`, as Windows App SDK's single-instance guide): a second start hands its
+  activation to the tafs already running, which comes to the front, and ends. A screenshot (`--screenshot`) always runs
+  on its own. CI checks it on x64: a second start with a `tafs://` URL ends, and the first keeps running.
+- **The `tafs:` scheme** is registered for the person on each start (`ActivationRegistrationManager`), so planque's return
+  from a vendor's sign-in (`tafs://planque/signed-in?tenant=…&grant=…&confirm=…`, `PlanqueSignIn`) comes back to the
+  window that's waiting (`App.SignedInReturned`). The URL alone connects nothing: this PC confirms its one-use code
+  with planque, signed, and the connection counts only once planque says so. Connecting an app is built on this next.
+
 ## Language
 
 The app speaks the first of the person's Windows languages that tafs ships (`AppLanguage.Pick`), otherwise English. Every line comes from `WordBook`: nothing is written in code.
@@ -50,10 +85,10 @@ The app speaks the first of the person's Windows languages that tafs ships (`App
 | :- | :- |
 | `--lang fr` | speak a shipped language |
 | `--theme light` or `dark` | force the appearance |
-| `--page pair`, `sign-in`, `needs-you`, `record`, `calendar`, `calendar-week`, `calendar-month`, `usage`, `connect-apps`, `account`, `coach`, `taf`, `taf-setup` or `taf-card` | open Add this Windows PC, Sign in with KIFF, Needs you, the Record, Calendar in Day, Week or Month, Plan & usage, Connect apps, Account, Coach mode over the Overview, or the sample's Refunds on its Activity, Setup or Card (`taf`, `taf-setup`, `taf-card`, with `--sample`) |
+| `--page pair`, `sign-in`, `signed-out`, `connected`, `needs-you`, `record`, `record-search`, `calendar`, `calendar-week`, `calendar-month`, `usage`, `connect-apps`, `connect-connections`, `account`, `coach`, `coach-chats`, `gallery`, `gallery-job`, `new-taf`, `taf`, `taf-setup` or `taf-card` | open Add this Windows PC, Sign in with KIFF, the signed-out window, the celebration, Needs you, the Record (with a search typed and answered from a `record-search.json` beside `--home`'s contract with `record-search`), Calendar in Day, Week or Month, Plan & usage, Connect apps (on its first app's connections with `connect-connections`), Account, Coach mode over the Overview (on its Previous conversations with `coach-chats`), the jobs' gallery (to create with `new-taf`, on its first job's sheet with `gallery-job`, read from a `gallery.json` beside `--home`'s contract), or the sample's Refunds on its Activity, Setup or Card (`taf`, `taf-setup`, `taf-card`, with `--sample`) |
 | `--view-only` | show the session as view-only |
 | `--sample` | show the iPad's sample held calls, Record, Plan & usage and Connect apps |
-| `--home contract.json` | read Home's list from a contract file (`shared/contracts/home.json`) in place of tafs cloud, and each taf's runs, report, Activity and Setup from the contracts beside it; with `--page taf` or `taf-setup`, open the first taf there |
+| `--home contract.json` | read Home's list from a contract file (`shared/contracts/home.json`) in place of tafs cloud, and each taf's runs, report, Activity and Setup from the contracts beside it (Your brief from a `brief.json` beside it, if there is one); with `--page taf` or `taf-setup`, open the first taf there |
 | `--screenshot out.png` | save the window (1280×800) as a PNG and quit |
 
 CI's `app` job builds the app on Windows when `src/Tafs.App/**` changes, and nightly. It saves sign-in, the Overview, Needs you, the Record, Plan & usage, Connect apps, Account and a taf's Activity, Setup and Card (with the samples), Coach mode (with the sample, and Coach's thread from the contracts), Calendar in Day and Week, the view-only notice and the pairing screen in en, fr and pt, light and dark, as the `screenshots` artifact of the run. The job fails if any of the 114 is missing: a crash at launch, or a word missing at the pin, stops the app before it saves.

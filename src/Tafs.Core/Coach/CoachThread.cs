@@ -277,6 +277,9 @@ public enum HandOverState { SetUp, Failed, SettingUp }
 
 public enum ImprovementState { Made, Failed, Preparing }
 
+/// <summary>What the panel read: the thread, else why not; Coach's id; and the conversation's session, when known.</summary>
+public sealed record CoachLoad(CoachThread? Thread, string? Error, string? Coach, string? Session);
+
 /// <summary>Coach's thread read and drawn, as the iPad's <c>loadSetupThread</c>, <c>SetupChatView.thread</c> and <c>WorkLog</c>.</summary>
 public static class CoachChat
 {
@@ -287,34 +290,65 @@ public static class CoachChat
     /// and no error, as the iPad's <c>try?</c>; a list it can't read, or an empty one, is no list. A conversation that can't be read, or that
     /// doesn't decode, says "The conversation couldn't be loaded:" and why, as the iPad's <c>setupError</c>. Coach's id, to answer its cards.
     /// </summary>
+    /// <summary>Coach's conversation, the newest or one by its session: <c>GET /v1/tafs/{coach}/conversation[/{session}]</c>.</summary>
+    public static string ConversationPath(string coach, string? session) =>
+        $"/v1/tafs/{CloudRead.PathPart(coach)}/conversation" + (session is null ? "" : "/" + CloudRead.PathPart(session));
+
+    /// <summary>
+    /// Whether a read is Coach's conversation, which carries this PC's planque proof, as the iPad's thread read and the Mac's:
+    /// only with it does tafs cloud mark its approval and sign-in cards with <c>wider</c> (kiff/tafs <c>markSigns</c>,
+    /// <c>markWider</c>). The proof reads only, so it's signed with no prompt. Its chats list and anything else go without it.
+    /// </summary>
+    public static bool SignsRead(string path)
+    {
+        var bare = path.Split('?', 2)[0].Split('/');
+        // "", "v1", "tafs", {coach}, "conversation"[, {session}]
+        return bare.Length is 5 or 6 && bare[1] == "v1" && bare[2] == "tafs" && bare[3].Length > 0 && bare[4] == "conversation"
+            && (bare.Length == 5 || bare[5].Length > 0);
+    }
+
     public static async Task<(CoachThread? Thread, string? Error, string? Coach)> LoadAsync(WordBook w, Func<string, Task<CloudRead>> read)
     {
-        var setup = await read("/v1/setup");
-        if (setup.Answer is not { } s || Lenient.Text(Lenient.Field(s, "setup") ?? default, "id") is not { } coach) return (null, null, null);
-        var id = CloudRead.PathPart(coach);
-        var chats = await read($"/v1/tafs/{id}/chats");
-        var newest = chats.Answer is { } c && Chats(c) is { Count: > 0 } list ? list.MaxBy(x => x.Updated).Session : null;
-        var thread = await read($"/v1/tafs/{id}/conversation" + (newest is null ? "" : "/" + CloudRead.PathPart(newest)));
-        // A thread that doesn't decode: the iPad says the system's words for it; this app has its own.
-        var why = thread.Answer is { } t ? (CoachThread.Read(t) is { } read2 ? null : w.Get("error.ours")) : thread.Why;
-        return why is null ? (CoachThread.Read(thread.Answer!.Value), null, coach) : (null, w.Get("coach.conversation_not_loaded", ("why", why)), coach);
+        var loaded = await LoadAsync(w, read, CoachConversation.Newest);
+        return (loaded.Thread, loaded.Error, loaded.Coach);
     }
 
     /// <summary>
-    /// Coach's conversations, as the iPad's strict <c>[Chat]</c>: each needs its session and title, and its start and update
-    /// times; one that lacks any fails the list, as the iPad's decoder, and the whole thread is read instead.
+    /// The conversation shown, as the iPad's <c>loadSetupThread</c>: the newest when none is chosen (above), the one the
+    /// person reopened by its session, with no list read, or, for a new one, nothing read past Coach's id, since it has
+    /// nothing until its first message. Also the session it is, for the next message, when the list or the choice names it.
     /// </summary>
-    static List<(string Session, DateTimeOffset Updated)>? Chats(JsonElement answer)
+    public static async Task<CoachLoad> LoadAsync(WordBook w, Func<string, Task<CloudRead>> read, CoachConversation shown)
     {
-        if (Lenient.Field(answer, "chats") is not { ValueKind: JsonValueKind.Array } chats) return null;
-        var list = new List<(string, DateTimeOffset)>();
-        foreach (var x in chats.EnumerateArray())
+        var setup = await read("/v1/setup");
+        if (setup.Answer is not { } s || Lenient.Text(Lenient.Field(s, "setup") ?? default, "id") is not { } coach) return new(null, null, null, null);
+        if (shown.Fresh) return new(null, null, coach, null);
+        var session = shown.Session;
+        if (session is null)
         {
-            if (Lenient.Text(x, "session") is not { } session || Lenient.Text(x, "title") is null || Lenient.At(x, "started") is null
-                || Lenient.At(x, "updated") is not { } updated) return null;
-            list.Add((session, updated));
+            var chats = await read(CoachChats.ListPath(coach));
+            session = chats.Answer is { } c && CoachChats.Read(c) is { Count: > 0 } list ? list[0].Session : null;
         }
-        return list;
+        var thread = await read(ConversationPath(coach, session));
+        // A thread that doesn't decode: the iPad says the system's words for it; this app has its own.
+        var decoded = thread.Answer is { } t ? CoachThread.Read(t) : null;
+        var why = thread.Answer is null ? thread.Why : decoded is null ? w.Get("error.ours") : null;
+        return why is null ? new(decoded, null, coach, session) : new(null, w.Get("coach.conversation_not_loaded", ("why", why)), coach, session);
+    }
+
+    /// <summary>
+    /// The thread in the order already drawn, as Android's <c>Chat.steady</c> (kiff/tafs#1233): what's shown stays where it
+    /// is, something new goes after it in the order read, and anything gone from the thread goes. With nothing drawn yet
+    /// (the first read, or another conversation), the thread as read, so a reopened conversation shows a card after Coach's
+    /// words. A card read again while Coach answers, or Coach's words joining at the end of a turn, then move nothing.
+    /// </summary>
+    public static IReadOnlyList<ThreadItem> Steady(IReadOnlyList<string>? drawn, IReadOnlyList<ThreadItem> read)
+    {
+        if (drawn is null || drawn.Count == 0) return read;
+        var byId = read.GroupBy(i => i.Id).ToDictionary(g => g.Key, g => g.First());
+        var kept = drawn.Distinct().Where(byId.ContainsKey).Select(id => byId[id]).ToList();
+        var shown = kept.Select(i => i.Id).ToHashSet();
+        return [.. kept, .. read.Where(i => shown.Add(i.Id))];
     }
 
     /// <summary>

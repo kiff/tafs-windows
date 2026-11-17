@@ -9,7 +9,7 @@ using Windows.UI.ViewManagement;
 
 namespace Tafs.App;
 
-/// <summary>Coach mode's panel. Its conversation (tafs cloud's Setup) comes in its own change: until then, the intro.</summary>
+/// <summary>Coach mode's panel: the intro until Coach is started, then its conversation (tafs cloud's Setup).</summary>
 public sealed partial class CoachPanel : UserControl
 {
     /// <summary>The iPad's shadow reaches 24 past the panel's edge: a slide goes that much further, so none of it stays.</summary>
@@ -41,7 +41,10 @@ public sealed partial class CoachPanel : UserControl
         set
         {
             answer = value;
+            ShowChatTools();
             Redraw();
+            // The list's Archive and Put back come and go with it.
+            if (ChatsView.Visibility == Visibility.Visible) _ = ShowChatsAsync(showingArchived);
         }
     }
 
@@ -166,7 +169,7 @@ public sealed partial class CoachPanel : UserControl
 
     /// <summary>
     /// Start, as the iPad's button: <c>startSetup</c> once, then Coach's thread read again, as its <c>loadSetupThread</c>.
-    /// Why it didn't start shows under the intro, as the iPad's <c>setupError</c>; closing Windows Hello says nothing.
+    /// Why it didn't start shows under the intro, as the iPad's <c>setupError</c>; closing Windows Hello says "Cancelled. Nothing changed."
     /// </summary>
     async void OnStart(object sender, RoutedEventArgs e)
     {
@@ -180,6 +183,8 @@ public sealed partial class CoachPanel : UserControl
         starting = false;
         firstStart = result.Outcome == StartOutcome.FirstStart;
         ShowStart();
+        // Started: its conversation and box show, even with nothing in it yet.
+        begun |= result.Started;
         if (result.Started) await LoadThreadAsync();
         else if (result.Why is { } why)
         {
@@ -225,11 +230,14 @@ public sealed partial class CoachPanel : UserControl
 
     /// <summary>Coach's taf id, once its thread was read: what an approval's routes name.</summary>
     internal string? CoachId => coach;
-    public Func<string, Task<Tafs.Core.Approvals.AgentDraft?>>? Drafts { get; set; }
+    public Func<string, Task<(Tafs.Core.Approvals.AgentDraft? Draft, string? Why)>>? Drafts { get; set; }
 
     /// <summary>The grants and drafts the thread's approvals name, as last read (the iPad's <c>grants</c> and <c>setupDrafts</c>).</summary>
     IReadOnlyList<Tafs.Core.Kiff.PlanqueGrant>? grants;
     readonly Dictionary<string, Tafs.Core.Approvals.AgentDraft> drafts = [];
+
+    /// <summary>Why a draft wasn't read, by its id, as the iPad's <c>setupDraftErrors</c>: said on its card, with Try again.</summary>
+    readonly Dictionary<string, string> draftErrors = [];
 
     /// <summary>Which account the panel's state is for: each sign-out moves it on, so an answer or read in flight is dropped, as the iPad's <c>accountGeneration</c>.</summary>
     int generation;
@@ -245,13 +253,19 @@ public sealed partial class CoachPanel : UserControl
         homeAsked.Clear();
         grants = null;
         drafts.Clear();
+        draftErrors.Clear();
         approving = null;
+        // The last account's files picked for a message go with it.
+        coachTray?.Clear();
         ThreadItems.Children.Clear();
         IntroError.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Collapsed;
+        ShapeView.Visibility = Visibility.Collapsed;
+        ShapeItems.Children.Clear();
         Intro.Visibility = Visibility.Visible;
         starting = false;
         ShowFirstStart(null);
+        ForgetChats();
     }
 
     /// <summary>Coach's id, its thread as last read, and each card's state here, as the iPad's model keeps them.</summary>
@@ -264,6 +278,8 @@ public sealed partial class CoachPanel : UserControl
     public CoachPanel()
     {
         InitializeComponent();
+        // Board 9; it paints itself in the panel's theme, and again when that changes.
+        IntroArt.Child = Illustrations.CoachStarting();
         var w = App.Words;
         var intro = CoachScreen.Intro(w);
         TitleText.Text = intro.Title;
@@ -276,6 +292,10 @@ public sealed partial class CoachPanel : UserControl
         AutomationProperties.SetName(FullScreen, w.Get("coach.full_screen"));
         AutomationProperties.SetName(Backdrop, w.Get("coach.close_coach_mode"));
         KeyboardAccelerators.Add(Escape());
+        StartChats();
+        // "Taking shape" is painted in the panel's theme: again once it's in the window, and when the theme changes.
+        Loaded += (_, _) => ShapeAgain();
+        ActualThemeChanged += (_, _) => ShapeAgain();
     }
 
     static CoachMotion Motion => CoachScreen.Motion(new UISettings().AnimationsEnabled);
@@ -308,31 +328,46 @@ public sealed partial class CoachPanel : UserControl
     }
 
     /// <summary>
-    /// Coach's newest conversation, read as the panel opens, as the iPad's <c>loadSetupThread</c>. With messages, the thread
-    /// shows in place of the intro; with no Coach yet, none, or a read that fails, the intro stays.
+    /// The conversation shown, read as the panel opens, as the iPad's <c>loadSetupThread</c>: the newest, as at launch, or the
+    /// one chosen here; a new one has nothing to read yet. With messages, or once Coach was started here or a conversation
+    /// chosen, it shows in place of the intro; with no Coach yet, none, or a read that fails, the intro stays.
     /// </summary>
     async Task LoadThreadAsync()
     {
         if (read is not { } reader) return;
-        var gen = generation;
+        var (gen, mine) = (generation, conversationGen);
         CloudRead? setup = null;
-        var (loaded, error, id) = await CoachChat.LoadAsync(App.Words, async path =>
+        var loaded = await CoachChat.LoadAsync(App.Words, async path =>
         {
             var r = await reader(path);
             if (path == CoachStart.SetupPath) setup = r;
             return r;
-        });
-        if (gen != generation) return;
+        }, conversation);
+        if (gen != generation || mine != conversationGen) return;
         ShowFirstStart(setup?.Answer is { } answer ? FirstStart.Read(answer) : null);
-        IntroError.Text = error ?? "";
-        IntroError.Visibility = error is null ? Visibility.Collapsed : Visibility.Visible;
-        coach = id;
-        if (loaded is null || loaded.Drawn(Kinds).Count == 0) return;
-        thread = loaded;
-        ShowThread(loaded);
-        Intro.Visibility = Visibility.Collapsed;
-        ThreadView.Visibility = Visibility.Visible;
-        await ReadApprovalsAsync(loaded, gen);
+        coach = loaded.Coach;
+        session = loaded.Session ?? session;
+        if (previousAsked && coach is not null)
+        {
+            previousAsked = false;
+            if (loaded.Thread is { } first) thread = first;
+            await ShowChatsAsync(archived: false);
+            return;
+        }
+        var shows = ShowsConversation(loaded.Thread);
+        // Why it couldn't be read: under the intro, or over the box once the conversation shows.
+        IntroError.Text = loaded.Error ?? "";
+        IntroError.Visibility = loaded.Error is null || shows ? Visibility.Collapsed : Visibility.Visible;
+        if (!shows)
+        {
+            ShowChatTools();
+            return;
+        }
+        if (loaded.Error is { } why) chatError = why;
+        if (loaded.Thread is { } t) thread = t;
+        if (ChatsView.Visibility == Visibility.Visible) return;
+        ShowConversation();
+        if (loaded.Thread is { } l) await ReadApprovalsAsync(l, gen);
     }
 
     /// <summary>
@@ -341,12 +376,55 @@ public sealed partial class CoachPanel : UserControl
     /// </summary>
     async Task ReadApprovalsAsync(CoachThread loaded, int gen)
     {
-        var approvals = loaded.Shown.Where(s => s.Card.Kind == "approval").Select(s => s.Card).ToList();
+        // Sign-in cards read the same grants: a connection already connected, or signed out, says so on the card.
+        var approvals = loaded.Shown.Where(s => s.Card.Kind is "approval" or "sign_in").Select(s => s.Card).ToList();
         if (approvals.Count == 0) return;
         if (Grants is { } readGrants && await readGrants() is { } read && gen == generation) grants = read;
-        foreach (var id in approvals.Select(c => c.Draft).OfType<string>().Distinct())
-            if (Drafts is { } readDraft && await readDraft(id) is { } draft && gen == generation) drafts[id] = draft;
+        foreach (var id in approvals.Select(c => c.Draft).OfType<string>().Distinct()) await ReadDraftAsync(id, gen);
         if (gen == generation) Redraw();
+    }
+
+    /// <summary>
+    /// One draft, as the iPad's <c>readCardDraft</c>: read, it's kept and its error goes; not read, why is kept, and a draft
+    /// read before stays drawn.
+    /// </summary>
+    async Task ReadDraftAsync(string id, int gen)
+    {
+        if (Drafts is not { } readDraft) return;
+        var (draft, why) = await readDraft(id);
+        if (gen != generation) return;
+        if (draft is not null)
+        {
+            drafts[id] = draft;
+            draftErrors.Remove(id);
+        }
+        else if (why is not null) draftErrors[id] = why;
+    }
+
+    /// <summary>
+    /// A Card not read yet, as the iPad's: Approve waits, and the card says so, never a blank. KIFF's reason with Try again
+    /// when it wouldn't give it (<c>coach.card_draft_not_read</c>); until then, "Reading KIFF's words for this connection…".
+    /// </summary>
+    UIElement DraftNotRead(string id)
+    {
+        var w = App.Words;
+        if (draftErrors.GetValueOrDefault(id) is not { } why) return Words(w.Get("coach.reading_kiff_words"), 13, "TafsDimText");
+        var box = new StackPanel { Spacing = 6 };
+        box.Children.Add(Words(w.Get("coach.card_draft_not_read", ("why", why)), 13, "TafsNoText"));
+        var again = new HyperlinkButton
+        {
+            Content = w.Get("common.try_again"), FontSize = 13, Padding = new Thickness(0), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+        };
+        AutomationProperties.SetAutomationId(again, "approval.draft-try-again");
+        again.Click += async (_, _) =>
+        {
+            again.IsEnabled = false;
+            var gen = generation;
+            await ReadDraftAsync(id, gen);
+            if (gen == generation) Redraw();
+        };
+        box.Children.Add(again);
+        return box;
     }
 
     /// <summary>
@@ -358,10 +436,15 @@ public sealed partial class CoachPanel : UserControl
     {
         var w = App.Words;
         ThreadItems.Children.Clear();
-        ShowPlan(thread.Plan);
+        // The plan is in "Taking shape" when it shows, as the iPad's: not pinned above the thread as well.
+        ShowPlan(Shaping ? null : thread.Plan);
         // Asked once the thread is drawn: Home's read can answer at once, and it draws the thread again.
         if (Tafs is { } tafs && thread.ReadHomeFor(tafs().Select(t => t.Agent), homeAsked)) DispatcherQueue.TryEnqueue(() => HomeWanted?.Invoke());
-        var items = thread.Drawn(Kinds);
+        // In the order already drawn: nothing moves while Coach answers (kiff/tafs#1233).
+        var items = CoachChat.Steady(drawnOrder, thread.Drawn(Kinds));
+        // Beside the thread when the panel is wide: what it has made so far, read again with it.
+        ShowShape(thread);
+        drawnOrder = items.Select(i => i.Id).ToList();
         for (var i = 0; i < items.Count; i++)
         {
             if (CoachChat.GapTime(w, items, i, DateTimeOffset.Now, TimeZoneInfo.Local) is { } gap)
@@ -374,6 +457,7 @@ public sealed partial class CoachPanel : UserControl
                 else if (shown.Card.Kind == "result") ThreadItems.Children.Add(Result(thread, shown));
                 else if (shown.Card.Kind == "confirm") ThreadItems.Children.Add(Confirm(thread, shown.Card));
                 else if (shown.Card.Kind == "approval") ThreadItems.Children.Add(Approval(thread, shown.Card));
+                else if (shown.Card.Kind == "sign_in") ThreadItems.Children.Add(SignIn(thread, shown.Card));
                 continue;
             }
             var m = items[i].Message!;
@@ -384,6 +468,13 @@ public sealed partial class CoachPanel : UserControl
                 var words = CoachChat.OwnerWords(w, m.Text, thread.Shown);
                 if (m.Kickoff) said.Children.Add(Kickoff(m));
                 else if (words.Length > 0) said.Children.Add(ChatViews.OwnerBubble(words, Brush));
+                // The files sent with it, each opening again on a tap, as in a taf's chat.
+                if (m.Files is { Count: > 0 } files && coach is { } c && Read is { } read)
+                    said.Children.Add(ChatViews.MessageFiles(files, Brush, async file =>
+                    {
+                        // Not opened: why, where the panel says what went wrong.
+                        if (await AttachTray.OpenAsync(c, file, read) is { } why) { chatError = why; ShowChatTools(); }
+                    }));
                 if (m.Answers is not null) said.Children.Add(ChatViews.AnsweredCardLine());
                 if (said.Children.Count > 0) ThreadItems.Children.Add(said);
             }
@@ -687,7 +778,78 @@ public sealed partial class CoachPanel : UserControl
     }
 
     /// <summary>The kinds of card drawn so far: the others come in their own changes, their answers in bubbles until then.</summary>
-    static readonly string[] Kinds = ["questions", "notice", "result", "confirm", "approval"];
+    static readonly string[] Kinds = ["questions", "notice", "result", "confirm", "approval", "sign_in"];
+
+    /// <summary>
+    /// A sign-in, as the iPad's <c>SetupChatView.signIn</c>: "Needs you · sign in", "Sign in at Gmail", the line that the vendor's
+    /// own page opens, tafs cloud's line when the sign-in is wider than the job, the button and where it goes, then Not now.
+    /// Answered, one line. The button opens the vendor's sign-in once connecting apps comes to Windows: until then it's off,
+    /// and Not now answers the card.
+    /// </summary>
+    UIElement SignIn(CoachThread thread, CoachCard c)
+    {
+        var w = App.Words;
+        var grant = c.Grant is { } id ? grants?.FirstOrDefault(g => g.Id == id) : null;
+        var (state, why) = SignInCard.State(thread, c, grant);
+        if (state is ApprovalState.Done or ApprovalState.Declined)
+            return QuestionsCardView.Outcome(SignInCard.Outcome(w, c, grant, state), Brush,
+                state == ApprovalState.Done ? "\uEC61" : "\uECC9", state == ApprovalState.Done ? "TafsOk" : "TafsDim");
+        var failed = state == ApprovalState.Failed;
+        var box = new StackPanel { Spacing = 10 };
+        var upper = new System.Globalization.CultureInfo(w.Language);
+        var eyebrow = Words(w.Get(failed ? "coach.did_not_go_through_sign" : "coach.sign_in.eyebrow").ToUpper(upper), 11, "TafsEyebrow");
+        eyebrow.Foreground = Brush(failed ? "TafsNo" : "TafsAmber");
+        box.Children.Add(eyebrow);
+        var title = Words(SignInCard.Title(w, c, grant), 20, "TafsInkText");
+        title.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
+        box.Children.Add(title);
+        if (failed) box.Children.Add(Words(why is null ? w.Get("coach.answer.failed") : w.Get("coach.answer.failed_why", ("value", why)), 14, "TafsNoText"));
+        box.Children.Add(Words(w.Get("coach.sign_in_note"), 14, "TafsSoftText"));
+        // A sign-in wider than the job, in tafs cloud's words, before the button (kiff/tafs#1218).
+        if (c.Wider is { } wider) box.Children.Add(Wider(wider));
+        var open = new Button
+        {
+            Content = SignInCard.Button(w, c, grant, failed), IsEnabled = false, HorizontalAlignment = HorizontalAlignment.Stretch,
+            Style = (Style)Application.Current.Resources["TafsPrimaryOff"],
+        };
+        AutomationProperties.SetAutomationId(open, "coach.sign_in.open");
+        box.Children.Add(open);
+        var opens = Mono(SignInCard.Opens(w, c), 12, "TafsDim");
+        opens.HorizontalAlignment = HorizontalAlignment.Center;
+        box.Children.Add(opens);
+        if (!failed)
+        {
+            var notNow = new Button
+            {
+                Content = w.Get("common.not_now"), HorizontalAlignment = HorizontalAlignment.Center, FontSize = 14, Foreground = Brush("TafsDim"),
+                Style = (Style)Application.Current.Resources["TafsQuietButton"],
+                IsEnabled = answer is not null && !answered.Contains(thread.CardRef(c.Id)),
+            };
+            notNow.Click += (_, _) => _ = AnswerAsync(thread, c.Id, "not now");
+            box.Children.Add(notNow);
+        }
+        if (notes.GetValueOrDefault(c.Id) is { } note) box.Children.Add(Words(note, 13, "TafsNoText"));
+        return Framed(box, failed);
+    }
+
+    /// <summary>
+    /// tafs cloud's line for a sign-in wider than the job, in amber after a warning mark, as one thing Narrator reads: the
+    /// sign-in asks for more access than the taf uses, and the taf still uses only its own tools.
+    /// </summary>
+    UIElement Wider(string words)
+    {
+        var line = new Grid { ColumnSpacing = 8 };
+        line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        line.ColumnDefinitions.Add(new ColumnDefinition());
+        line.Children.Add(new FontIcon { Glyph = "", FontSize = 14, Foreground = Brush("TafsAmberText"), VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 2, 0, 0) });
+        var text = new TextBlock { Text = words, FontSize = 13, TextWrapping = TextWrapping.Wrap, Foreground = Brush("TafsAmberText") };
+        Grid.SetColumn(text, 1);
+        line.Children.Add(text);
+        AutomationProperties.SetName(line, words);
+        AutomationProperties.SetAutomationId(line, "coach.approval.wider");
+        return line;
+    }
 
     /// <summary>
     /// An approval, as the iPad's <c>SetupApproval</c>: planque's own words for the connection (its exact terms under
@@ -748,7 +910,12 @@ public sealed partial class CoachPanel : UserControl
             foreach (var line in draft.CardLines(w).SelectMany(l => l)) card.Children.Add(Mono(line, 12, next ? "TafsDim" : "TafsInk"));
             box.Children.Add(new Border { Child = card, Padding = new Thickness(12), CornerRadius = new CornerRadius(12), Background = Brush("TafsRaised") });
         }
+        // Its Card not read yet, while the card waits: said, never a blank.
+        else if (c.Draft is { } wanted && draft is null && !(thread.CardFor(c.Id) is { } sent && answered.Contains(sent.Ref)))
+            box.Children.Add(DraftNotRead(wanted));
         else if (grant is not null && ApprovalCard.CardNextWords(c) is { } nextWords) box.Children.Add(Words(nextWords, 13, "TafsSoftText"));
+        // A sign-in wider than the job, in tafs cloud's words, above the buttons (kiff/tafs#1218): read before anyone approves.
+        if (c.Wider is { } wider) box.Children.Add(Wider(wider));
         if (failed) box.Children.Add(Words(why is null ? w.Get("coach.did_not_go_through_nothing") : w.Get("coach.answer.failed_why", ("value", why)), 14, "TafsNoText"));
         // A request planque refused, sent again unchanged, would fail the same way: Coach mode has to change it first, in
         // place of the buttons, as the iPad's requestRefused (the refused digests it keeps aren't on this PC yet).
@@ -871,7 +1038,8 @@ public sealed partial class CoachPanel : UserControl
     /// <summary>The thread drawn again: after an answer, and when Home's list changes, so a result card finds its taf.</summary>
     public void Redraw()
     {
-        if (thread is not null) ShowThread(thread);
+        if (ThreadView.Visibility == Visibility.Visible && coach is not null) ShowConversation(toEnd: false);
+        else if (thread is not null) ShowThread(thread);
     }
 
     /// <summary>A run's start, as the iPad's kickoff line: "Run started 09:00 · …", centred, two lines at most.</summary>
@@ -915,15 +1083,15 @@ public sealed partial class CoachPanel : UserControl
 
     void OnBack(object sender, RoutedEventArgs e) => Close();
 
-    bool full;
+    bool full => chosen.Full;
 
-    /// <summary>⤢ makes it full screen, and brings it back to a third: its edge moves, as the iPad's does.</summary>
+    /// <summary>⤢ makes it full screen, and brings it back to the width it had: its edge moves, as the iPad's does. Kept for next time.</summary>
     void OnFull(object sender, RoutedEventArgs e)
     {
         var before = PanelColumn.Width.Value;
-        full = !full;
-        FullIcon.Glyph = full ? "" : "";
-        AutomationProperties.SetName(FullScreen, App.Words.Get(full ? "coach.back_width" : "coach.full_screen"));
+        chosen = chosen with { Full = !chosen.Full };
+        KeepWidth();
+        ShowFull();
         var after = WidthIn(Over.ActualWidth);
         if (Motion == CoachMotion.Fade)
         {
@@ -955,7 +1123,7 @@ public sealed partial class CoachPanel : UserControl
         if (running is null) Fit(e.NewSize.Width);
     }
 
-    double WidthIn(double window) => full ? window : CoachScreen.PanelWidth(window);
+    double WidthIn(double window) => CoachScreen.PanelWidth(window, chosen);
 
     void Fit(double window) => PanelColumn.Width = new GridLength(WidthIn(window));
 

@@ -124,6 +124,15 @@ public static class CoachStart
         byte[]? draft = null;
         (string Header, string Value) signature = default;
         (string Header, string Batch, string Draft)? together = null;
+        // Windows Hello closed by the person: "Cancelled. Nothing changed.", as Refuse and Your step say it. One that doesn't
+        // verify, or a sign-out meanwhile, stays quiet, as before.
+        var closed = false;
+        StartResult Stopped() => new(StartOutcome.Cancelled, closed && calls.Current() ? w.Get("approval.cancelled") : null);
+        async Task Hello(byte[] id, byte[] message)
+        {
+            try { await calls.Confirm(id, message); }
+            catch (OperationCanceledException) { closed = true; throw; }
+        }
         if (coach is null)
         {
             draft = first?.Draft!.Body ?? DraftBody();
@@ -133,11 +142,16 @@ public static class CoachStart
                 if (first is { Together: true }) together = await calls.SignTogether(first.Connect!, first.Draft!, calls.SignedAt());
                 else signature = await calls.SignDraft(draft, calls.SignedAt());
             }
-            catch (Exception e) when (e is OperationCanceledException or PasskeyRefusedException) { return new(StartOutcome.Cancelled); }
+            catch (OperationCanceledException)
+            {
+                closed = true;
+                return Stopped();
+            }
+            catch (PasskeyRefusedException) { return new(StartOutcome.Cancelled); }
         }
-        else if (await PlanqueEnrolment.GateAsync(w, session, calls.Confirm, Message(session.Tenant)) is { } stopped)
+        else if (await PlanqueEnrolment.GateAsync(w, session, Hello, Message(session.Tenant)) is { } stopped)
         {
-            return stopped.Outcome == EnrolOutcome.Cancelled ? new(StartOutcome.Cancelled) : new(StartOutcome.Failed, stopped.Why);
+            return stopped.Outcome == EnrolOutcome.Cancelled ? Stopped() : new(StartOutcome.Failed, stopped.Why);
         }
         // Signed out meanwhile: nothing more is sent, as the iPad's accountGeneration checks after each await.
         if (!calls.Current()) return new(StartOutcome.Cancelled);

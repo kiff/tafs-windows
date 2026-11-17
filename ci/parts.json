@@ -14,7 +14,7 @@
     "approvals": ["src/*/Approvals/**", "tests/*/Approvals/**", "src/*/NeedsYou/**", "tests/*/NeedsYou/**", "src/*/Kiff/**", "tests/*/Kiff/**",
       "src/*/Coach/CoachApproval*", "tests/*/Coach/CoachApproval*", "src/*/Coach/CoachStart*", "tests/*/Coach/CoachStart*",
       "src/*/Coach/FirstStart*", "tests/*/Coach/PasskeyPair*"],
-    "home": ["src/*/Home/**", "tests/*/Home/**"],
+    "home": ["src/*/Home/**", "tests/*/Home/**", "src/*/Missions/**", "tests/*/Missions/**"],
     "coach": ["src/*/Coach/**", "tests/*/Coach/**"],
     "record": ["src/*/Record/**", "tests/*/Record/**", "src/*/Taf/**", "tests/*/Taf/**"],
     "connections": ["src/*/Connections/**", "tests/*/Connections/**"],
@@ -23,6 +23,6 @@
     "strings": ["src/*/Words/**", "tests/*/Strings/**"],
     "contracts": ["src/*/Contracts/**", "tests/*/Contracts/**"],
     "ci": ["src/*/Ci/**", "tests/*/Ci/**", "tools/**", "ci/**"],
-    "app": ["src/Tafs.App/**"]
+    "app": ["src/Tafs.App/**", "installer/**", ".config/**"]
   }
 }

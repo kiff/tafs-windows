@@ -77,6 +77,44 @@ Activity):
 - `--page taf-setup` with `--home` opens the first taf on Setup, from `taf-setup.json` beside the Home contract (CI's
   `taf-home` and `taf-setup-home`).
 
+**Its work and its runs** (S17, S18; `TafWork`, `TafHealth`, `TafPage.Work.cs`; the iPad's `WorkPanel`, `HealthLines`
+and `RunsPanel`): above a tafs cloud taf's record on Activity, from `GET /v1/tafs/{id}/work`, read as the page opens and
+after each change.
+- **Its work:** tafs cloud's line (unless its health's first reason says it); its health's lines in amber, red when
+  failing, each with tafs cloud's fixes (Coach with its words in the box, nothing sent, for whoever manages it and may use
+  Coach; Plan & usage for credits); its oldest waiting case, amber past the promise; Answer within (`PUT …/promise`,
+  whole hours or Not set) for whoever manages it; then its requests and skipped firings, newest first: needing you amber,
+  failed red, skipped dim, what a run used, where its result went, and Send again on one given up on
+  (`POST …/requests/{run}/deliveries/{place}/send`, the place's key URL-encoded). A read that fails says so in red.
+- **Its runs:** that it works from its chat, or when it runs next (Paused when it is), and Run now for whoever manages it
+  (`POST …/run`), "Starting a run…" until tafs cloud answers; a firing that started nothing says tafs cloud's words.
+- **The runs it kept** (`RunPage`, `TafPage.Runs.cs`; the iPad's `RetainedRuns`): under its runs, tafs cloud's title for
+  them and its latest three (`GET …/work/runs?limit=3`), each with what it used and where its reply went, the firings that
+  started no run in their place, dim; "see them all" in tafs cloud's words lists every page kept, 20 at a time with More,
+  and tafs cloud's end words.
+- **A run's own page** (S19, `RunDetail`; the iPad's `KnobRequestDetail`): a tap on a run opens it in place of the Activity,
+  with Back: where it came from, its line, each step with its mark (done in green, else amber) and its line, Try the reply
+  now on a reply given up on (for whoever manages the taf), and Ask Coach.
+
+**Starts when and Results go to** (P40, `TafKnob`, `ResultPlaces`, `TafPage.Starts.cs`; the iPad's `StartsWhenView`,
+`ResultsGoToView` and `KnobPendingPanel`): two rows under the job, each its own screen with Setup to go back, read from
+the taf's dial (`GET /v1/tafs/{id}/knob`, read as strictly as the iPad's decoder) each time one opens and after each change.
+- **Starts when:** its schedule (each line, its size, "Next run Fri 12:30 · UTC" unless paused, and If busy as set), or
+  "No schedule starts it." ("When you tell it, in its chat." for one that works from its chat); the app events it listens
+  to, "Listening" in green once approved; the follow-ups it set itself, each with Remove (`DELETE …/follow-ups/{id}`);
+  Change when it starts with Coach; then Pause every start or Resume every start (`POST …/pause`, `…/resume`), not for a
+  taf that works from its chat.
+- **Results go to:** "At least one place stays on."; tafs' own places (reply to the sender, alert our phones, email me),
+  switched at once (`PUT …/results`) from the live taf's (Home's `results`, then each answer's), the last one on never
+  off; then the places in the person's connected apps as the dial has them, and Add a place from a connected app with Coach.
+- **A change waiting as the next version:** "DRAFT · V4 · NOT LIVE" and its words, for whoever manages the taf.
+- **Not here yet:** what makes a next version (a schedule's − and +, If busy, an app event's Approve or Stop, an app's
+  place) and Make it live come with the versions' own change; the doors with the Doors tab (P13); Not sent with the taf's
+  work (S17).
+- Only whoever manages the taf changes anything; a change goes one at a time, and why one didn't go through is said in red.
+- `--page taf-starts` or `taf-results` with `--home` opens them as whoever manages the first taf, its dial from
+  `taf-knob.json` beside the Home file (`tests/fixtures/taf-knob`; CI's `taf-starts` and `taf-results`).
+
 **Setup**, as `taf-setup.png`:
 - **The job,** under "THE JOB".
 - **Starts when and Results go to:** shown, off until their screens are built.
@@ -171,12 +209,83 @@ reference:
   `halted_at` and `stopped` absent or null when not given. There's no halt fixture at the pin yet, so the shape is the
   iPad's reader.
 
+**Writing to the taf** (`TafChatSend`, ported from the iPad's `sendChat`, `SentMessages` and `stopChat`):
+- **The composer** sits under the thread for a taf tafs cloud runs: "Message Refunds", or "Send to Refunds while it
+  works" while a run of its is at work. Enter sends; Shift+Enter is a new line.
+- **Sending:** an empty message sends nothing and says nothing; one over 2000 characters says "That's longer than 2000
+  characters…" and sends nothing. Otherwise it shows at once, never above the thread's latest, and goes to tafs cloud
+  (`POST /v1/tafs/{id}/messages`, `{text}`). One at a time: Send is off while it goes.
+- **Until the thread has it,** it stays on screen after the thread, matched once by its id, else its words, for two
+  minutes at most.
+- **Not taken:** it stays in the thread where it was written, as the iPad's `UnsentBubble` (`Unsent`): the bubble faded,
+  "Not sent · Too busy." in red under it (tafs cloud's words for why, else not reached), then **Edit**, which puts its
+  words back in the box and takes it out of the thread, and **Retry**, which sends it again once. Its menu has Copy and
+  Delete. Not tried at all (another message going), Retry leaves it where it was.
+  - **Refused for a halt** (tafs cloud's `halted`: the `account`, or the `taf` on its own), as the iPad's: a raised hand in
+    place of the error mark, and **Resume** before Retry, which can't pass a halt. Resume opens Halt's screen, the
+    account's or this taf's, where resuming is the person's act behind Windows Hello; nothing resumes by itself. Retry
+    sends it once that's done.
+  - **Refused for want of the AI-data consent** (`ai_consent_required`), as the iPad's: no Not sent row. The words go
+    back in the box, and the consent's screen says why (`docs/account.md`); sent again once it's allowed.
+  - **Retry is a new send.** tafs cloud doesn't take an idempotency key for a message yet (kiff-admin's, in tafs cloud), so
+    a send that reached it but whose answer was lost can show twice after Retry.
+- **While the taf works,** or a sent message waits, the thread is read again every 2 s, only while Chat shows.
+- **Stop,** for whoever manages the taf (KIFF's `cards.manage` access, once read): the run at work is cancelled
+  (`POST /v1/tafs/{id}/stop`, `{session}`), then "You stopped Refunds.", or "Not stopped." and why.
+- A sample taf has no composer yet; the iPad's answers its own words in sample mode.
+- **The answer as it comes** (`TafChatStream`, `ServerSentEvents`, `LiveAnswer`): a message goes with its answer streamed
+  (`POST /v1/tafs/{id}/messages/stream`). Under it, the live line with a spinner: tafs cloud's `state` ("Thinking…", the
+  step's words or Coach's note with "…", "Waiting for you"), and before that the step at work, else "Thinking…". The
+  steps follow, a failed one in red with tafs cloud's why, then the words as they come. The model's thinking text is
+  never drawn. At the end the thread is read again and its stored answer takes the live one's place; a stop with words
+  (an `ai_unavailable` stop, say) says them, whole. A stream that doesn't open (not reached) sends the message plainly; a
+  refusal is said and never sent again; a stream that breaks leaves the rest to the thread. Narrator reads the live line
+  politely as it changes.
+
+**Resume** (`HaltResume`, ported from the iPad's `resumeHalt`), on a taf's Halt screen or every taf's:
+- **Who:** only a passkey session that knows its passkey, the same rule as Approve once (`HeldAnswers.Approves`). Any other
+  session reads "This device can't approve. Approve on another device signed in to your account." in its place.
+- **One Windows Hello:** "Resume with Windows Hello". This PC's passkey asserts KIFF's resume itself
+  (`KIFF-Passkey-Assertion` over `kiff.request.v1`, `POST /v1/agents/{agent}/resume`, or `/v1/resume` for every taf),
+  since resuming gives authority back and KIFF takes it only signed by the approval key.
+- **Then tafs cloud** releases its halt (`DELETE` on the halt), which lets the taf run only once KIFF says it's resumed.
+  Taken, the screen reads Running, and the list and the sidebar are read again.
+- **Not taken:** closing Windows Hello says "Cancelled, so nothing was approved…"; any other failure to sign, "Not resumed:
+  it wasn't confirmed."; KIFF not taking it, "KIFF didn't resume Rae." with the app's line for its status; tafs cloud not
+  taking it after KIFF did, "KIFF resumed Rae, but tafs cloud didn't yet." with why. A sign-out meanwhile sends nothing
+  more. A taf halted with every taf is resumed from every taf's screen.
+
+**Changes to how it runs, and Usage** (`TafVersions`, `TafCredits`, `TafPage.Versions.cs`; the iPad's `card(_:)` rows,
+`VersionsPanel` and `TafCreditsView`): two rows on the Card tab after the halt row, for whoever manages a tafs cloud taf,
+each its own screen with Back.
+- **Changes to how it runs:** its title and summary from its Setup (`versions`). Its screen lists its versions
+  (`GET /v1/tafs/{id}/versions`) newest first: "Version 2" and Live now in green, what changed, who made it and when ("By
+  Coach mode · 12 Nov 2026, 15:30 · brings a new Card"), each ended trial in a line ("Tried 11 Nov · 3 calls, 1 held ·
+  installed"), and a switch under way. One version says so. Installing and trying a version sign a Card switch with the
+  passkey, and come with their own change.
+- **Usage:** its credits this period in tafs cloud's words (`GET /v1/usage/credits/tafs/{id}`), then its runs newest first,
+  each with tafs cloud's words and when it ended, and More while there are more (`?after=`).
+- `--page taf-versions` or `taf-usage` with `--home` opens them, from `taf-versions.json` or `taf-credits.json` beside it.
+
+**Remove for good** (`TafRemoval`, ported from the iPad's `removeTaf` and `removalWords`): "Remove for good" (Narrator: "Remove Rae"),
+outlined in red, last on Setup as the iPad's (a revoked taf too), for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume (a removal
+is the approval key's act, never the device key's); a revoked taf can still be removed.
+1. **The confirmation:** "Remove Rae for good?", what always goes (`taf.remove_body`), then what goes with it and what
+   stays, in tafs cloud's words (`GET /v1/tafs/{id}/removal`, which ends nothing). Cancel changes nothing.
+2. **Signed first,** behind one Windows Hello: this PC's passkey asserts `kiff.request.v1` over `DELETE /v1/tafs/{id}`
+   and its empty body, sent as `KIFF-Passkey-Assertion` (read by tafs cloud from kiff/tafs#1247 on). Closed or refused:
+   "Not removed. Nothing changed.", and nothing is sent.
+3. **Its Cards revoked in KIFF** (Home's `card.ids`, `POST /v1/me/mandates/{id}/revoke`), unless it's revoked already;
+   one KIFF doesn't revoke is counted and said.
+4. **tafs cloud removes it** (`DELETE /v1/tafs/{id}`): done, what went ("Its Cards are revoked in KIFF. Its access to apps
+   is removed. Its schedule, chats, run reports, memory and key are deleted, and the name Rae is free."), then Home is
+   read again and the Overview opens; not finished, which steps are left, tried again on each refresh; not answered,
+   why, and that it finishes on the next refresh if it began. A sign-out at any point ends it quietly.
+
 **Not yet:**
-- **Resuming** (`ResumeConfirmation`), with the approvals.
 - **The revision as If-None-Match:** the server's ETag is the quoted form of `revision`; each read is whole for now. Its
   days are titled as sent, in 12 semibold, not in the sample's capitals. Pull to refresh has no Windows gesture yet.
-- **Chat's composer:** writing to the taf, its answer as it streams, Stop, Retry, a message not sent, and what's
-  written while it works. They come in the next change, with reading the thread again while an answer is awaited.
+- **Chat's Retry** on a message kept unsent, and steering a run at work (`/steer`).
 - **Chat's other items:** held calls in the thread and the Needs you pill, what became of an approved call, a door's
   knocks, a setting handed to Coach, a run stopped at its cap, the answer's Report menu, opening a sent file full size
   (it's named only, until its bytes are read), and a connected tool's title
@@ -184,7 +293,7 @@ reference:
   Markdown, as Coach's are.
 - **What acts in Setup:** a connected app's sheet, the + to connect one, a Card-unit exception's Coach and Dismiss
   (signed), the taf's own Connect again, Improve in Coach, Change the workflow with Coach, the memory's See all, Starts
-  when, Results go to, and Remove. They need Coach, signing or sign-in, and whether the person manages the taf. The
+  when and Results go to. They need Coach, signing or sign-in, and whether the person manages the taf. The
   sample's Forget and Pause change its page only.
 - **The real Revoke:** `POST /v1/me/mandates/{id}/revoke` for each of its Cards, shown only to whoever KIFF says manages
   the taf, and Stopped only once KIFF has revoked them all (`card.revoke_failed` otherwise). How it's signed, and
@@ -194,3 +303,22 @@ reference:
   each tool.
 - **The rest:** the head's second line (the version and Share); held calls, Card-unit exceptions, its work and its runs
   at the top of the Activity; a line's receipt and its next step.
+
+## Photos and files on a message (P5, `FilePrep`, `Attachments`, `TafPage.Attach.cs`)
+
+As the iPad's `AttachViews` and docs/attachments.md, in a taf's chat:
+- **The paperclip** beside the box picks up to five files a message: photos (JPEG, PNG, GIF, WebP, HEIC, BMP, TIFF), PDF,
+  text, CSV, Markdown, Word and Excel. A kind tafs doesn't take, or one over its limit (images 10 MB, PDF 25 MB, the
+  rest 2 MB), is refused in the tray with why, and never goes up.
+- **Every image is redrawn on this PC** as a JPEG: turned the way it was taken, its long edge at most 2,576, drawn on
+  white, by a new encoder, so only its pixels go: no location, camera or other metadata. Named for it, as .jpg.
+- **Each file goes up as soon as it's picked:** declared to tafs cloud (`POST /v1/tafs/{id}/attachments`,
+  `{media_type, name, size, sha256}`), then its bytes straight to storage through the link it answers (https only,
+  `KiffHttp.UploadAsync`), on its own client: no session ever goes with them.
+- **The tray** above the box shows each: Uploading, Ready, or why in red, with Remove. Send waits while one is going up,
+  takes the ready ones (`{text, attachments: [ids]}`, words or files or both), and the tray empties of them once sent.
+- **A sent file** opens again on a tap: tafs cloud's one-minute link (`GET …/attachments/{att}`, https only), downloaded
+  with no session into `%TEMP%	afsttachments` under its own name only, opened in Windows' app for its kind. The folder
+  goes at every sign-out.
+- Coach mode's paperclip comes next.
+

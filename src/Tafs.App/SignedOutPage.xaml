@@ -1,0 +1,89 @@
+<!-- Signed out, the whole window, as the owner's approved mockup (16 Nov) and the iPad's SignInView: Sign in with KIFF on
+     the left with Continue, Sign in with your phone on the right with Show the code. A narrow window stacks them. The
+     drawings are shapes only, with no word in them (rule 14): every word is a shared key. -->
+<Page x:Class="Tafs.App.SignedOutPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{ThemeResource TafsBackground}">
+  <Page.Resources>
+    <!-- The mockup's amber: white words on it in both themes. -->
+    <SolidColorBrush x:Key="GateAmber" Color="#B35500" />
+    <Style x:Key="GatePill" TargetType="Button">
+      <Setter Property="Background" Value="{StaticResource GateAmber}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="26" />
+      <Setter Property="MinHeight" Value="52" />
+      <Setter Property="MinWidth" Value="280" />
+      <Setter Property="Padding" Value="32,0" />
+      <Setter Property="FontSize" Value="17" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+  </Page.Resources>
+
+  <Grid x:Name="Halves" SizeChanged="OnSized">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition x:Name="LeftColumn" Width="*" />
+      <ColumnDefinition x:Name="RightColumn" Width="*" />
+    </Grid.ColumnDefinitions>
+    <Grid.RowDefinitions>
+      <RowDefinition x:Name="TopRow" Height="*" />
+      <RowDefinition x:Name="BottomRow" Height="0" />
+    </Grid.RowDefinitions>
+
+    <!-- Sign in with KIFF: board 1, a card opening, sparkles round it. -->
+    <Grid x:Name="Left" Background="{ThemeResource TafsBackground}">
+      <ScrollViewer x:Name="LeftIntro" VerticalScrollBarVisibility="Auto">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="28" Padding="24,40">
+          <!-- Board 1, first run: the owner's approved art for the welcome (Illustrations.FirstRun), at the phone half's width. -->
+          <Viewbox Width="300" AutomationProperties.AccessibilityView="Raw">
+            <Border x:Name="KiffArt" />
+          </Viewbox>
+          <TextBlock x:Name="KiffHeading" FontSize="40" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center"
+                     Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
+          <Button x:Name="Continue" Click="OnContinue" Style="{StaticResource GatePill}" AutomationProperties.AutomationId="signin.continue" />
+        </StackPanel>
+      </ScrollViewer>
+      <!-- Continue: KIFF's code, checked in the browser, here in this half. -->
+      <Frame x:Name="LeftFrame" Visibility="Collapsed" />
+    </Grid>
+
+    <!-- The line between the halves. -->
+    <Rectangle x:Name="Divider" Grid.Column="1" Width="1" HorizontalAlignment="Left" Fill="{ThemeResource TafsLine}" />
+
+    <!-- Sign in with your phone: a phone scanning a code. -->
+    <Grid x:Name="Right" Grid.Column="1" Background="{ThemeResource TafsRaised}">
+      <ScrollViewer x:Name="RightIntro" VerticalScrollBarVisibility="Auto">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="28" Padding="24,40">
+          <Viewbox Width="300" Height="300" AutomationProperties.AccessibilityView="Raw">
+            <Canvas Width="400" Height="400">
+              <Border Canvas.Left="40" Canvas.Top="20" Width="200" Height="350" CornerRadius="34" Background="White"
+                      BorderBrush="#1B1726" BorderThickness="5">
+                <Canvas>
+                  <Rectangle Canvas.Left="66" Canvas.Top="14" Width="58" Height="12" RadiusX="6" RadiusY="6" Fill="#1B1726" />
+                  <Rectangle Canvas.Left="20" Canvas.Top="90" Width="150" Height="138" RadiusX="16" RadiusY="16" Stroke="#2A64F5"
+                             StrokeThickness="4" StrokeDashArray="3,2" />
+                  <Ellipse Canvas.Left="70" Canvas.Top="268" Width="48" Height="48" Fill="#2A64F5" />
+                </Canvas>
+              </Border>
+              <Border Canvas.Left="190" Canvas.Top="70" Width="220" Height="220" CornerRadius="22" Background="White">
+                <Canvas x:Name="QrMarks" Margin="18" />
+              </Border>
+            </Canvas>
+          </Viewbox>
+          <TextBlock x:Name="PhoneHeading" FontSize="40" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center"
+                     Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
+          <!-- Windows only: the code waits for this tap, and Windows Hello asks then, never on its own. -->
+          <Button x:Name="ShowCode" Click="OnShowCode" Style="{StaticResource GatePill}" AutomationProperties.AutomationId="signin.show_code" />
+          <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+            <FontIcon Glyph="&#xE8B3;" FontSize="18" Foreground="{ThemeResource TafsSoft}" />
+            <TextBlock x:Name="ScanLine" FontSize="18" Foreground="{ThemeResource TafsSoft}" />
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+      <!-- Show the code: Windows Hello once, then the QR and its check code, here in this half. -->
+      <Frame x:Name="RightFrame" Visibility="Collapsed" />
+    </Grid>
+  </Grid>
+</Page>

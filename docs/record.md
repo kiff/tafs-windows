@@ -64,6 +64,43 @@ of KIFF. With neither, the Record is empty; `--sample` shows the reference set's
 shipped language: what the five sample tafs did today, the two held calls, and each taf started with its
 Card. The sample's words are the shared sample words.
 
+## Search and cases (`RecordSearch`)
+
+As the iPad's `RecordSearchBox`, `RecordResults`, `RecordHitRow` and `RecordCaseSheet`, across the person's tafs, from
+tafs cloud (`GET /v1/record?q=`, kiff/tafs `docs/api.md`): tafs cloud finds, words and decides; the app sends what's
+typed or tapped.
+- **The box,** under the lead, only signed in: tafs cloud's words as its placeholder (`hint`, read once with an empty
+  search), else "Search by order, invoice, amount or action". What's typed is searched 400 ms after the last key, so a
+  word typed letter by letter is one search; Enter searches at once; words already searched aren't searched again; an
+  emptied box shows the Record again.
+- **The results,** in place of the Record's chips and days while there's a search: tafs cloud's groups under their titles
+  (or every entry as one, when it sends none), each call under its taf's name, in capitals, as its Activity draws it: its
+  dot, what it was, the words under it, any money, its time. Nothing found says so in tafs cloud's words (`none_words`).
+  More reads the next page; a cursor tafs cloud refuses (409, a call made since) searches again from the top. At the end,
+  tafs cloud's words (`end_words`).
+- **A case** (`GET /v1/record/cases/{about}`): a call's "Order 42 ›" opens every call about the same thing, oldest first,
+  with the step that didn't go through first, in red, in tafs cloud's words. The Record never sends anything again itself.
+- **A session change** clears the search, what was typed and found; an answer, a hint or a case that lands after it
+  (read as another session than the one now) is dropped, and an open case closes.
+- For a screenshot, `--page record-search` with `--home` opens the Record with "42" searched, answered from a
+  `record-search.json` beside the Home file (a case from `record-case.json`).
+
+## Export receipts (`ReceiptsExport`)
+
+As the iPad's `ExportReceiptsRow` and `exportReceipts`, for an accountant, under the Record's lead, only for someone who
+sees every taf's Record (every taf on Home managed by them, as KIFF says; tafs cloud still decides, 403):
+- **Export receipts** opens the ranges: the last 7, 30 or 90 days, today among them (`GET /v1/record/receipts?from=&to=`,
+  92 days at most). One exports them, "Preparing receipts…" meanwhile.
+- **Two files**, `receipts-{from}-to-{to}.json` and `.csv`, shared through Windows' share sheet: the JSON is tafs
+  cloud's answer byte for byte, so KIFF's receipts are exactly as issued, never re-encoded; the CSV as tafs cloud wrote
+  it. How many calls have no receipt yet is said under the row. They're written under the temporary folder, replaced at
+  each export and removed at every session change, as Export my chats' are.
+- **Its names** come from the range this PC asked for (`YYYY-MM-DD`), never from the answer, so a file is only ever
+  written inside its folder. The JSON is read as bytes (`KiffHttp.GetBytesAsync`), never decoded and encoded again.
+- **A session change** drops an export still on its way (no file, no share sheet) and clears what the row said.
+- Not exported: "They couldn't be exported." and why, in red, in the app's or tafs cloud's words, never Windows'.
+- For a screenshot, `--home` shows the row, answered from a `receipts-export.json` beside the Home file.
+
 ## A line's sheet
 
 A tap on a line opens its sheet (`ReceiptSheet`), as the iPad's `ReceiptView`; Narrator reads the line
@@ -77,12 +114,28 @@ as one, with "Shows the receipt". In `Tafs.Core.Record` (`Receipt`):
 - **KIFF's receipt,** for a line that has one: `GET /v1/receipts/{trace_id}` on KIFF, as the session,
   kept as KIFF wrote it. Its chain (`causal_chain`) is taken as written, never decoded and written again
   (`RawJson`, as the iPad's `RawJSON`), since that's what KIFF signed.
+  - **Checked on this PC** (`ReceiptCheck`, as iOS's and Android's): the signed digest is
+    keccak256(ascii(sha256hex(causal_chain))), and the signer recovered from the 65-byte secp256k1
+    signature must be the one the receipt declares and KIFF's (`ReceiptCheck.KiffSigner`, one key for
+    every account; a rotation ships in a new build first). A receipt that doesn't read, or writes a key
+    twice at its top or in its attestation, isn't one KIFF wrote. Keccak-256 and the key's recovery are
+    BouncyCastle's (`BouncyCastle.Cryptography`, pinned to 2.5.1 with its hash in Tafs.Core's
+    `packages.lock.json`, which CI restores locked), the library Android's check uses. While it's read
+    and checked: "Checking KIFF's receipt on this Windows PC…".
   - **What happened:** each step KIFF signed, its message (else its kind in words) and its time, on a
-    line of dots.
-  - **The receipt's panel:** the decision in the receipt's words and when it was issued ("held →
-    approved once by you · issued …"), and Copy receipt. Until the check, it has no heading: it's never
-    called KIFF's receipt, or checked, before it is.
-  - **A line the steps contradict** says KIFF's receipt doesn't check out, and why: the decision step
+    line of dots, drawn only once the receipt checks out here and matches the line
+    (`Receipt.ShowsWhatHappened`).
+  - **The receipt's panel,** by the check:
+    - **Checked:** "KIFF's receipt · checked on this Windows PC" in green, "Signed by KIFF, unchanged
+      since.", the decision in the receipt's words and when it was issued ("held → approved once by you ·
+      issued …"), **Show the full receipt** (its id and signer shortened, each step with its hash, and
+      the signature), and Copy receipt.
+    - **Not signed yet:** "KIFF's receipt · not signed yet", KIFF signs within a minute; after ten
+      minutes, "If this stays, tell us the receipt id below." with its id.
+    - **Doesn't check out:** "KIFF's receipt doesn't check out", "This receipt was changed after KIFF
+      signed it, or it wasn't signed by KIFF. Don't rely on this line.", the facts, the full receipt with
+      no signer, and Copy.
+  - **A line the steps contradict,** once checked, says KIFF's receipt doesn't check out, and why: the decision step
     signed another amount, or the hold was settled with another answer (KIFF writes a refusal "reject").
     Amounts are compared as numbers with their unit, so "150.00" and "150" agree. The iPad compares
     the strings, which would call that a contradiction. One that isn't a number is compared as written.
@@ -93,9 +146,7 @@ as one, with "Shows the receipt". In `Tafs.Core.Record` (`Receipt`):
 
 - **The tafs' chips are the tafs in the lines.** On the iPad they're the account's tafs, so a taf with no
   line yet still has its chip. They switch when the tafs list arrives.
-- **KIFF's signature on the receipt, checked on this PC** (`ReceiptCheck`), with what comes of it: checked,
-  doesn't check out, or not signed yet; and Show the full receipt, with its signer. Until then, the sheet
-  shows the receipt and never says it's checked.
+- **Share** beside Copy on a checked receipt, as the iPad's ShareLink.
 - **Open in the taf's chat,** at the sheet's foot on the iPad.
 - **From the iPad's Record, still to come:**
   - what happened in tafs itself beside KIFF's calls (its events);

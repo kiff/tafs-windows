@@ -10,8 +10,8 @@ namespace Tafs.App;
 
 /// <summary>
 /// A Record line's sheet, as the iPad's <c>ReceiptView</c>: what became of it, the facts, what happened as KIFF signed it,
-/// and KIFF's receipt as it wrote it, with the full receipt and Copy. The check of KIFF's signature on this PC comes in its
-/// own change: until then the receipt is shown, never said to be checked.
+/// and KIFF's receipt as it wrote it, with the full receipt and Copy. KIFF's signature is checked on this PC
+/// (<see cref="ReceiptCheck"/>): what happened is drawn only once it checks out and matches the line.
 /// </summary>
 sealed class ReceiptSheet
 {
@@ -21,6 +21,9 @@ sealed class ReceiptSheet
     readonly StackPanel happened = new() { Spacing = 0 };
     readonly Border receipt;
     byte[]? raw;
+
+    /// <summary>This PC's check of the receipt; none while it's read.</summary>
+    ReceiptCheck? check;
 
     /// <summary>How the sheet reads KIFF's receipt as it wrote it: its bytes, or why not. None signed out.</summary>
     public static Func<string, Task<(byte[]? Raw, string? Why)>>? Read { get; set; }
@@ -74,7 +77,11 @@ sealed class ReceiptSheet
         var w = App.Words;
         if (entry.Call?.Receipt is not { } r) return;
         if (Read is not { } read) return;
-        receipt.Child = new ProgressRing { IsActive = true, Width = 20, Height = 20, HorizontalAlignment = HorizontalAlignment.Left };
+        // Read and checked here: "Checking KIFF's receipt on this Windows PC…" until then.
+        var checking = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        checking.Children.Add(new ProgressRing { IsActive = true, Width = 16, Height = 16 });
+        checking.Children.Add(Words(w.Get("receipt.checking_on_device", ("device", w.Get("device.windows"))), 13, "TafsSoft"));
+        receipt.Child = checking;
         var (bytes, why) = await read(Receipt.Path(r.TraceId));
         if (bytes is null)
         {
@@ -84,9 +91,12 @@ sealed class ReceiptSheet
             return;
         }
         raw = bytes;
+        check = ReceiptCheck.Check(w, bytes);
         var steps = Receipt.Steps(bytes);
-        if (steps.Count > 0) DrawSteps(w, steps);
-        DrawReceipt(w, steps);
+        var mismatch = Receipt.Mismatch(w, entry, steps);
+        // What happened is what KIFF signed for this line: only once checked here, and matching the line.
+        if (steps.Count > 0 && Receipt.ShowsWhatHappened(check, mismatch is not null)) DrawSteps(w, steps);
+        DrawReceipt(w, steps, mismatch);
     }
 
     /// <summary>What happened, as the iPad's timeline: each step on a line of dots, its words capitalised, its time.</summary>
@@ -114,22 +124,103 @@ sealed class ReceiptSheet
     }
 
     /// <summary>
-    /// The receipt's panel: a line KIFF's steps contradict, else the receipt's decision and when it was issued, and Copy.
-    /// Never headed "KIFF receipt" or said to be checked: that, whether KIFF signed it, and the full receipt with its signer
-    /// come with its check.
+    /// The receipt's panel, as the iPad's <c>receiptPanel</c>, by this PC's check:
+    /// <list type="bullet">
+    /// <item>checked, and the line agrees: "KIFF's receipt · checked on this Windows PC", "Signed by KIFF, unchanged since.",
+    /// the decision and when it was issued, the full receipt with its signer, and Copy;</item>
+    /// <item>checked, but the line disagrees with what KIFF signed: it doesn't check out, and which part;</item>
+    /// <item>not signed yet: KIFF signs within a minute; after ten minutes, "If this stays…" with the receipt's id;</item>
+    /// <item>anything else: it doesn't check out, "This receipt was changed after KIFF signed it, or it wasn't signed by KIFF".</item>
+    /// </list>
     /// </summary>
-    void DrawReceipt(WordBook w, IReadOnlyList<ReceiptStep> steps)
+    void DrawReceipt(WordBook w, IReadOnlyList<ReceiptStep> steps, string? mismatch)
     {
-        var shown = new StackPanel { Spacing = 8 };
-        if (Receipt.Mismatch(w, entry, steps) is { } wrong)
+        switch (check)
         {
-            receipt.BorderBrush = Brush("TafsNo");
-            shown.Children.Add(Words(w.Get("record.kiff_receipt_does_not_check"), 14, "TafsNo", FontWeights.SemiBold));
-            shown.Children.Add(Words(wrong, 13, "TafsSoft"));
+            case ReceiptCheck.Verified when mismatch is not null:
+                Failed(w, steps, mismatch);
+                break;
+            case ReceiptCheck.Verified verified:
+            {
+                receipt.BorderBrush = Brush("TafsOk");
+                var shown = new StackPanel { Spacing = 8 };
+                shown.Children.Add(Label(((char)0xE73E).ToString(), w.Get("receipt.checked_on_device", ("device", w.Get("device.windows"))), "TafsOk"));
+                shown.Children.Add(Words(w.Get("receipt.checked_why"), 13, "TafsSoft"));
+                shown.Children.Add(Mono(Facts(w), 11.5));
+                if (Full(w, steps, verified.Signer) is { } full) shown.Children.Add(full);
+                shown.Children.Add(CopyButton(w));
+                receipt.Child = shown;
+                break;
+            }
+            case ReceiptCheck.NotSignedYet:
+            {
+                var shown = new StackPanel { Spacing = 8 };
+                var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+                head.Children.Add(new Ellipse { Width = 9, Height = 9, Fill = Brush("TafsAmber"), VerticalAlignment = VerticalAlignment.Center });
+                head.Children.Add(Words(w.Get("receipt.not_signed_yet"), 14, "TafsInk", FontWeights.SemiBold));
+                shown.Children.Add(head);
+                shown.Children.Add(Words(w.Get("receipt.signs_within"), 13, "TafsSoft"));
+                if (DateTimeOffset.UtcNow - entry.At > TimeSpan.FromMinutes(10) && entry.Call?.Receipt is { } r)
+                {
+                    shown.Children.Add(Words(w.Get("receipt.if_it_stays"), 13, "TafsSoft"));
+                    shown.Children.Add(Mono(r.TraceId, 11.5));
+                }
+                receipt.Child = shown;
+                break;
+            }
+            default:
+                Failed(w, steps, w.Get("receipt.changed"));
+                break;
         }
+    }
+
+    /// <summary>It doesn't check out, as the iPad's <c>failedPanel</c>: why, the facts and the full receipt, with Copy, never Share.</summary>
+    void Failed(WordBook w, IReadOnlyList<ReceiptStep> steps, string why)
+    {
+        receipt.BorderBrush = Brush("TafsNo");
+        var shown = new StackPanel { Spacing = 8 };
+        shown.Children.Add(Label(((char)0xEA39).ToString(), w.Get("record.kiff_receipt_does_not_check"), "TafsNo"));
+        shown.Children.Add(Words(why, 13, "TafsSoft"));
+        shown.Children.Add(Mono(Facts(w), 11.5));
+        if (Full(w, steps, null) is { } full) shown.Children.Add(full);
+        shown.Children.Add(CopyButton(w));
+        receipt.Child = shown;
+    }
+
+    /// <summary>The receipt's decision and when it was issued; its id and signer are under the full receipt.</summary>
+    string Facts(WordBook w)
+    {
         var issued = Receipt.Field(raw!, "issued_at") is { } at && DateTimeOffset.TryParse(at, out var when)
             ? " · " + w.Get("receipt.issued", ("at", Receipt.Shown(w, when, TimeZoneInfo.Local))) : "";
-        shown.Children.Add(Mono(Receipt.DecisionWords(w, entry) + issued, 11.5));
+        return Receipt.DecisionWords(w, entry) + issued;
+    }
+
+    /// <summary>
+    /// Show the full receipt, as the iPad's <c>fullReceipt</c>: the receipt's id and its signer shortened, every step KIFF
+    /// signed with its hash, and the signature. None without steps.
+    /// </summary>
+    Expander? Full(WordBook w, IReadOnlyList<ReceiptStep> steps, string? signer)
+    {
+        if (steps.Count == 0) return null;
+        var trace = entry.Call?.Receipt?.TraceId ?? "";
+        var lines = new StackPanel { Spacing = 6 };
+        lines.Children.Add(Mono(signer is { Length: > 10 } s ? $"receipt {trace} · signer {s[..6]}…{s[^4..]}" : $"receipt {trace}", 11.5));
+        for (var i = 0; i < steps.Count; i++)
+        {
+            var at = steps[i].At is { } t ? Receipt.Shown(w, t, TimeZoneInfo.Local, withDate: false) : "";
+            lines.Children.Add(Mono($"{i + 1}  {steps[i].Words} · {at}\n   hash {steps[i].Hash}", 11.5));
+        }
+        if (Receipt.Field(raw!, "signature", attestation: true) is { Length: > 8 } sig)
+            lines.Children.Add(Mono($"✎  trace {trace} · secp256k1 + keccak256\n   sig 0x{sig[..4]}…{sig[^4..]}", 11.5));
+        return new Expander
+        {
+            Header = w.Get("receipt.show_full"), Content = lines, HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+        };
+    }
+
+    Button CopyButton(WordBook w)
+    {
         var copy = new Button { Content = w.Get("receipt.copy"), Style = (Style)Application.Current.Resources["TafsOutlineButton"] };
         copy.Click += (_, _) =>
         {
@@ -137,8 +228,16 @@ sealed class ReceiptSheet
             package.SetText(System.Text.Encoding.UTF8.GetString(raw!));
             Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
         };
-        shown.Children.Add(copy);
-        receipt.Child = shown;
+        return copy;
+    }
+
+    /// <summary>A seal and its words, in one colour, as the iPad's Label with checkmark.seal or xmark.seal.</summary>
+    StackPanel Label(string glyph, string text, string colour)
+    {
+        var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        line.Children.Add(new FontIcon { Glyph = glyph, FontSize = 14, Foreground = Brush(colour) });
+        line.Children.Add(Words(text, 14, colour, FontWeights.SemiBold));
+        return line;
     }
 
     Grid Fact(string name, string value, bool bold = false)

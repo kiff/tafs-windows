@@ -27,20 +27,27 @@
         </Rectangle.Fill>
       </Rectangle>
 
-      <Grid x:Name="Sheet" Background="{ThemeResource TafsBackground}">
+      <Grid x:Name="Sheet" Background="{ThemeResource TafsBackground}" SizeChanged="OnSheetSized">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="16" />
           <ColumnDefinition Width="*" />
+          <!-- "Taking shape", beside the thread on a wide panel: 420 and its line, or none. -->
+          <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
           <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <!-- The left edge's handle, in its own strip: a capsule, the dim at 50%. -->
-        <Rectangle Grid.RowSpan="2" Width="5" Height="44" RadiusX="2.5" RadiusY="2.5" HorizontalAlignment="Center"
-                   VerticalAlignment="Center" Fill="{ThemeResource TafsDim}" Opacity="0.5" />
+        <!-- The left edge's handle, in its own strip: a capsule, the dim at 50%. Dragged, it widens or narrows the panel,
+             and past a third it closes it, as the iPad's; the arrow keys do the same from the keyboard. -->
+        <Grid x:Name="Handle" Grid.RowSpan="2" Background="Transparent" IsTabStop="True" UseSystemFocusVisuals="True"
+              PointerPressed="OnHandlePressed" PointerMoved="OnHandleMoved" PointerReleased="OnHandleReleased"
+              PointerCaptureLost="OnHandleLost" PointerEntered="OnHandleEntered" PointerExited="OnHandleExited" KeyDown="OnHandleKey">
+          <Rectangle Width="5" Height="44" RadiusX="2.5" RadiusY="2.5" HorizontalAlignment="Center"
+                     VerticalAlignment="Center" Fill="{ThemeResource TafsDim}" Opacity="0.5" />
+        </Grid>
         <!-- The bar: Full screen and Back on a pill, and the title inline. -->
-        <Grid Grid.Column="1" Padding="0,12,16,12">
+        <Grid Grid.Column="1" Grid.ColumnSpan="2" Padding="0,12,16,12">
           <Border Style="{StaticResource TafsToolPill}" HorizontalAlignment="Left">
             <StackPanel Orientation="Horizontal">
               <Button x:Name="FullScreen" Click="OnFull" Style="{StaticResource TafsArrow}" Width="40">
@@ -53,6 +60,22 @@
           </Border>
           <TextBlock x:Name="TitleText" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"
                      Foreground="{ThemeResource TafsInk}" />
+          <!-- New conversation and Coach's conversations, as the iPad's ✎ and ⋯, once Coach is there. -->
+          <Border x:Name="ChatTools" Style="{StaticResource TafsToolPill}" HorizontalAlignment="Right" Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal">
+              <Button x:Name="NewChat" Click="OnNewChat" Style="{StaticResource TafsArrow}" Width="40">
+                <FontIcon Glyph="&#xE70F;" FontSize="15" Foreground="{ThemeResource TafsCoach}" />
+              </Button>
+              <Button x:Name="MoreChats" Style="{StaticResource TafsArrow}" Width="40">
+                <FontIcon Glyph="&#xE712;" FontSize="15" Foreground="{ThemeResource TafsCoach}" />
+                <Button.Flyout>
+                  <MenuFlyout Placement="BottomEdgeAlignedRight">
+                    <MenuFlyoutItem x:Name="PreviousChats" Click="OnPreviousChats" />
+                  </MenuFlyout>
+                </Button.Flyout>
+              </Button>
+            </StackPanel>
+          </Border>
         </Grid>
         <!-- The intro, on Coach's wash, padded 20 as the iPad's. -->
         <Grid x:Name="Intro" Grid.Row="1" Grid.Column="1" Background="{ThemeResource TafsCoachWash}" Padding="20" RowSpacing="14">
@@ -63,6 +86,8 @@
           </Grid.RowDefinitions>
           <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Spacing="14" VerticalAlignment="Center">
+            <!-- Board 9, Coach starting for the first time, above its own words: shapes only, hidden from Narrator. -->
+            <Border x:Name="IntroArt" HorizontalAlignment="Center" />
             <TextBlock x:Name="Heading" FontSize="30" FontWeight="Bold" TextWrapping="Wrap" Foreground="{ThemeResource TafsCoach}"
                        AutomationProperties.HeadingLevel="Level1" />
             <TextBlock x:Name="LineText" FontSize="16" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
@@ -85,11 +110,68 @@
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
           <!-- The plan, pinned above the thread, as the iPad's SetupPlan. -->
           <Border x:Name="PlanHost" Margin="0,8,16,8" Visibility="Collapsed" />
-          <ScrollViewer Grid.Row="1" Padding="0,0,16,16">
+          <ScrollViewer x:Name="ThreadScroll" Grid.Row="1" Padding="0,0,16,16">
             <StackPanel x:Name="ThreadItems" Spacing="12" />
+          </ScrollViewer>
+          <!-- Why the last message didn't go, or the conversation couldn't be read, as the iPad's setupError over the box. -->
+          <StackPanel Grid.Row="2" Margin="0,0,16,4" Spacing="4">
+            <!-- Improving a taf, as the iPad's: "Improve Refunds" and what Coach starts from, until its first message went. -->
+            <StackPanel x:Name="ImprovingNote" Spacing="2" Visibility="Collapsed" AutomationProperties.AutomationId="coach.improving">
+              <TextBlock x:Name="ImprovingTitle" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{ThemeResource TafsCoach}" />
+              <TextBlock x:Name="ImprovingLine" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+            </StackPanel>
+            <TextBlock x:Name="ChatError" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
+          </StackPanel>
+          <!-- The composer, as the iPad's: "Ask anything about your tafs", and Send in Coach's colour. Ctrl+Enter sends. -->
+          <Grid x:Name="CoachComposer" Grid.Row="3" Margin="0,4,16,12" ColumnSpacing="8" RowSpacing="8" Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <!-- The files picked for the next message, as in a taf's chat. -->
+            <StackPanel x:Name="CoachFileTray" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="8" Visibility="Collapsed" />
+            <Button x:Name="CoachAttach" Grid.Row="1" Style="{StaticResource TafsArrow}" Width="40" VerticalAlignment="Bottom" Click="OnCoachAttach"
+                    AutomationProperties.AutomationId="coach.attach">
+              <FontIcon Glyph="&#xE723;" FontSize="17" Foreground="{ThemeResource TafsCoach}" />
+            </Button>
+            <TextBox x:Name="CoachDraft" Grid.Row="1" Grid.Column="1" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="160" PreviewKeyDown="OnCoachDraftKey"
+                     AutomationProperties.AutomationId="coach.draft" />
+            <Button x:Name="CoachSendButton" Grid.Row="1" Grid.Column="2" Style="{StaticResource TafsPrimary}" VerticalAlignment="Bottom" Padding="18,0"
+                    Click="OnCoachSend" AutomationProperties.AutomationId="coach.send" />
+          </Grid>
+        </Grid>
+        <!-- What the conversation has made so far, as the iPad's SetupShapePanel: drawn in code, on Coach's deeper blue. -->
+        <Border x:Name="ShapeView" Grid.Row="1" Grid.Column="2" Width="421" BorderThickness="1,0,0,0" Visibility="Collapsed"
+                BorderBrush="{ThemeResource TafsLine}" Background="{ThemeResource TafsCoachPanel}"
+                AutomationProperties.AutomationId="coach.shape">
+          <ScrollViewer>
+            <StackPanel x:Name="ShapeItems" Spacing="22" Padding="20" />
+          </ScrollViewer>
+        </Border>
+        <!-- Coach's previous conversations, then Archived, as the iPad's SetupChatsList and ArchivedSetupChats: drawn in code. -->
+        <Grid x:Name="ChatsView" Grid.Row="1" Grid.Column="1" Visibility="Collapsed" RowSpacing="8" Padding="0,0,16,16">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <Grid>
+            <Button x:Name="ChatsBack" Click="OnChatsBack" Style="{StaticResource TafsQuietButton}" FontSize="15"
+                    Foreground="{ThemeResource TafsCoach}" HorizontalAlignment="Left" />
+            <TextBlock x:Name="ChatsTitle" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level2" />
+          </Grid>
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="ChatsItems" Spacing="8" />
           </ScrollViewer>
         </Grid>
       </Grid>

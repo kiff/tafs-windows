@@ -29,6 +29,34 @@ signed. Everyone else waits for the signed package.
   dotnet publish src/Tafs.App -c Release -p:Platform=x64 -r win-x64 --self-contained -o artifacts/zip/tafs-x64
   ```
 
+## The installer (what people will download)
+
+- **What it is:** `tafs-setup-<version>-x64.exe` and `tafs-setup-<version>-arm64.exe`, WiX's standard setup around one
+  MSI per platform (`installer/Bundle.wxs`, `installer/Package.wxs`). It installs the same self-contained publish as the
+  zip, for every user of the PC, under `Program Files	afs`, puts tafs in Start, and offers **Open tafs** on its last
+  page. It asks for administrator rights once. A newer version replaces an older one in place; uninstalling (Settings ›
+  Apps) removes the files, never what the app keeps for a person in `%LOCALAPPDATA%	afs`.
+- **Windows 10, version 1809 (build 17763) or later,** with a TPM to sign in (the session's key lives there) and Windows
+  Hello to approve.
+- **Built by CI** in the zip job, every run that builds the zip, with WiX v5.0.2 pinned in `.config/dotnet-tools.json`
+  and its standard bootstrapper extension at the same version. On x64, CI installs it quietly, starts tafs from where it
+  put it (its sign-in screen saved, or the job fails), and uninstalls it. Kept from main, the nightly run and on demand
+  as `tafs-windows-setup-x64` and `tafs-windows-setup-ARM64` (the setup .exe and its MSI).
+- **Building it yourself,** after the zip's publish:
+
+  ```bash
+  dotnet tool restore
+  dotnet wix extension add WixToolset.Bal.wixext/5.0.2
+  # AppDir and Msi are read from installer/, so give them as absolute Windows paths.
+  app=$(cygpath -w "$PWD/artifacts/zip/tafs-x64"); msi=$(cygpath -w "$PWD/artifacts/installer/tafs-x64.msi")
+  dotnet wix build installer/Package.wxs -wx -arch x64 -d AppDir="$app" -d Version=0.1.0.0 -o "$msi"
+  dotnet wix build installer/Bundle.wxs -wx -arch x64 -ext .wix/extensions/WixToolset.Bal.wixext/5.0.2/wixext5/WixToolset.BootstrapperApplications.wixext.dll \
+    -d Msi="$msi" -d Version=0.1.0.0 -o artifacts/installer/tafs-setup-0.1.0.0-x64.exe
+  ```
+- **Not yet:** signed (the setup's engine and the .exe, in CI's sign job once Azure exists), its words in the app's 8
+  languages (WiX's standard setup is in English), and the app's own icon (the app has no `.ico` yet, so Start shows
+  Windows' default).
+
 ## The MSIX (once it's signed)
 
 - **What it is:** `KIFF.tafs`, shown as "tafs" by KIFF, self-contained, one package per platform, with logos made from
@@ -41,7 +69,26 @@ signed. Everyone else waits for the signed package.
 - **Getting it:** CI's `msix` job keeps `tafs-msix-x64` and `tafs-msix-ARM64`. Each build's version is
   `0.1.<run number>.0`, so a signed one installs over the last.
 
+## Signing (wired, off until Azure exists)
+
+- **What's signed:** the app's own files in each zip (`Tafs.App.exe`, `Tafs.App.dll`, `Tafs.Core.dll`), with KIFF's
+  Azure Artifact Signing certificate, SHA-256 and Microsoft's timestamp. The installer and the MSIX join it once they're
+  built for it.
+- **For real only on demand:** Actions › CI › Run workflow on `main`, with **sign** ticked. That runs CI's `sign` job in
+  the repository's `windows-signing` environment, so a push to main never waits on the environment's protection rules,
+  which are the owner's call. Its values: the variables `WINDOWS_SIGNING_ENDPOINT`, `WINDOWS_SIGNING_ACCOUNT`,
+  `WINDOWS_SIGNING_PROFILE` and `WINDOWS_SIGNING_SUBJECT` (the certificate's full subject, as Windows shows it), and the
+  secrets `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` (an app registration allowed to sign with that
+  profile). Any value missing fails the run, naming it. After signing, each file's signature must be Valid and by exactly
+  that subject (`ci/check-signatures.ps1`), so a misconfigured profile, or another organisation's certificate, fails even
+  when it chains to a trusted root. It keeps `tafs-windows-signed-x64` and `tafs-windows-signed-ARM64`.
+- **The dry run, on every main push and on demand** (`sign-dry-run`, no environment): the same files signed with a
+  throwaway self-signed certificate made in that run (`ci/sign-dry-run.ps1`), then read back by the same check on that
+  certificate's subject (untrusted by design). It proves the file list, `signtool` and the check, and keeps nothing.
+- The action is Azure's own (`Azure/artifact-signing-action`), pinned to v2.0.0's commit.
+
 ## Not yet
 
-- **Signing,** of the MSIX and the app itself. It waits on the certificate decision.
+- **Signing the MSIX and the installer,** with the same job: the MSIX needs its publisher set to the certificate's subject
+  first, and the installer comes with WiX.
 - **Updates on their own** (an App Installer file) and **a download page.**

@@ -16,6 +16,8 @@
       <StackPanel Spacing="4">
         <TextBlock x:Name="Heading" FontSize="30" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
         <TextBlock x:Name="Subtitle" FontSize="14" Foreground="{ThemeResource TafsDim}" />
+        <!-- Board 10, under the title, as the iPad's OverviewView at a regular width: shapes only, hidden from Narrator. -->
+        <Border x:Name="OverviewArt" HorizontalAlignment="Left" Margin="0,12,0,0" />
       </StackPanel>
 
       <!-- What waits for the person, above the tafs: one raised row per held call, as on the iPad. -->
@@ -46,6 +48,13 @@
         </ItemsControl>
       </StackPanel>
 
+      <!-- The account's labels, as the iPad's LabelChips: All, two labels, then "+N"; a chip filters the table below. None
+           when no taf is labelled. -->
+      <ScrollViewer x:Name="LabelRow" HorizontalScrollMode="Auto" HorizontalScrollBarVisibility="Hidden"
+                    VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" Visibility="Collapsed">
+        <StackPanel x:Name="Chips" Orientation="Horizontal" Spacing="6" AutomationProperties.AutomationId="labels" />
+      </ScrollViewer>
+
       <!-- One grid, so each heading sits over its column: four equal columns, a line between rows, on the ground. -->
       <Grid x:Name="Table" ColumnSpacing="16" RowSpacing="12">
         <Grid.ColumnDefinitions>
@@ -62,10 +71,16 @@
         <TextBlock x:Name="ColumnNow" Grid.Column="1" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource TafsDim}" />
         <TextBlock x:Name="ColumnCard" Grid.Column="2" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource TafsDim}" />
         <TextBlock x:Name="ColumnLast" Grid.Column="3" FontSize="11" FontWeight="Bold" Foreground="{ThemeResource TafsDim}" />
-        <TextBlock x:Name="Empty" Grid.Row="1" Grid.ColumnSpan="4" FontSize="14" Foreground="{ThemeResource TafsDim}" />
+        <StackPanel Grid.Row="1" Grid.ColumnSpan="4" Spacing="12">
+          <!-- Board 2, no tafs yet, above the empty table's words, when tafs cloud lists no recipes either. -->
+          <Border x:Name="NoTafsArt" HorizontalAlignment="Left" Visibility="Collapsed" />
+          <TextBlock x:Name="Empty" FontSize="14" Foreground="{ThemeResource TafsDim}" />
+        </StackPanel>
       </Grid>
 
       <TextBlock x:Name="Footnote" FontSize="12" Foreground="{ThemeResource TafsDim}" />
+      <!-- With no taf, the recipes tafs cloud lists, in place of the empty table, as the iPad's HomeRecipes. -->
+      <Frame x:Name="Recipes" Visibility="Collapsed" />
     </StackPanel>
     </Grid>
   </ScrollViewer>

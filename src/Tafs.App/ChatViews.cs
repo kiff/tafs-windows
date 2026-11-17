@@ -14,6 +14,14 @@ namespace Tafs.App;
 static class ChatViews
 {
     /// <summary>
+    /// Whether a key in a message box sends it: Enter alone sends, as people expect from a chat; Shift+Enter is a new line.
+    /// Read on <c>PreviewKeyDown</c>, before a box that accepts returns takes the Enter.
+    /// </summary>
+    public static bool SendsOnEnter(Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e) =>
+        e.Key == Windows.System.VirtualKey.Enter && !e.KeyStatus.IsMenuKeyDown
+        && !Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+    /// <summary>
     /// A theme brush in a view's theme: Theme.xaml's dictionaries are merged into the app's, so they're looked for there; a
     /// brush that's the same in both themes (the brand's gradient) is the app's own.
     /// </summary>
@@ -27,6 +35,15 @@ static class ChatViews
         return (Brush)Application.Current.Resources[key];
     }
 
+    /// <summary>The window's theme as it shows, the one chosen in tafs (Account › Appearance) else Windows': set by the window.</summary>
+    public static ElementTheme WindowTheme { get; set; } = ElementTheme.Light;
+
+    /// <summary>
+    /// A theme brush in the window's theme, for what code draws: never <c>Application.Current.Resources</c>, which follows
+    /// Windows' theme, not the one chosen in tafs.
+    /// </summary>
+    public static Brush Themed(string key) => ThemeBrush(WindowTheme, key);
+
     /// <summary>The person's words, on the right in a brand bubble, as the iPad's owner <c>ChatBubble</c>.</summary>
     public static Border OwnerBubble(string words, Func<string, Brush> brush) => new()
     {
@@ -35,6 +52,67 @@ static class ChatViews
         Child = new TextBlock { Text = words, FontSize = 15, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
             Foreground = new SolidColorBrush(Microsoft.UI.Colors.White) },
     };
+
+    /// <summary>
+    /// A message that wasn't taken, kept where it was written, as the iPad's <c>UnsentBubble</c>: the person's bubble faded,
+    /// "Not sent · why" in red under it, then Edit (its words back in the box) and Retry (sent again once). Copy and Delete
+    /// in its menu. Narrator reads it as one line, with Retry and Edit as its actions' buttons.
+    /// </summary>
+    public static StackPanel UnsentBubble(Tafs.Core.Words.WordBook w, Tafs.Core.Taf.UnsentMessage m, Func<string, Brush> brush, bool busy,
+        Action retry, Action edit, Action delete, Action? resume = null)
+    {
+        var box = new StackPanel { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0) };
+        var bubble = OwnerBubble(m.Text, brush);
+        bubble.Opacity = 0.6;
+        box.Children.Add(bubble);
+        var why = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right };
+        // A halt's refusal has the iPad's raised hand; any other, its error mark.
+        why.Children.Add(new FontIcon { Glyph = resume is null ? "\uEA39" : "\uE768", FontSize = 13, Foreground = brush("TafsNo"), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0) });
+        why.Children.Add(new TextBlock { Text = Tafs.Core.Taf.Unsent.Line(w, m), FontSize = 13, Foreground = brush("TafsNo"), TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Right, MaxWidth = 520 });
+        box.Children.Add(why);
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, HorizontalAlignment = HorizontalAlignment.Right };
+        var editButton = new HyperlinkButton { Content = w.Get("setup.edit"), FontSize = 14, Padding = new Thickness(0), Foreground = brush("TafsSoft") };
+        editButton.Click += (_, _) => edit();
+        var retryButton = new HyperlinkButton { Content = w.Get("chat.retry"), FontSize = 14, Padding = new Thickness(0), IsEnabled = !busy,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = brush("TafsInk") };
+        retryButton.Click += (_, _) => retry();
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(retryButton, "unsent.retry");
+        if (resume is not null)
+        {
+            // Retry can't pass a halt: Resume opens the Halt screen, where resuming is the person's act behind Windows Hello.
+            var resumeButton = new HyperlinkButton { Content = w.Get("taf.resume"), FontSize = 14, Padding = new Thickness(0),
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = brush("TafsInk") };
+            resumeButton.Click += (_, _) => resume();
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(resumeButton, "unsent.resume");
+            retryButton.FontWeight = Microsoft.UI.Text.FontWeights.Normal;
+            retryButton.Foreground = brush("TafsSoft");
+            actions.Children.Add(resumeButton);
+        }
+        else actions.Children.Add(editButton);
+        actions.Children.Add(retryButton);
+        box.Children.Add(actions);
+        var menu = new MenuFlyout();
+        var copy = new MenuFlyoutItem { Text = w.Get("common.copy") };
+        copy.Click += (_, _) =>
+        {
+            var data = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            data.SetText(m.Text);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(data);
+        };
+        var drop = new MenuFlyoutItem { Text = w.Get("chat.delete") };
+        drop.Click += (_, _) => delete();
+        menu.Items.Add(copy);
+        menu.Items.Add(drop);
+        box.ContextFlyout = menu;
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(bubble, $"{m.Text}. {Tafs.Core.Taf.Unsent.Line(w, m)}");
+        return box;
+    }
+
+    /// <summary>A halted refusal's Resume: the window opens Halt's screen, for the taf by tafs cloud's id, or none for the account.</summary>
+    public static event Action<string?, string>? ResumeChosen;
+
+    public static void ChooseResume(string? taf, string name) => ResumeChosen?.Invoke(taf, name);
 
     /// <summary>
     /// A door's stamp, as the iPad's <c>DoorStamp</c>: mono 10 medium, two lines at most, blue, red when it wasn't sent back;
@@ -60,7 +138,7 @@ static class ChatViews
     /// name in 14 medium, one line, on the panel colour with a line round it, corners of 12. Opening one full size comes with
     /// reading its bytes; until then each is its name.
     /// </summary>
-    public static StackPanel MessageFiles(IReadOnlyList<ChatFile> files, Func<string, Brush> brush)
+    public static StackPanel MessageFiles(IReadOnlyList<ChatFile> files, Func<string, Brush> brush, Action<ChatFile>? open = null)
     {
         var column = new StackPanel { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right };
         foreach (var file in files)
@@ -77,7 +155,18 @@ static class ChatViews
                 Background = brush("TafsPanel"), BorderBrush = brush("TafsLine"), HorizontalAlignment = HorizontalAlignment.Right,
             };
             AutomationProperties.SetName(chip, file.Name);
-            column.Children.Add(chip);
+            if (open is null)
+            {
+                column.Children.Add(chip);
+                continue;
+            }
+            // A tap opens it again (the iPad's Quick Look); Narrator says Open.
+            var button = new Button { Content = chip, Style = (Style)Application.Current.Resources["TafsBox"], HorizontalAlignment = HorizontalAlignment.Right,
+                CornerRadius = new CornerRadius(12) };
+            AutomationProperties.SetName(button, App.Words.Get("chat.file.open", ("name", file.Name)));
+            var shown = file;
+            button.Click += (_, _) => open(shown);
+            column.Children.Add(button);
         }
         return column;
     }

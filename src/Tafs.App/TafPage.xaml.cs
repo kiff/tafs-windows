@@ -17,7 +17,27 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     TafTab OpensOn = TafTab.Activity, IReadOnlyList<TafCard>? Cards = null, string IssuedBy = "", string? CloudId = null,
     Func<string, Task<CloudRead>>? Read = null, Func<string, string?, Task<CloudRead>>? ReadWithProof = null,
     Func<Task<string?>>? SetupProof = null, bool Revoked = false, IReadOnlyList<Tafs.Core.Coach.ChatMessage>? SampleChat = null,
-    TafHalt? Halt = null);
+    TafHalt? Halt = null, Func<string, byte[], Task<CloudRead>>? Send = null, bool Manages = false, TafStream? Stream = null,
+    TafRemove? Remove = null, Func<HttpMethod, string, byte[]?, Task<CloudRead>>? Change = null, TafStarts? Starts = null,
+    bool Paused = false, string? Email = null, string? TimeZone = null, Action? AskCoach = null, SetupScreen SetupOn = SetupScreen.Main,
+    TafHealth? Health = null, Action<string>? AskCoachWith = null, Action? OpenUsage = null, Func<bool>? MayUseCoach = null,
+    CardScreen CardOn = CardScreen.Main)
+{
+    /// <summary>
+    /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
+    /// KIFF's answer can come after the page opened, so it's asked each time, never kept from the opening.
+    /// </summary>
+    public Action? Improve => MayUseCoach?.Invoke() == true ? AskCoach : null;
+}
+
+/// <summary>
+/// Remove for good, for whoever manages the taf on a PC that signs with its passkey: what goes with it, in tafs cloud's words,
+/// for the confirmation, and the removal itself (<see cref="TafRemoval.RemoveAsync"/>).
+/// </summary>
+public sealed record TafRemove(Func<Task<string?>> Goes, Func<Task<RemovalResult>> Run);
+
+/// <summary>A POST to tafs cloud whose answer streams: its status, its body when refused, and the open answer when not.</summary>
+public delegate Task<(int Status, string Body, System.Net.Http.HttpResponseMessage? Open)> TafStream(string path, byte[] body, CancellationToken cancel);
 
 /// <summary>A taf's halt row, for whoever manages the taf: how its halt is read, and what opens its screen.</summary>
 public sealed record TafHalt(Func<Task<Halt>> Read, Action Open);
@@ -49,7 +69,16 @@ public sealed partial class TafPage : Page
     /// <summary>tafs cloud's Activity, one set of pages a filter, as the iPad keeps them by taf and filter.</summary>
     readonly Dictionary<string, ActivityPages> cloudPages = [];
     /// <summary>tafs cloud's Setup for this taf, as last read.</summary>
-    readonly SetupRead setupRead = new();
+    SetupRead setupRead = new();
+
+    /// <summary>
+    /// Each taf's Setup as last read in this session, by its id: opened again, its page draws at once and is read again
+    /// underneath. Another session starts from nothing (<see cref="setupsFor"/> is that session's read).
+    /// </summary>
+    static readonly Tafs.Core.Kiff.SessionScoped<string, SetupRead> setups = new();
+
+    /// <summary>Signed out: every taf's Setup kept goes, connections included.</summary>
+    public static void ForgetSetups() => setups.Forget();
     /// <summary>Its thread, as tafs cloud last answered it, and why the last read didn't come (the iPad's chatErrors).</summary>
     Tafs.Core.Coach.CoachThread? chat;
     string? chatError;
@@ -59,7 +88,14 @@ public sealed partial class TafPage : Page
     bool revoked;
     string? front;
 
-    public TafPage() => InitializeComponent();
+    public TafPage()
+    {
+        InitializeComponent();
+        // The thread read again every 2 s while the taf works or a sent message waits for it, only while Chat shows.
+        chatClock = new DispatcherTimer { Interval = TafChatSend.WhileWorking };
+        chatClock.Tick += (_, _) => { if (tab == TafTab.Chat) _ = LoadChatAsync(); };
+        Unloaded += (_, _) => chatClock.Stop();
+    }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
@@ -77,6 +113,9 @@ public sealed partial class TafPage : Page
         notes = [.. opening.Setup?.Notes ?? []];
         // A taf whose Card KIFF revoked opens revoked, as the iPad's taf.card.revoked: its Cards say Revoked and fade.
         revoked = opening.Revoked;
+        // Paused, as Home says: its chip, and Resume every start on Setup › Starts when.
+        paused = opening.Paused;
+        liveResults = opening.Starts?.Results;
         tab = Built(opening.OpensOn) ? opening.OpensOn : TafTab.Activity;
 
         if (opening.Card is { } card)
@@ -92,7 +131,12 @@ public sealed partial class TafPage : Page
         Show();
         _ = LoadActivityAsync();
         _ = LoadSetupAsync();
+        // Its work and its runs, above its record, for a taf tafs cloud runs.
+        ShowWork();
+        _ = LoadWorkAsync();
         if (tab == TafTab.Chat) _ = LoadChatAsync();
+        if (opening.SetupOn != SetupScreen.Main) OpenSetupScreen(opening.SetupOn);
+        if (opening.CardOn != CardScreen.Main) OpenCardScreen(opening.CardOn);
     }
 
     /// <summary>
@@ -106,9 +150,220 @@ public sealed partial class TafPage : Page
         // An answer for a page since opened on another taf is dropped. A sign-out leaves for the sign-in page, and a taf's
         // page is never brought back from history, so an answer landing after it reaches a page nobody sees.
         if (opening != mine) return;
-        if (thread is not null) chat = thread;
+        if (thread is not null)
+        {
+            chat = thread;
+            // What the person sent stays on screen until the thread has it, as the iPad's SentMessages.merge.
+            sent = TafChatSend.Merge(thread.Messages, sent, DateTimeOffset.UtcNow).Waiting.ToList();
+        }
         chatError = error;
+        // While a run of its works, or a message waits for the thread, read again, as the iPad's chat does as it works.
+        if (thread?.Working is not null || sent.Count > 0) chatClock.Start(); else chatClock.Stop();
         if (tab == TafTab.Chat) ShowChat();
+    }
+
+    /// <summary>
+    /// The answer at work, as the iPad's <c>LiveWork</c>: the live line on top with its spinner, the steps under it (a failed
+    /// one in red with why), and the words as they come.
+    /// </summary>
+    static StackPanel LiveBlock(LiveAnswer answer, Func<string, Microsoft.UI.Xaml.Media.Brush> brush)
+    {
+        var w = App.Words;
+        var block = new StackPanel { Spacing = 6 };
+        if (answer.Line(w) is { } line)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            row.Children.Add(new ProgressRing { IsActive = true, Width = 14, Height = 14 });
+            row.Children.Add(CoachPanel.Words(line, 13, "TafsSoftText"));
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetLiveSetting(row, Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Polite);
+            block.Children.Add(row);
+        }
+        foreach (var step in answer.Steps.Where(s => s.Words is { Length: > 0 }))
+        {
+            var text = CoachPanel.Words(Tafs.Core.Coach.WorkLog.Past(step.Words!), 12, "TafsDimText");
+            if (step.Status == "error") text.Foreground = brush("TafsNo");
+            block.Children.Add(text);
+            if (step.Why is { } why) block.Children.Add(CoachPanel.Words(why, 12, "TafsSoftText"));
+        }
+        if (answer.Text.Length > 0) block.Children.Add(CoachPanel.Words(answer.Text, 16, "TafsInkText"));
+        return block;
+    }
+
+    /// <summary>Messages sent here that the thread doesn't have yet, shown after it.</summary>
+    List<Tafs.Core.Coach.ChatMessage> sent = [];
+    bool sending;
+    /// <summary>Why the last message or Stop didn't go through, under the thread; "You stopped Refunds." once stopped.</summary>
+    string? chatNote;
+    bool chatNoteIsError;
+    DispatcherTimer chatClock = null!;
+
+    /// <summary>
+    /// The composer under the thread, for a taf tafs cloud runs and someone signed in: "Message Refunds", Send, and Stop
+    /// while a run of its works for someone who manages it. A message being sent turns Send off, as the iPad's one at a time.
+    /// </summary>
+    void ShowComposer()
+    {
+        var w = App.Words;
+        var writable = opening is { CloudId: not null, Send: not null };
+        Composer.Visibility = tab == TafTab.Chat && writable ? Visibility.Visible : Visibility.Collapsed;
+        if (!writable) return;
+        var name = opening!.Head.Name;
+        var working = chat?.Working is not null || live is { Ended: false };
+        Draft.PlaceholderText = working ? w.Get("chat.send_while_works", ("taf", name)) : w.Get("chat.message_taf", ("taf", name));
+        AutomationProperties.SetName(Draft, Draft.PlaceholderText);
+        SendButton.Content = w.Get(sending ? "common.sending" : "common.send");
+        ShowTray();
+        StopButton.Content = w.Get("chat.stop");
+        StopButton.Visibility = working && opening.Manages ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>Enter sends; Shift+Enter is a new line.</summary>
+    void OnDraftKey(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        // Enter sends; Shift+Enter is a new line (seen before the box takes the Enter).
+        if (ChatViews.SendsOnEnter(e)) { e.Handled = true; OnSend(sender, e); }
+    }
+
+    /// <summary>
+    /// Send, as the iPad's <c>sendChat</c>: checked first (nothing to send says nothing; too long says so), shown at once,
+    /// then sent. Not taken, it stays in the thread as not sent, with why, Edit and Retry (<see cref="Unsent"/>).
+    /// </summary>
+    async void OnSend(object sender, RoutedEventArgs e)
+    {
+        // Send waits while a file is going up; a message may be words, files, or both.
+        if (FilesUploading) return;
+        var (text, why) = TafChatSend.Check(App.Words, Draft.Text);
+        if (text is null && Draft.Text.Trim().Length == 0 && ReadyFiles().Count > 0) (text, why) = ("", null);
+        if (text is null)
+        {
+            (chatNote, chatNoteIsError) = (why, why is not null);
+            ShowChat();
+            return;
+        }
+        // Out of the box at once, as it shows in the thread; not tried at all, back in the box unless something new is there.
+        Draft.Text = "";
+        if (await SendTextAsync(text) is null && Draft.Text.Length == 0) Draft.Text = text;
+    }
+
+    /// <summary>
+    /// A message to the taf: null when it wasn't tried (already sending, or nothing to send it to); true once sent; false
+    /// when tafs cloud didn't take it, and the thread keeps it as not sent.
+    /// </summary>
+    async Task<bool?> SendTextAsync(string text)
+    {
+        if (sending || opening is not { CloudId: { } id, Send: { } send } mine) return null;
+        var w = App.Words;
+        var pending = TafChatSend.Pending(text, chat?.Messages ?? [], DateTimeOffset.UtcNow);
+        sent.Add(pending);
+        // The box is the Send button's to clear: Retry leaves what's being typed there alone, as the iPad's submitChat.
+        (sending, chatNote) = (true, null);
+        ShowChat();
+        // The files ready in the tray go with it; the tray empties once it's taken.
+        var files = ReadyFiles();
+        var refused = mine.Stream is { } stream ? await StreamAsync(w, id, text, stream, send, mine, files) : await TafChatSend.SendAsync(w, id, text, send, files);
+        if (refused is null && files.Count > 0) ClearSentFiles(files);
+        if (opening != mine) return null;
+        (sending, live) = (false, null);
+        if (refused is { Consent: true })
+        {
+            // Refused for want of the AI-data consent: its screen says why, and the words go back in the box, with no Not sent
+            // row, to send once it's allowed, as the iPad's.
+            sent.Remove(pending);
+            ShowChat();
+            return null;
+        }
+        if (refused is not null)
+        {
+            sent.Remove(pending);
+            unsent.Add(UnsentMessage.Of(text, refused.Why, DateTimeOffset.UtcNow, refused.Halted));
+            ShowChat();
+            return false;
+        }
+        await LoadChatAsync();
+        return true;
+    }
+
+    /// <summary>Messages tafs cloud didn't take, kept after the thread until Retry, Edit or Delete takes them.</summary>
+    List<UnsentMessage> unsent = [];
+
+    /// <summary>Retry, as the iPad's <c>retryChat</c>: sent again once; not tried at all, it goes back in its place.</summary>
+    async void RetryUnsent(UnsentMessage m)
+    {
+        if (sending) return;
+        (unsent, var at) = Unsent.Take(unsent, m.Id);
+        if (await SendTextAsync(m.Text) is null) unsent = Unsent.PutBack(unsent, m, at);
+        ShowChat();
+    }
+
+    /// <summary>Edit, as the iPad's <c>editUnsentChat</c>: out of the thread, its words in the box to change.</summary>
+    void EditUnsent(UnsentMessage m)
+    {
+        unsent = Unsent.Take(unsent, m.Id).Left;
+        Draft.Text = m.Text;
+        Draft.Focus(FocusState.Programmatic);
+        Draft.SelectionStart = Draft.Text.Length;
+        ShowChat();
+    }
+
+    void DeleteUnsent(UnsentMessage m)
+    {
+        unsent = Unsent.Take(unsent, m.Id).Left;
+        ShowChat();
+    }
+
+    /// <summary>The answer as it comes, drawn under the sent message until the thread has it; none when nothing streams.</summary>
+    LiveAnswer? live;
+
+    /// <summary>
+    /// The message sent with its answer streamed (<c>/messages/stream</c>), as the iPad's send: each event drawn as it comes,
+    /// then the thread read again. The stream not opening (not reached) sends it plainly, as the iPad's; a refusal is said,
+    /// never sent again. A stream that breaks leaves the rest to the thread.
+    /// </summary>
+    async Task<Refusal?> StreamAsync(Tafs.Core.Words.WordBook w, string id, string text, TafStream stream,
+        Func<string, byte[], Task<CloudRead>> send, TafOpening mine, IReadOnlyList<string>? files = null)
+    {
+        (int Status, string Body, System.Net.Http.HttpResponseMessage? Open) answer;
+        try { answer = await stream(TafChatStream.Path(id), TafChatSend.Body(text, files), CancellationToken.None); }
+        catch (System.Net.Http.HttpRequestException) { return await TafChatSend.SendAsync(w, id, text, send, files); }
+        // No stream route there (404, 405): the plain send takes it, as the iPad's (an older tafs cloud, or the stream's host).
+        if (answer.Open is null && answer.Status is 404 or 405) return await TafChatSend.SendAsync(w, id, text, send, files);
+        if (answer.Open is not { } open)
+            return Refusal.Of(CloudRead.Refused(w, answer.Status, answer.Body), w.Get("error.ours"));
+        using (open)
+        {
+            live = LiveAnswer.Start;
+            ShowChat();
+            try
+            {
+                using var reader = new StreamReader(await open.Content.ReadAsStreamAsync());
+                await foreach (var e in ServerSentEvents.ReadAsync(reader))
+                {
+                    if (opening != mine) return null;
+                    live = live.Apply(e);
+                    // The run read a message written meanwhile: the thread has it.
+                    if (e.Name == "taken") _ = LoadChatAsync();
+                    if (tab == TafTab.Chat) ShowChat();
+                    if (live.Ended) break;
+                }
+            }
+            catch (Exception e) when (e is IOException or System.Net.Http.HttpRequestException) { }
+        }
+        // How it ended, in the words the run stopped with: KIFF's or the AI provider's, whole, as the apps show them.
+        // tafs cloud sends words only with a stop code (kiff/agents' words for people), so their presence is the signal.
+        if (live is { EndWords: { } why }) (chatNote, chatNoteIsError) = (why, true);
+        return null;
+    }
+
+    /// <summary>Stop, as the iPad's <c>stopChat</c>: the run at work is cancelled; "You stopped Refunds.", or why not.</summary>
+    async void OnStop(object sender, RoutedEventArgs e)
+    {
+        if (opening is not { CloudId: { } id, Send: { } send, Manages: true } mine || (live?.Session ?? chat?.Working) is not { } session) return;
+        StopButton.IsEnabled = false;
+        var why = await TafChatSend.StopAsync(App.Words, id, session, send);
+        if (opening != mine) return;
+        StopButton.IsEnabled = true;
+        (chatNote, chatNoteIsError) = why is null ? (App.Words.Get("chat.you_stopped", ("taf", mine.Head.Name)), false) : (why, true);
+        await LoadChatAsync();
     }
 
     /// <summary>
@@ -121,11 +376,18 @@ public sealed partial class TafPage : Page
     void ShowChat()
     {
         var w = App.Words;
+        // The latest message in view, as the iPad's thread opens at its end: once the thread is laid out, unless the person
+        // had scrolled up to read.
+        var atEnd = PageScroll.VerticalOffset >= PageScroll.ScrollableHeight - 24;
+        if (atEnd) DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+            () => PageScroll.ChangeView(null, PageScroll.ScrollableHeight, null, disableAnimation: true));
         ChatPane.Children.Clear();
         Microsoft.UI.Xaml.Media.Brush Brush(string key) => ChatViews.ThemeBrush(ActualTheme, key);
         IReadOnlyList<Tafs.Core.Coach.ThreadItem> items = chat is { } thread ? TafChat.Items(thread)
             : (opening?.SampleChat ?? []).Select(m => new Tafs.Core.Coach.ThreadItem(m, null)).ToList();
-        if (items.Count == 0)
+        // What the person sent that the thread doesn't have yet, after it, in the order sent.
+        if (sent.Count > 0) items = [.. items, .. sent.Select(m => new Tafs.Core.Coach.ThreadItem(m, null))];
+        if (items.Count == 0 && unsent.Count == 0)
         {
             var empty = CoachPanel.Words(TafChat.Empty(w, opening?.Head.Name), 14, "TafsDimText", HorizontalAlignment.Center);
             empty.Margin = new Thickness(0, 30, 0, 30);
@@ -145,7 +407,8 @@ public sealed partial class TafPage : Page
                 var said = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0) };
                 // Through a door, someone else's words: where they came from, over them.
                 if (m.Door is { } door) said.Children.Add(ChatViews.DoorStamp(door, fromOwner: true, Brush));
-                if (m.Files is { } files) said.Children.Add(ChatViews.MessageFiles(files, Brush));
+                // Each opens again, full size, in Windows' own app for its kind.
+                if (m.Files is { } files) said.Children.Add(ChatViews.MessageFiles(files, Brush, file => _ = OpenFileAsync(file)));
                 if (m.Text.Length > 0) said.Children.Add(ChatViews.OwnerBubble(m.Text, Brush));
                 // Written while a card waited: these words were its answer. Not a door's.
                 if (m is { Answers: not null, Door: null }) said.Children.Add(ChatViews.AnsweredCardLine());
@@ -173,20 +436,43 @@ public sealed partial class TafPage : Page
             if (m.RefusedLines is { } refused) lines.Children.Add(ChatViews.RefusedLines(refused, Brush));
             ChatPane.Children.Add(lines);
         }
+        // What tafs cloud didn't take, after the thread, where it was written.
+        foreach (var m in unsent)
+            ChatPane.Children.Add(ChatViews.UnsentBubble(w, m, Brush, sending, () => RetryUnsent(m), () => EditUnsent(m), () => DeleteUnsent(m),
+                // Refused for a halt: Resume opens the Halt screen that resumes it, the account's or this taf's.
+                Unsent.ResumesWith(m, inTafChat: true) switch
+                {
+                    HaltScreen.Account => () => ChatViews.ChooseResume(null, ""),
+                    HaltScreen.Taf when opening?.CloudId is { } taf => () => ChatViews.ChooseResume(taf, opening.Head.Name),
+                    _ => null,
+                }));
         if (chatError is { } why)
         {
             var error = CoachPanel.Words(why, 13, "TafsSoftText");
             error.Foreground = Brush("TafsNo");
             ChatPane.Children.Add(error);
         }
+        if (live is { } answer && !answer.Ended) ChatPane.Children.Add(LiveBlock(answer, Brush));
+        if (chatNote is { } note)
+        {
+            var line = CoachPanel.Words(note, 13, "TafsSoftText");
+            if (chatNoteIsError) line.Foreground = Brush("TafsNo");
+            ChatPane.Children.Add(line);
+        }
+        ShowComposer();
     }
 
     /// <summary>Its Setup, read as the page opens and on Try again, as the iPad's <c>.task(id: tafID)</c> on its page.</summary>
     async Task LoadSetupAsync()
     {
         if (opening is not { CloudId: { } id, Read: { } read }) return;
-        await setupRead.LoadAsync(id, opening.ReadWithProof ?? ((path, _) => read(path)), opening.SetupProof);
-        if (tab == TafTab.Setup) ShowSetup();
+        var kept = setups.Get(read, id, () => new SetupRead());
+        setupRead = kept;
+        if (tab == TafTab.Setup && kept.Page is not null) ShowSetup();
+        // Drawn as soon as the quick read lands; the connections when planque's signed read does.
+        await kept.LoadAsync(id, opening.ReadWithProof ?? ((path, _) => read(path)), opening.SetupProof,
+            () => { if (tab == TafTab.Setup && opening?.CloudId == id) ShowSetup(); });
+        if (tab == TafTab.Setup && opening?.CloudId == id) ShowSetup();
     }
 
     /// <summary>
@@ -261,6 +547,7 @@ public sealed partial class TafPage : Page
         SetupPane.Visibility = tab == TafTab.Setup ? Visibility.Visible : Visibility.Collapsed;
         CardPane.Visibility = tab == TafTab.Card ? Visibility.Visible : Visibility.Collapsed;
         ChatPane.Visibility = tab == TafTab.Chat ? Visibility.Visible : Visibility.Collapsed;
+        ShowComposer();
         // Over the Chat and the Activity, as the iPad's (section < 2).
         CardBar.Visibility = tab is TafTab.Chat or TafTab.Activity && opening?.Card is not null ? Visibility.Visible : Visibility.Collapsed;
         if (tab == TafTab.Setup) ShowSetup();
@@ -279,7 +566,9 @@ public sealed partial class TafPage : Page
         SetupPane.Children.Clear();
         if (opening.CloudId is not null)
         {
-            ShowCloudSetup(setup);
+            if (setupScreen == SetupScreen.StartsWhen) ShowStartsWhen();
+            else if (setupScreen == SetupScreen.ResultsGoTo) ShowResultsGoTo();
+            else ShowCloudSetup(setup);
             return;
         }
         SetupPane.Children.Add(Panel(Eyebrow("setup.job"), Words(setup.Job, 15, "TafsInkText")));
@@ -340,19 +629,31 @@ public sealed partial class TafPage : Page
             title.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
             SetupPane.Children.Add(Panel(title, Words(ask.Words, 14, "TafsSoftText"), Words(ask.History, 12, "TafsDimText")));
         }
-        SetupPane.Children.Add(Panel(Eyebrow("setup.job"), Words(setup.Job, 15, "TafsInkText")));
+        // Its job, and Improve in Coach for whoever manages it, as the iPad's: Coach starts on improving this taf.
+        var job = Panel(Eyebrow("setup.job"), Words(setup.Job, 15, "TafsInkText"));
+        if (opening?.Manages == true && opening.Improve is { } improve)
+        {
+            var link = new HyperlinkButton { Content = App.Words.Get("setup.improve_in_coach"), Padding = new Thickness(0), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(link, "setup.improve");
+            link.Click += (_, _) => improve();
+            ((StackPanel)job.Child).Children.Add(link);
+        }
+        SetupPane.Children.Add(job);
+        AddSetupLinks();
 
         // ConnectedToolsRing: why its connections couldn't be read, with Try again; a read going; else the ring and workflow.
         var tools = new StackPanel { Spacing = 10 };
         tools.Children.Add(Eyebrow("connect.connected_tools"));
-        if ((setupRead.Error ?? page?.ConnectionsError) is { } error)
+        if (!setupRead.ConnectionsPending && (setupRead.Error ?? page?.ConnectionsError) is { } error)
         {
             tools.Children.Add(Words(error, 13, "TafsNoText"));
             var again = new Button { Content = App.Words.Get("common.try_again") };
             again.Click += (_, _) => _ = LoadSetupAsync();
             tools.Children.Add(again);
         }
-        if (page is null && setupRead.Error is null) tools.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24 });
+        // Reading: the whole page, or its connections while planque's signed read is on its way.
+        if ((page is null && setupRead.Error is null) || (setupRead.ConnectionsPending && page?.Connections.Count == 0))
+            tools.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Left });
         if (page is not null)
         {
             tools.Children.Add(Ring(TafSetup.Nodes(page.Connections), setup.Job));
@@ -378,6 +679,9 @@ public sealed partial class TafPage : Page
         }
         else memory.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Left });
         SetupPane.Children.Add(Panel(memory));
+
+        // Remove for good, last on Setup, in red, as the iPad's: what goes with it first, then Windows Hello. A revoked taf too.
+        if (opening?.Remove is { } remove) SetupPane.Children.Add(RemoveButton(remove));
     }
 
     /// <summary>
@@ -558,14 +862,14 @@ public sealed partial class TafPage : Page
     /// </summary>
     void ShowCards()
     {
+        // Its versions or its usage, each on a screen of its own with Back.
+        if (ShowCardScreen()) return;
         if (opening?.Cards is not { Count: > 0 } cards)
         {
-            // A tafs cloud taf's Cards aren't drawn here yet: its halt row still is, for whoever manages it.
-            if (opening?.Halt is { } alone && !revoked)
-            {
-                CardPane.Children.Clear();
-                CardPane.Children.Add(HaltRow(alone));
-            }
+            // A tafs cloud taf's Cards aren't drawn here yet: its halt row still is, for whoever manages it, and its rows.
+            CardPane.Children.Clear();
+            if (opening?.Halt is { } alone && !revoked) CardPane.Children.Add(HaltRow(alone));
+            AddCardRows();
             return;
         }
         var w = App.Words;
@@ -606,9 +910,12 @@ public sealed partial class TafPage : Page
         }
         if (shown.Rules.Count > 0) CardPane.Children.Add(Panel(lines));
 
+        // A revoked taf can't be halted. Remove for good is on Setup, as the iPad's.
         if (revoked) return;
         // Halting is a job of its own too, for whoever manages the taf: its row opens its screen (the iPad's HaltRow).
         if (opening.Halt is { } halt) CardPane.Children.Add(HaltRow(halt));
+        // "Changes to how it runs" and Usage, as the iPad's, for whoever manages it.
+        AddCardRows();
         // Revoke reaches nothing yet, so it's the sample's only: on a real taf it would look done when KIFF revoked nothing.
         if (opening?.CloudId is not null) return;
         var revoke = new Button { Content = w.Get("taf.revoke"), Style = Look("TafsOutlineNo"), HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -620,6 +927,49 @@ public sealed partial class TafPage : Page
     /// The row that opens the taf's halt, with where it stands (the iPad's <c>HaltRow</c>, framed): the hand in red, "Halt",
     /// "Stop it until you resume" or its state in red, and the caret. The whole row opens it.
     /// </summary>
+    /// <summary>Done, for the window: the taf is gone, so Home is read again and the Overview opens.</summary>
+    public static event Action? Removed;
+
+    /// <summary>
+    /// "Remove Rae", outlined in red, as the iPad's: its confirmation names what goes ("Remove Rae for good?", what always
+    /// goes, then tafs cloud's words for its apps), Remove asks Windows Hello, and what came of it is said in its own
+    /// dialog. Off while it goes.
+    /// </summary>
+    Button RemoveButton(TafRemove remove)
+    {
+        var w = App.Words;
+        var name = opening!.Head.Name;
+        var button = new Button
+        {
+            Content = w.Get("setup.remove_for_good"), Style = Look("TafsOutlineNo"), HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(button, "taf.remove");
+        // Narrator names the taf it removes: "Remove Refunds".
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, w.Get("taf.remove_named", ("taf", name)));
+        button.Click += async (_, _) =>
+        {
+            button.IsEnabled = false;
+            try
+            {
+                var goes = await remove.Goes();
+                var ask = new ContentDialog
+                {
+                    XamlRoot = XamlRoot, Title = w.Get("taf.remove_title", ("taf", name)),
+                    Content = new TextBlock { Text = TafRemoval.ConfirmText(w, goes), TextWrapping = TextWrapping.Wrap },
+                    PrimaryButtonText = w.Get("taf.remove.button"), CloseButtonText = w.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
+                };
+                if (await ask.ShowAsync() != ContentDialogResult.Primary) return;
+                var result = await remove.Run();
+                if (result.Words is { } said)
+                    await new ContentDialog { XamlRoot = XamlRoot, Content = said, CloseButtonText = w.Get("common.ok") }.ShowAsync();
+                if (result.Done) Removed?.Invoke();
+            }
+            catch (System.Runtime.InteropServices.COMException) { }
+            finally { button.IsEnabled = true; }
+        };
+        return button;
+    }
+
     Button HaltRow(TafHalt halt)
     {
         var w = App.Words;
@@ -631,7 +981,7 @@ public sealed partial class TafPage : Page
         row.ColumnDefinitions.Add(new ColumnDefinition());
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var hand = new FontIcon { Glyph = ((char)0xE7E8).ToString(), FontSize = 16 };
-        hand.SetValue(FontIcon.ForegroundProperty, Application.Current.Resources["TafsNo"]);
+        hand.Foreground = ChatViews.Themed("TafsNo");
         var caret = new FontIcon { Glyph = ((char)0xE76C).ToString(), FontSize = 12 };
         Grid.SetColumn(words, 1);
         Grid.SetColumn(caret, 2);

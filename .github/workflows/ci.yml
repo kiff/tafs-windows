@@ -14,6 +14,11 @@ on:
         description: "A part to run alone (for example approvals), or all. Empty: the parts this branch changes."
         required: false
         default: ""
+      sign:
+        description: "Sign with KIFF's certificate, from the windows-signing environment (main only)."
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -107,16 +112,19 @@ jobs:
           exe=src/Tafs.App/bin/x64/Release/net8.0-windows10.0.19041.0/Tafs.App.exe
           mkdir -p screenshots
           missing=0
-          for screen in sign-in overview overview-home taf-home taf-setup-home coach-home view-only pair needs-you record calendar calendar-week usage connect-apps account coach taf taf-setup taf-card; do
+          for screen in sign-in signed-out overview overview-home overview-labels taf-home taf-setup-home coach-home view-only pair pair-why needs-you record calendar calendar-week usage connect-apps account coach coach-wide taf taf-setup taf-card taf-starts taf-results; do
             case $screen in
               sign-in) opts=(--page sign-in) ;;
+              signed-out) opts=(--page signed-out) ;;
               overview) opts=(--sample) ;;
               overview-home) opts=(--home shared/contracts/home.json) ;;
+              overview-labels) opts=(--home tests/fixtures/home-labels/home.json) ;;
               taf-home) opts=(--home shared/contracts/home.json --page taf) ;;
               taf-setup-home) opts=(--home shared/contracts/home.json --page taf-setup) ;;
               coach-home) opts=(--home shared/contracts/home.json --page coach) ;;
               view-only) opts=(--view-only) ;;
               pair) opts=(--page pair) ;;
+              pair-why) opts=(--page pair-why) ;;
               needs-you) opts=(--page needs-you --sample) ;;
               record) opts=(--page record --sample) ;;
               calendar) opts=(--page calendar --sample) ;;
@@ -125,6 +133,10 @@ jobs:
               connect-apps) opts=(--page connect-apps --sample) ;;
               account) opts=(--page account --sample) ;;
               coach) opts=(--page coach --sample) ;;
+              # "Taking shape" beside the conversation: the contracts, with planque's grants and KIFF's draft beside them.
+              coach-wide) python ci/coach-shape.py "$RUNNER_TEMP/coach-shape"; opts=(--home "$RUNNER_TEMP/coach-shape/home.json" --page coach-wide) ;;
+              # Setup's Starts when and Results go to: the contracts, with a dial beside them.
+              taf-starts|taf-results) mkdir -p "$RUNNER_TEMP/knob"; cp shared/contracts/*.json tests/fixtures/taf-knob/*.json "$RUNNER_TEMP/knob/"; opts=(--home "$RUNNER_TEMP/knob/home.json" --page "$screen") ;;
               taf) opts=(--page taf --sample) ;;
               taf-setup) opts=(--page taf-setup --sample) ;;
               taf-card) opts=(--page taf-card --sample) ;;
@@ -198,11 +210,76 @@ jobs:
       - name: It starts
         if: matrix.platform == 'x64'
         run: timeout 120 artifacts/zip/tafs-x64/Tafs.App.exe --page sign-in --screenshot zip-start.png && test -s zip-start.png
+      # One tafs (Program.cs): a second start, here planque's tafs:// return from a vendor's sign-in, hands its activation to
+      # the running window and ends, and the first keeps running.
+      - name: One tafs, and tafs:// comes back to it
+        if: matrix.platform == 'x64'
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path artifacts/zip/tafs-x64/Tafs.App.exe).Path
+          $first = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 20
+          if ($first.HasExited) { throw "the first tafs ended: $($first.ExitCode)" }
+          $scheme = Get-Item 'HKCU:\Software\Classes\tafs' -ErrorAction SilentlyContinue
+          Write-Host ("tafs: registered for this user: " + [bool]$scheme)
+          $second = Start-Process $exe -ArgumentList 'tafs://planque/signed-in?tenant=t&grant=g&confirm=c' -PassThru
+          if (-not $second.WaitForExit(30000)) { $second.Kill(); Stop-Process -Id $first.Id; throw 'the second start did not hand over and end' }
+          Start-Sleep -Seconds 2
+          if ($first.HasExited) { throw 'the first tafs ended when the second came' }
+          Stop-Process -Id $first.Id
+          Write-Host 'one tafs: the second start handed its activation over and ended'
+      # The installer people download (docs/install.md): an MSI of this same publish, and the setup .exe around it, by WiX
+      # v5, pinned in .config/dotnet-tools.json with its one extension. Built on every run that builds the zip.
+      - name: The installer
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          arch=$(echo "$PLATFORM" | tr '[:upper:]' '[:lower:]')
+          version=0.1.${{ github.run_number }}.0
+          dotnet tool restore
+          dotnet wix extension add WixToolset.Bal.wixext/5.0.2
+          # The 5.0.2 package names its DLL after the bootstrapper applications, so it's named by its path.
+          bal=.wix/extensions/WixToolset.Bal.wixext/5.0.2/wixext5/WixToolset.BootstrapperApplications.wixext.dll
+          mkdir -p artifacts/installer
+          # WiX reads -d paths from the .wxs file's folder, so they're absolute Windows paths; -wx makes a warning (a folder
+          # it can't harvest, say) fail the build instead of shipping an installer with nothing in it.
+          app=$(cygpath -w "$PWD/artifacts/zip/tafs-$PLATFORM")
+          msi=$(cygpath -w "$PWD/artifacts/installer/tafs-$version-$arch.msi")
+          # tafs's mark and icon, as absolute paths, as the MSI's: the setup window's corner and Windows' installed-apps list.
+          logo=$(cygpath -w "$PWD/installer/logo.png")
+          icon=$(cygpath -w "$PWD/src/Tafs.App/Assets/tafs.ico")
+          dotnet wix build installer/Package.wxs -wx -arch "$arch" -d AppDir="$app" -d Version="$version" -d Icon="$icon" -o "$msi"
+          dotnet wix build installer/Bundle.wxs -wx -arch "$arch" -ext "$bal" -d Msi="$msi" -d Version="$version" -d Logo="$logo" -d Icon="$icon" \
+            -o "artifacts/installer/tafs-setup-$version-$arch.exe"
+          ls -la artifacts/installer
+      # On x64: the setup installs quietly, tafs starts from where it put it and saves its sign-in screen, and it uninstalls.
+      - name: It installs, starts and uninstalls
+        if: matrix.platform == 'x64'
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem artifacts/installer/tafs-setup-*-x64.exe).FullName
+          $p = Start-Process $setup -ArgumentList '/quiet', '/norestart', '/log', 'install.log' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 60; throw "install: $($p.ExitCode)" }
+          $app = Join-Path $env:ProgramFiles 'tafs\Tafs.App.exe'
+          if (-not (Test-Path $app)) { throw "not installed at $app" }
+          $run = Start-Process $app -ArgumentList '--page', 'sign-in', '--screenshot', "$PWD\installed-start.png" -PassThru
+          if (-not $run.WaitForExit(120000)) { $run.Kill(); throw 'the installed app did not finish its screenshot' }
+          if (-not (Test-Path installed-start.png) -or (Get-Item installed-start.png).Length -eq 0) { throw 'the installed app did not start' }
+          $u = Start-Process $setup -ArgumentList '/uninstall', '/quiet', '/norestart', '/log', 'uninstall.log' -Wait -PassThru
+          if ($u.ExitCode -ne 0) { Get-Content uninstall.log -Tail 60; throw "uninstall: $($u.ExitCode)" }
+          if (Test-Path $app) { throw 'still there after uninstalling' }
+          Write-Host 'installed, started and uninstalled'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: github.event_name != 'pull_request'
         with:
           name: tafs-windows-${{ matrix.platform }}
           path: artifacts/zip/tafs-${{ matrix.platform }}/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: github.event_name != 'pull_request'
+        with:
+          name: tafs-windows-setup-${{ matrix.platform }}
+          path: artifacts/installer/
           if-no-files-found: error
 
   # The MSIX (docs/install.md), kept for the day it's signed: Windows installs no unsigned package that holds an app.
@@ -236,6 +313,89 @@ jobs:
         with:
           name: tafs-msix-${{ matrix.platform }}
           path: artifacts/msix/*/*.msix
+          if-no-files-found: error
+
+  # Signing's dry run (docs/install.md, rule 16), on main and on demand, with no environment: the app's own files signed
+  # with a throwaway self-signed certificate made in the run (ci/sign-dry-run.ps1), then read back by the same check the
+  # real signing uses (ci/check-signatures.ps1, its subject compared exactly). It proves the file list, signtool and the
+  # check, and keeps nothing.
+  sign-dry-run:
+    needs: [zip]
+    if: >-
+      always() && needs.zip.result == 'success'
+      && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x64, ARM64]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: tafs-windows-${{ matrix.platform }}
+          path: artifacts/zip/tafs-${{ matrix.platform }}
+      - name: Dry run
+        shell: pwsh
+        run: ./ci/sign-dry-run.ps1 -Folder "artifacts/zip/tafs-${{ matrix.platform }}"
+
+  # Signing for real (docs/install.md): only on demand from main, with "sign" ticked, so a main push never waits on the
+  # windows-signing environment's protection rules (the owner's). Azure's own action signs the app's own files with KIFF's
+  # Artifact Signing certificate; each signature must then be Valid and by WINDOWS_SIGNING_SUBJECT, the certificate's full
+  # subject, exactly. Any value missing fails the run, saying which; nothing is signed with half of them.
+  sign:
+    needs: [zip]
+    if: >-
+      always() && needs.zip.result == 'success'
+      && github.event_name == 'workflow_dispatch' && inputs.sign && github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    environment: windows-signing
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [x64, ARM64]
+    env:
+      SIGNING_ENDPOINT: ${{ vars.WINDOWS_SIGNING_ENDPOINT }}
+      SIGNING_ACCOUNT: ${{ vars.WINDOWS_SIGNING_ACCOUNT }}
+      SIGNING_PROFILE: ${{ vars.WINDOWS_SIGNING_PROFILE }}
+      SIGNING_SUBJECT: ${{ vars.WINDOWS_SIGNING_SUBJECT }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: tafs-windows-${{ matrix.platform }}
+          path: artifacts/zip/tafs-${{ matrix.platform }}
+      - name: Signing's values
+        shell: bash
+        run: |
+          missing=""
+          for name in SIGNING_ENDPOINT SIGNING_ACCOUNT SIGNING_PROFILE SIGNING_SUBJECT; do
+            [ -n "${!name}" ] || missing="$missing WINDOWS_$name"
+          done
+          if [ -n "$missing" ]; then echo "::error::windows-signing is missing:$missing"; exit 1; fi
+      - name: Sign with KIFF's certificate
+        uses: Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ env.SIGNING_ENDPOINT }}
+          signing-account-name: ${{ env.SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ env.SIGNING_PROFILE }}
+          files: |
+            ${{ github.workspace }}\artifacts\zip\tafs-${{ matrix.platform }}\Tafs.App.exe
+            ${{ github.workspace }}\artifacts\zip\tafs-${{ matrix.platform }}\Tafs.App.dll
+            ${{ github.workspace }}\artifacts\zip\tafs-${{ matrix.platform }}\Tafs.Core.dll
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: Each signature is KIFF's
+        shell: pwsh
+        run: ./ci/check-signatures.ps1 -Folder "artifacts/zip/tafs-${{ matrix.platform }}" -Subject $env:SIGNING_SUBJECT
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tafs-windows-signed-${{ matrix.platform }}
+          path: artifacts/zip/tafs-${{ matrix.platform }}/
           if-no-files-found: error
 
   # Fails when the pin is more than 7 days or 20 commits behind the shared repository's main.

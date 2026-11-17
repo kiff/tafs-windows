@@ -171,7 +171,11 @@ public static class CoachApproval
         var (path, body) = ConfirmRequest(kiff);
         (string Header, string Value) signature;
         try { signature = await calls.SignConfirm(path, body); }
-        catch (OperationCanceledException) { return calls.Current() ? new(null) : ApproveResult.Stopped; }
+        // Windows Hello closed: nothing approved, and the card says the request is kept, as Refuse and Your step do.
+        catch (OperationCanceledException)
+        {
+            return calls.Current() ? new(w.Get("approval.cancelled_nothing_approved_request_kept")) : ApproveResult.Stopped;
+        }
         catch (Exception e) when (e is PasskeyRefusedException or InvalidDataException or System.Runtime.InteropServices.COMException
             or System.Security.Cryptography.CryptographicException or InvalidOperationException or UnauthorizedAccessException)
         {

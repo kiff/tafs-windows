@@ -29,6 +29,23 @@ public sealed class WindowsHello(Func<IntPtr> window) : IPasskeyAuthenticator
     }
 
     /// <summary>
+    /// Removes a passkey this app made on this PC's platform authenticator and never used, by its credential id
+    /// (<c>WebAuthNDeletePlatformCredential</c>, Windows' WebAuthn API version 4 and up). It asks the person nothing. False
+    /// when Windows can't (an older API) or refused; the passkey then stays in Windows' list, as it did before.
+    /// </summary>
+    public static bool DeletePlatformCredential(byte[] credentialId)
+    {
+        if (credentialId.Length == 0) return false;
+        try
+        {
+            return Native.WebAuthNGetApiVersionNumber() >= 4
+                && Native.WebAuthNDeletePlatformCredential((uint)credentialId.Length, credentialId) == 0;
+        }
+        catch (DllNotFoundException) { return false; }
+        catch (EntryPointNotFoundException) { return false; }
+    }
+
+    /// <summary>
     /// Makes this PC's passkey for kiff.dev: ES256 only, on this PC's platform authenticator, the person verified,
     /// no attestation. Returns what KIFF registers, read and checked by <see cref="PasskeyRegistration"/>.
     /// </summary>
@@ -210,5 +227,7 @@ public sealed class WindowsHello(Func<IntPtr> window) : IPasskeyAuthenticator
             ref GetAssertionOptions options, out IntPtr assertion);
 
         [DllImport(Dll)] public static extern void WebAuthNFreeAssertion(IntPtr assertion);
+
+        [DllImport(Dll)] public static extern int WebAuthNDeletePlatformCredential(uint credentialIdLength, byte[] credentialId);
     }
 }

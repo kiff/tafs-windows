@@ -72,8 +72,12 @@ public static class Sidebar
 /// <summary>The Overview's words: today across the tafs, one line each, each line opening its taf.</summary>
 public sealed record OverviewLines(string Title, string Subtitle, IReadOnlyList<string> Columns, string Empty, string Footnote);
 
-/// <summary>One line of the Overview's table: its taf (key, name, colour), what it's doing now, its Card, and its last result.</summary>
-public sealed record OverviewRow(string Key, string Taf, int Colour, string Now, string Card, string LastResult);
+/// <summary>
+/// One line of the Overview's table: its taf (key, name, colour), what it's doing now, its Card, and its last result; its
+/// label ids, which the chips filter by, and the chips under its name.
+/// </summary>
+public sealed record OverviewRow(string Key, string Taf, int Colour, string Now, string Card, string LastResult,
+    IReadOnlyList<string>? LabelIds = null, IReadOnlyList<string>? Chips = null);
 
 public static class OverviewScreen
 {
