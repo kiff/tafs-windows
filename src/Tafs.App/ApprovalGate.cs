@@ -19,13 +19,19 @@ public static class HelloState
     /// <summary>Each gate draws itself again with the new value.</summary>
     public static event Action? Changed;
 
-    /// <summary>Asks Windows (<c>UserConsentVerifier.CheckAvailabilityAsync</c>); a Windows that doesn't say leaves every approval to say what came of it.</summary>
+    /// <summary>
+    /// Asks Windows (<c>UserConsentVerifier.CheckAvailabilityAsync</c>). A Windows that doesn't answer within a few seconds, or
+    /// fails in any way, leaves the value as it was (Ready until asked): every approval then says what came of the prompt, as
+    /// before. Nothing here can take the app down.
+    /// </summary>
     public static async Task CheckAsync()
     {
         HelloReadiness now;
         try
         {
-            now = await Windows.Security.Credentials.UI.UserConsentVerifier.CheckAvailabilityAsync() switch
+            var asked = Windows.Security.Credentials.UI.UserConsentVerifier.CheckAvailabilityAsync().AsTask();
+            if (await Task.WhenAny(asked, Task.Delay(TimeSpan.FromSeconds(5))) != asked) return;
+            now = await asked switch
             {
                 Windows.Security.Credentials.UI.UserConsentVerifierAvailability.Available => HelloReadiness.Ready,
                 Windows.Security.Credentials.UI.UserConsentVerifierAvailability.NotConfiguredForUser => HelloReadiness.NotSetUp,
@@ -33,7 +39,7 @@ public static class HelloState
                 _ => HelloReadiness.Unsupported,
             };
         }
-        catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException) { now = HelloReadiness.Ready; }
+        catch (Exception) { return; }
         // Only a change redraws the gates: the window is activated again each time Windows Hello's own prompt closes, in the
         // middle of the approval that asked for it, and nothing must move then.
         if (now == Readiness) return;

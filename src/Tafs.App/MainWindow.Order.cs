@@ -140,8 +140,9 @@ public sealed partial class MainWindow
         settleOnReturn = true;
         ShowYourTafs();
         // Windows Hello may have been set up meanwhile: asked again, as the iPad reads its readiness on return; at launch too,
-        // since the window's first activation comes here. Every approval's gate follows the answer.
-        _ = CheckHelloAsync();
+        // since the window's first activation comes here. Every approval's gate follows the answer. Not for a screenshot: it
+        // draws a page and saves it, with no Windows Hello to ask (CI's runner has none that answers).
+        if (screenshot is null) _ = CheckHelloAsync();
         // Devices read again, as the iPad's on its scene's return: a device added on the phone meanwhile shows.
         if (Pages.Content is DevicesPage devices) _ = devices.ReadAgainAsync();
     }
