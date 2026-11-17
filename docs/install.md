@@ -129,4 +129,4 @@ The **MSIX** is built too, for the day it's signed.
 ## Not yet
 
 - **Signing the MSIX,** with the same job: it needs its publisher set to the certificate's subject first.
-- **Updates on their own** (an App Installer file).
+- **Updates on their own** (an App Installer file). Until then the app tells, and only tells, when a newer release is out (docs/app.md, A new version).
