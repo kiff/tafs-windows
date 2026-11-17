@@ -154,7 +154,9 @@ public sealed partial class DevicesPage : Page
                 var remove = Remove(w.Get("settings.devices.passkey_remove"), name.Text);
                 remove.Click += async (_, _) =>
                 {
-                    if (!await AskAsync(w.Get("settings.devices.passkey_remove_named", ("name", name.Text)), w.Get("settings.devices.passkey_remove"))) return;
+                    // The last of the person's own that approves: said under the question, never refused.
+                    if (!await AskAsync(w.Get("settings.devices.passkey_remove_named", ("name", name.Text)), w.Get("settings.devices.passkey_remove"),
+                        Passkeys.Warning(w, passkey, passkeys))) return;
                     await RemoveAsync(Passkeys.RemovePath(id), w.Get("settings.devices.passkey_remove_prompt", ("name", name.Text)), PasskeysError);
                 };
                 Grid.SetColumn(remove, 1);

@@ -74,4 +74,18 @@ public class PasskeysTests
         Assert.Equal((false, (string?)null), await AccountRemoval.RemoveAsync(En, "/p", "x",
             _ => Task.FromException<(string, string)>(new PasskeyRefusedException("no")), (_, _) => Task.FromResult(new CloudRead(null, Status: 204)), () => false));
     }
+
+    [Fact]
+    public void Removing_the_last_approving_passkey_is_warned_about_never_refused()
+    {
+        var phone = new AccountPasskey("pk_1", "iPhone", null);
+        var computer = new AccountPasskey("pk_2", null, "dev_9");
+        var ipad = new AccountPasskey("pk_3", "iPad", null);
+        if (En.Has("settings.devices.passkey_remove_last"))
+            Assert.Equal(En.Get("settings.devices.passkey_remove_last"), Passkeys.Warning(En, phone, [phone, computer]));
+        else
+            Assert.Null(Passkeys.Warning(En, phone, [phone, computer]));
+        Assert.Null(Passkeys.Warning(En, phone, [phone, computer, ipad]));
+        Assert.Null(Passkeys.Warning(En, computer, [phone, computer]));
+    }
 }
