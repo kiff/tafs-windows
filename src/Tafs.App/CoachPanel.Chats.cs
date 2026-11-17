@@ -132,6 +132,9 @@ public sealed partial class CoachPanel
                 AutomationProperties.SetHeadingLevel(heading, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level2);
                 empty.Children.Add(heading);
                 empty.Children.Add(Words(w.Get("coach.ask_anything_line"), 15, "TafsSoftText"));
+                // tafs cloud's recipes by category, for a new taf (not while improving one), as the iPad's starts: a click puts
+                // the job's words in the box, to edit and send; it never sends.
+                if (improving is null && Recipes is { } jobs) AddRecipes(empty, jobs);
                 ThreadItems.Children.Add(empty);
             }
         }
@@ -334,6 +337,60 @@ public sealed partial class CoachPanel
     async void OnCoachAttach(object sender, RoutedEventArgs e)
     {
         if (coach is { } id && answer is { } send) await CoachTray.PickAsync(id, send);
+    }
+
+    /// <summary>tafs cloud's jobs (<c>GET /v1/recipes/gallery</c>), for an empty conversation's list; none before they're read.</summary>
+    public Tafs.Core.Home.Gallery? Recipes
+    {
+        get => recipes;
+        set
+        {
+            recipes = value;
+            if (IsOpen) Redraw();
+        }
+    }
+
+    Tafs.Core.Home.Gallery? recipes;
+
+    /// <summary>
+    /// The jobs under "Ask Coach anything", as the iPad's <c>SetupChatView.starts</c>: each category's title in capitals, then
+    /// each of its jobs, by what leads it (the problem it ends, else its title) over its line. Only a category with a job shows.
+    /// </summary>
+    void AddRecipes(StackPanel empty, Tafs.Core.Home.Gallery jobs)
+    {
+        var language = new System.Globalization.CultureInfo(App.Words.Language);
+        foreach (var category in jobs.Categories)
+        {
+            var listed = jobs.Recipes.Where(r => r.Category == category.Id).ToList();
+            if (listed.Count == 0) continue;
+            var title = Words(category.Title.ToUpper(language), 12, "TafsDimText");
+            title.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+            title.Margin = new Thickness(0, 10, 0, 0);
+            AutomationProperties.SetHeadingLevel(title, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level3);
+            empty.Children.Add(title);
+            foreach (var job in listed)
+            {
+                var lines = new StackPanel { Spacing = 2 };
+                var lead = Words(job.Lead, 15, "TafsInkText");
+                lead.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+                lines.Children.Add(lead);
+                if (job.Line.Trim().Length > 0) lines.Children.Add(Words(job.Line, 13, "TafsSoftText"));
+                var row = new Button
+                {
+                    Content = lines, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left,
+                    Padding = new Thickness(14, 12, 14, 12), Background = Brush("TafsPanel"), BorderBrush = Brush("TafsLine"),
+                    BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14),
+                };
+                AutomationProperties.SetName(row, job.Line.Trim().Length > 0 ? $"{job.Lead}. {job.Line}" : job.Lead);
+                row.Click += (_, _) =>
+                {
+                    CoachDraft.Text = job.Say;
+                    CoachDraft.Focus(FocusState.Programmatic);
+                    CoachDraft.SelectionStart = CoachDraft.Text.Length;
+                };
+                empty.Children.Add(row);
+            }
+        }
     }
 
     /// <summary>The taf a new conversation improves, as the iPad's <c>setupImproving</c>: its id and name; none once its first message went.</summary>
