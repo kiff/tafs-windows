@@ -8,7 +8,7 @@ using Tafs.Core.Taf;
 namespace Tafs.App;
 
 /// <summary>Which of Setup's screens shows: Setup itself, Starts when or Results go to.</summary>
-public enum SetupScreen { Main, StartsWhen, ResultsGoTo, Door }
+public enum SetupScreen { Main, StartsWhen, ResultsGoTo, Door, Memory }
 
 /// <summary>
 /// Setup › Starts when and Results go to (P40), as the iPad's <c>StartsWhenView</c> and <c>ResultsGoToView</c>, from the taf's
@@ -62,9 +62,11 @@ public sealed partial class TafPage
     {
         (setupScreen, knobSaid) = (screen, null);
         ShowSetup();
-        if (screen != SetupScreen.Main) _ = LoadKnobAsync();
+        if (screen is not (SetupScreen.Main or SetupScreen.Memory)) _ = LoadKnobAsync();
         // Its doors, on Starts when, for whoever manages the taf.
         if (screen == SetupScreen.StartsWhen) _ = LoadDoorsAsync();
+        // Every note, on What it remembers' See all.
+        if (screen == SetupScreen.Memory) _ = LoadMemoryAsync();
     }
 
     /// <summary>The dial, read again on each screen and after each change, as the iPad's <c>loadKnob</c>; a failed read keeps the last.</summary>

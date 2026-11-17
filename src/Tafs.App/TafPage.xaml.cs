@@ -783,6 +783,7 @@ public sealed partial class TafPage : Page
             if (setupScreen == SetupScreen.StartsWhen) ShowStartsWhen();
             else if (setupScreen == SetupScreen.ResultsGoTo) ShowResultsGoTo();
             else if (setupScreen == SetupScreen.Door) ShowDoor();
+            else if (setupScreen == SetupScreen.Memory) ShowMemory();
             else ShowCloudSetup(setup);
             return;
         }
@@ -891,6 +892,11 @@ public sealed partial class TafPage : Page
                 line.TextTrimming = TextTrimming.CharacterEllipsis;
                 memory.Children.Add(line);
             }
+            // Every note, each with Forget, on its own screen, as the iPad's See all.
+            var all = new HyperlinkButton { Content = App.Words.Get("taf.memory.see_all"), Padding = new Thickness(0) };
+            AutomationProperties.SetAutomationId(all, "setup.memory.see-all");
+            all.Click += (_, _) => OpenSetupScreen(SetupScreen.Memory);
+            memory.Children.Add(all);
         }
         else memory.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Left });
         SetupPane.Children.Add(Panel(memory));
