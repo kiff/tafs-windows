@@ -12,14 +12,16 @@ using Tafs.Core.Record;
 namespace Tafs.App;
 
 /// <summary>One day of the Record, as drawn.</summary>
-public sealed record RecordDayView(string Title, IReadOnlyList<RecordLineView> Entries);
+/// <summary>A day of the Record: its calls, then its reads of data folded under one line, shown once opened.</summary>
+public sealed record RecordDayView(string Title, IReadOnlyList<RecordLineView> Entries, IReadOnlyList<RecordLineView> Reads, string ReadsLine,
+    Visibility ReadsLineShown, DateTime Day);
 
 /// <summary>
 /// One line of the Record, as drawn: its status dot, its taf's colour, "Taf · what", the time and the detail; read out as
 /// one, with what a tap does.
 /// </summary>
 public sealed record RecordLineView(string Title, string Time, string Detail, Brush TafColour, Visibility IsDone, Visibility IsWaiting, Visibility IsRefused,
-    RecordEntry Entry)
+    RecordEntry Entry, string Receipt = "", Visibility ReceiptShown = Visibility.Collapsed)
 {
     public string Name => $"{Title}, {Time}, {Detail}";
     public string Hint => App.Words.Get("record.shows_receipt");
@@ -29,7 +31,9 @@ public sealed record RecordLineView(string Title, string Time, string Detail, Br
         var (title, time) = RecordScreen.Line(e, zone);
         static Visibility Seen(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
         var dot = RecordScreen.DotOf(e.Kind);
-        return new(title, time, e.Detail, Colour(e.TafColor), Seen(dot == Dot.Went), Seen(dot == Dot.Waiting), Seen(dot == Dot.Stopped), e);
+        var receipt = RecordScreen.ReceiptLine(App.Words, e);
+        return new(title, time, e.Detail, Colour(e.TafColor), Seen(dot == Dot.Went), Seen(dot == Dot.Waiting), Seen(dot == Dot.Stopped), e,
+            receipt ?? "", Seen(receipt is not null));
     }
 
     public static Brush Colour(int taf)
@@ -43,6 +47,17 @@ public sealed record RecordLineView(string Title, string Time, string Detail, Br
 public sealed partial class RecordPage : Page
 {
     IReadOnlyList<RecordEntry> entries = [];
+
+    /// <summary>The days whose reads of data are shown, not folded (the iPad's <c>openReads</c>).</summary>
+    readonly HashSet<DateTime> openReads = [];
+
+    /// <summary>A day's reads line: shown, or folded again.</summary>
+    void OnReads(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: DateTime day }) return;
+        if (!openReads.Remove(day)) openReads.Add(day);
+        Show();
+    }
     RecordFilter filter = RecordFilter.All;
     string? taf;
 
@@ -413,8 +428,15 @@ public sealed partial class RecordPage : Page
         foreach (var (f, title) in RecordScreen.Filters(w))
             FilterChips.Children.Add(Chip(title, null, filter == f, () => filter = f));
 
-        var days = RecordScreen.Days(w, entries, filter, taf, DateTimeOffset.Now, TimeZoneInfo.Local);
-        Days.ItemsSource = days.Select(d => new RecordDayView(d.Title, d.Entries.Select(x => RecordLineView.Of(x, TimeZoneInfo.Local)).ToList())).ToList();
+        var days = RecordScreen.Days(w, entries, filter, taf, DateTimeOffset.Now, TimeZoneInfo.Local, foldReads: true);
+        Days.ItemsSource = days.Select(d =>
+        {
+            var reads = d.Reads ?? [];
+            var open = openReads.Contains(d.Day);
+            return new RecordDayView(d.Title, d.Entries.Select(x => RecordLineView.Of(x, TimeZoneInfo.Local)).ToList(),
+                open ? reads.Select(x => RecordLineView.Of(x, TimeZoneInfo.Local)).ToList() : [],
+                reads.Count > 0 ? RecordScreen.ReadsLine(w, reads.Count, open) : "", reads.Count > 0 ? Visibility.Visible : Visibility.Collapsed, d.Day);
+        }).ToList();
         Empty.Text = RecordScreen.Empty(w, filter, taf);
         Empty.Visibility = days.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
