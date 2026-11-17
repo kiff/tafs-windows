@@ -372,6 +372,8 @@ public sealed partial class CoachPanel : UserControl
         }, conversation);
         if (gen != generation || mine != conversationGen) return;
         ShowFirstStart(setup?.Answer is { } answer ? FirstStart.Read(answer) : null);
+        // Coach's tools still to give: its row over the box (P8).
+        ShowTools(setup?.Answer);
         coach = loaded.Coach;
         session = loaded.Session ?? session;
         if (previousAsked && coach is not null)

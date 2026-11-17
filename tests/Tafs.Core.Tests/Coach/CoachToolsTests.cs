@@ -12,7 +12,7 @@ using Tafs.Core.Words;
 namespace Tafs.Core.Tests.Coach;
 
 /// <summary>Coach's tools still to give (P8), as the iPad's CoachTools and giveCoachTools, for a Coach that already exists.</summary>
-[Part("approvals")]
+[Part("coach")]
 public class CoachToolsTests
 {
     static readonly WordBook En = WordBook.Load(SharedFiles.Strings, "en");

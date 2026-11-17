@@ -120,6 +120,8 @@
           </ScrollViewer>
           <!-- Why the last message didn't go, or the conversation couldn't be read, as the iPad's setupError over the box. -->
           <StackPanel Grid.Row="2" Margin="0,0,16,4" Spacing="4">
+            <!-- Coach's tools still to give, as the iPad's CoachToolsRow: one line in tafs cloud's words, opening the step. -->
+            <HyperlinkButton x:Name="ToolsRow" Padding="0" Visibility="Collapsed" Click="OnToolsRow" AutomationProperties.AutomationId="coach.tools-row" />
             <!-- Improving a taf, as the iPad's: "Improve Refunds" and what Coach starts from, until its first message went. -->
             <StackPanel x:Name="ImprovingNote" Spacing="2" Visibility="Collapsed" AutomationProperties.AutomationId="coach.improving">
               <TextBlock x:Name="ImprovingTitle" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{ThemeResource TafsCoach}" />

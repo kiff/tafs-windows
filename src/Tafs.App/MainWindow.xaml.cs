@@ -947,6 +947,8 @@ public sealed partial class MainWindow : Window
         cloudStream = (path, body, cancel) => KiffHttp.PostStreamAsync(new Uri(Tafs.Core.Kiff.KeptSessions.TafsCloudStream, path), body, bearer, App.Words.Language, cancel);
         // Start, as the iPad's: off for a session that can't approve.
         CoachMode.StartCoach = Tafs.Core.Coach.CoachStart.MayStart(session) ? () => StartCoachAsync(session) : null;
+        // Coach's tools still to give, given from its row (P8): only a session that signs with this PC's passkey.
+        CoachMode.GiveTools = Tafs.Core.Coach.CoachStart.MayStart(session) ? () => GiveToolsAsync(session) : null;
         // Signed in but can't approve: the iPad's gate line where Start would be.
         CoachMode.StartGate = !Tafs.Core.Coach.CoachStart.MayStart(session);
         // Reporting one of Coach's answers, as the iPad's reportAnswer: one answered after another session began is none.
@@ -1037,6 +1039,7 @@ public sealed partial class MainWindow : Window
         (manage, capabilities, accountHalt, haltSend, cloudSend, cloudStream, cloudChange) = (null, null, Halt.Running, null, null, null, null);
         ShowHaltAll();
         CoachMode.StartCoach = null;
+        CoachMode.GiveTools = null;
         CoachMode.StartGate = false;
         planqueReady = false;
         PlanqueKept.Forget();
@@ -1092,7 +1095,32 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    async Task<Tafs.Core.Coach.StartResult> StartCoachWithKeyAsync(KeptSession session, string bearer, int gen)
+    async Task<Tafs.Core.Coach.StartResult> StartCoachWithKeyAsync(KeptSession session, string bearer, int gen) =>
+        await WithStartCallsAsync(session, bearer, gen, async calls =>
+        {
+            var started = await Tafs.Core.Coach.CoachStart.StartAsync(App.Words, session, planqueReady, calls);
+            // Signed out meanwhile: it's no one's.
+            if (gen != sessions) return new Tafs.Core.Coach.StartResult(Tafs.Core.Coach.StartOutcome.Cancelled);
+            if (started.Started) planqueReady = true;
+            return started;
+        });
+
+    /// <summary>
+    /// Coach's tools still to give, given (P8, <see cref="Tafs.Core.Coach.CoachToolsGive.GiveAsync"/>), with Start's own calls:
+    /// tafs cloud's pair under one Windows Hello of this PC's passkey, the batch to KIFF's gateway, then Coach's Cards' draft.
+    /// </summary>
+    async Task<Tafs.Core.Coach.ToolsGiven> GiveToolsAsync(KeptSession session)
+    {
+        var gen = sessions;
+        try { return await WithStartCallsAsync(session, session.AccessToken, gen, calls => Tafs.Core.Coach.CoachToolsGive.GiveAsync(App.Words, calls)); }
+        catch (Exception e) when (e is System.Security.Cryptography.CryptographicException or FormatException)
+        {
+            return new(false, App.Words.Get("coach.tools_not_given", ("why", SessionStore.Why(e))));
+        }
+    }
+
+    /// <summary>Start's calls as this session (its TPM key, Windows Hello and this PC's passkey), for <paramref name="act"/>.</summary>
+    async Task<T> WithStartCallsAsync<T>(KeptSession session, string bearer, int gen, Func<Tafs.Core.Coach.StartCalls, Task<T>> act)
     {
         var w = App.Words;
         using var key = TpmKey.Open(session.KeyName);
@@ -1131,11 +1159,7 @@ public sealed partial class MainWindow : Window
             Claim: body => CloudSendAsync(bearer, Tafs.Core.Coach.CoachStart.SetupPath, body),
             SignedAt: () => SigningTime.Next(DateTimeOffset.UtcNow),
             Current: () => gen == sessions);
-        var started = await Tafs.Core.Coach.CoachStart.StartAsync(w, session, planqueReady, calls);
-        // Signed out meanwhile: it's no one's.
-        if (gen != sessions) return new(Tafs.Core.Coach.StartOutcome.Cancelled);
-        if (started.Started) planqueReady = true;
-        return started;
+        return await act(calls);
 
         async Task<string?> LoadDeviceAsync()
         {
