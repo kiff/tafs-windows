@@ -9,6 +9,9 @@ namespace Tafs.Core.Connections;
 /// State is connected, available, needs_reconnect, needs_setup or signed_in; SetupWords is tafs cloud's line for
 /// needs_setup; Whose and UsedBy are tafs cloud's words and names, null when it sends none.
 /// </summary>
+/// <summary>What Connect does: nothing (no taf to connect for), ask which taf, or Ask Coach (no taf needs the app).</summary>
+public enum ConnectRoute { NoTaf, Ask, AskCoach }
+
 public sealed record ConnectApp(string Entry)
 {
     public string Vendor { get; init; } = "";
@@ -195,6 +198,14 @@ public static class ConnectAppsScreen
     /// </summary>
     public static IReadOnlyList<(string Id, string Name)> ConnectableTafs(IReadOnlyList<(string Id, string Name)> tafs, ConnectApp app) =>
         app.NeededBy is not { } needed ? tafs : needed.Select(n => tafs.FirstOrDefault(t => t.Id == n.Taf)).Where(t => t.Id is not null).ToList();
+
+    /// <summary>
+    /// What Connect does for an app, as the iPad's <c>ConnectRow.connectFor</c>: with tafs cloud's <c>needed_by</c>, ask which of
+    /// the tafs that need it, or, when none does, Ask Coach (Coach sets one up, never a guess); without it, ask among every taf
+    /// the person manages, or nothing when there's none.
+    /// </summary>
+    public static ConnectRoute Route(ConnectApp app, IReadOnlyList<(string Id, string Name)> connectable) =>
+        connectable.Count > 0 ? ConnectRoute.Ask : app.NeededBy is null ? ConnectRoute.NoTaf : ConnectRoute.AskCoach;
 
     /// <summary>Starting a connection for a taf: <c>POST /v1/connect/apps/{entry}</c> with <c>{"taf"}</c>, this PC's grants read proof beside it.</summary>
     public static string StartPath(string entry) => "/v1/connect/apps/" + Tafs.Core.Taf.CloudRead.PathPart(entry);

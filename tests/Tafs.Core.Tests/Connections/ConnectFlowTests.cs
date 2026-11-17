@@ -144,6 +144,10 @@ public class ConnectFlowTests
             """);
         Assert.Equal([("t2", "Ana")], ConnectAppsScreen.ConnectableTafs(mine, list.Apps[0]));
         Assert.Equal(mine, ConnectAppsScreen.ConnectableTafs(mine, list.Apps[1]));
+        // No taf needs it: Ask Coach. tafs cloud not saying, and no taf at all: nothing.
+        Assert.Equal(ConnectRoute.AskCoach, ConnectAppsScreen.Route(list.Apps[0], []));
+        Assert.Equal(ConnectRoute.NoTaf, ConnectAppsScreen.Route(list.Apps[1], []));
+        Assert.Equal(ConnectRoute.Ask, ConnectAppsScreen.Route(list.Apps[1], mine));
         Assert.Equal("/v1/connect/apps/connector%3Acomposio%3Agmail", ConnectAppsScreen.StartPath("connector:composio:gmail").Replace(":", "%3A"));
         Assert.Equal("""{"taf":"t2"}""", Encoding.UTF8.GetString(ConnectAppsScreen.StartBody("t2")));
         Assert.Equal(("grt_1", false), ConnectAppsScreen.Started(System.Text.Json.JsonDocument.Parse("""{"grant": "grt_1"}""").RootElement));

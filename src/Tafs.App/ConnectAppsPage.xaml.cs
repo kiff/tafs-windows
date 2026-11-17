@@ -192,6 +192,11 @@ public sealed partial class ConnectAppsPage : Page
         if ((sender as FrameworkElement)?.DataContext is not ConnectRowView { App: { } app } || opening?.Connecting is not { } connecting) return;
         var w = App.Words;
         var tafs = ConnectAppsScreen.ConnectableTafs(connecting.Tafs, app);
+        if (ConnectAppsScreen.Route(app, tafs) == ConnectRoute.AskCoach)
+        {
+            AskCoachChosen?.Invoke();
+            return;
+        }
         if (tafs.Count == 0) return;
         var taf = tafs[0].Id;
         if (tafs.Count > 1)
@@ -288,7 +293,9 @@ public sealed partial class ConnectAppsPage : Page
         foreach (var app in apps)
         {
             var said = ConnectAppsScreen.Row(w, app);
-            var button = ConnectAppsScreen.Button(w, app);
+            var route = opening?.Connecting is { } c ? ConnectAppsScreen.Route(app, ConnectAppsScreen.ConnectableTafs(c.Tafs, app)) : ConnectRoute.NoTaf;
+            // No taf needs it: Ask Coach, which sets one up.
+            var button = ConnectAppsScreen.Button(w, app) is { } b && route == ConnectRoute.AskCoach ? w.Get("coach.ask") : ConnectAppsScreen.Button(w, app);
             rows.Add(new ConnectRowView
             {
                 Columns = columns,
@@ -301,7 +308,7 @@ public sealed partial class ConnectAppsPage : Page
                 UsedBy = said.Setup is null ? said.UsedBy ?? "" : "", HasUsedBy = Seen(said.Setup is null && said.UsedBy is not null),
                 Button = button ?? "", HasButton = Seen(button is not null),
                 // Connecting by a key comes with its own change; by a sign-in, for a taf that needs the app.
-                CanConnect = opening?.Connecting is { } connecting && !app.TakesKey && ConnectAppsScreen.ConnectableTafs(connecting.Tafs, app).Count > 0,
+                CanConnect = route == ConnectRoute.AskCoach || (route == ConnectRoute.Ask && !app.TakesKey),
                 ConnectName = (button ?? "") + ", " + app.DisplayName,
                 Logo = ConnectAppsScreen.LogoUrl(app.Logo) is { } logo ? new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(logo) : null,
                 HasLogo = Seen(ConnectAppsScreen.LogoUrl(app.Logo) is not null),
