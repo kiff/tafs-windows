@@ -43,7 +43,11 @@ public static class KeyDialog
             if (sheet.Host is { Length: > 0 } host) body.Children.Add(Words("🔒 " + host, 13, "TafsSoftText"));
             if (given)
             {
-                // The receipt: connected, with the key's last 4, then Done.
+                // The receipt: board 5, an app connected (the moment the key went in, as the iPad's), then connected with the
+                // key's last 4, then Done.
+                var drawing = Illustrations.AppConnected();
+                drawing.HorizontalAlignment = HorizontalAlignment.Center;
+                body.Children.Add(drawing);
                 body.Children.Add(Words(sheet.Filled(sheet.Receipt ?? w.Get("connect.status.connected"), last4), 16, "TafsInkText"));
                 dialog.PrimaryButtonText = "";
                 dialog.CloseButtonText = w.Get("common.done");
