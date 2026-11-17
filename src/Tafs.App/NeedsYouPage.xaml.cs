@@ -236,9 +236,79 @@ public sealed partial class NeedsYouPage : Page
     /// <summary>Nothing waiting only with no held call and no call to say about, as the iPad's.</summary>
     void ShowEmpty()
     {
-        Empty.Visibility = views.Count == 0 && unproven.Count == 0 && steps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        Empty.Visibility = views.Count == 0 && unproven.Count == 0 && steps.Count == 0 && waitingShown == 0 ? Visibility.Visible : Visibility.Collapsed;
         // Board 6, nothing waiting, as the iPad's NeedsYouView: drawn once, in this page's theme.
         if (Empty.Visibility == Visibility.Visible && EmptyArt.Child is null) EmptyArt.Child = Illustrations.NothingWaiting();
+    }
+
+    /// <summary>Open Coach on a waiting chat's card.</summary>
+    public static event Action<CoachWaiting>? CoachWaitingOpenChosen;
+
+    /// <summary>Set aside on a waiting chat's card, or Set all aside (none).</summary>
+    public static event Action<string?>? SetAsideChosen;
+
+    int waitingShown;
+
+    /// <summary>
+    /// Coach's waiting chats, as the iPad's <c>CoachWaitingCard</c>, every word tafs cloud's: on the panel with an amber edge,
+    /// the sparkle and its line, 14 semibold; Open Coach for someone who may use Coach; Set aside, outlined in the soft colour,
+    /// when tafs cloud sent its words. Set all aside above them, outlined in amber, off while any is being set aside.
+    /// </summary>
+    internal void ShowCoachWaiting(IReadOnlyList<CoachWaiting> shown, CoachWaitingClear? setAll, bool signedIn, bool mayUseCoach, bool busy)
+    {
+        // In the window's theme: drawn as the page is navigated to, before it has its own.
+        waitingShown = shown.Count;
+        CoachWaitingCards.Children.Clear();
+        if (setAll is { } clear)
+        {
+            var all = Button(clear.Button, "TafsOutlineButton", sending: busy);
+            all.HorizontalAlignment = HorizontalAlignment.Stretch;
+            all.Foreground = ChatViews.Themed("TafsAmberText");
+            if (all.Foreground is SolidColorBrush amber) all.BorderBrush = new SolidColorBrush(amber.Color) { Opacity = 0.4 };
+            all.Click += (_, _) => SetAsideChosen?.Invoke(null);
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(all, "needs-you.coach-waiting.set-all-aside");
+            CoachWaitingCards.Children.Add(all);
+        }
+        foreach (var waiting in shown)
+        {
+            var lines = new StackPanel { Spacing = 12 };
+            var line = new Grid { ColumnSpacing = 10 };
+            line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            // The iPad's sparkle, in amber, hidden from Narrator.
+            var sparkle = new TextBlock { Text = "\u2726", FontSize = 15, VerticalAlignment = VerticalAlignment.Center, Foreground = ChatViews.Themed("TafsAmberText") };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAccessibilityView(sparkle, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+            var words = Line(waiting.Words.Line, 14, "TafsInkText", semibold: true);
+            words.VerticalAlignment = VerticalAlignment.Center;
+            Grid.SetColumn(words, 1);
+            line.Children.Add(sparkle);
+            line.Children.Add(words);
+            lines.Children.Add(line);
+            // Its way in only for someone who may use Coach: else the line alone, never a button that does nothing.
+            if (mayUseCoach)
+            {
+                var open = Button(waiting.Words.Open, "TafsPrimary", sending: false);
+                open.HorizontalAlignment = HorizontalAlignment.Stretch;
+                open.Click += (_, _) => CoachWaitingOpenChosen?.Invoke(waiting);
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(open, "needs-you.coach-waiting." + waiting.Session);
+                lines.Children.Add(open);
+            }
+            if (CoachWaitings.CanSetAside(waiting, signedIn))
+            {
+                var aside = Button(waiting.Words.SetAside, "TafsOutlineButton", sending: busy);
+                aside.HorizontalAlignment = HorizontalAlignment.Stretch;
+                aside.Foreground = ChatViews.Themed("TafsSoft");
+                aside.Click += (_, _) => SetAsideChosen?.Invoke(waiting.Session);
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(aside, "needs-you.coach-waiting.set-aside." + waiting.Session);
+                lines.Children.Add(aside);
+            }
+            CoachWaitingCards.Children.Add(new Border
+            {
+                Background = ChatViews.Themed("TafsPanel"), BorderBrush = ChatViews.Themed("TafsAmberEdge"),
+                BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18), Padding = new Thickness(16), Child = lines,
+            });
+        }
+        ShowEmpty();
     }
 
     /// <summary>Why the last answer didn't go through, at the top in red, as the iPad's <c>lastError</c>; none hides it.</summary>

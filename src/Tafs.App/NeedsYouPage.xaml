@@ -20,6 +20,9 @@
         <!-- Your step: a step a taf handed its owner, first, as the iPad's. Drawn in code. -->
         <StackPanel x:Name="Steps" Spacing="14" />
 
+        <!-- Coach's chats waiting on the person, after the steps, as the iPad's: Set all aside above them. Drawn in code. -->
+        <StackPanel x:Name="CoachWaitingCards" Spacing="14" />
+
         <!-- Did this happen?: a money call whose outcome KIFF can't prove, before the held calls, as the iPad's. Drawn in code. -->
         <StackPanel x:Name="UnprovenCalls" Spacing="14" />
 

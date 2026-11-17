@@ -231,6 +231,10 @@ public sealed partial class MainWindow : Window
         ConnectAppsPage.AskCoachAnew += () => { if (mayUseCoach) CoachMode.Write("", newConversation: true); else OnCoach(this, new RoutedEventArgs()); };
         // Focus goes back to the sidebar's Coach when Coach mode has gone.
         CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
+        // The chat open in Coach isn't listed as waiting; closed, it is again.
+        CoachMode.Closed += ShowCoachWaiting;
+        NeedsYouPage.CoachWaitingOpenChosen += OpenCoachWaiting;
+        NeedsYouPage.SetAsideChosen += session => _ = SetAsideAsync(session);
         OverviewPage.TafChosen += key => OpenBeside(typeof(TafPage), OpenTaf(w, key));
         // A result card in Coach: its taf, or Plan & usage, with Coach closed, as the iPad's beside its sidebar.
         CoachMode.Tafs = () => home?.Tafs ?? [];
@@ -498,6 +502,8 @@ public sealed partial class MainWindow : Window
         // Home's steps; a list that can't be read leaves them as they were.
         if (YourSteps.Read(answer) is { } listedNow) listedSteps = listedNow;
         ShowSteps();
+        // Coach's chats waiting on the person, with Home's count.
+        ReadCoachWaiting(answer);
         ShowHaltAll();
         _ = ReadGalleryAsync(read, reading);
         _ = ReadHomeRecipesAsync(read, reading);
@@ -1060,6 +1066,8 @@ public sealed partial class MainWindow : Window
         ShowNewTaf();
         (manage, capabilities, accountHalt, haltSend, cloudSend, cloudStream, cloudChange) = (null, null, Halt.Running, null, null, null, null);
         cloudResume = null;
+        (coachWaiting, coachWaitingClear) = ([], null);
+        settingAside.Clear();
         ShowHaltAll();
         CoachMode.StartCoach = null;
         CoachMode.GiveTools = null;
@@ -1668,7 +1676,7 @@ public sealed partial class MainWindow : Window
     /// </summary>
     void ShowCount(NavigationViewItem row, Tafs.Core.Words.WordBook w, string title)
     {
-        var (count, name) = Sidebar.NeedsYouCount(w, held.Count);
+        var (count, name) = Sidebar.NeedsYouCount(w, held.Count + CoachWaitingShown().Count);
         AutomationProperties.SetName(row, name);
         if (count is null)
         {

@@ -230,6 +230,15 @@ public sealed partial class CoachPanel
         Open();
     }
 
+    /// <summary>The chat open on screen: Coach open on a chat that has one; none otherwise (the iPad's coachChatOnScreen).</summary>
+    public string? ChatOnScreen => IsOpen ? session : null;
+
+    /// <summary>A chat that was set aside isn't shown any more: its next message would go on in an ended chat. A new one instead.</summary>
+    public void Leave(IReadOnlySet<string> ended)
+    {
+        if (session is { } shown && ended.Contains(shown)) StartNewConversation();
+    }
+
     /// <summary>How many tafs Home lists, as the window last read it: Coach's empty chat draws board 7 with none or one.</summary>
     public int TafCount { get; set; }
 
