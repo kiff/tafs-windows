@@ -80,6 +80,13 @@ public sealed record ChatMessage(DateTimeOffset At, ChatFrom From, bool Kickoff,
 /// <summary>How a task Coach handed a taf went (the iPad's <c>CoachLine</c>); <paramref name="Away"/> when kept while the person was away.</summary>
 public sealed record CoachLine(DateTimeOffset At, string Taf, string Said, bool Away);
 
+/// <summary>
+/// A taf's card handing a setting to Coach (its thread's <c>ask_coach</c> component, the iPad's <c>AskCoachCard</c>): the
+/// owner's request in the taf's words, which Ask Coach writes into Coach's box on that taf. The only card of a taf's own
+/// thread the app draws.
+/// </summary>
+public sealed record AskCoachCard(string Id, DateTimeOffset At, string Session, string Text);
+
 /// <summary>One item of the thread, in order: a message, or a card where it's placed.</summary>
 public sealed record ThreadItem(ChatMessage? Message, ShownCard? Card)
 {
@@ -91,9 +98,13 @@ public sealed record ThreadItem(ChatMessage? Message, ShownCard? Card)
 /// <param name="WorkingRun">The run at work (<c>working.run</c>): a message written now goes to it (<see cref="Taf.TafSteer"/>).</param>
 /// <param name="Steering">What the thread says of messages written while it works.</param>
 public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyList<CoachLine> Lines, string? Working,
-    IReadOnlyList<ShownCard>? Cards = null, string? WorkingRun = null, Taf.Steering? Steering = null)
+    IReadOnlyList<ShownCard>? Cards = null, string? WorkingRun = null, Taf.Steering? Steering = null,
+    IReadOnlyList<AskCoachCard>? AskCoachCards = null)
 {
     public IReadOnlyList<ShownCard> Shown => Cards ?? [];
+
+    /// <summary>A taf's cards for Coach, in the thread's order; none from a thread without them.</summary>
+    public IReadOnlyList<AskCoachCard> AskCoach => AskCoachCards ?? [];
 
     /// <summary>The plan, shown pinned above the thread rather than in it, as the iPad's <c>SetupThread.plan</c>.</summary>
     public ShownCard? Plan => Shown.LastOrDefault(c => c.Card.Kind == "steps");
@@ -118,8 +129,21 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
         // A card the app can't read is left out, never the thread with it.
         var cards = ShownCard.Fold(Lenient.Array(answer, "components").Select(ShownCard.Read).OfType<ShownCard>());
         return new(messages, lines, Lenient.Text(Lenient.Field(answer, "working") ?? default, "session"), cards,
-            Taf.TafSteer.WorkingRun(answer), Taf.TafSteer.Read(answer));
+            Taf.TafSteer.WorkingRun(answer), Taf.TafSteer.Read(answer), AskCoachRead(answer));
     }
+
+    /// <summary>
+    /// The thread's <c>ask_coach</c> cards, as the iPad's <c>AskCoachCard.Lenient</c>: each with its id, time and words; one
+    /// without them is left out, never the thread with it.
+    /// </summary>
+    static IReadOnlyList<AskCoachCard> AskCoachRead(JsonElement answer) =>
+        Lenient.Array(answer, "components").Select(s =>
+        {
+            var c = Lenient.Field(s, "component") ?? default;
+            return Lenient.Text(c, "type") == "ask_coach" && Lenient.Text(c, "id") is { } id && Lenient.At(s, "at") is { } at
+                && Lenient.Text(c, "text")?.Trim() is { Length: > 0 } text
+                ? new AskCoachCard(id, at, Lenient.Text(s, "session") ?? "", text) : null;
+        }).OfType<AskCoachCard>().ToList();
 
     static ChatMessage? Message(JsonElement m)
     {

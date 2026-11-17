@@ -1904,6 +1904,13 @@ public sealed partial class MainWindow : Window
                 AskCoach: () => CoachMode.Improve(taf.Id, taf.Name), MayUseCoach: () => mayUseCoach,
                 // Its health's fixes: Coach with tafs cloud's words in the box, nothing sent; Plan & usage for credits.
                 Health: taf.Health, AskCoachWith: mayUseCoach ? words => CoachMode.Write(words, newConversation: true) : null,
+                // A taf's card for Coach: Coach improving this taf, its words in the box, nothing sent, as the iPad's askCoachAbout.
+                AskCoachAbout: words =>
+                {
+                    if (!mayUseCoach) return;
+                    CoachMode.Improve(taf.Id, taf.Name);
+                    CoachMode.Write(words, newConversation: false);
+                },
                 OpenUsage: () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage),
                 // Stop is for whoever manages the taf (cards.manage), as KIFF says, once read.
                 Manages: taf.Agent is { } agent && manage?.GetValueOrDefault(agent) == true,
