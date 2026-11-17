@@ -196,4 +196,60 @@ public class PairingScreenTests
         Assert.False(PairingScreen.AsksWhyFirst(null, true, offline: true));
         Assert.False(PairingScreen.AsksWhyFirst(paired, true, false));
     }
+
+    /// <summary>
+    /// English with legal-i18n's <c>pair.refused_*</c> words (tafs#1288): the pinned ones once they're shared, else these, as
+    /// that patch has them.
+    /// </summary>
+    static WordBook WithRefusedWords()
+    {
+        if (En.Has("pair.refused_title")) return En;
+        var root = Path.Combine(Path.GetTempPath(), "tafs-refused-" + Guid.NewGuid().ToString("N"));
+        var en = Directory.CreateDirectory(Path.Combine(root, "en")).FullName;
+        foreach (var f in Directory.EnumerateFiles(Path.Combine(SharedFiles.Strings, "en"), "*.json")) File.Copy(f, Path.Combine(en, Path.GetFileName(f)));
+        File.WriteAllText(Path.Combine(en, "zz-refused.json"), """
+            {
+              "pair.refused_key_registered": "Your phone says this {device} is already paired with your account. Show a new code and scan it again.",
+              "pair.refused_other": "Your phone couldn't add this {device}. Show a new code and scan it again.",
+              "pair.refused_title": "Your phone didn't add this {device}"
+            }
+            """);
+        return WordBook.Load(root, "en");
+    }
+
+    [Fact]
+    public void A_refused_pairing_is_read_with_KIFF_s_reason_never_its_message()
+    {
+        var refused = PairingClaim.Read(403, """{"error":"pairing_refused","reason":"key_registered","message":"This device is already registered."}""");
+        Assert.Equal(new ClaimResult(ClaimStatus.Refused, Reason: "key_registered"), refused);
+        Assert.Equal(PairingStep.Refused, PairingScreen.After(refused.Status));
+        // No reason, or an odd one: refused all the same.
+        Assert.Equal(new ClaimResult(ClaimStatus.Refused), PairingClaim.Read(403, """{"error":"pairing_refused"}"""));
+        Assert.Equal(new ClaimResult(ClaimStatus.Refused), PairingClaim.Read(403, """{"error":"pairing_refused","reason":7}"""));
+    }
+
+    [Fact]
+    public void A_refused_pairing_says_why_in_tafs_s_words_with_a_new_code()
+    {
+        var w = WithRefusedWords();
+        var registered = PairingScreen.Lines(w, PairingStep.Refused, Offer(), "key_registered");
+        Assert.Equal("Your phone didn't add this Windows PC", registered.Title);
+        Assert.Equal("Your phone says this Windows PC is already paired with your account. Show a new code and scan it again.", registered.Status);
+        Assert.Equal(w.Get("pair.new_code"), registered.NewCode);
+        Assert.False(registered.ShowsQr);
+        Assert.Null(registered.CheckCode);
+        Assert.Equal("Your phone couldn't add this Windows PC. Show a new code and scan it again.",
+            PairingScreen.Lines(w, PairingStep.Refused, Offer(), "something_new").Status);
+        Assert.Equal("Your phone couldn't add this Windows PC. Show a new code and scan it again.",
+            PairingScreen.Lines(w, PairingStep.Refused, Offer(), null).Status);
+    }
+
+    [Fact]
+    public void Before_the_refused_words_are_shared_a_refusal_reads_as_KIFF_s_403()
+    {
+        if (En.Has("pair.refused_title")) return;
+        var lines = PairingScreen.Lines(En, PairingStep.Refused, Offer(), "key_registered");
+        Assert.Equal(En.Get("pair.failed", ("device", "Windows PC"), ("why", En.Get("error.kiff_answered", ("status", "403")))), lines.Status);
+        Assert.Equal(En.Get("pair.new_code"), lines.NewCode);
+    }
 }

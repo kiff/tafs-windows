@@ -13,6 +13,8 @@ public enum PairingStep
     Waiting,
     Expired,
     Failed,
+    /// <summary>The phone's approve was refused, and KIFF told this PC (kiff-cloud#1706): said, with a new code to show.</summary>
+    Refused,
     /// <summary>KIFF wasn't reached.</summary>
     Offline,
     Added,
@@ -84,9 +86,26 @@ public static class PairingScreen
     {
         ClaimStatus.Pending or ClaimStatus.SlowDown => PairingStep.Waiting,
         ClaimStatus.Expired => PairingStep.Expired,
+        ClaimStatus.Refused => PairingStep.Refused,
         ClaimStatus.Paired => PairingStep.Added,
         _ => PairingStep.Failed,
     };
+
+    /// <summary>
+    /// A refused pairing, in tafs's words (<c>pair.refused_*</c>): the phone didn't add this PC, and why, by KIFF's reason
+    /// (<c>key_registered</c>: it's already paired with the account), then a new code to scan. Before those words are shared,
+    /// the failed line with KIFF's 403.
+    /// </summary>
+    /// <param name="reason">KIFF's reason code, as <see cref="ClaimResult.Reason"/>.</param>
+    static PairingLines Refused(WordBook w, string? reason, string newCode)
+    {
+        var device = ("device", Device(w));
+        if (!w.Has("pair.refused_title") || !w.Has("pair.refused_other"))
+            return new PairingLines(w.Get("pair.title", device), null, null, null,
+                w.Get("pair.failed", device, ("why", w.Get("error.kiff_answered", ("status", "403")))), newCode, false);
+        var said = reason == "key_registered" && w.Has("pair.refused_key_registered") ? "pair.refused_key_registered" : "pair.refused_other";
+        return new PairingLines(w.Get("pair.refused_title", device), null, null, null, w.Get(said, device), newCode, false);
+    }
 
     /// <summary>
     /// Why a claim failed, in the person's words: KIFF's status, never its body (a 200 holds the token).
@@ -123,6 +142,7 @@ public static class PairingScreen
             PairingStep.Failed => new PairingLines(title, null, null, null,
                 w.Get("pair.failed", device, ("why", why ?? throw new ArgumentNullException(nameof(why)))), newCode, false),
             PairingStep.Offline => new PairingLines(title, null, null, null, w.Get("error.offline"), newCode, false),
+            PairingStep.Refused => Refused(w, why, newCode),
             // With its own passkey, this PC approves itself through Windows Hello. With neither key nor passkey of its
             // own, it approves through the phone or the account's passkeys.
             PairingStep.Added => new PairingLines(title, null, null, null,
