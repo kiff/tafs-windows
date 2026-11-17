@@ -226,6 +226,7 @@ public sealed partial class MainWindow : Window
             _ = ReadUnprovenAsync(sessions);
         };
         ConnectAppsPage.AskCoachChosen += () => OnCoach(this, new RoutedEventArgs());
+        ConnectAppsPage.AskCoachAnew += () => { if (mayUseCoach) CoachMode.Write("", newConversation: true); else OnCoach(this, new RoutedEventArgs()); };
         // Focus goes back to the sidebar's Coach when Coach mode has gone.
         CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
         OverviewPage.TafChosen += key => OpenBeside(typeof(TafPage), OpenTaf(w, key));

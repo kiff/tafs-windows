@@ -94,6 +94,8 @@ public sealed partial class ConnectAppsPage : Page
     CancellationTokenSource? typing;
 
     public static event Action? AskCoachChosen;
+    /// <summary>Ask Coach on an app no taf needs: a new conversation, so Coach sets one up from a clean start (the owner's test).</summary>
+    public static event Action? AskCoachAnew;
 
     public ConnectAppsPage() => InitializeComponent();
 
@@ -194,7 +196,7 @@ public sealed partial class ConnectAppsPage : Page
         var tafs = ConnectAppsScreen.ConnectableTafs(connecting.Tafs, app);
         if (ConnectAppsScreen.Route(app, tafs) == ConnectRoute.AskCoach)
         {
-            AskCoachChosen?.Invoke();
+            AskCoachAnew?.Invoke();
             return;
         }
         if (tafs.Count == 0) return;
