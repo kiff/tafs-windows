@@ -37,4 +37,20 @@ public class RecordReadsTests
         Assert.Null(RecordScreen.ReceiptLine(En, Entry("list emails", 1, receipt: "pending")));
         Assert.Null(RecordScreen.ReceiptLine(En, Entry("list emails", 1)));
     }
+
+    static RecordEntry Paid(string value, string unit, int minutesAgo, EntryKind kind = EntryKind.Done) =>
+        new("Refunds", 1, kind, "Refund", "within its Card", Now.AddMinutes(-minutesAgo), Amount: value,
+            Call: new ActivityCall("m" + minutesAgo, "stripe_refund", "executed", Now.AddMinutes(-minutesAgo), false, Amount: new CallAmount(value, unit)));
+
+    [Fact]
+    public void A_day_s_heading_ends_with_the_money_it_moved_a_sum_for_each_currency()
+    {
+        RecordEntry[] entries = [Paid("40.00", "EUR", 10), Paid("25.50", "EUR", 20), Paid("12", "USD", 30), Paid("99.00", "EUR", 40, EntryKind.Refused)];
+        Assert.Equal("€65.50 + $12 spent", RecordScreen.Spent(En, entries));
+        var day = Assert.Single(RecordScreen.Days(En, entries, RecordFilter.All, null, Now, TimeZoneInfo.Utc, foldReads: true));
+        Assert.EndsWith(" · €65.50 + $12 spent", day.Title);
+        // Nothing moved: no total; and a taf's activity has none.
+        Assert.Null(RecordScreen.Spent(En, [Entry("list emails", 5)]));
+        Assert.DoesNotContain("spent", RecordScreen.Days(En, entries, RecordFilter.All, null, Now, TimeZoneInfo.Utc).Single().Title);
+    }
 }
