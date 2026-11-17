@@ -13,9 +13,14 @@ public sealed record PairedSession(string AccessToken, string Tenant, string Sub
     public override string ToString() => $"PairedSession {{ Tenant = {Tenant}, DeviceId = {DeviceId}, AccessToken = (hidden) }}";
 }
 
-public enum ClaimStatus { Pending, SlowDown, Expired, InvalidProof, Paired, Failed }
+/// <summary>
+/// Where a claim stands. <see cref="Refused"/>: the phone's approve was refused, and KIFF says so to this PC only, the one
+/// that proves the refused key (the claim's <c>403 pairing_refused</c>, KIFF's desktop client contract, §5.4).
+/// </summary>
+public enum ClaimStatus { Pending, SlowDown, Expired, InvalidProof, Paired, Failed, Refused }
 
-public sealed record ClaimResult(ClaimStatus Status, PairedSession? Session = null, string? Detail = null);
+/// <param name="Reason">For <see cref="ClaimStatus.Refused"/>: KIFF's reason code (<c>key_registered</c>), never its message.</param>
+public sealed record ClaimResult(ClaimStatus Status, PairedSession? Session = null, string? Detail = null, string? Reason = null);
 
 /// <summary>
 /// The computer claims its pairing (KIFF's desktop client contract, §5.4): POST /v1/pair/claim with no
@@ -93,6 +98,8 @@ public static class PairingClaim
                 (400, "slow_down") => new ClaimResult(ClaimStatus.SlowDown),
                 (400, "expired_token") => new ClaimResult(ClaimStatus.Expired),
                 (403, "invalid_proof") => new ClaimResult(ClaimStatus.InvalidProof),
+                (403, "pairing_refused") => new ClaimResult(ClaimStatus.Refused,
+                    Reason: root.TryGetProperty("reason", out var why) && why.ValueKind == JsonValueKind.String ? why.GetString() : null),
                 _ => new ClaimResult(ClaimStatus.Failed, Detail: $"{status} {error}"),
             };
         }

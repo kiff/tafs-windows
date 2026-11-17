@@ -52,16 +52,24 @@ public sealed partial class PairingPage : Page
         {
             clock.Stop();
             cancel.Cancel();
-            deviceKey?.Dispose();
-            deviceKey = null;
-            // A key no session took leaves the TPM with the page: it was never a device's.
-            if (deviceKeyName is { } unused && !keyKept)
-            {
-                try { TpmKey.Delete(unused); } catch (System.Security.Cryptography.CryptographicException) { }
-            }
-            deviceKeyName = null;
-            ForgetPasskey();
+            DropKey();
         };
+    }
+
+    /// <summary>
+    /// This pairing's key, and the passkey offered with it, let go: a key no session took leaves the TPM (it was never a
+    /// device's). With the page, or once KIFF refused it, so a new code makes another.
+    /// </summary>
+    void DropKey()
+    {
+        deviceKey?.Dispose();
+        deviceKey = null;
+        if (deviceKeyName is { } unused && !keyKept)
+        {
+            try { TpmKey.Delete(unused); } catch (System.Security.Cryptography.CryptographicException) { }
+        }
+        deviceKeyName = null;
+        ForgetPasskey();
     }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
@@ -157,7 +165,15 @@ public sealed partial class PairingPage : Page
                 Paired?.Invoke(session);
             }
             var step = PairingScreen.After(result.Status);
-            Show(step, step == PairingStep.Failed ? PairingScreen.Why(App.Words, result) : null);
+            // KIFF refused this key: the next code is a new key's, so the phone isn't refused again for the same one.
+            if (step == PairingStep.Refused) DropKey();
+            // A refusal says which, by KIFF's reason; a failure, KIFF's status.
+            Show(step, step switch
+            {
+                PairingStep.Failed => PairingScreen.Why(App.Words, result),
+                PairingStep.Refused => result.Reason,
+                _ => null,
+            });
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
