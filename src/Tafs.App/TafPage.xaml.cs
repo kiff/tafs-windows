@@ -22,7 +22,7 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     bool Paused = false, string? Email = null, string? TimeZone = null, Action? AskCoach = null, SetupScreen SetupOn = SetupScreen.Main,
     TafHealth? Health = null, Action<string>? AskCoachWith = null, Action? OpenUsage = null, Func<bool>? MayUseCoach = null,
     CardScreen CardOn = CardScreen.Main, bool CreditsPrevious = false, TafTrying? Trying = null, TafInTrial? InTrial = null,
-    TafInstalling? Installing = null)
+    TafInstalling? Installing = null, TafSharing? Share = null)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
@@ -107,6 +107,7 @@ public sealed partial class TafPage : Page
         Avatar.Background = colour;
         Initial.Text = head.Initial;
         NameText.Text = head.Name;
+        ShowShare();
         StateText.Text = head.State;
         WaitingText.Text = head.State;
         PausedText.Text = App.Words.Get("taf.state.paused");

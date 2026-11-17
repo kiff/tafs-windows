@@ -19,7 +19,11 @@
         <ColumnDefinition Width="Auto" />
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="Auto" />
       </Grid.ColumnDefinitions>
+      <!-- Share, for whoever manages the taf on a PC that approves, as the iPad's ShareTafSheet. -->
+      <Button x:Name="ShareButton" Grid.Column="3" Margin="10,0,0,0" Style="{StaticResource TafsOutlineButton}" VerticalAlignment="Center"
+              Visibility="Collapsed" Click="OnShare" AutomationProperties.AutomationId="taf.share" />
       <Border x:Name="Avatar" Width="34" Height="34" CornerRadius="10" AutomationProperties.AccessibilityView="Raw">
         <TextBlock x:Name="Initial" FontSize="17" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center"
                    VerticalAlignment="Center" />

@@ -353,8 +353,27 @@ is the approval key's act, never the device key's); a revoked taf can still be r
   nothing, so it's shown on the sample's Card tab only, never on a real taf's.
 - A Card's pending use and unit words drawn, its totals for each item, and how KIFF counts
   each tool.
-- **The rest:** the head's second line (the version and Share); held calls, Card-unit exceptions, its work and its runs
+- **The rest:** the head's second line (the version); held calls, Card-unit exceptions, its work and its runs
   at the top of the Activity; a line's receipt and its next step.
+
+## Sharing a taf (P32, `Shares`, `TafPage.Share.cs`)
+
+As the iPad's `ShareTafSheet`: **Share** in the taf's head, for whoever manages it (KIFF's `manage`) on a PC whose own
+passkey approves.
+- **The reads:** the account's groups and people (as People & groups), and who uses it now (`GET
+  /v1/agents/{agent}/grants`: each a group or one person). One that fails says "People and groups couldn't be read." with why.
+- **Step 1 of 2, "Who uses Refunds?":** GROUPS, each with its people ("Maria (manager), Ana", or "No one yet"), then ONE
+  PERSON, each one chosen or not, and "Choose someone on the account." Next once something changed.
+- **Step 2 of 2, "Who gets Refunds"** ("Refunds won't be shared" when no one): what it means, in the app's words, as the
+  iPad's `consequences`: each person's own chats and notes when it's shared at all; who uses it ("Support uses Refunds:
+  Maria (manager), Ana.", "Everyone uses…" for KIFF's default group); who stops ("Luis stops using Refunds. Their chats
+  stay theirs."). Share, or Back to step 1 with what's chosen kept.
+- **Share:** each new share is an approval at KIFF (`POST …/grants` with `{"group"}` or `{"subject"}`), so this PC's
+  passkey approves exactly that request behind Windows Hello (`KIFF-Passkey-Assertion`). Then each one taken away
+  (`DELETE …/grants?group=` or `?subject=`, with no body) is signed by this session's TPM key (`KIFF-Device-Signature`).
+  With nothing new to share, one Windows Hello names the change first ("Share Refunds"). Windows Hello closed says
+  nothing; a refusal says "Share Refunds didn't go through." with KIFF's reason, in the sheet.
+- **Not here yet:** the line under a taf's name that says who uses it (`ShareLine`).
 
 ## Photos and files on a message (P5, `FilePrep`, `Attachments`, `TafPage.Attach.cs`)
 
