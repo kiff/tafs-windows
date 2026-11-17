@@ -22,7 +22,7 @@
     "account": ["src/*/Account/**", "tests/*/Account/**"],
     "strings": ["src/*/Words/**", "tests/*/Strings/**"],
     "contracts": ["src/*/Contracts/**", "tests/*/Contracts/**"],
-    "ci": ["src/*/Ci/**", "tests/*/Ci/**", "tools/**", "ci/**"],
+    "ci": ["src/*/Ci/**", "tests/*/Ci/**", "tools/**", "ci/**", "installer/**"],
     "app": ["src/Tafs.App/**", "installer/**", ".config/**"]
   }
 }

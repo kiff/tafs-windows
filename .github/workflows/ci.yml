@@ -254,6 +254,23 @@ jobs:
         if: matrix.platform == 'x64'
         shell: pwsh
         run: ./ci/install-check.ps1 -Setup "artifacts/installer/tafs-setup-$env:SETUP_NAME-x64.exe"
+      # On x64: the setup's first and last screens in French and German, by the real setup with /lang, installing and
+      # uninstalling (ci/setup-screens.ps1). Kept as `setup-screens`. A screen not saved doesn't fail the zip: a picture
+      # is for people to read, and the install check above is what gates.
+      - name: The setup's screens, in French and German
+        if: matrix.platform == 'x64'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $setup = "artifacts/installer/tafs-setup-$env:SETUP_NAME-x64.exe"
+          ./ci/setup-screens.ps1 -Setup $setup -Lang fr -Lcid 1036 -Out setup-screens
+          ./ci/setup-screens.ps1 -Setup $setup -Lang de -Lcid 1031 -Out setup-screens
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always() && matrix.platform == 'x64'
+        with:
+          name: setup-screens
+          path: setup-screens/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: github.event_name != 'pull_request'
         with:
