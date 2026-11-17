@@ -9,6 +9,9 @@
   <Package Name="tafs" Manufacturer="KIFF" Version="$(Version)" UpgradeCode="EB8E1C18-AF7A-4FF0-A1E7-0A12B2DC6965"
            Scope="perMachine" Compressed="yes">
     <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of tafs is already installed." />
+    <!-- tafs's own icon in Windows' list of installed apps, never the generic one. -->
+    <Icon Id="tafs.ico" SourceFile="$(Icon)" />
+    <Property Id="ARPPRODUCTICON" Value="tafs.ico" />
     <MediaTemplate EmbedCab="yes" />
 
     <StandardDirectory Id="ProgramFiles64Folder">

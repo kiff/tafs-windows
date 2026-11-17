@@ -1,12 +1,13 @@
 <!--
   The setup .exe people download (docs/install.md): WiX's standard bootstrapper around the platform's MSI (Package.wxs),
-  with "Open tafs" on its last page. Built by `wix build` with -ext WixToolset.Bal.wixext -d Msi=<the MSI> -d Version=<0.1.n.0>
-  -arch <x64|arm64>. Signed with the app, in CI's sign job, once Azure exists. The UpgradeCode never changes.
+  with "Open tafs" on its last page, the tafs mark in its corner (installer/logo.png, 64 square, shapes only) and tafs's icon.
+  Built by `wix build` with -ext WixToolset.Bal.wixext -d Msi=<the MSI> -d Version=<0.1.n.0> -d Logo=<logo.png>
+  -d Icon=<tafs.ico> -arch <x64|arm64>. Signed with the app, in CI's sign job, once Azure exists. The UpgradeCode never changes.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
-  <Bundle Name="tafs" Manufacturer="KIFF" Version="$(Version)" UpgradeCode="02331400-3DFF-486C-B4B3-511AC3EBA656">
+  <Bundle Name="tafs" Manufacturer="KIFF" Version="$(Version)" UpgradeCode="02331400-3DFF-486C-B4B3-511AC3EBA656" IconSourceFile="$(Icon)">
     <BootstrapperApplication>
-      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense" LicenseUrl="" ShowVersion="yes"
+      <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense" LicenseUrl="" ShowVersion="yes" LogoFile="$(Logo)"
                                               LaunchTarget="[ProgramFiles64Folder]tafs\Tafs.App.exe" />
     </BootstrapperApplication>
     <Chain>
