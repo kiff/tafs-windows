@@ -99,9 +99,9 @@ in its place, so the person learns it before the prompt, not from a failure afte
   window is activated (at launch, and coming back from Settings), and on Check again, which answers for every gate at
   once. Ready until asked; a Windows that doesn't say leaves each approval to say what came of it. A sign-out forgets it.
 - **The words** (`HelloGate.NotReady`), the iPad's `ApprovalReadiness.short` with Windows Hello for Face ID or Touch ID:
-  - not set up: the line Your step says, until the shared words name Windows' sign-in options
-    (`approval.settings_path.windows`, then "Approving needs Windows Hello, and none is set up. Set it up in …"); with
-    **Open Settings**, which opens that very page (`ms-settings:signinoptions`), and **Check again**;
+  - not set up: "Approving needs Windows Hello, and none is set up. Set it up in Settings → Accounts → Sign-in
+    options." (`approval.settings_path.windows`, Windows 11's own names in each language); with **Open Settings**, which
+    opens that very page (`ms-settings:signinoptions`), and **Check again**;
   - busy: "Windows Hello can't be used right now. Try again in a moment.", with Check again;
   - no Windows Hello it can use: "This device can't approve. Approve on another device signed in to your account.", alone.
 - **Where** (`ApprovalGate.Wrap`, in a button's place, the iPad's `ApprovalGate`): Needs you's Approve once and Extra
