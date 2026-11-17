@@ -517,8 +517,9 @@ public sealed partial class MainWindow : Window
         _ = ReadBriefAsync(read, reading);
         var reports = await Task.WhenAll(listed.Tafs.Select(t => TafRuns.LoadReportAsync(w, t.Id, read)));
         if (reading != sessions) return;
-        overviewRows = HomeList.Rows(w, listed, TimeZoneInfo.Local, listed.Tafs.Select((t, i) => (t.Id, Report: reports[i])).ToDictionary(r => r.Id, r => r.Report));
+        overviewRows = WithUsedBy(HomeList.Rows(w, listed, TimeZoneInfo.Local, listed.Tafs.Select((t, i) => (t.Id, Report: reports[i])).ToDictionary(r => r.Id, r => r.Report)));
         if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows, home?.Labels);
+        _ = ReadUsedByAsync(listed, reading);
     }
 
     /// <summary>
@@ -1066,6 +1067,7 @@ public sealed partial class MainWindow : Window
         CoachMode.Answer = null;
         ShowNewTaf();
         (manage, capabilities, accountHalt, haltSend, cloudSend, cloudStream, cloudChange) = (null, null, Halt.Running, null, null, null, null);
+        usedBy.Clear();
         cloudResume = null;
         (coachWaiting, coachWaitingClear) = ([], null);
         settingAside.Clear();
@@ -1238,6 +1240,8 @@ public sealed partial class MainWindow : Window
         var setup = Tafs.Core.Coach.CoachAccess.SetupUse(access);
         // Kept as it was when it can't be read, as the iPad's refreshAccess.
         manage = Tafs.Core.Coach.CoachAccess.Manage(access) ?? manage;
+        // Who uses each taf they manage, on the Overview, now that it's known which.
+        if (home is { } managed) _ = ReadUsedByAsync(managed, reading);
         // Which tafs are shared with this person to use: "Shared with you".
         ShowYourTafs();
         capabilities = me ?? capabilities;
@@ -1660,7 +1664,7 @@ public sealed partial class MainWindow : Window
     {
         var w = App.Words;
         home = read;
-        overviewRows = HomeList.Rows(w, home, TimeZoneInfo.Local);
+        overviewRows = WithUsedBy(HomeList.Rows(w, home, TimeZoneInfo.Local));
         // In their order and sections (MainWindow.Order.cs). As the iPad's sidebar: the line for no tafs only with none at
         // all, and with tafs but none relevant now, no Your tafs: they're all on the Overview.
         ShowYourTafs();

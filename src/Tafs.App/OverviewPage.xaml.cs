@@ -173,6 +173,11 @@ public sealed partial class OverviewPage : Page
             });
             var title = new TextBlock { Text = row.Taf, FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Style = Look("TafsInkText") };
+            // Who uses it, under its name, 12 dim, for whoever manages it, as the iPad's usedBy.
+            var usedBy = row.UsedBy is { Length: > 0 } who
+                ? new TextBlock { Text = who, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, Style = Look("TafsDimText") }
+                : null;
+            if (usedBy is not null) AutomationProperties.SetAutomationId(usedBy, "taf.usedBy");
             if (row.Chips is { Count: > 0 } own)
             {
                 // Its labels under its name, as the iPad's TafLabels: small grey chips, two then "+1".
@@ -185,8 +190,12 @@ public sealed partial class OverviewPage : Page
                         Child = new TextBlock { Text = words, FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Style = Look("TafsSoftText") },
                     });
                 AutomationProperties.SetAutomationId(under, "taf.labels");
-                name.Children.Add(new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center, Children = { title, under } });
+                var lines = new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center, Children = { title } };
+                if (usedBy is not null) lines.Children.Add(usedBy);
+                lines.Children.Add(under);
+                name.Children.Add(lines);
             }
+            else if (usedBy is not null) name.Children.Add(new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center, Children = { title, usedBy } });
             else name.Children.Add(title);
             cells.Children.Add(name);
             foreach (var (text, column, style) in new[] { (row.Now, 1, "TafsInkText"), (row.Card, 2, "TafsInkText"), (row.LastResult, 3, "TafsSoftText") })
@@ -197,7 +206,8 @@ public sealed partial class OverviewPage : Page
             }
             var open = new Button { Style = Look("TafsBox"), HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Stretch, VerticalContentAlignment = VerticalAlignment.Top, Content = cells };
-            AutomationProperties.SetName(open, string.Join(", ", new[] { row.Taf }.Concat(row.Chips ?? []).Concat([row.Now, row.Card, row.LastResult])));
+            AutomationProperties.SetName(open, string.Join(", ", new[] { row.Taf }.Concat(row.UsedBy is { Length: > 0 } u ? [u] : [])
+                .Concat(row.Chips ?? []).Concat([row.Now, row.Card, row.LastResult])));
             AutomationProperties.SetHelpText(open, w.Get("people.opens_taf"));
             open.Click += (_, _) => TafChosen?.Invoke(row.Key);
             Grid.SetRow(open, at + 1);
