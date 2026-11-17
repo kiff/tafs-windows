@@ -973,6 +973,8 @@ public sealed partial class MainWindow : Window
         // The next session asks Windows Hello again before its first step.
         helloChecked = false;
         HelloState.Forget();
+        // The last account's alert target, never handed to the next one's tafs cloud.
+        pendingAlerts = null;
         // The last export's files too, as the iPad's removeOpenedFiles: a person's chats never stay on this PC after them.
         ChatsExport.Remove(ChatsExport.Folder);
         // The files opened again from a chat: a person's own, never left on this PC after them.
@@ -1112,6 +1114,9 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>KIFF's alert target that tafs cloud didn't take yet: handed over at the next Start, never written anywhere.</summary>
+    Tafs.Core.Coach.AlertTarget? pendingAlerts;
+
     /// <summary>Start's calls as this session (its TPM key, Windows Hello and this PC's passkey), for <paramref name="act"/>.</summary>
     async Task<T> WithStartCallsAsync<T>(KeptSession session, string bearer, int gen, Func<Tafs.Core.Coach.StartCalls, Task<T>> act)
     {
@@ -1151,7 +1156,25 @@ public sealed partial class MainWindow : Window
                 signature: signature),
             Claim: body => CloudSendAsync(bearer, Tafs.Core.Coach.CoachStart.SetupPath, body),
             SignedAt: () => SigningTime.Next(DateTimeOffset.UtcNow),
-            Current: () => gen == sessions);
+            Current: () => gen == sessions,
+            // KIFF's alerts kept with tafs cloud, as the iPad's keepKIFFAlerts: KIFF's target registered by a setup call this
+            // session's TPM key signs, then handed straight to tafs cloud. A target tafs cloud didn't take waits in memory only.
+            KeepAlerts: async () =>
+            {
+                var left = await Tafs.Core.Coach.KiffAlerts.KeepAsync(mayAnswerHolds, pendingAlerts,
+                    () => CloudReadAsync(bearer, Tafs.Core.Coach.KiffAlerts.CloudPath),
+                    async body =>
+                    {
+                        var at = SigningTime.Next(DateTimeOffset.UtcNow);
+                        var header = KiffSigning.SignatureHeaderV1(at,
+                            await key.SignDerAsync(KiffSigning.RequestV1(session.Tenant, "POST", Tafs.Core.Coach.KiffAlerts.TargetsPath, body, at)));
+                        return await KiffHttp.PostAsync(new Uri(kiff, Tafs.Core.Coach.KiffAlerts.TargetsPath), body, bearer, w.Language,
+                            signature: ("KIFF-Device-Signature", header));
+                    },
+                    body => CloudSendAsync(bearer, Tafs.Core.Coach.KiffAlerts.CloudPath, body),
+                    Tafs.Core.Coach.KiffAlerts.Url(HomeList.Api), () => gen == sessions);
+                if (gen == sessions) pendingAlerts = left;
+            });
         return await act(calls);
 
         async Task<string?> LoadDeviceAsync()

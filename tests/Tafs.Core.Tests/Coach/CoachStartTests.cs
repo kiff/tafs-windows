@@ -45,6 +45,8 @@ public class CoachStartTests
         public (string, string) Signature, BatchSignature;
         /// <summary>Signs out right after this call, by name: nothing after it may be sent.</summary>
         public string? SignOutAfter;
+        /// <summary>KIFF's alerts kept at Start, as the iPad's keepKIFFAlerts.</summary>
+        public bool KeepsAlerts;
         bool current = true;
 
         void Did(string call)
@@ -73,10 +75,25 @@ public class CoachStartTests
             (body, signature) => { Did("draft"); (DraftSent, Signature) = (body, signature); return Task.FromResult(Draft); },
             body => { Did("claim"); ClaimSent = body; return Task.FromResult(Claimed); },
             () => "2026-11-15T18:00:00.123Z",
-            () => current);
+            () => current,
+            KeepsAlerts ? () => { Did("alerts"); return Task.CompletedTask; } : null);
 
         public Task<StartResult> Run(KeptSession session, bool planqueReady = false) =>
             CoachStart.StartAsync(En, session, planqueReady, Calls_());
+    }
+
+    /// <summary>KIFF's alerts are kept behind Start's Windows Hello, before planque, as the iPad's keepKIFFAlerts.</summary>
+    [Fact]
+    public async Task KIFF_s_alerts_are_kept_after_Windows_Hello_and_before_planque()
+    {
+        var stubs = new Stubs { KeepsAlerts = true };
+        Assert.True((await stubs.Run(Session(ApprovalMode.Passkey, "AQI"))).Started);
+        Assert.Equal(["read", "sign draft", "alerts", "enrol", "draft", "claim"], stubs.Calls);
+
+        // Windows Hello closed: no alerts either.
+        var closed = new Stubs { KeepsAlerts = true, Hello = () => Task.FromException(new OperationCanceledException()) };
+        await closed.Run(Session(ApprovalMode.Passkey, "AQI"));
+        Assert.DoesNotContain("alerts", closed.Calls);
     }
 
     /// <summary>The iPad's order: planque first, then Setup's draft, signed before anything is sent, then tafs cloud claims its key.</summary>
