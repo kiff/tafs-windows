@@ -73,14 +73,8 @@ public sealed partial class TafPage
         if (cardScreen == CardScreen.Main || (opening?.CloudId is null && cardScreen != CardScreen.Counted)) return false;
         var w = App.Words;
         CardPane.Children.Clear();
-        var back = new HyperlinkButton { Padding = new Thickness(0) };
-        var label = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        label.Children.Add(new FontIcon { Glyph = "", FontSize = 12 });
-        label.Children.Add(new TextBlock { Text = w.Get("taf.section.card") });
-        back.Content = label;
-        AutomationProperties.SetName(back, w.Get("common.back"));
-        back.Click += (_, _) => { cardScreen = CardScreen.Main; ShowCards(); };
-        CardPane.Children.Add(back);
+        // In the page's place, its title in the bar with the round Back, as the iPad pushes it.
+        ShowSubBar(w.Get(cardScreen switch { CardScreen.Versions => "version.title", CardScreen.Counted => "card.how_counted", _ => "usage.label" }));
         if (cardScreen == CardScreen.Versions) ShowVersions(w);
         else if (cardScreen == CardScreen.Counted) ShowCounted(w);
         else ShowCredits(w);
@@ -126,9 +120,6 @@ public sealed partial class TafPage
     /// <summary>Versions, as the iPad's panel: the intro, a switch under way, then each version newest first, or one so far.</summary>
     void ShowVersions(Tafs.Core.Words.WordBook w)
     {
-        var title = Words(w.Get("version.title"), 22, "TafsInkText");
-        title.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
-        CardPane.Children.Add(title);
         var inside = new StackPanel { Spacing = 12 };
         inside.Children.Add(Words(w.Get("taf.try_version_first_you_chat"), 13, "TafsSoftText"));
         if (versions?.Switching is { } n) inside.Children.Add(Words(w.Get("version.installing_number", ("version", n.ToString(CultureInfo.InvariantCulture))), 14, "TafsAmberWords"));
@@ -188,9 +179,6 @@ public sealed partial class TafPage
     /// </summary>
     void ShowCounted(Tafs.Core.Words.WordBook w)
     {
-        var title = Words(w.Get("card.how_counted"), 22, "TafsInkText");
-        title.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
-        CardPane.Children.Add(title);
         var shown = opening?.Cards is { Count: > 0 } cards ? cards.FirstOrDefault(c => c.Id == front) ?? cards[0] : null;
         foreach (var tool in shown?.Counted ?? [])
         {
@@ -204,9 +192,6 @@ public sealed partial class TafPage
     /// <summary>Its credits this period, in tafs cloud's words, then its runs newest first, More while there are more.</summary>
     void ShowCredits(Tafs.Core.Words.WordBook w)
     {
-        var title = Words(w.Get("usage.label"), 22, "TafsInkText");
-        title.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
-        CardPane.Children.Add(title);
         // Opened on the period before (Plan & usage's credits): said, so its numbers don't read as this period's.
         if (opening?.CreditsPrevious == true) CardPane.Children.Add(Words(w.Get("usage.last_period"), 13, "TafsDimText"));
         var inside = new StackPanel { Spacing = 10 };

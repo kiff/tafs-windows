@@ -105,17 +105,8 @@ public sealed partial class TafPage
     void SetupScreenHead(string titleKey)
     {
         var w = App.Words;
-        var back = new HyperlinkButton { Padding = new Thickness(0) };
-        var label = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-        label.Children.Add(new FontIcon { Glyph = "", FontSize = 12 });
-        label.Children.Add(new TextBlock { Text = w.Get("taf.section.setup") });
-        back.Content = label;
-        AutomationProperties.SetName(back, w.Get("common.back"));
-        back.Click += (_, _) => OpenSetupScreen(SetupScreen.Main);
-        SetupPane.Children.Add(back);
-        var title = Words(w.Get(titleKey), 22, "TafsInkText");
-        title.FontWeight = Microsoft.UI.Text.FontWeights.Bold;
-        SetupPane.Children.Add(title);
+        // In the page's place, its title in the bar with the round Back, as the iPad pushes it.
+        ShowSubBar(w.Get(titleKey));
         if (knobSaid is { } said) SetupPane.Children.Add(Words(said, 13, "TafsNoText"));
     }
 
