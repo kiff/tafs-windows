@@ -52,7 +52,7 @@ this against KIFF's worked example (§2.4), down to verifying its signature.
 
 ## One attempt (`PairingAttempt`)
 
-The page opens its device key in the TPM (`TpmKey.PairingKeyName`, made the first time) and asks Windows Hello for this
+The page makes its own device key in the TPM, a new one for each pairing (`TpmKey.NewPairingKeyName`), and asks Windows Hello for this
 PC's passkey (`WindowsHello.CreateAsync`, ES256, the person verified), then shows the offer and claims it.
 
 - **A new code keeps the passkey** while its code is live. Show a new code makes a new nonce and reuses the passkey from
@@ -96,15 +96,18 @@ Windows PC opening this screen.
 
 ## The kept session
 
-A pairing must never leave a device at KIFF that this PC can't use: a relaunch would put the same key in a new QR, and KIFF
-would refuse it as already registered. So, with [the session](session.md) kept across launches:
+A pairing must never leave a device at KIFF that this PC can't use. So, with [the session](session.md) kept across launches:
 - **Before the code,** the store is checked (`CheckWritable`). A store that refuses stops the pairing with nothing sent.
 - **Before Added,** the claimed session is kept, with its `approval_mode` (unknown is view) and the pairing key's name. If
   it isn't kept, the screen says it wasn't added, with Windows' error code only.
 - **The view-only sign-in it replaces** is signed out at KIFF, and its key leaves the TPM.
 - **A relaunch after pairing** opens this screen on Added (`PairingScreen.Opening`), never a new code.
+- **The key is this pairing's own** (the owner's test, 17 Nov). It was once one fixed name, so a PC whose device was removed,
+  or that paired again beside the device it has, put a registered key in the QR, and the phone was refused with "That computer
+  is already paired." while the PC waited. Now every pairing page makes a new key. Show a new code keeps it while the page is
+  open, the session keeps its name once KIFF hands one over, and a key no session took leaves the TPM with the page.
+- **A phone that refuses the pairing** (KIFF's `409` on its approve) isn't told to this PC: the claim only answers
+  `authorization_pending` until the code expires. With a key of its own, the "already paired" refusal can't happen.
 
 **Not yet:**
 - Closing Windows Hello's prompt when the attempt is stopped (`WebAuthNCancelCurrentOperation`).
-- If the phone approved but the claim's answer was lost, Show a new code puts the same key in the QR, and KIFF refuses
-  it. Removing this PC in Devices on the phone frees it.
