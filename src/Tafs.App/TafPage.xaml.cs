@@ -99,11 +99,18 @@ public sealed partial class TafPage : Page
         // The thread read again every 2 s while the taf works or a sent message waits for it, only while Chat shows.
         chatClock = new DispatcherTimer { Interval = TafChatSend.WhileWorking };
         chatClock.Tick += (_, _) => { if (tab == TafTab.Chat) _ = LoadChatAsync(); };
-        Unloaded += (_, _) => chatClock.Stop();
+        Unloaded += (_, _) =>
+        {
+            chatClock.Stop();
+            // A run picked back up stops streaming here once the page is gone.
+            resumeCancel?.Cancel();
+        };
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
+        // The last taf's stream picked back up ends here.
+        resumeCancel?.Cancel();
         opening = e.Parameter as TafOpening;
         if (opening is null) return;
         var head = opening.Head;
@@ -450,6 +457,9 @@ public sealed partial class TafPage : Page
     /// <summary>The runs picked back up on this page, each once.</summary>
     readonly HashSet<string> resumed = [];
 
+    /// <summary>Ends the stream picked back up when the page closes or opens another taf.</summary>
+    CancellationTokenSource? resumeCancel;
+
     /// <summary>
     /// A run of the person's that tafs cloud says is at work, with nothing streaming it here (opened after it began, or after a
     /// relaunch), picked back up, as the iPad's <c>resumeChat</c>: its stream opened again from its first step
@@ -461,11 +471,15 @@ public sealed partial class TafPage : Page
     {
         if (opening is not { InTrial: null, CloudId: { } id, ResumeStream: { } resume } mine || live is not null || sending
             || !resumed.Add(run)) return;
+        resumeCancel?.Cancel();
+        var cancel = resumeCancel = new CancellationTokenSource();
         (int Status, string Body, System.Net.Http.HttpResponseMessage? Open) answer;
-        try { answer = await resume(TafChatStream.ResumePath(id, run), CancellationToken.None); }
-        catch (System.Net.Http.HttpRequestException) { return; }
+        try { answer = await resume(TafChatStream.ResumePath(id, run), cancel.Token); }
+        catch (Exception e) when (e is System.Net.Http.HttpRequestException or OperationCanceledException) { return; }
         if (answer.Open is not { } open) return;
         using (open)
+        // Closing the page, or another taf opening on it, closes the stream: the read below ends at once.
+        using (cancel.Token.Register(open.Dispose))
         {
             if (opening != mine || live is not null || sending) return;
             live = LiveAnswer.Start with { Run = run, Session = session };
@@ -482,9 +496,9 @@ public sealed partial class TafPage : Page
                     if (live.Ended) break;
                 }
             }
-            catch (Exception e) when (e is IOException or System.Net.Http.HttpRequestException) { }
+            catch (Exception e) when (e is IOException or System.Net.Http.HttpRequestException or ObjectDisposedException or OperationCanceledException) { }
         }
-        if (opening != mine) return;
+        if (opening != mine || cancel.IsCancellationRequested) return;
         if (live is { EndWords: { } why }) (chatNote, chatNoteIsError) = (why, true);
         live = null;
         await LoadChatAsync();
