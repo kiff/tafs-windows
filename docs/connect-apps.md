@@ -70,10 +70,34 @@ The iPad's `AppConnectionsView` and its model (`refreshConnections`, `connection
 - `--page connect-connections` with `--home` opens the first app with connections, from a `planque-grants.json` beside the
   contract; there, ending one says it wasn't confirmed.
 
+## Connecting an app (P9: `ConnectFlow`, `ApprovalWindow`, `ProfileWords`, `ConnectDialog`, `MainWindow.Connect.cs`)
+
+The iPad's `startConnect`, `ConnectApprovalSheet.signIn` and `connect(grantID:shown:)`, for whoever manages a taf, on a PC that
+approves with its own passkey (kiff-cloud#1705). Anyone else sees Connect dimmed.
+
+- **Which taf is this for?** Among the tafs tafs cloud says need the app (`needed_by`), else every taf the person manages;
+  asked only when there's more than one.
+- **Starting:** `POST /v1/connect/apps/{entry}` with `{"taf"}` and this PC's grants read proof. A taf that doesn't use the app
+  gets tafs cloud's words (`not_needed`); nothing starts. It needs planque set up by this session, as the iPad's.
+- **The approval sheet:** "Connect Gmail", the connection's own words as planque keeps them, and KIFF's words for its profile
+  (`POST /v1/profiles/words`), each checked: for exactly that profile, and the words their digest names. What KIFF can't
+  check shows in amber. Approve with Windows Hello is off until KIFF's words are read.
+- **Approving** (`ConnectFlow.ApproveAsync`):
+  1. The grant is read again, approved only as shown: the same digest (else it's shown again), its digest the hash of what it
+     covers, a state an approval moves.
+  2. **The approval window:** the open one (`GET /v1/me/window`), else one Windows Hello opens it, this PC's passkey asserting
+     `POST /v1/me/window` (`kiff.window.v1`, 5 minutes).
+  3. **planque's approve** as a tap: the TPM key signs `planque.request.v2` with the window's id (`t,v2,w,d`), over
+     `{"digest", "kiff_profile": {profile_sha256, words_sha256}}`. A window that ended meanwhile (`window_required`) is opened
+     again, once.
+  4. **The vendor's sign-in** in the browser; planque sends it back through `tafs://planque/signed-in` with a one-use code
+     for this account and grant (up to 15 minutes). Or planque holds a sign-in already and gives the code.
+  5. **planque's confirm** with that code, as a tap; connected only once planque's grants say so. The list is read again.
+- Windows Hello closed, or the sign-in that never came back, changes nothing and says nothing.
+
 **Not yet:**
 - **A failed read's words** show on the page; the iPad shows them in its app-wide error line.
-- **Connecting.** Connect is dimmed, as the iPad's is with nothing to connect for. To come: the taf to connect for, the
-  approval sheet, the vendor's sign-in.
+- **Connecting an app by its key** (the protected key sheet, `needs_key`): its Connect stays dimmed.
 - **On an app's connections:** Sign in again and Replace the key, a connection's own detail page (planque's `row`), a
   connection made under a taf that doesn't need it (`misplaced`), its last failed call, and the other tafs whose Card uses
   its tools ("Also on Ana's Card", and in Remove access's question).

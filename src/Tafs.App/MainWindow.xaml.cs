@@ -1705,7 +1705,7 @@ public sealed partial class MainWindow : Window
             var keep = beforeAccount;
             var back = connectAppsFromAccount ? () => { OnAccount(this, new RoutedEventArgs()); beforeAccount = keep; } : (Action?)null;
             connectAppsFromAccount = false;
-            Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof, ConnectionsFor(), Back: back));
+            Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof, ConnectionsFor(), Back: back, Connecting: ConnectingFor()));
         }
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
         else if (item.Tag is TafRow taf) Pages.Navigate(typeof(TafPage), OpenTaf(App.Words, taf.Key));
