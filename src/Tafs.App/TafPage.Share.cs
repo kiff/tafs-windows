@@ -7,10 +7,11 @@ using Tafs.Core.Taf;
 namespace Tafs.App;
 
 /// <summary>
-/// Who uses a taf KIFF runs, and sharing it (P32): its KIFF agent, KIFF read as the session, whether a subject is the person
-/// reading, and the change itself (<see cref="Shares.ApplyAsync"/>), only for whoever manages it on a PC that approves.
+/// Who uses a taf KIFF runs, and sharing it (P32): its KIFF agent, KIFF read as the session, the account's email (so the
+/// person reading is never named), and the change itself (<see cref="Shares.ApplyAsync"/>), only for whoever manages it on a
+/// PC that approves.
 /// </summary>
-public sealed record TafSharing(string Agent, Func<string, Task<CloudRead>> Read, Func<Person, bool> You,
+public sealed record TafSharing(string Agent, Func<string, Task<CloudRead>> Read, string? Email,
     Func<IReadOnlyCollection<TafShare>, IReadOnlyCollection<TafShare>, Task<(bool Done, string? Why)>>? Apply);
 
 /// <summary>
@@ -44,18 +45,11 @@ public sealed partial class TafPage
         var peopleRead = await sharing.Read(People.PeoplePath);
         var sharesRead = await sharing.Read(Shares.Path(sharing.Agent));
         if (!ReferenceEquals(opening, shown)) return;
-        var groups = groupsRead.Answer is { } g ? People.Groups(g) ?? [] : [];
-        var people = peopleRead.Answer is { } p ? People.Members(p) ?? [] : [];
-        var shares = sharesRead.Answer is { } s ? Shares.Read(s) : null;
-        // A read that failed says nothing rather than something untrue.
-        if (shares is null)
-        {
-            SharedWithText.Visibility = Visibility.Collapsed;
-            return;
-        }
-        Person? Find(string subject) => people.FirstOrDefault(x => x.Subject == subject);
-        SharedWithText.Text = Shares.SharedWith(w, shares, groups, subject => Find(subject) is { } person && sharing.You(person),
-            subject => Find(subject)?.Label ?? subject);
+        // Any read that failed says nothing rather than something untrue.
+        var line = Shares.SharedWithLine(w, sharesRead.Answer is { } s ? Shares.Read(s) : null,
+            groupsRead.Answer is { } g ? People.Groups(g) : null, peopleRead.Answer is { } p ? People.Members(p) : null, sharing.Email);
+        SharedWithText.Text = line ?? "";
+        SharedWithText.Visibility = line is null ? Visibility.Collapsed : Visibility.Visible;
     }
 
     async void OnShare(object sender, RoutedEventArgs e)

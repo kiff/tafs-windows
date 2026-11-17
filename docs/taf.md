@@ -378,7 +378,7 @@ passkey approves.
 - **Who uses it,** under the taf's name, for anyone signed in, as the iPad's `ShareLine`: "Sharing…" while KIFF is read,
   then "Shared with Support and ana@acme.com", "Shared with everyone" for KIFF's default group alone, or "Not shared". The
   person reading it is never named (KIFF's `you`, else their email), so a taf only they use is "Not shared". A read that
-  fails shows nothing rather than something untrue. Read again after Share.
+  fails, any of the three (groups, people, shares), shows nothing rather than something untrue. Read again after Share.
 
 ## Photos and files on a message (P5, `FilePrep`, `Attachments`, `TafPage.Attach.cs`)
 

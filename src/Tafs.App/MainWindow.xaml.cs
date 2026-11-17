@@ -1957,16 +1957,14 @@ public sealed partial class MainWindow : Window
     TafSharing? ShareFor(HomeTaf taf)
     {
         if (taf.Agent is not { } agent || kiffRead is not { } read) return null;
-        var email = kiffAccount?.Email;
         // The person reading is never named: KIFF's "you", else their email.
-        bool You(Tafs.Core.Account.Person p) => p.You == true
-            || (email is { Length: > 0 } && (string.Equals(p.Email, email, StringComparison.OrdinalIgnoreCase) || string.Equals(p.Subject, email, StringComparison.OrdinalIgnoreCase)));
+        var email = kiffAccount?.Email;
         if (manage?.GetValueOrDefault(agent) != true || App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session)
             || session.PasskeyId is not { } id)
-            return new(agent, read, You, null);
+            return new(agent, read, email, null);
         var reading = sessions;
         var kiff = Tafs.Core.SignIn.DeviceSignIn.Api;
-        return new(agent, read, You, (add, remove) => Tafs.Core.Account.Shares.ApplyAsync(App.Words, session.Tenant, taf.Name, agent, add, remove,
+        return new(agent, read, email, (add, remove) => Tafs.Core.Account.Shares.ApplyAsync(App.Words, session.Tenant, taf.Name, agent, add, remove,
             async (path, body) =>
             {
                 var passkey = new PasskeyApprover(new WindowsHello(() => App.WindowHandle), KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);

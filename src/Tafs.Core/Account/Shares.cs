@@ -70,6 +70,21 @@ public static class Shares
         return names.Count == 0 ? w.Get("people.not_shared") : w.Get("people.shared_with_prefix") + Lists.And(w.Language, names);
     }
 
+    /// <summary>
+    /// The line from KIFF's three reads, or none unless all three answered: without the groups a group share would drop out
+    /// ("Not shared", untrue), and without the people the reader could be named by their id. The reader is KIFF's <c>you</c>,
+    /// else whoever's email, or subject, is the account's email, as the iPad's.
+    /// </summary>
+    public static string? SharedWithLine(WordBook w, IReadOnlyList<TafShare>? shares, IReadOnlyList<PeopleGroup>? groups,
+        IReadOnlyList<Person>? people, string? email)
+    {
+        if (shares is null || groups is null || people is null) return null;
+        Person? Find(string subject) => people.FirstOrDefault(p => p.Subject == subject);
+        bool Same(string? a) => email is { Length: > 0 } && string.Equals(a, email, StringComparison.OrdinalIgnoreCase);
+        bool You(string subject) => Find(subject) is { } p && (p.You == true || Same(p.Email)) || Same(subject);
+        return SharedWith(w, shares, groups, You, subject => Find(subject)?.Label ?? subject);
+    }
+
     /// <summary>"Maria (manager), Ana, Luis", or "No one yet", as the iPad's <c>people(of:)</c>.</summary>
     public static string PeopleOf(WordBook w, PeopleGroup group, Func<string, Person?> person)
     {

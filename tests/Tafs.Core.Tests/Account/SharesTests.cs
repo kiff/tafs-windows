@@ -128,4 +128,20 @@ public class SharesTests
         Assert.Equal("Not shared", Line([new(null, "sub_ana")]));
         Assert.Equal("Shared with bo@x.test", Line([new(null, "sub_ana"), new(null, "sub_bo")]));
     }
+
+    [Fact]
+    public void No_line_unless_every_read_answered_and_the_reader_is_known_by_email_too()
+    {
+        IReadOnlyList<TafShare> toSupport = [new("grp_1", null)];
+        // Groups unread: not "Not shared".
+        Assert.Null(Shares.SharedWithLine(En, toSupport, null, [Ana, Bo], null));
+        // People unread: never the reader by id.
+        Assert.Null(Shares.SharedWithLine(En, [new(null, "sub_ana")], [Support], null, null));
+        Assert.Null(Shares.SharedWithLine(En, null, [Support], [Ana, Bo], null));
+        Assert.Equal("Shared with Support", Shares.SharedWithLine(En, toSupport, [Support, Everyone], [Ana, Bo], null));
+        // The reader by their email, found or not: as the iPad's.
+        Assert.Equal("Not shared", Shares.SharedWithLine(En, [new(null, "sub_ana")], [Support], [Ana with { You = null }, Bo], "ANA@x.test"));
+        Assert.Equal("Not shared", Shares.SharedWithLine(En, [new(null, "me@x.test")], [Support], [Ana, Bo], "me@x.test"));
+        Assert.Equal("Shared with bo@x.test", Shares.SharedWithLine(En, [new(null, "sub_bo")], [Support], [Ana with { You = null }, Bo], "ana@x.test"));
+    }
 }
