@@ -168,8 +168,8 @@ public class PairingScreenTests
         Assert.Equal("tafs on this Windows PC", PairingScreen.DeviceName(En));
 
     /// <summary>
-    /// Before Windows Hello's prompt, a card says why: in tafs's own words once shared, until then the lines it has (what
-    /// the passkey lets this PC do, that Windows asks once), and Continue; in every shipped language, no placeholder left.
+    /// Before Windows Hello's prompt, a card says why, in tafs's own words (<c>pair.passkey_why_*</c>, tafs#1276), in every
+    /// shipped language, no placeholder left.
     /// </summary>
     [Theory]
     [MemberData(nameof(Shipped))]
@@ -179,8 +179,8 @@ public class PairingScreenTests
         var (title, body, go) = PairingScreen.PasskeyWhy(w);
         Assert.All(new[] { title, body, go }, line => Assert.False(string.IsNullOrWhiteSpace(line) || line.Contains('{'), line));
         if (language == "en")
-            Assert.Equal(("Windows PC will be able to approve your tafs' actions with Windows Hello.", "Starting asks for Windows Hello once.", "Continue"),
-                (title, body, go));
+            Assert.Equal(("Make a passkey for this Windows PC", "Make the passkey"), (title, go));
+        if (language == "en") Assert.StartsWith("It stays on this Windows PC, behind Windows Hello.", body);
     }
 
     /// <summary>The card comes first only where Windows Hello will make a passkey for a code to show.</summary>
