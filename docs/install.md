@@ -33,43 +33,45 @@ signed. Everyone else waits for the signed package.
 
 - **What it is:** `tafs-setup-<version>-x64.exe` and `tafs-setup-<version>-arm64.exe`, WiX's standard setup around one
   MSI per platform (`installer/Bundle.wxs`, `installer/Package.wxs`). It installs the same self-contained publish as the
-  zip, for every user of the PC, under `Program Files	afs`, puts tafs in Start, and offers **Open tafs** on its last
+  zip, for every user of the PC, under `Program Files\tafs`, puts tafs in Start, and offers **Open tafs** on its last
   page. It asks for administrator rights once. A newer version replaces an older one in place; uninstalling (Settings ›
-  Apps) removes the files, never what the app keeps for a person in `%LOCALAPPDATA%	afs`.
+  Apps) removes the files, never what the app keeps for a person in `%LOCALAPPDATA%\tafs`.
 - **Windows 10, version 1809 (build 17763) or later,** with a TPM to sign in (the session's key lives there) and Windows
   Hello to approve.
-- **Built by CI** in the zip job, every run that builds the zip, with WiX v5.0.2 pinned in `.config/dotnet-tools.json`
+- **Built by CI** in the zip job (`ci/installer.sh`), every run that builds the zip, with WiX v5.0.2 pinned in `.config/dotnet-tools.json`
   and its standard bootstrapper extension at the same version. On x64, CI installs it quietly, starts tafs from where it
   put it (its sign-in screen saved, or the job fails), and uninstalls it. Kept from main, the nightly run and on demand
   as `tafs-windows-setup-x64` and `tafs-windows-setup-ARM64` (the setup .exe and its MSI).
-- **Building it yourself,** after the zip's publish:
+- **Building it yourself,** after the zip's publish, in Git Bash from the repository's root:
 
   ```bash
-  dotnet tool restore
-  dotnet wix extension add WixToolset.Bal.wixext/5.0.2
-  # AppDir and Msi are read from installer/, so give them as absolute Windows paths.
-  app=$(cygpath -w "$PWD/artifacts/zip/tafs-x64"); msi=$(cygpath -w "$PWD/artifacts/installer/tafs-x64.msi")
-  dotnet wix build installer/Package.wxs -wx -arch x64 -d AppDir="$app" -d Version=0.1.0.0 -o "$msi"
-  dotnet wix build installer/Bundle.wxs -wx -arch x64 -ext .wix/extensions/WixToolset.Bal.wixext/5.0.2/wixext5/WixToolset.BootstrapperApplications.wixext.dll \
-    -d Msi="$msi" -d Version=0.1.0.0 -o artifacts/installer/tafs-setup-0.1.0.0-x64.exe
+  export PLATFORM=x64 VERSION=0.1.0.0 SETUP_NAME=0.1.0.0
+  bash ci/installer.sh msi && bash ci/installer.sh bundle   # artifacts/installer/tafs-setup-0.1.0.0-x64.exe
   ```
 - **Its icon** is the mascot's (`src/Tafs.App/Assets/tafs.ico`): the app's, in Start and the taskbar, and the setup's and
   Windows' installed-apps list.
-- **Not yet:** signed (the setup's engine and the .exe, in CI's sign job once Azure exists), and its words in the app's 8
-  languages (WiX's standard setup is in English).
+- **Signed** in CI's `sign` job (Signing, below): the app's files inside it, the MSI, the setup's engine and the setup.
+- **Not yet:** its words in the app's 8 languages (WiX's standard setup is in English for v1.0).
 
-## Releasing (a draft, published by hand)
+## Releasing (a draft; the owner publishes)
 
-- **What kiff.dev's download page shows** (kiff-cloud `docs/reference/download-page.md`): tafs-windows' latest release, once
-  it's published (not a draft, not a prerelease) and carries the x64 setup, `*-x64.exe`. Until then, Windows is "Coming
-  soon".
-- **Making one:** Actions › CI › Run workflow on `main`, with **release** set to the version, such as `1.0.0`. That run
-  builds and checks everything as any run does, with the app and its setups at `<release>.<run>` (the setups named
-  `tafs-setup-1.0.0-x64.exe` and `-arm64.exe`), then its `release` job makes a **draft** release, tagged `v1.0.0` at that
-  commit, with both setups attached. A draft never shows on the page. Another run for the same version needs the last
-  draft deleted first, and its setup installs over the last one in place.
-- **Publishing it** is by hand, and only once the owner says that build's test passed, as for every computer: then that
-  build's draft is published as it is, and the page shows it within 10 minutes.
+- **What kiff.dev's download page shows:** this repository's latest published release (not a draft, not a prerelease)
+  that carries an x64 setup named `*-x64.exe`. Until there is one, Windows is "Coming soon" there.
+- **Making one:** Actions › CI › Run workflow on `main`, with **release** set to the version, such as `1.0.0`, **part**
+  left empty, and **sign** ticked for a build that's meant to be published. A release always runs the full suite,
+  unfiltered, as the nightly run (a part with it is refused), with the app and its setups at `<release>.<run>`. Its
+  `release` job runs only when every check of that run passed, none skipped (the tests, the app, the TPM keys, and the
+  zip's install), and, with **sign** ticked, only when signing passed. It makes a **draft** release, tagged `v1.0.0` at
+  that commit. A draft never shows on the page. Another run for the same version needs the last draft deleted first, and
+  its setup installs over the last one in place.
+- **Signed** (sign ticked): the draft carries the signed setups, `tafs-setup-1.0.0-x64.exe` and `-arm64.exe`, with each
+  one's SHA-256 in its notes.
+- **Unsigned** (sign not ticked, for the owner's install test before signing exists): the setups are named
+  `tafs-setup-1.0.0-x64-UNSIGNED.exe` and `-arm64-UNSIGNED.exe`, so the page, which takes only `*-x64.exe`, never serves
+  them, and the draft's title and notes say **never publish**. Its notes carry the SHA-256s too.
+- **Publishing it:** the owner presses Publish, as for every computer, on a **signed** draft only, once their test of
+  that build passed. The team prepares the draft and says it's ready; no one else publishes. The page shows it within
+  10 minutes.
 - **The team's own builds** stay at `0.1.<run>.0`, below a release, so a team setup won't install over a released one.
 
 ## The MSIX (once it's signed)
@@ -86,24 +88,32 @@ signed. Everyone else waits for the signed package.
 
 ## Signing (wired, off until Azure exists)
 
-- **What's signed:** the app's own files in each zip (`Tafs.App.exe`, `Tafs.App.dll`, `Tafs.Core.dll`), with KIFF's
-  Azure Artifact Signing certificate, SHA-256 and Microsoft's timestamp. The installer and the MSIX join it once they're
-  built for it.
+- **What's signed,** in this order, with KIFF's Azure Artifact Signing certificate, SHA-256 and Microsoft's timestamp:
+  the app's own files (`Tafs.App.exe`, `Tafs.App.dll`, `Tafs.Core.dll`), then the MSI built from those signed files,
+  then the setup's engine (detached from the setup, signed and put back, as WiX requires), then the setup itself. The
+  MSIX joins once it's built for it.
 - **For real only on demand:** Actions › CI › Run workflow on `main`, with **sign** ticked. That runs CI's `sign` job in
-  the repository's `windows-signing` environment, so a push to main never waits on the environment's protection rules,
-  which are the owner's call. Its values: the variables `WINDOWS_SIGNING_ENDPOINT`, `WINDOWS_SIGNING_ACCOUNT`,
-  `WINDOWS_SIGNING_PROFILE` and `WINDOWS_SIGNING_SUBJECT` (the certificate's full subject, as Windows shows it), and the
-  secrets `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` (an app registration allowed to sign with that
-  profile). Any value missing fails the run, naming it. After signing, each file's signature must be Valid and by exactly
-  that subject (`ci/check-signatures.ps1`), so a misconfigured profile, or another organisation's certificate, fails even
-  when it chains to a trusted root. It keeps `tafs-windows-signed-x64` and `tafs-windows-signed-ARM64`.
-- **The dry run, on every main push and on demand** (`sign-dry-run`, no environment): the same files signed with a
+  the repository's `windows-signing` environment, so a push to main never waits on the environment's protection rules.
+  **Only the owner approves a `windows-signing` deployment, in the UI;** no session does.
+- **No secret:** the job signs in to Azure by OIDC (`azure/login`), as an app registration whose federated credential's
+  subject is exactly `repo:kiff/tafs-windows:environment:windows-signing`, so only a run in that environment can sign,
+  and no long-lived secret exists. `id-token: write` is on the `sign` job only. The signing action then uses that
+  sign-in alone.
+- **Its values,** all variables of the environment: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `WINDOWS_SIGNING_ENDPOINT`,
+  `WINDOWS_SIGNING_ACCOUNT`, `WINDOWS_SIGNING_PROFILE` and `WINDOWS_SIGNING_SUBJECT` (the certificate's full subject, as
+  Windows shows it). Any value missing fails the run, naming it.
+- **Checked:** after each signing, each signature must be Valid and by exactly that subject (`ci/check-signatures.ps1`),
+  so a misconfigured profile, or another organisation's certificate, fails even when it chains to a trusted root. The
+  signed x64 setup must then install, start and uninstall. It keeps `tafs-windows-signed-x64` and
+  `tafs-windows-signed-ARM64` (the app), and `tafs-windows-signed-setup-x64` and `tafs-windows-signed-setup-ARM64` (the
+  setup and its MSI).
+- **The dry run, on every main push and on demand** (`sign-dry-run`, no environment): the app's files signed with a
   throwaway self-signed certificate made in that run (`ci/sign-dry-run.ps1`), then read back by the same check on that
   certificate's subject (untrusted by design). It proves the file list, `signtool` and the check, and keeps nothing.
-- The action is Azure's own (`Azure/artifact-signing-action`), pinned to v2.0.0's commit.
+- The actions are Azure's own: `azure/login`, pinned to v3.1.0's commit, and `Azure/artifact-signing-action`, pinned to
+  v2.0.0's commit (in `.github/actions/sign`).
 
 ## Not yet
 
-- **Signing the MSIX and the installer,** with the same job: the MSIX needs its publisher set to the certificate's subject
-  first, and the installer comes with WiX.
-- **Updates on their own** (an App Installer file) and **a download page.**
+- **Signing the MSIX,** with the same job: it needs its publisher set to the certificate's subject first.
+- **Updates on their own** (an App Installer file).

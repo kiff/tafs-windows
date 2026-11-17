@@ -1,0 +1,31 @@
+name: Sign with KIFF's certificate
+description: >-
+  Azure Artifact Signing, from the windows-signing environment only, signed in by azure/login's OIDC sign-in earlier in the
+  job (no client secret). Reads SIGNING_ENDPOINT, SIGNING_ACCOUNT and SIGNING_PROFILE from the job's environment.
+inputs:
+  files:
+    description: Absolute paths of the files to sign, one per line.
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+      with:
+        endpoint: ${{ env.SIGNING_ENDPOINT }}
+        signing-account-name: ${{ env.SIGNING_ACCOUNT }}
+        certificate-profile-name: ${{ env.SIGNING_PROFILE }}
+        files: ${{ inputs.files }}
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
+        # Only the Azure CLI's sign-in, the one azure/login made: no other credential is tried.
+        exclude-environment-credential: true
+        exclude-workload-identity-credential: true
+        exclude-managed-identity-credential: true
+        exclude-shared-token-cache-credential: true
+        exclude-visual-studio-credential: true
+        exclude-visual-studio-code-credential: true
+        exclude-azure-cli-credential: false
+        exclude-azure-powershell-credential: true
+        exclude-azure-developer-cli-credential: true
+        exclude-interactive-browser-credential: true

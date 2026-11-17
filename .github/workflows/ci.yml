@@ -20,7 +20,7 @@ on:
         required: false
         default: false
       release:
-        description: "A version to make a draft release of, such as 1.0.0 (main only). Empty: none. Publishing is by hand."
+        description: "A version to make a draft release of, such as 1.0.0 (main only, with no part: the full suite). Empty: none. The owner publishes."
         required: false
         default: ""
 
@@ -49,10 +49,15 @@ jobs:
       - id: parts
         env:
           INPUT_PART: ${{ inputs.part }}
+          INPUT_RELEASE: ${{ inputs.release }}
           BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           ci="dotnet tools/Tafs.Ci/bin/Release/net8.0/Tafs.Ci.dll"
-          if [ -n "$INPUT_PART" ]; then
+          if [ -n "$INPUT_RELEASE" ]; then
+            # A release runs everything, unfiltered, as the nightly run: never one part alone.
+            [ -z "$INPUT_PART" ] || { echo "::error::a release runs the full suite: leave part empty"; exit 1; }
+            parts=$($ci parts --only all)
+          elif [ -n "$INPUT_PART" ]; then
             parts=$($ci parts --only "$INPUT_PART")   # refuses anything but a declared part or all
           elif [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
             parts=$($ci parts --only all)             # the full suite, unfiltered
@@ -201,22 +206,12 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Words and contracts at the pin
         run: dotnet run --project tools/Tafs.Ci -- sync
-      # The build's version: 0.1.<run>.0, or for a release run (docs/install.md, Releasing) <release>.<run>, the setup named
-      # by the release alone (tafs-setup-1.0.0-x64.exe). A release is three numbers, from main only.
+      # 0.1.<run>.0, or a release run's <release>.<run> (ci/version.sh).
       - name: This build's version
         env:
           RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.release || '' }}
           RUN: ${{ github.run_number }}
-        run: |
-          if [ -n "$RELEASE" ]; then
-            [[ "$RELEASE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::a release is three numbers, such as 1.0.0"; exit 1; }
-            [ "$GITHUB_REF" = refs/heads/main ] || { echo "::error::a release is made from main only"; exit 1; }
-            echo "VERSION=$RELEASE.$RUN" >> "$GITHUB_ENV"
-            echo "SETUP_NAME=$RELEASE" >> "$GITHUB_ENV"
-          else
-            echo "VERSION=0.1.$RUN.0" >> "$GITHUB_ENV"
-            echo "SETUP_NAME=0.1.$RUN.0" >> "$GITHUB_ENV"
-          fi
+        run: bash ci/version.sh
       - name: The app, self-contained
         env:
           PLATFORM: ${{ matrix.platform }}
@@ -249,46 +244,16 @@ jobs:
           Stop-Process -Id $first.Id
           Write-Host 'one tafs: the second start handed its activation over and ended'
       # The installer people download (docs/install.md): an MSI of this same publish, and the setup .exe around it, by WiX
-      # v5, pinned in .config/dotnet-tools.json with its one extension. Built on every run that builds the zip.
+      # v5 (ci/installer.sh). Built on every run that builds the zip.
       - name: The installer
         env:
           PLATFORM: ${{ matrix.platform }}
-        run: |
-          arch=$(echo "$PLATFORM" | tr '[:upper:]' '[:lower:]')
-          version="$VERSION"
-          dotnet tool restore
-          dotnet wix extension add WixToolset.Bal.wixext/5.0.2
-          # The 5.0.2 package names its DLL after the bootstrapper applications, so it's named by its path.
-          bal=.wix/extensions/WixToolset.Bal.wixext/5.0.2/wixext5/WixToolset.BootstrapperApplications.wixext.dll
-          mkdir -p artifacts/installer
-          # WiX reads -d paths from the .wxs file's folder, so they're absolute Windows paths; -wx makes a warning (a folder
-          # it can't harvest, say) fail the build instead of shipping an installer with nothing in it.
-          app=$(cygpath -w "$PWD/artifacts/zip/tafs-$PLATFORM")
-          msi=$(cygpath -w "$PWD/artifacts/installer/tafs-$version-$arch.msi")
-          # tafs's mark and icon, as absolute paths, as the MSI's: the setup window's corner and Windows' installed-apps list.
-          logo=$(cygpath -w "$PWD/installer/logo.png")
-          icon=$(cygpath -w "$PWD/src/Tafs.App/Assets/tafs.ico")
-          dotnet wix build installer/Package.wxs -wx -arch "$arch" -d AppDir="$app" -d Version="$version" -d Icon="$icon" -o "$msi"
-          dotnet wix build installer/Bundle.wxs -wx -arch "$arch" -ext "$bal" -d Msi="$msi" -d Version="$version" -d Logo="$logo" -d Icon="$icon" \
-            -o "artifacts/installer/tafs-setup-$SETUP_NAME-$arch.exe"
-          ls -la artifacts/installer
+        run: bash ci/installer.sh msi && bash ci/installer.sh bundle
       # On x64: the setup installs quietly, tafs starts from where it put it and saves its sign-in screen, and it uninstalls.
       - name: It installs, starts and uninstalls
         if: matrix.platform == 'x64'
         shell: pwsh
-        run: |
-          $setup = (Get-ChildItem artifacts/installer/tafs-setup-*-x64.exe).FullName
-          $p = Start-Process $setup -ArgumentList '/quiet', '/norestart', '/log', 'install.log' -Wait -PassThru
-          if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 60; throw "install: $($p.ExitCode)" }
-          $app = Join-Path $env:ProgramFiles 'tafs\Tafs.App.exe'
-          if (-not (Test-Path $app)) { throw "not installed at $app" }
-          $run = Start-Process $app -ArgumentList '--page', 'sign-in', '--screenshot', "$PWD\installed-start.png" -PassThru
-          if (-not $run.WaitForExit(120000)) { $run.Kill(); throw 'the installed app did not finish its screenshot' }
-          if (-not (Test-Path installed-start.png) -or (Get-Item installed-start.png).Length -eq 0) { throw 'the installed app did not start' }
-          $u = Start-Process $setup -ArgumentList '/uninstall', '/quiet', '/norestart', '/log', 'uninstall.log' -Wait -PassThru
-          if ($u.ExitCode -ne 0) { Get-Content uninstall.log -Tail 60; throw "uninstall: $($u.ExitCode)" }
-          if (Test-Path $app) { throw 'still there after uninstalling' }
-          Write-Host 'installed, started and uninstalled'
+        run: ./ci/install-check.ps1 -Setup "artifacts/installer/tafs-setup-$env:SETUP_NAME-x64.exe"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: github.event_name != 'pull_request'
         with:
@@ -302,34 +267,63 @@ jobs:
           path: artifacts/installer/
           if-no-files-found: error
 
-  # A draft release (docs/install.md, Releasing): on demand from main with a version, the two setups this run built and
-  # checked, attached to a draft tagged v<release> at this commit. A draft never shows on kiff.dev's download page;
-  # publishing it is by hand, once the owner's test of this build passed.
+  # A draft release (docs/install.md, Releasing): on demand from main with a version and no part, once every check of this
+  # run passed (the full suite, the app, the TPM keys, and the zip's install), none of them skipped. With "sign" ticked,
+  # only if signing passed, with the signed setups. Without it, the unsigned setups, named "-UNSIGNED" so kiff.dev's
+  # download page (which takes only "*-x64.exe") never serves them even if published, titled and noted "never publish":
+  # they're for the owner's install test only. Each setup's SHA-256 is in the notes. A draft never shows on the page; the
+  # owner publishes, a signed draft only, once their test of that build passed.
   release:
-    needs: [zip]
+    needs: [plan, test, app, windows-keys, zip, sign]
     if: >-
-      always() && needs.zip.result == 'success'
-      && github.event_name == 'workflow_dispatch' && inputs.release != '' && github.ref == 'refs/heads/main'
+      always() && github.event_name == 'workflow_dispatch' && inputs.release != '' && inputs.part == ''
+      && github.ref == 'refs/heads/main'
+      && needs.plan.result == 'success' && needs.test.result == 'success' && needs.app.result == 'success'
+      && needs.windows-keys.result == 'success' && needs.zip.result == 'success'
+      && (needs.sign.result == 'success' || (!inputs.sign && needs.sign.result == 'skipped'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - if: inputs.sign
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: tafs-windows-signed-setup-*
+          path: setup
+          merge-multiple: true
+      - if: ${{ !inputs.sign }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: tafs-windows-setup-*
           path: setup
           merge-multiple: true
       - name: A draft, never published here
+        working-directory: setup
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE: ${{ inputs.release }}
+          SIGNED: ${{ inputs.sign }}
         run: |
           [[ "$RELEASE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::a release is three numbers, such as 1.0.0"; exit 1; }
-          x64="setup/tafs-setup-$RELEASE-x64.exe"; arm64="setup/tafs-setup-$RELEASE-arm64.exe"
+          x64="tafs-setup-$RELEASE-x64.exe"; arm64="tafs-setup-$RELEASE-arm64.exe"
           test -s "$x64" && test -s "$arm64"
+          if [ "$SIGNED" = true ]; then
+            title="tafs for Windows v$RELEASE"
+            note="Signed with KIFF's certificate. A draft until the owner's test of this build passes; the owner publishes it as it is."
+          else
+            mv "$x64" "tafs-setup-$RELEASE-x64-UNSIGNED.exe"; x64="tafs-setup-$RELEASE-x64-UNSIGNED.exe"
+            mv "$arm64" "tafs-setup-$RELEASE-arm64-UNSIGNED.exe"; arm64="tafs-setup-$RELEASE-arm64-UNSIGNED.exe"
+            title="tafs for Windows v$RELEASE, UNSIGNED: never publish"
+            note="UNSIGNED: never publish this draft. It's for the owner's install test only; only a signed build is published."
+          fi
+          {
+            echo "$note"; echo
+            echo "Built by CI run $GITHUB_RUN_NUMBER at $GITHUB_SHA."; echo
+            echo "SHA-256:"; echo '```'; sha256sum "$x64" "$arm64"; echo '```'
+          } > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
           gh release create "v$RELEASE" "$x64" "$arm64" --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" \
-            --title "tafs for Windows v$RELEASE" \
-            --notes "tafs for Windows $RELEASE, built by CI run $GITHUB_RUN_NUMBER at $GITHUB_SHA. A draft until the owner's test of this build passes."
+            --title "$title" --notes-file "$RUNNER_TEMP/notes.md"
 
   # The MSIX (docs/install.md), kept for the day it's signed: Windows installs no unsigned package that holds an app.
   # x64 and ARM64, from main and on demand only until then. Each build's version is 0.1.<run number>.0.
@@ -389,9 +383,12 @@ jobs:
         run: ./ci/sign-dry-run.ps1 -Folder "artifacts/zip/tafs-${{ matrix.platform }}"
 
   # Signing for real (docs/install.md): only on demand from main, with "sign" ticked, so a main push never waits on the
-  # windows-signing environment's protection rules (the owner's). Azure's own action signs the app's own files with KIFF's
-  # Artifact Signing certificate; each signature must then be Valid and by WINDOWS_SIGNING_SUBJECT, the certificate's full
-  # subject, exactly. Any value missing fails the run, saying which; nothing is signed with half of them.
+  # windows-signing environment's protection rules (the owner's; no session approves a deployment). The job signs in to
+  # Azure by OIDC, as the environment's federated credential, with no client secret; id-token is written here only.
+  # Azure's own action then signs with KIFF's Artifact Signing certificate, in order: the app's own files, the MSI built
+  # from them, the setup's engine, and the setup around it (ci/installer.sh). Each signature must be Valid and by
+  # WINDOWS_SIGNING_SUBJECT, the certificate's full subject, exactly; the signed x64 setup must install, start and
+  # uninstall. Any value missing fails the run, saying which; nothing is signed with half of them.
   sign:
     needs: [zip]
     if: >-
@@ -399,52 +396,101 @@ jobs:
       && github.event_name == 'workflow_dispatch' && inputs.sign && github.ref == 'refs/heads/main'
     runs-on: windows-latest
     environment: windows-signing
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
         platform: [x64, ARM64]
+    defaults:
+      run:
+        shell: bash
     env:
+      PLATFORM: ${{ matrix.platform }}
+      SIGNING_TENANT: ${{ vars.AZURE_TENANT_ID }}
+      SIGNING_CLIENT: ${{ vars.AZURE_CLIENT_ID }}
       SIGNING_ENDPOINT: ${{ vars.WINDOWS_SIGNING_ENDPOINT }}
       SIGNING_ACCOUNT: ${{ vars.WINDOWS_SIGNING_ACCOUNT }}
       SIGNING_PROFILE: ${{ vars.WINDOWS_SIGNING_PROFILE }}
       SIGNING_SUBJECT: ${{ vars.WINDOWS_SIGNING_SUBJECT }}
     steps:
+      - name: Signing's values
+        run: |
+          missing=""
+          for name in TENANT CLIENT ENDPOINT ACCOUNT PROFILE SUBJECT; do
+            var="SIGNING_$name"
+            [ -n "${!var}" ] || case $name in TENANT|CLIENT) missing="$missing AZURE_${name}_ID" ;; *) missing="$missing WINDOWS_SIGNING_$name" ;; esac
+          done
+          if [ -n "$missing" ]; then echo "::error::windows-signing is missing the variables:$missing"; exit 1; fi
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ./.github/actions/setup
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: tafs-windows-${{ matrix.platform }}
           path: artifacts/zip/tafs-${{ matrix.platform }}
-      - name: Signing's values
-        shell: bash
-        run: |
-          missing=""
-          for name in SIGNING_ENDPOINT SIGNING_ACCOUNT SIGNING_PROFILE SIGNING_SUBJECT; do
-            [ -n "${!name}" ] || missing="$missing WINDOWS_$name"
-          done
-          if [ -n "$missing" ]; then echo "::error::windows-signing is missing:$missing"; exit 1; fi
-      - name: Sign with KIFF's certificate
-        uses: Azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+      # The zip job's version, so the signed MSI and setup are named and numbered as its unsigned ones.
+      - name: This build's version
+        env:
+          RELEASE: ${{ inputs.release }}
+          RUN: ${{ github.run_number }}
+        run: bash ci/version.sh
+      - name: Signed in to Azure, by OIDC
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
-          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          endpoint: ${{ env.SIGNING_ENDPOINT }}
-          signing-account-name: ${{ env.SIGNING_ACCOUNT }}
-          certificate-profile-name: ${{ env.SIGNING_PROFILE }}
+          client-id: ${{ env.SIGNING_CLIENT }}
+          tenant-id: ${{ env.SIGNING_TENANT }}
+          allow-no-subscriptions: true
+      - name: The app's own files, signed
+        uses: ./.github/actions/sign
+        with:
           files: |
             ${{ github.workspace }}\artifacts\zip\tafs-${{ matrix.platform }}\Tafs.App.exe
             ${{ github.workspace }}\artifacts\zip\tafs-${{ matrix.platform }}\Tafs.App.dll
             ${{ github.workspace }}\artifacts\zip\tafs-${{ matrix.platform }}\Tafs.Core.dll
-          file-digest: SHA256
-          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-          timestamp-digest: SHA256
-      - name: Each signature is KIFF's
+      - name: Each of the app's signatures is KIFF's
         shell: pwsh
-        run: ./ci/check-signatures.ps1 -Folder "artifacts/zip/tafs-${{ matrix.platform }}" -Subject $env:SIGNING_SUBJECT
+        run: ./ci/check-signatures.ps1 -Folder "artifacts/zip/tafs-$env:PLATFORM" -Subject $env:SIGNING_SUBJECT
+      - name: The MSI, of the signed files
+        run: bash ci/installer.sh msi
+      - name: The MSI, signed
+        uses: ./.github/actions/sign
+        with:
+          files: ${{ github.workspace }}\artifacts\installer\tafs-${{ env.VERSION }}-${{ matrix.platform == 'x64' && 'x64' || 'arm64' }}.msi
+      - name: The setup, and its engine out to be signed
+        run: bash ci/installer.sh bundle && bash ci/installer.sh detach
+      - name: The setup's engine, signed
+        uses: ./.github/actions/sign
+        with:
+          files: ${{ github.workspace }}\artifacts\installer\engine-${{ matrix.platform == 'x64' && 'x64' || 'arm64' }}.exe
+      - name: The engine's signature is KIFF's
+        shell: pwsh
+        run: ./ci/check-signatures.ps1 -Folder artifacts/installer -Files "engine-$($env:PLATFORM.ToLower()).exe" -Subject $env:SIGNING_SUBJECT
+      - name: The signed engine back in the setup
+        run: bash ci/installer.sh reattach
+      - name: The setup, signed
+        uses: ./.github/actions/sign
+        with:
+          files: ${{ github.workspace }}\artifacts\installer\tafs-setup-${{ env.SETUP_NAME }}-${{ matrix.platform == 'x64' && 'x64' || 'arm64' }}.exe
+      - name: The MSI's and the setup's signatures are KIFF's
+        shell: pwsh
+        run: |
+          $arch = $env:PLATFORM.ToLower()
+          ./ci/check-signatures.ps1 -Folder artifacts/installer -Subject $env:SIGNING_SUBJECT `
+            -Files "tafs-$env:VERSION-$arch.msi", "tafs-setup-$env:SETUP_NAME-$arch.exe"
+      - name: The signed setup installs, starts and uninstalls
+        if: matrix.platform == 'x64'
+        shell: pwsh
+        run: ./ci/install-check.ps1 -Setup "artifacts/installer/tafs-setup-$env:SETUP_NAME-x64.exe"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: tafs-windows-signed-${{ matrix.platform }}
           path: artifacts/zip/tafs-${{ matrix.platform }}/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tafs-windows-signed-setup-${{ matrix.platform }}
+          path: artifacts/installer/
           if-no-files-found: error
 
   # Fails when the pin is more than 7 days or 20 commits behind the shared repository's main.
