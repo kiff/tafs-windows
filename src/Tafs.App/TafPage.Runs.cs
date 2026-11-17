@@ -156,7 +156,8 @@ public sealed partial class TafPage
                 };
                 WorkHost.Children.Add(again);
             }
-            if (opening?.AskCoach is { } ask)
+            // Ask Coach about this run, as the iPad's askCoachAbout: only for whoever manages the taf and may use Coach.
+            if (opening?.Manages == true && opening.Improve is { } ask)
             {
                 var coach = new Button { Content = w.Get("coach.ask"), Style = Look("TafsOutlineButton"), HorizontalAlignment = HorizontalAlignment.Left };
                 coach.Click += (_, _) => ask();
