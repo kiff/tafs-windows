@@ -114,6 +114,7 @@ public sealed partial class TafPage
         }
         else if (versionsWhy is null) inside.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Left });
         if (versionsWhy is { } why) inside.Children.Add(Words(why, 13, "TafsNoText"));
+        AddInstallState(w, inside);
         if (trialWhy is { } trialNotRead) inside.Children.Add(Words(trialNotRead, 13, "TafsNoText"));
         CardPane.Children.Add(Panel(inside));
     }
@@ -135,8 +136,10 @@ public sealed partial class TafPage
         if (v.Note is { Length: > 0 } note) row.Children.Add(Words(note, 14, "TafsInkText"));
         row.Children.Add(Words(TafVersions.Byline(w, v, TimeZoneInfo.Local), 12, "TafsDimText"));
         foreach (var t in v.Trials) row.Children.Add(Words(TafVersions.Tried(w, t, TimeZoneInfo.Local), 12, "TafsSoftText"));
-        // Try it, or Resume the trial: the version beside the live one, under a Card of its own.
-        if (TrialButtons(w, v) is { } buttons) row.Children.Add(buttons);
+        // Try it, or Resume the trial: the version beside the live one, under a Card of its own; and Install this version.
+        var actions = TrialButtons(w, v) ?? new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        if (InstallButton(w, v) is { } install) actions.Children.Add(install);
+        if (actions.Children.Count > 0) row.Children.Add(actions);
         return row;
     }
 

@@ -41,6 +41,28 @@ public sealed partial class MainWindow
             open => OpenTrial(taf, open));
     }
 
+    /// <summary>
+    /// Install this version and Make it live, for whoever manages the taf as KIFF says, on a PC that signs with its passkey (a
+    /// version's Card is confirmed by it). None for anyone else, and no Install.
+    /// </summary>
+    TafInstalling? InstallingFor(HomeTaf taf)
+    {
+        if (taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is null) return null;
+        if (App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session) || session.PasskeyId is null) return null;
+        var w = App.Words;
+        return new(
+            (n, redraft, stopBlocking) => TafSwitch.BeginAsync(w, taf.Id, n, redraft, stopBlocking, TrialCallsFor(session)),
+            draft => TafSwitch.CardAsync(w, draft, TrialCallsFor(session)),
+            async (n, shown) =>
+            {
+                var result = await TafSwitch.InstallAsync(w, taf.Id, taf.Name, n, shown, new SwitchCalls(TrialCallsFor(session), ConfirmStepAsync));
+                // A version that brought a Card changed the taf's limits: Home read again, so its page and list show it.
+                if (result.Live && cloudRead is { } read) _ = ReadHomeAsync(read);
+                return result;
+            },
+            () => TafSwitch.CancelAsync(w, taf.Id, TrialCallsFor(session)));
+    }
+
     /// <summary>A trial just started or resumed: Home read again so its row is there, and its chat opened.</summary>
     void OpenTrial(HomeTaf taf, OpenTrial open)
     {
@@ -66,7 +88,7 @@ public sealed partial class MainWindow
         return OpenTaf(w, taf.Id, TafTab.Chat) with
         {
             Head = TafScreen.Head(w, open.ChatName(w, taf.Name), taf.Colour, taf.StateKey),
-            Card = null, Stream = null, Manages = false, Halt = null, Remove = null, Trying = null, Starts = null, Health = null,
+            Card = null, Stream = null, Manages = false, Halt = null, Remove = null, Trying = null, Installing = null, Starts = null, Health = null,
             InTrial = new TafInTrial(open, taf.Name,
                 () => Run(calls => TafTrials.GoBackAsync(w, taf.Id, open, calls)),
                 Card, Install,
