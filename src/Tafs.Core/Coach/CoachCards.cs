@@ -97,7 +97,9 @@ static class Shape
 }
 
 /// <summary>A card's answer as kiff/agents recorded it (the iPad's <c>CardAnswer</c>): its state, its words, and when.</summary>
-public sealed record CardAnswer(string State, string Words, DateTimeOffset? At, CardOutcome? Outcome = null);
+/// <param name="Answer">tafs cloud's stored answer, free of any language (<c>approved</c>, <c>declined</c>, <c>failed: …</c>): what an
+/// approval's outcome is read from. None from a tafs cloud before it.</param>
+public sealed record CardAnswer(string State, string Words, DateTimeOffset? At, CardOutcome? Outcome = null, string? Answer = null);
 
 /// <summary>
 /// A card as the thread holds it (the iPad's <c>ShownComponent</c>): where it first appeared, its latest version, and its
@@ -126,7 +128,8 @@ public sealed record ShownCard(DateTimeOffset FirstAt, string Session, string Ru
     {
         if (field is not { ValueKind: JsonValueKind.Object } a || !Shape.Optional(a, "state", Shape.Text) || !Shape.Optional(a, "words", Shape.Text)
             || !Shape.Optional(a, "by", Shape.Text)) return null;
-        return new CardAnswer(Lenient.Text(a, "state") ?? "answered", Lenient.Text(a, "words") ?? "", Lenient.At(a, "at"), Outcome(Lenient.Field(a, "outcome")));
+        return new CardAnswer(Lenient.Text(a, "state") ?? "answered", Lenient.Text(a, "words") ?? "", Lenient.At(a, "at"), Outcome(Lenient.Field(a, "outcome")),
+            Lenient.Text(a, "answer"));
     }
 
     /// <summary>The outcome as the iPad reads it with <c>try?</c>, part by part: one part of another shape is none, never the rest.</summary>
@@ -236,6 +239,11 @@ public sealed record CardReply(string Kind, string Id, string Text, string? Word
     /// <summary>
     /// A recorded answer in the form the cards read, as the iPad's <c>answer(_:to:)</c>: none unless answered; a confirm's
     /// option by its label; an approval's, sign-in's or drive's outcome; otherwise its words.
+    /// <para>
+    /// An approval's outcome comes from tafs cloud's stored <see cref="CardAnswer.Answer"/>, free of any language. Without it, it's
+    /// approved only for exactly tafs cloud's English "Approved" or "Already approved…", and anything else is not approved: the words
+    /// come in the person's language ("Refusé", "Rechazado"), and an answer that can't be read never reads as approved.
+    /// </para>
     /// </summary>
     public static CardReply? Of(CardAnswer recorded, CoachCard card)
     {
@@ -243,15 +251,32 @@ public sealed record CardReply(string Kind, string Id, string Text, string? Word
         var words = recorded.Words;
         var at = words.IndexOf(" · it didn't go through: ", StringComparison.Ordinal);
         var failed = at < 0 ? null : "failed: " + words[(at + " · it didn't go through: ".Length)..];
+        var stored = Stored(recorded.Answer, card.Kind);
         var text = card.Kind switch
         {
             "confirm" => card.Options?.FirstOrDefault(o => o.Label == words)?.Value ?? words,
-            "approval" => failed ?? (words == "Declined" ? "declined" : "approved"),
-            "sign_in" => failed ?? (words == "Signed in" ? "signed in" : "not now"),
-            "drive" => words.ToLowerInvariant().StartsWith("approved", StringComparison.Ordinal) ? "approved" : "declined",
+            "approval" => stored ?? failed ?? (words == "Approved" ? "approved"
+                : words.StartsWith("Already approved", StringComparison.Ordinal) ? "already approved" : "declined"),
+            "sign_in" => stored ?? failed ?? (words == "Signed in" ? "signed in" : "not now"),
+            "drive" => stored ?? (words.ToLowerInvariant().StartsWith("approved", StringComparison.Ordinal) ? "approved" : "declined"),
             _ => words,
         };
         return new CardReply(card.Kind, card.Id, text, words);
+    }
+
+    /// <summary>tafs cloud's stored answer when it's one this kind of card reads; none otherwise, and the words decide, closed.</summary>
+    static string? Stored(string? answer, string kind)
+    {
+        if (answer?.Trim() is not { Length: > 0 } a) return null;
+        if (a.StartsWith("failed", StringComparison.Ordinal)) return a;
+        string[] known = kind switch
+        {
+            "approval" => ["approved", "declined", "already approved"],
+            "sign_in" => ["signed in", "not now", "declined"],
+            "drive" => ["approved", "declined"],
+            _ => [],
+        };
+        return known.Contains(a) || (kind == "approval" && a.StartsWith("already approved", StringComparison.Ordinal)) ? a : null;
     }
 }
 

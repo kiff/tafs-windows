@@ -72,6 +72,51 @@ public class ApprovalCardTests
         Assert.Equal((state, why), ApprovalCard.State(thread, thread.Shown[0].Card, Grant(status, reason)));
     }
 
+    /// <summary>
+    /// A refused or failed approval never reads as approved (the owner's test: "Approved · signed in to Stripe" after Reject, in
+    /// French): from tafs cloud's language-free answer when it sends one; without it, from its words, approved only for exactly
+    /// tafs cloud's English "Approved", never by default.
+    /// </summary>
+    [Theory]
+    [InlineData("Declined", null)]
+    [InlineData("Refusé", null)]
+    [InlineData("Abgelehnt", null)]
+    [InlineData("Rechazado", null)]
+    [InlineData("Rifiutato", null)]
+    [InlineData("Geweigerd", null)]
+    [InlineData("Odrzucone", null)]
+    [InlineData("Recusado", null)]
+    [InlineData("Approuver · cela n'a pas abouti : le fournisseur a refusé", null)]
+    [InlineData("Aprobado", "declined")]
+    [InlineData("Approved", "declined")]
+    [InlineData("Approuvé", "failed: the vendor refused")]
+    public void A_refused_or_failed_approval_never_reads_approved(string words, string? answer)
+    {
+        var recorded = answer is null ? Answered(words) : $$""", "answer": {"state": "answered", "words": "{{words}}", "answer": "{{answer}}"}""";
+        var thread = Thread(Approval(answer: recorded));
+        var c = thread.Shown[0].Card;
+        var grant = Grant("listed");
+        var (state, _) = ApprovalCard.State(thread, c, grant);
+        Assert.NotEqual(ApprovalState.Done, state);
+        foreach (var language in new[] { "en", "fr", "de", "es", "it", "nl", "pl", "pt" })
+        {
+            var w = WordBook.Load(SharedFiles.Strings, language);
+            var line = ApprovalCard.Outcome(w, thread, c, state, grant, null);
+            Assert.NotEqual(w.Get("coach.approved_signed", ("vendor", "Stripe")), line);
+            Assert.NotEqual(w.Get("coach.answer.approved_connected", ("vendor", "Stripe")), line);
+        }
+    }
+
+    /// <summary>tafs cloud's stored answer decides, whatever the words' language.</summary>
+    [Fact]
+    public void The_stored_answer_decides_whatever_the_language()
+    {
+        var thread = Thread(Approval(answer: """, "answer": {"state": "answered", "words": "Approuvé", "answer": "approved"}"""));
+        Assert.Equal(ApprovalState.Done, ApprovalCard.State(thread, thread.Shown[0].Card, Grant("connected")).State);
+        var unknown = Thread(Approval(answer: """, "answer": {"state": "answered", "words": "Approuvé", "answer": "maybe"}"""));
+        Assert.NotEqual(ApprovalState.Done, ApprovalCard.State(unknown, unknown.Shown[0].Card, Grant("connected")).State);
+    }
+
     /// <summary>A newer approval for the same connection makes the earlier one history, saying what was done with it.</summary>
     [Fact]
     public void A_newer_request_replaces_an_earlier_one()
