@@ -192,9 +192,10 @@ Ported from the iPad's `DevicesView` and `KIFFClient.Device`, opened from **Peop
 - **Not for Windows:** the iPad's **Add a device** (`PairComputerView`), where a phone adds a computer by its code. On
   Windows, this PC is the computer, and it's added from the phone.
 
+- **Read again** when it opens, after each change, and when the window comes back (the iPad's on its scene's return), so a
+  device or passkey added on the phone meanwhile shows without leaving Devices.
+
 **Not yet:**
-- **Reading Devices again when the window comes back** (the iPad's on its scene's return): it's read on opening and after
-  each change.
 - **The KIFF account's rows**, from `GET /v1/me`:
   - KIFF account (its name, opening its details);
   - Signed in as (the email), as its own row, shown only when the account isn't named after it;

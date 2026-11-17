@@ -142,6 +142,8 @@ public sealed partial class MainWindow
         // Windows Hello may have been set up meanwhile: asked again with the steps, as the iPad reads its readiness on return.
         helloChecked = false;
         if (Pages.Content is NeedsYouPage) ShowSteps();
+        // Devices read again, as the iPad's on its scene's return: a device added on the phone meanwhile shows.
+        if (Pages.Content is DevicesPage devices) _ = devices.ReadAgainAsync();
     }
 
     /// <summary>Signed out: the order is the next account's to settle.</summary>
