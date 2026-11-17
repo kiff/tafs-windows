@@ -159,7 +159,12 @@ public static class CoachStart
 
         // KIFF's alerts kept with tafs cloud, behind the Windows Hello just asked, as the iPad's keepKIFFAlerts before planque.
         // Best effort: nothing here stops Start.
-        if (calls.KeepAlerts is { } keepAlerts) await keepAlerts();
+        if (calls.KeepAlerts is { } keepAlerts)
+        {
+            // Whatever goes wrong keeping them, Start goes on: only a cancellation is Start's own to stop for.
+            try { await keepAlerts(); }
+            catch (Exception e) when (e is not OperationCanceledException) { }
+        }
         if (!calls.Current()) return new(StartOutcome.Cancelled);
 
         if (!planqueReady)
