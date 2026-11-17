@@ -372,7 +372,9 @@ passkey approves.
   passkey approves exactly that request behind Windows Hello (`KIFF-Passkey-Assertion`). Then each one taken away
   (`DELETE …/grants?group=` or `?subject=`, with no body) is signed by this session's TPM key (`KIFF-Device-Signature`).
   With nothing new to share, one Windows Hello names the change first ("Share Refunds"). Windows Hello closed says
-  nothing; a refusal says "Share Refunds didn't go through." with KIFF's reason, in the sheet.
+  nothing; a refusal says "Share Refunds didn't go through." with KIFF's reason, in the sheet. New shares go first, then
+  removals, as the iPad's: one that fails midway leaves the earlier ones done, and the next read shows where it stands.
+  A share that names no group and no person (or both) is never signed or sent.
 - **Not here yet:** the line under a taf's name that says who uses it (`ShareLine`).
 
 ## Photos and files on a message (P5, `FilePrep`, `Attachments`, `TafPage.Attach.cs`)

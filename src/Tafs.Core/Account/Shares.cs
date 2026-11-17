@@ -22,9 +22,15 @@ public static class Shares
 {
     public static string Path(string agent) => "/v1/agents/" + CloudRead.PathPart(agent) + "/grants";
 
-    /// <summary>Taking one away: by its group, else by its person.</summary>
-    public static string RemovePath(string agent, TafShare share) =>
-        Path(agent) + (share.Group is { } g ? "?group=" + Uri.EscapeDataString(g) : "?subject=" + Uri.EscapeDataString(share.Subject ?? ""));
+    /// <summary>A share names exactly one group or one person, never neither: an empty one could read as anyone at KIFF.</summary>
+    public static bool Names(TafShare share) =>
+        (share.Group is { Length: > 0 }) != (share.Subject is { Length: > 0 });
+
+    /// <summary>Taking one away: by its group, else by its person. One that names neither is never built.</summary>
+    /// <exception cref="ArgumentException">The share names no group and no person, or both.</exception>
+    public static string RemovePath(string agent, TafShare share) => Names(share)
+        ? Path(agent) + (share.Group is { } g ? "?group=" + Uri.EscapeDataString(g) : "?subject=" + Uri.EscapeDataString(share.Subject!))
+        : throw new ArgumentException("a share names one group or one person", nameof(share));
 
     /// <summary>What sharing sends: <c>{"group":…}</c> or <c>{"subject":…}</c>, as the iPad's encoder leaves out the other.</summary>
     public static byte[] AddBody(TafShare share) => share.Group is { } g
@@ -95,6 +101,8 @@ public static class Shares
     {
         var what = w.Get("people.share.title", ("taf", taf));
         string Failed(string why) => w.Get("common.didnt_go_through", ("what", what), ("why", why));
+        // A share that names no one, or two, is never signed: nothing goes, said as the app's own error.
+        if (!add.Concat(remove).All(Names)) return (false, Failed(w.Get("error.ours")));
         if (add.Count == 0)
         {
             var confirmed = await confirm(what);

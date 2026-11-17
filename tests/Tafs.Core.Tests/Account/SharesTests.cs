@@ -93,4 +93,22 @@ public class SharesTests
         Assert.False(done);
         Assert.StartsWith("Share Refunds didn't go through. ", why);
     }
+
+    [Fact]
+    public async Task A_share_that_names_no_one_is_never_signed_or_sent()
+    {
+        Assert.Throws<ArgumentException>(() => Shares.RemovePath("a", new(null, null)));
+        Assert.Throws<ArgumentException>(() => Shares.RemovePath("a", new("", null)));
+        foreach (var odd in new TafShare[] { new(null, null), new("", ""), new("grp_1", "sub_bo") })
+        {
+            var removing = new Calls();
+            var (done, why) = await removing.Apply([], [odd]);
+            Assert.False(done);
+            Assert.StartsWith("Share Refunds didn't go through. ", why);
+            Assert.Empty(removing.Said);
+            var adding = new Calls();
+            Assert.False((await adding.Apply([odd], [new("grp_1", null)])).Item1);
+            Assert.Empty(adding.Said);
+        }
+    }
 }
