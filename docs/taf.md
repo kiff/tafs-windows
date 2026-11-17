@@ -129,7 +129,12 @@ the taf's dial (`GET /v1/tafs/{id}/knob`, read as strictly as the iPad's decoder
     (`POST /v1/tafs/{id}/knob/subscriptions` with `{trigger, subscription, version}`), and the dial it answers must say
     approved with that subscription.
   - **A subscription tafs cloud didn't record** is kept, by taf and stop, and recorded on the next Approve without
-    subscribing again. Windows Hello closed says nothing.
+    subscribing again. It's kept in memory only: after a restart, or once the dial moves to another version, the next
+    Approve subscribes again, and the one before stays at planque with no record until it's cleaned up there. Windows
+    Hello closed says nothing.
+  - **Filters that repeat a key**, at any depth, aren't shown or signed ("This event changed…"): what's shown here and
+    what planque keeps could differ. A character that can't be seen (a right-to-left override, a zero-width space) shows
+    as its `\uXXXX`. Approve needs the taf's agent: with none, no connection is this taf's own.
 - **Not here yet:** an app's places (their planque approval); Not sent with the taf's work (S17).
 - Only whoever manages the taf changes anything; a change goes one at a time, and why one didn't go through is said in red.
 - `--page taf-starts` or `taf-results` with `--home` opens them as whoever manages the first taf, its dial from

@@ -1862,10 +1862,6 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Remove for good, only for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume: a
-    /// removal is the approval key's act, never the device key's. None for anyone else, and no button.
-    /// </summary>
-    /// <summary>
     /// Approving an app event's filters (P4, <see cref="Tafs.Core.Taf.KnobEvent.ApproveAsync"/>), for whoever manages the taf
     /// on a PC that signs with its passkey, as Remove for good: planque set up first, then its subscription inside a window
     /// opened with Windows Hello, then tafs cloud's record. A subscription tafs cloud didn't record is kept for the next try.
@@ -1891,6 +1887,10 @@ public sealed partial class MainWindow : Window
     /// <summary>Subscriptions planque made that tafs cloud hasn't recorded, by taf and stop: recorded on the next try, never made twice.</summary>
     readonly Dictionary<(string Taf, string Item), Tafs.Core.Taf.KnobEventReceipt> eventReceipts = [];
 
+    /// <summary>
+    /// Remove for good, only for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume: a
+    /// removal is the approval key's act, never the device key's. None for anyone else, and no button.
+    /// </summary>
     TafRemove? RemoveFor(HomeTaf taf)
     {
         if (taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is not { } read) return null;

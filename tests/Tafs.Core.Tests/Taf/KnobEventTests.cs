@@ -61,9 +61,9 @@ public class KnobEventTests
     public void The_sheet_shows_every_filter_sorted_and_indented()
     {
         var approval = Shown.Approval!;
-        Assert.Equal("{\n  \"amount_over\": 500,\n  \"pipeline\": \"sales\"\n}", KnobEvent.Filters(approval).ReplaceLineEndings("\n"));
+        Assert.Equal("{\n  \"amount_over\": 500,\n  \"pipeline\": \"sales\"\n}", KnobEvent.Filters(approval)!.ReplaceLineEndings("\n"));
         Assert.Equal("{\n  \"url\": \"https://x.test/a\"\n}",
-            KnobEvent.Filters(Knob(Dial(config: """{"url": "https://x.test/a"}""")).Wakes[0].Approval!).ReplaceLineEndings("\n"));
+            KnobEvent.Filters(Knob(Dial(config: """{"url": "https://x.test/a"}""")).Wakes[0].Approval!)!.ReplaceLineEndings("\n"));
         Assert.True(KnobEvent.Asks(Shown));
         Assert.False(KnobEvent.Asks(Knob(Dial(state: "approved")).Wakes[0]));
     }
@@ -155,5 +155,49 @@ public class KnobEventTests
         calls.Reads.Enqueue(Dial(state: "approved", subscription: "sub_1"));
         Assert.True((await KnobEvent.ApproveAsync(En, "t_1", "deals-k3", 3, Shown, calls.Make(), kept: null)).Approved);
         Assert.Equal(["read dial"], calls.Said);
+    }
+
+    [Fact]
+    public async Task Filters_that_repeat_a_key_are_neither_shown_nor_signed()
+    {
+        foreach (var config in new[] { """{"from": "a@x", "from": "b@y"}""", """{"match": {"from": "a@x", "from": "b@y"}}""",
+            """{"any": [{"to": "a", "to": "b"}]}""" })
+        {
+            var shown = Knob(Dial(config: config)).Wakes[0];
+            Assert.Null(KnobEvent.Filters(shown.Approval!));
+            var calls = new Calls();
+            calls.Reads.Enqueue(Dial(config: config));
+            var result = await KnobEvent.ApproveAsync(En, "t_1", "deals-k3", 3, shown, calls.Make(), kept: null);
+            Assert.Equal((false, "This event changed. Read the dial again before approving it."), (result.Approved, result.Why));
+            Assert.Empty(calls.Said);
+        }
+        // Read again with a repeated key, after a sheet that had none: nothing is signed either.
+        var later = new Calls();
+        later.Reads.Enqueue(Dial(config: """{"pipeline": "sales", "amount_over": 500, "pipeline": "sales"}"""));
+        Assert.Equal("This event changed. Read the dial again before approving it.",
+            (await KnobEvent.ApproveAsync(En, "t_1", "deals-k3", 3, Shown, later.Make(), kept: null)).Why);
+        Assert.Equal(["read dial"], later.Said);
+    }
+
+    [Fact]
+    public void A_character_that_can_t_be_seen_shows_as_its_code()
+    {
+        var config = "{\"from\": \"pay\u202Egnp.exe\", \"to\": \"a\u200Bb\", \"x\": \"\uFEFFc\", \"y\": \"d\u2028e\"}";
+        var shown = KnobEvent.Filters(Knob(Dial(config: config)).Wakes[0].Approval!)!;
+        Assert.Contains("pay\\u202Egnp.exe", shown);
+        Assert.Contains("a\\u200Bb", shown);
+        Assert.Contains("\\uFEFFc", shown);
+        Assert.Contains("d\\u2028e", shown);
+        Assert.DoesNotContain(shown, c => char.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.Format);
+    }
+
+    [Fact]
+    public async Task With_no_agent_no_connection_is_this_taf_s_own()
+    {
+        var calls = new Calls();
+        calls.Reads.Enqueue(Dial());
+        Assert.Equal("Connect this app for the taf before approving its event.",
+            (await KnobEvent.ApproveAsync(En, "t_1", agent: null, 3, Shown, calls.Make(), kept: null)).Why);
+        Assert.Empty(calls.Said);
     }
 }

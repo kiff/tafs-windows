@@ -23,15 +23,17 @@ public sealed partial class TafPage
         body.Children.Add(label);
         if (item.Words.Length > 0) body.Children.Add(Words(item.Words, 15, "TafsSoftText"));
         body.Children.Add(Words(w.Get("knob.listen_only_events_matching_filters"), 14, "TafsInkText"));
+        var shownFilters = KnobEvent.Filters(approval);
         var filters = new TextBlock
         {
-            Text = KnobEvent.Filters(approval), FontSize = 13, FontFamily = new FontFamily("Cascadia Mono, Consolas"),
+            Text = shownFilters ?? "", FontSize = 13, FontFamily = new FontFamily("Cascadia Mono, Consolas"),
             TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Style = Look("TafsInkText"),
         };
         AutomationProperties.SetAutomationId(filters, "event.filters");
         body.Children.Add(filters);
-        var why = Words("", 13, "TafsNoText");
-        why.Visibility = Visibility.Collapsed;
+        // Filters that repeat a key can't be read as planque would keep them: said, and nothing to approve.
+        var why = Words(shownFilters is null ? w.Get("knob.event_changed_read_dial_again") : "", 13, "TafsNoText");
+        why.Visibility = shownFilters is null ? Visibility.Visible : Visibility.Collapsed;
         body.Children.Add(why);
 
         var approveWords = w.Get("approval.approve_with", ("biometry", Tafs.Core.Coach.CoachScreen.Biometry));
@@ -39,13 +41,15 @@ public sealed partial class TafPage
         {
             XamlRoot = XamlRoot, RequestedTheme = ActualTheme, Title = w.Get("knob.approve_event"),
             Content = new ScrollViewer { Content = body, MaxHeight = 560 }, PrimaryButtonText = approveWords,
-            CloseButtonText = w.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
+            CloseButtonText = w.Get("common.cancel"), DefaultButton = ContentDialogButton.Close, IsPrimaryButtonEnabled = shownFilters is not null,
         };
         KnobEventResult? approved = null;
+        var signing = false;
         dialog.PrimaryButtonClick += async (_, args) =>
         {
             args.Cancel = true;
             var deferral = args.GetDeferral();
+            signing = true;
             (dialog.PrimaryButtonText, dialog.IsPrimaryButtonEnabled, dialog.IsSecondaryButtonEnabled, why.Visibility) =
                 (w.Get("approval.approving"), false, false, Visibility.Collapsed);
             try
@@ -57,12 +61,12 @@ public sealed partial class TafPage
             }
             finally
             {
-                (dialog.PrimaryButtonText, dialog.IsPrimaryButtonEnabled) = (approveWords, true);
+                (dialog.PrimaryButtonText, dialog.IsPrimaryButtonEnabled, signing) = (approveWords, true, false);
                 deferral.Complete();
             }
         };
         // Cancel stays out of reach while it's signing, as the iPad's.
-        dialog.Closing += (_, args) => { if (!dialog.IsPrimaryButtonEnabled && approved is null) args.Cancel = true; };
+        dialog.Closing += (_, args) => { if (signing && approved is null) args.Cancel = true; };
         await dialog.ShowAsync();
         ShowSetup();
         await LoadKnobAsync();

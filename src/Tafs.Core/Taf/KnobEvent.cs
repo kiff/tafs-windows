@@ -36,13 +36,38 @@ public static class KnobEvent
 
     /// <summary>
     /// The filters as the sheet shows them, as the iPad's encoder writes them: indented, keys sorted, slashes as they are.
-    /// Nothing is left out or added.
+    /// Nothing is left out or added. A character that can't be seen (a format character such as a right-to-left override or a
+    /// zero-width space, or a line or paragraph separator) shows as its <c>\uXXXX</c>, so no value reads as another. None for
+    /// filters that repeat a key: what's shown and what planque keeps could differ, so nothing is shown or signed.
     /// </summary>
-    public static string Filters(KnobApproval approval)
+    public static string? Filters(KnobApproval approval)
     {
         if (approval.Config is not { } config) return "";
+        if (!Readable(config)) return null;
         var options = new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
-        return Sorted(JsonNode.Parse(config.GetRawText()))?.ToJsonString(options) ?? "";
+        return Visible(Sorted(JsonNode.Parse(config.GetRawText()))?.ToJsonString(options) ?? "");
+    }
+
+    /// <summary>Filters that say each thing once: no object, at any depth, repeats a key.</summary>
+    public static bool Readable(JsonElement config) => config.ValueKind switch
+    {
+        JsonValueKind.Object => config.EnumerateObject().Select(p => p.Name).Distinct(StringComparer.Ordinal).Count() == config.EnumerateObject().Count()
+            && config.EnumerateObject().All(p => Readable(p.Value)),
+        JsonValueKind.Array => config.EnumerateArray().All(Readable),
+        _ => true,
+    };
+
+    static string Visible(string shown)
+    {
+        var said = new StringBuilder(shown.Length);
+        foreach (var c in shown)
+        {
+            var hidden = char.GetUnicodeCategory(c) is System.Globalization.UnicodeCategory.Format
+                or System.Globalization.UnicodeCategory.LineSeparator or System.Globalization.UnicodeCategory.ParagraphSeparator;
+            if (hidden) said.Append("\\u").Append(((int)c).ToString("X4", System.Globalization.CultureInfo.InvariantCulture));
+            else said.Append(c);
+        }
+        return said.ToString();
     }
 
     static JsonNode? Sorted(JsonNode? node) => node switch
@@ -93,6 +118,10 @@ public static class KnobEvent
         var none = new KnobEventResult(false, Kept: kept);
         var planque = calls.Planque;
         if (!Asks(shown) || shown.Approval is not { } approval || approval.Config is not { } config) return none;
+        // Filters that repeat a key read one way here and another at planque: nothing is signed.
+        if (!Readable(config)) return new(false, w.Get("knob.event_changed_read_dial_again"), Kept: kept);
+        // Only this taf's own connection subscribes: with no agent to match, none does.
+        if (agent is null) return new(false, w.Get("knob.connect_first"), Kept: kept);
 
         // The dial read again before anything is asked: a draft or a stale sheet never subscribes other filters.
         var read = await calls.ReadKnob();
@@ -100,7 +129,7 @@ public static class KnobEvent
         if (read.Answer is not { } answer || TafKnob.Read(answer) is not { } live)
             return none with { Why = read.Why ?? w.Get("error.offline") };
         var current = live.Wakes.FirstOrDefault(i => i.Id == shown.Id);
-        if (live.Version != version || current?.Approval is not { } now || !Same(now, approval))
+        if (live.Version != version || current?.Approval is not { Config: { } nowConfig } now || !Readable(nowConfig) || !Same(now, approval))
             return new(false, w.Get("knob.event_changed_read_dial_again"), live, kept);
         if (now.State == "approved") return new(true, Knob: live);
         if (now.State != "needed" || current.Ok != "approve") return none with { Knob = live };
@@ -112,7 +141,7 @@ public static class KnobEvent
             {
                 var grants = await planque.Grants();
                 if (!planque.Current()) return none;
-                if (grants?.FirstOrDefault(g => g.Id == approval.Grant && g.Connected && (agent is null || g.Request.Agent == agent))
+                if (grants?.FirstOrDefault(g => g.Id == approval.Grant && g.Connected && g.Request.Agent == agent)
                     is not { Account: { Length: > 0 } account })
                     return new(false, w.Get("knob.connect_first"), live, kept);
                 // Windows Hello each time, as the iPad asks Face ID for each subscription: a window already open isn't enough.
