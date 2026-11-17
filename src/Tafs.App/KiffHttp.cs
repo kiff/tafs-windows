@@ -37,13 +37,24 @@ static class KiffHttp
     }
 
     /// <summary>A sent file's bytes, from the one-minute link tafs cloud gave (https only), with no session; none when it fails.</summary>
-    public static async Task<byte[]?> DownloadAsync(Uri link, CancellationToken cancel = default)
+    public static async Task<byte[]?> DownloadAsync(Uri link, long most, CancellationToken cancel = default)
     {
         if (link.Scheme != Uri.UriSchemeHttps) return null;
         try
         {
-            using var answer = await Storage.GetAsync(link, cancel);
-            return answer.IsSuccessStatusCode ? await answer.Content.ReadAsByteArrayAsync(cancel) : null;
+            using var answer = await Storage.GetAsync(link, HttpCompletionOption.ResponseHeadersRead, cancel);
+            if (!answer.IsSuccessStatusCode || answer.Content.Headers.ContentLength > most) return null;
+            // Read up to the most a file may be, never more: a wrong link never fills memory.
+            await using var body = await answer.Content.ReadAsStreamAsync(cancel);
+            using var kept = new MemoryStream();
+            var buffer = new byte[81920];
+            int n;
+            while ((n = await body.ReadAsync(buffer, cancel)) > 0)
+            {
+                if (kept.Length + n > most) return null;
+                kept.Write(buffer, 0, n);
+            }
+            return kept.ToArray();
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { return null; }
     }

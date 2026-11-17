@@ -71,4 +71,19 @@ public class AttachmentsTests
         Assert.Equal("""{"text":"Here","session":"s1","new_chat_after_handover":true}""",
             Encoding.UTF8.GetString(CoachSend.Body("Here", CoachConversation.Of("s1"))));
     }
+
+    /// <summary>Only the kinds tafs takes open, as their own media type, under an id that can't reach the path.</summary>
+    [Theory]
+    [InlineData("att_1", "a.pdf", "application/pdf", "att_1-a.pdf")]
+    [InlineData("att_1", "Photo.jpg", "image/jpeg", "att_1-Photo.jpg")]
+    [InlineData("att_1", "a.pdf.js", "application/pdf", null)]
+    [InlineData("att_1", "a.lnk", "application/pdf", null)]
+    [InlineData("att_1", "a.docm", "application/vnd.ms-word.document.macroEnabled.12", null)]
+    [InlineData("att_1", "a", "application/pdf", null)]
+    [InlineData("att_1", "a.pdf", "text/html", null)]
+    [InlineData("..\\x", "a.pdf", "application/pdf", null)]
+    [InlineData("C:\\x", "a.pdf", "application/pdf", null)]
+    [InlineData("att_1", "..\\..\\a.pdf", "application/pdf", "att_1-a.pdf")]
+    public void Only_a_kind_tafs_takes_opens(string id, string name, string mediaType, string? opens) =>
+        Assert.Equal(opens, Attachments.OpenableName(new ChatFile(id, "", mediaType, name, 1)));
 }

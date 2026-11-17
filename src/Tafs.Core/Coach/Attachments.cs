@@ -109,6 +109,27 @@ public static class Attachments
         return (file, new FileUpload(link, Lenient.Text(u, "method") ?? "PUT", headers));
     }
 
+    /// <summary>
+    /// The name a sent file is saved under to be opened, or none when it mustn't be opened: its id only letters, digits, _ and
+    /// - (at most 64), so it can't reach the path; its own name stripped of anything that isn't a file name's; and its
+    /// extension one tafs takes whose media type is the file's own. A file that came through a door can be named anything
+    /// ("invoice.pdf.js", "x.lnk", "x.docm"), and Windows would hand it to whatever opens that kind.
+    /// </summary>
+    public static string? OpenableName(ChatFile file)
+    {
+        if (!System.Text.RegularExpressions.Regex.IsMatch(file.Id, "^[A-Za-z0-9_-]{1,64}$")) return null;
+        var safe = string.Concat(System.IO.Path.GetFileName(file.Name).Split(System.IO.Path.GetInvalidFileNameChars())).Trim();
+        var ext = System.IO.Path.GetExtension(safe);
+        if (ext.Length == 0 || FilePrep.ByExtension.GetValueOrDefault(ext) is not { } mediaType) return null;
+        // What tafs keeps for an image is a JPEG, whatever it was picked as.
+        var kept = mediaType.StartsWith("image/", StringComparison.Ordinal) && mediaType != "image/jpeg" && !FilePrep.Limits.ContainsKey(mediaType) ? "image/jpeg" : mediaType;
+        if (!string.Equals(kept, file.MediaType, StringComparison.OrdinalIgnoreCase)) return null;
+        return file.Id + "-" + safe;
+    }
+
+    /// <summary>The most a sent file's download is read: the largest kind tafs takes (a PDF, 25 MB), and a margin.</summary>
+    public const long MostDownloaded = 26L << 20;
+
     /// <summary>The download link a sent file opens through, https only; none when it isn't one.</summary>
     public static Uri? Link(JsonElement a) =>
         a.ValueKind == JsonValueKind.Object && Lenient.Text(a, "url") is { } url && Uri.TryCreate(url, UriKind.Absolute, out var link)

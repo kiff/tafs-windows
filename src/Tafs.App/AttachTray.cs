@@ -180,15 +180,25 @@ sealed class AttachTray(StackPanel tray, Button paperclip, Func<FrameworkElement
     /// A sent file opened again, as the iPad's Quick Look: tafs cloud's one-minute link, the bytes downloaded with no session
     /// into <see cref="Folder"/> under its own name only, then opened in Windows' own app for its kind.
     /// </summary>
-    public static async Task OpenAsync(string taf, ChatFile file, Func<string, Task<CloudRead>> read)
+    /// <returns>Why it wasn't opened, in the app's words; none once Windows opened it.</returns>
+    public static async Task<string?> OpenAsync(string taf, ChatFile file, Func<string, Task<CloudRead>> read)
     {
+        var w = App.Words;
+        string NotOpened(string why) => w.Get("chat.file.not_opened", ("file", file.Name), ("why", why));
+        // Only a kind tafs takes, as its own media type, under a name that stays in the folder: anything else never opens.
+        if (Attachments.OpenableName(file) is not { } name) return NotOpened(w.Get("attachment.not_taken"));
+        var folder = Path.GetFullPath(Folder);
+        var path = Path.GetFullPath(Path.Combine(folder, name));
+        if (!path.StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) return NotOpened(w.Get("attachment.not_taken"));
         var answer = await read(Attachments.FilePath(taf, file.Id));
-        if (answer.Answer is not { } a || Attachments.Link(a) is not { } link || await KiffHttp.DownloadAsync(link) is not { } bytes) return;
-        Directory.CreateDirectory(Folder);
-        var safe = string.Concat(Path.GetFileName(file.Name).Split(Path.GetInvalidFileNameChars()));
-        var path = Path.Combine(Folder, file.Id + "-" + (safe.Length > 0 ? safe : "file"));
+        if (answer.Answer is not { } a || Attachments.Link(a) is not { } link) return NotOpened(answer.Why ?? w.Get("chat.file.could_not_open"));
+        if (await KiffHttp.DownloadAsync(link, Attachments.MostDownloaded) is not { } bytes) return NotOpened(w.Get("chat.file.could_not_open"));
+        Directory.CreateDirectory(folder);
         await File.WriteAllBytesAsync(path, bytes);
+        // From the internet, as Windows marks a download: Office opens it in Protected View, and SmartScreen can ask.
+        try { await File.WriteAllTextAsync(path + ":Zone.Identifier", "[ZoneTransfer]\r\nZoneId=3\r\n"); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException) { }
         var stored = await Windows.Storage.StorageFile.GetFileFromPathAsync(path);
-        await Windows.System.Launcher.LaunchFileAsync(stored);
+        return await Windows.System.Launcher.LaunchFileAsync(stored) ? null : NotOpened(w.Get("chat.file.could_not_open"));
     }
 }

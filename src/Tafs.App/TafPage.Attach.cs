@@ -27,6 +27,12 @@ public sealed partial class TafPage
 
     async Task OpenFileAsync(ChatFile file)
     {
-        if (opening is { CloudId: { } id, Read: { } read }) await AttachTray.OpenAsync(id, file, read);
+        if (opening is not { CloudId: { } id, Read: { } read }) return;
+        // Not opened: why, under the thread.
+        if (await AttachTray.OpenAsync(id, file, read) is { } why)
+        {
+            (chatNote, chatNoteIsError) = (why, true);
+            ShowChat();
+        }
     }
 }

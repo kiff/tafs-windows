@@ -470,7 +470,11 @@ public sealed partial class CoachPanel : UserControl
                 else if (words.Length > 0) said.Children.Add(ChatViews.OwnerBubble(words, Brush));
                 // The files sent with it, each opening again on a tap, as in a taf's chat.
                 if (m.Files is { Count: > 0 } files && coach is { } c && Read is { } read)
-                    said.Children.Add(ChatViews.MessageFiles(files, Brush, file => _ = AttachTray.OpenAsync(c, file, read)));
+                    said.Children.Add(ChatViews.MessageFiles(files, Brush, async file =>
+                    {
+                        // Not opened: why, where the panel says what went wrong.
+                        if (await AttachTray.OpenAsync(c, file, read) is { } why) { chatError = why; ShowChatTools(); }
+                    }));
                 if (m.Answers is not null) said.Children.Add(ChatViews.AnsweredCardLine());
                 if (said.Children.Count > 0) ThreadItems.Children.Add(said);
             }
