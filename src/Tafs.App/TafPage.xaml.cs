@@ -111,6 +111,8 @@ public sealed partial class TafPage : Page
     {
         // The last taf's stream picked back up ends here.
         resumeCancel?.Cancel();
+        // Another taf: nothing of the last one's is pinned.
+        Unpin();
         opening = e.Parameter as TafOpening;
         if (opening is null) return;
         var head = opening.Head;
@@ -264,9 +266,15 @@ public sealed partial class TafPage : Page
             ShowChat();
             return;
         }
-        // Out of the box at once, as it shows in the thread; not tried at all, back in the box unless something new is there.
+        // Out of the box at once, as it shows in the thread, and to the top; not tried at all, back in the box unless something
+        // new is there, and nothing pinned.
         Draft.Text = "";
-        if (await SendTextAsync(text) is null && Draft.Text.Length == 0) Draft.Text = text;
+        PinNext(text);
+        if (await SendTextAsync(text) is null)
+        {
+            Unpin();
+            if (Draft.Text.Length == 0) Draft.Text = text;
+        }
     }
 
     /// <summary>
@@ -387,7 +395,7 @@ public sealed partial class TafPage : Page
             said.Children.Add(ChatViews.OwnerBubble(text, brush));
             var under = CoachPanel.Words(line, 12, error ? "TafsNoText" : "TafsDimText", HorizontalAlignment.Right);
             said.Children.Add(under);
-            ChatPane.Children.Add(said);
+            ChatPane.Children.Add(Own(said, text));
         }
         foreach (var m in (steering?.Untaken ?? []).Concat(steeredNow))
             Row(m.Text, TafSteer.ReadsLine(w, name, steering?.Paused == true));
@@ -546,8 +554,6 @@ public sealed partial class TafPage : Page
         // The latest message in view, as the iPad's thread opens at its end: once the thread is laid out, unless the person
         // had scrolled up to read.
         var atEnd = PageScroll.VerticalOffset >= PageScroll.ScrollableHeight - 24;
-        if (atEnd) DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
-            () => PageScroll.ChangeView(null, PageScroll.ScrollableHeight, null, disableAnimation: true));
         ChatPane.Children.Clear();
         Microsoft.UI.Xaml.Media.Brush Brush(string key) => ChatViews.ThemeBrush(ActualTheme, key);
         IReadOnlyList<Tafs.Core.Coach.ThreadItem> items = chat is { } thread ? TafChat.Items(thread)
@@ -581,7 +587,7 @@ public sealed partial class TafPage : Page
                 if (m.Text.Length > 0) said.Children.Add(ChatViews.OwnerBubble(m.Text, Brush));
                 // Written while a card waited: these words were its answer. Not a door's.
                 if (m is { Answers: not null, Door: null }) said.Children.Add(ChatViews.AnsweredCardLine());
-                if (said.Children.Count > 0) ChatPane.Children.Add(said);
+                if (said.Children.Count > 0) ChatPane.Children.Add(Own(said, m.Text));
                 continue;
             }
             var lines = new StackPanel { Spacing = 6 };
@@ -611,14 +617,14 @@ public sealed partial class TafPage : Page
         AddSteering(Brush);
         // What tafs cloud didn't take, after the thread, where it was written.
         foreach (var m in unsent)
-            ChatPane.Children.Add(ChatViews.UnsentBubble(w, m, Brush, sending, () => RetryUnsent(m), () => EditUnsent(m), () => DeleteUnsent(m),
+            ChatPane.Children.Add(Own(ChatViews.UnsentBubble(w, m, Brush, sending, () => RetryUnsent(m), () => EditUnsent(m), () => DeleteUnsent(m),
                 // Refused for a halt: Resume opens the Halt screen that resumes it, the account's or this taf's.
                 Unsent.ResumesWith(m, inTafChat: true) switch
                 {
                     HaltScreen.Account => () => ChatViews.ChooseResume(null, ""),
                     HaltScreen.Taf when opening?.CloudId is { } taf => () => ChatViews.ChooseResume(taf, opening.Head.Name),
                     _ => null,
-                }));
+                }), m.Text));
         if (chatError is { } why)
         {
             var error = CoachPanel.Words(why, 13, "TafsSoftText");
@@ -632,6 +638,10 @@ public sealed partial class TafPage : Page
             if (chatNoteIsError) line.Foreground = Brush("TafsNo");
             ChatPane.Children.Add(line);
         }
+        // What was just sent at the top, the answer growing under it; else the latest message in view, as the iPad's thread
+        // opens at its end, once laid out, unless the person had scrolled up to read.
+        if (!PinSent() && atEnd) DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
+            () => PageScroll.ChangeView(null, PageScroll.ScrollableHeight, null, disableAnimation: true));
         ShowComposer();
     }
 
