@@ -313,6 +313,9 @@ a second reference.
     and Coach's Cards' draft only once the batch answered;
   - with Coach's Cards alone: one Windows Hello over the draft;
   - anything else is said, and nothing goes.
+  Only what the step showed is signed (`CoachTools.SignsAsShown`): the read at the tap must ask for the same requests,
+  byte for byte, with the same words for Coach's Cards. Otherwise nothing is signed, the step is drawn again from that
+  read with "Setup changed this request: see below" above it, and Give asks again.
   Windows Hello closed says nothing. A refusal stays in the step, in KIFF's words. tafs cloud's read after says whether
   they're given, and the row goes once they are.
 

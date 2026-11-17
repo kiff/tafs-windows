@@ -51,6 +51,9 @@ public class CoachToolsTests
             () => "2026-11-17T03:00:00.000Z", () => true);
     }
 
+    /// <summary>The step as the person read it.</summary>
+    static CoachTools Shown => CoachTools.Read(Setup())!;
+
     [Fact]
     public void Coach_s_tools_read_with_their_pair_and_the_step_s_words()
     {
@@ -73,7 +76,7 @@ public class CoachToolsTests
         var stubs = new Stubs();
         stubs.Reads.Enqueue(Setup());
         stubs.Reads.Enqueue(Setup("given"));
-        Assert.Equal(new ToolsGiven(true), await CoachToolsGive.GiveAsync(En, stubs.Make()));
+        Assert.Equal(new ToolsGiven(true), await CoachToolsGive.GiveAsync(En, stubs.Make(), Shown));
         Assert.Equal(["read", "sign together connect draft", "batch b", "draft d", "read"], stubs.Calls);
     }
 
@@ -83,17 +86,49 @@ public class CoachToolsTests
         var taken = new Stubs();
         taken.Reads.Enqueue(Setup("taken", t => t["taken"] = "list_tafs"));
         Assert.Equal("Coach can't have its tools yet: another tool in KIFF is named list_tafs. Rename or remove it in KIFF.",
-            (await CoachToolsGive.GiveAsync(En, taken.Make())).Why);
+            (await CoachToolsGive.GiveAsync(En, taken.Make(), Shown)).Why);
         Assert.Equal(["read"], taken.Calls);
 
         var closed = new Stubs { HelloFails = new OperationCanceledException() };
         closed.Reads.Enqueue(Setup());
-        Assert.Equal(new ToolsGiven(false), await CoachToolsGive.GiveAsync(En, closed.Make()));
+        Assert.Equal(new ToolsGiven(false), await CoachToolsGive.GiveAsync(En, closed.Make(), Shown));
         Assert.DoesNotContain(closed.Calls, c => c.StartsWith("batch", StringComparison.Ordinal));
 
         var refused = new Stubs { Batch = (403, """{"error": "passkey_required"}""") };
         refused.Reads.Enqueue(Setup());
-        Assert.Equal("Coach's tools weren't given. passkey_required", (await CoachToolsGive.GiveAsync(En, refused.Make())).Why);
+        Assert.Equal("Coach's tools weren't given. passkey_required", (await CoachToolsGive.GiveAsync(En, refused.Make(), Shown)).Why);
         Assert.DoesNotContain(refused.Calls, c => c.StartsWith("draft", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_pair_rebuilt_since_the_step_was_read_signs_nothing_and_comes_back_to_show()
+    {
+        // tafs cloud added a tool to the batch between the step and the tap.
+        static void MoreTools(JsonObject t)
+        {
+            foreach (var r in t["requests"]!.AsArray())
+                if (r!["id"]!.GetValue<string>() == "connect") r["body"]!.AsObject()["more"] = "list_everything";
+        }
+        var stubs = new Stubs();
+        stubs.Reads.Enqueue(Setup(change: MoreTools));
+        var given = await CoachToolsGive.GiveAsync(En, stubs.Make(), Shown);
+        Assert.False(given.Given);
+        Assert.Equal("Setup changed this request: see below", given.Why);
+        Assert.NotNull(given.Changed);
+        Assert.False(Shown.SignsAsShown(given.Changed!));
+        Assert.Equal(["read"], stubs.Calls);
+
+        // Other words for Coach's Cards than the step showed: the same.
+        var words = new Stubs();
+        words.Reads.Enqueue(Setup(change: t =>
+        {
+            foreach (var r in t["requests"]!.AsArray())
+                if (r!["id"]!.GetValue<string>() == "draft") r["lines"] = new JsonArray("Spend up to 1,000,000 a day");
+        }));
+        Assert.NotNull((await CoachToolsGive.GiveAsync(En, words.Make(), Shown)).Changed);
+        Assert.Equal(["read"], words.Calls);
+
+        // What was shown, read again as it was: it signs.
+        Assert.True(Shown.SignsAsShown(CoachTools.Read(Setup())!));
     }
 }

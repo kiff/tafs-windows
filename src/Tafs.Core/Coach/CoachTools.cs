@@ -56,20 +56,44 @@ public sealed record CoachTools(string State, string? Taken, StartRequest? Conne
 
     /// <summary>The row above the conversation, in tafs cloud's words, else the app's own: only while there's something to give.</summary>
     public string? Row(WordBook w) => ToGive ? Step?.Row is { Length: > 0 } row ? row : w.Get("coach.tools.give") : null;
+
+    /// <summary>
+    /// Whether <paramref name="read"/> asks to sign exactly what this showed: the same requests, byte for byte, and the same
+    /// words for Coach's Cards. Anything else isn't what the person read.
+    /// </summary>
+    public bool SignsAsShown(CoachTools read) =>
+        Same(Together?.Connect, read.Together?.Connect) && Same(Together?.Draft, read.Together?.Draft)
+        && Same(Connect, read.Connect) && Same(Card, read.Card);
+
+    static bool Same(StartRequest? a, StartRequest? b) => (a, b) switch
+    {
+        (null, null) => true,
+        ({ } x, { } y) => x.Id == y.Id && x.Method == y.Method && x.Path == y.Path && x.Gateway == y.Gateway
+            && x.Body.AsSpan().SequenceEqual(y.Body) && x.Lines.SequenceEqual(y.Lines) && x.CardTitle == y.CardTitle
+            && x.Cards.Count == y.Cards.Count
+            && x.Cards.Zip(y.Cards).All(c => c.First.Title == c.Second.Title && c.First.Lines.SequenceEqual(c.Second.Lines)),
+        _ => false,
+    };
 }
 
-/// <summary>What giving Coach its tools came to: given, or why not. All empty: Windows Hello closed, nothing said.</summary>
-public sealed record ToolsGiven(bool Given, string? Why = null);
+/// <summary>
+/// What giving Coach its tools came to: given, or why not. All empty: Windows Hello closed, nothing said. <see cref="Changed"/>:
+/// tafs cloud's read at the tap asks for something other than what the step showed, so nothing was signed, and this is what
+/// to show instead.
+/// </summary>
+public sealed record ToolsGiven(bool Given, string? Why = null, CoachTools? Changed = null);
 
 /// <summary>
 /// Giving Coach its tools on this PC (P8), as the iPad's <c>giveCoachTools</c>: tafs cloud's read again; taken says which name;
 /// then, with tafs cloud's pair, the batch and Coach's Cards under one Windows Hello (this PC's passkey asserting
 /// <c>kiff.requests.v1</c>), the batch first and the draft once it answered; with a draft alone, one Windows Hello over it. The
-/// tafs cloud read again says whether they're given.
+/// tafs cloud read again says whether they're given. Only what the step showed is signed: a read at the tap that asks for
+/// anything else signs nothing, and comes back to be shown and asked again.
 /// </summary>
 public static class CoachToolsGive
 {
-    public static async Task<ToolsGiven> GiveAsync(WordBook w, StartCalls calls)
+    /// <param name="shown">Coach's tools as the step the person read showed them.</param>
+    public static async Task<ToolsGiven> GiveAsync(WordBook w, StartCalls calls, CoachTools shown)
     {
         var none = new ToolsGiven(false);
         var read = await calls.ReadSetup();
@@ -83,6 +107,8 @@ public static class CoachToolsGive
             case "to_give": break;
             default: return new(false, w.Get("coach.tools_unknown"));
         }
+        // tafs cloud rebuilt the pair since the step was drawn (more tools, other Cards): nothing the person didn't read is signed.
+        if (!shown.SignsAsShown(tools)) return new(false, w.Get("coach.setup_changed_request_see_below"), tools);
         string Failed(string why) => w.Get("coach.tools_not_given", ("why", why));
         try
         {

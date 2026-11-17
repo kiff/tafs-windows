@@ -11,8 +11,8 @@ namespace Tafs.App;
 /// </summary>
 public sealed partial class CoachPanel
 {
-    /// <summary>Giving them (<see cref="CoachToolsGive.GiveAsync"/>), as this session.</summary>
-    public Func<Task<ToolsGiven>>? GiveTools { get; set; }
+    /// <summary>Giving them as the step showed them (<see cref="CoachToolsGive.GiveAsync"/>), as this session.</summary>
+    public Func<CoachTools, Task<ToolsGiven>>? GiveTools { get; set; }
 
     /// <summary>Coach's tools as tafs cloud said with the last read of <c>/v1/setup</c>, which each conversation read makes.</summary>
     CoachTools? tools;
@@ -35,15 +35,65 @@ public sealed partial class CoachPanel
     {
         if (tools is not { ToGive: true } shown || GiveTools is not { } give) return;
         var w = App.Words;
+        // Why it wasn't given, above the step: a refusal in KIFF's words, or that tafs cloud's pair changed and the step was redrawn.
+        var why = Words("", 13, "TafsNoText");
+        why.Visibility = Visibility.Collapsed;
+        var scroll = new ScrollViewer { MaxHeight = 520 };
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot, RequestedTheme = ActualTheme, Content = scroll, DefaultButton = ContentDialogButton.Primary,
+        };
+        void Draw()
+        {
+            var step = shown.Step;
+            dialog.Title = step?.Title is { Length: > 0 } t0 ? t0 : w.Get("coach.tools.title");
+            dialog.PrimaryButtonText = GiveWords();
+            dialog.CloseButtonText = step?.NotNow is { Length: > 0 } nn ? nn : w.Get("common.not_now");
+            scroll.Content = StepBody(shown, why);
+        }
+        string GiveWords() => shown.Step?.Give is { Length: > 0 } gw ? gw : w.Get("coach.tools.give");
+        Draw();
+        dialog.PrimaryButtonClick += async (_, args) =>
+        {
+            args.Cancel = true;
+            var deferral = args.GetDeferral();
+            (dialog.PrimaryButtonText, dialog.IsPrimaryButtonEnabled, why.Visibility) = (w.Get("coach.tools.giving"), false, Visibility.Collapsed);
+            ToolsGiven given;
+            try { given = await give(shown); }
+            finally
+            {
+                (dialog.PrimaryButtonText, dialog.IsPrimaryButtonEnabled) = (GiveWords(), true);
+                deferral.Complete();
+            }
+            if (given.Given) { dialog.Hide(); return; }
+            // tafs cloud asks for something other than what was read: nothing was signed; this is drawn, and asked again.
+            if (given.Changed is { ToGive: true } changed)
+            {
+                (shown, tools) = (changed, changed);
+                Draw();
+            }
+            if (given.Why is { } said) (why.Text, why.Visibility) = (said, Visibility.Visible);
+        };
+        await dialog.ShowAsync();
+        // Read again: the row goes once they're given.
+        await LoadThreadAsync();
+    }
+
+    /// <summary>The step as tafs cloud words it: intro, groups, and under Details each tool and Coach's Cards in KIFF's words.</summary>
+    static StackPanel StepBody(CoachTools shown, TextBlock why)
+    {
+        var w = App.Words;
         var step = shown.Step;
         var body = new StackPanel { Spacing = 10 };
+        // The same line, moved from the step drawn before.
+        if (why.Parent is Panel before) before.Children.Remove(why);
+        body.Children.Add(why);
         if (step?.Intro is { Length: > 0 } intro) body.Children.Add(Words(intro, 15, "TafsInkText"));
         foreach (var g in step?.Groups ?? [])
         {
             if (g.Name.Length > 0) body.Children.Add(Words(g.Name, 14, "TafsInkText"));
             if (g.Line.Length > 0) body.Children.Add(Words(g.Line, 13, "TafsSoftText"));
         }
-        // Each tool and its limits, and Coach's Cards in KIFF's words, folded.
         var details = new StackPanel { Spacing = 6 };
         foreach (var g in step?.Groups ?? [])
             foreach (var t in g.Tools)
@@ -64,35 +114,6 @@ public sealed partial class CoachPanel
         if (details.Children.Count > 0)
             body.Children.Add(new Expander { Header = step?.Details is { Length: > 0 } d ? d : w.Get("common.details"), Content = details,
                 HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left });
-        var why = Words("", 13, "TafsNoText");
-        why.Visibility = Visibility.Collapsed;
-        body.Children.Add(why);
-        var giveWords = step?.Give is { Length: > 0 } gw ? gw : w.Get("coach.tools.give");
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot, RequestedTheme = ActualTheme, Title = step?.Title is { Length: > 0 } t0 ? t0 : w.Get("coach.tools.title"),
-            Content = new ScrollViewer { Content = body, MaxHeight = 520 }, PrimaryButtonText = giveWords,
-            CloseButtonText = step?.NotNow is { Length: > 0 } nn ? nn : w.Get("common.not_now"), DefaultButton = ContentDialogButton.Primary,
-        };
-        dialog.PrimaryButtonClick += async (_, args) =>
-        {
-            args.Cancel = true;
-            var deferral = args.GetDeferral();
-            (dialog.PrimaryButtonText, dialog.IsPrimaryButtonEnabled, why.Visibility) = (w.Get("coach.tools.giving"), false, Visibility.Collapsed);
-            try
-            {
-                var given = await give();
-                if (given.Given) dialog.Hide();
-                else if (given.Why is { } said) (why.Text, why.Visibility) = (said, Visibility.Visible);
-            }
-            finally
-            {
-                (dialog.PrimaryButtonText, dialog.IsPrimaryButtonEnabled) = (giveWords, true);
-                deferral.Complete();
-            }
-        };
-        await dialog.ShowAsync();
-        // Read again: the row goes once they're given.
-        await LoadThreadAsync();
+        return body;
     }
 }
