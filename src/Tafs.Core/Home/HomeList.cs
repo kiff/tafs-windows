@@ -19,7 +19,7 @@ public sealed record TafStarts(DateTimeOffset? NextRun, string? NextRunWords, bo
 public sealed record HomeTaf(string Id, string Name, int Colour, string State, string Now, string? Attention,
     IReadOnlyList<TafCard> Cards, int Waiting, DateTimeOffset? LastRun, DateTimeOffset? LastChange, string Job = "", string? Agent = null,
     bool Revoked = false, IReadOnlyList<string>? LabelIds = null, IReadOnlyList<string>? CardIdList = null, TafStarts? Starts = null,
-    Tafs.Core.Taf.TafHealth? Health = null, Tafs.Core.Taf.OpenTrial? Trial = null,
+    Tafs.Core.Taf.TafHealth? Health = null, Tafs.Core.Taf.OpenTrial? Trial = null, bool? RelevantNow = null,
     string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null)
 {
     /// <summary>Its Cards' ids in KIFF (<c>card.ids</c>), revoked before it's removed for good; none without.</summary>
@@ -129,6 +129,8 @@ public static class HomeList
             Health: Tafs.Core.Taf.TafHealth.Read(Lenient.Field(t, "health")),
             // Its open trial, its own entry under it in the sidebar, as the iPad's tafLinks.
             Trial: Lenient.Field(t, "trial") is { } trial ? Tafs.Core.Taf.TafTrials.Trial(trial) : null,
+            // Whether it belongs in the sidebar now, on tafs cloud's clock (relevant_now); none from a tafs cloud before it.
+            RelevantNow: Lenient.Field(t, "relevant_now") is { ValueKind: JsonValueKind.True or JsonValueKind.False } relevant ? relevant.GetBoolean() : null,
             // Whose clock its times are in ("Times in Europe/Paris"), and, only when its schedule runs on another, what to
             // do about it: tafs cloud's words, as the iPad's Card tab draws them.
             TimeZoneWords: Lenient.Text(t, "time_zone_words")?.Trim() is { Length: > 0 } zoneWords ? zoneWords : null,
@@ -176,10 +178,12 @@ public static class HomeList
             LabelChips.TafChips(LabelChips.Of(t.Labels, home.Labels)))).ToList();
 
     /// <summary>
-    /// Your tafs: those relevant now (a call of its waits, or it ran or changed in the last 24 hours), each with what went
-    /// wrong in place of what it's doing when there's a line for it, as the iPad's sidebar.
+    /// Your tafs: those relevant now, as tafs cloud says (<c>relevant_now</c>: a call of its waits, a step it handed over, a
+    /// door with knocks, or it ran or changed in the last 24 hours, on tafs cloud's clock), each with what went wrong in place
+    /// of what it's doing when there's a line for it, as the iPad's sidebar. Only a tafs cloud from before the flag leaves it
+    /// to this PC's own reckoning.
     /// </summary>
     public static IReadOnlyList<OverviewRow> YourTafs(WordBook w, HomeAnswer home, DateTimeOffset now) =>
-        home.Tafs.Where(t => Sidebar.RelevantNow(t.Waiting > 0 || t.State == "waiting", false, false, t.LastRun, t.LastChange, now))
+        home.Tafs.Where(t => t.RelevantNow ?? Sidebar.RelevantNow(t.Waiting > 0 || t.State == "waiting", false, false, t.LastRun, t.LastChange, now))
             .Select(t => new OverviewRow(t.Id, t.Name, t.Colour, t.Attention ?? t.Now, CardLine(w, t), "–")).ToList();
 }

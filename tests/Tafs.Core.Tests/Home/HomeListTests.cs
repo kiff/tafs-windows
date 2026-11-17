@@ -82,11 +82,20 @@ public class HomeListTests
     [Fact]
     public void Your_tafs_lists_those_relevant_now_with_what_went_wrong()
     {
+        // tafs cloud says, on its own clock: the contract's taf isn't relevant now, whatever this PC's clock says.
         var home = Home("home.json");
+        Assert.False(home.Tafs[0].RelevantNow);
+        Assert.Empty(HomeList.YourTafs(En, home, SameDay));
 
+        // Relevant now: listed, with what went wrong in place of what it's doing.
+        var relevant = home with { Tafs = [home.Tafs[0] with { RelevantNow = true }] };
         Assert.Equal("Its last 2 checks found work too big for one run, so nothing ran",
-            Assert.Single(HomeList.YourTafs(En, home, SameDay)).Now);
-        Assert.Empty(HomeList.YourTafs(En, home, SameDay.AddDays(2)));
+            Assert.Single(HomeList.YourTafs(En, relevant, SameDay.AddDays(2))).Now);
+
+        // A tafs cloud from before the flag: this PC's own reckoning, as before.
+        var older = home with { Tafs = [home.Tafs[0] with { RelevantNow = null }] };
+        Assert.Single(HomeList.YourTafs(En, older, SameDay));
+        Assert.Empty(HomeList.YourTafs(En, older, SameDay.AddDays(2)));
     }
 
     /// <summary>A taf whose Card KIFF says isn't active is revoked, as the iPad's card.revoked; with no Card, or active, it isn't.</summary>
