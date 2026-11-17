@@ -108,8 +108,10 @@ The **MSIX** is built too, for the day it's signed.
   the repository's `windows-signing` environment, so a push to main never waits on the environment's protection rules.
   **Only the owner approves a `windows-signing` deployment, in the UI;** no session does.
 - **No secret:** the job signs in to Azure by OIDC (`azure/login`), as an app registration whose federated credential's
-  subject is exactly `repo:kiff/tafs-windows:environment:windows-signing`, so only a run in that environment can sign,
-  and no long-lived secret exists. `id-token: write` is on the `sign` job only. Everything the job downloads (the app,
+  subject is exactly `repo:kiff@2176846/tafs-windows@1458016196:environment:windows-signing`, so only a run in that
+  environment can sign. That's GitHub's immutable form, which this organisation uses: the owner and the repository by
+  name and id (`GET repos/kiff/tafs-windows/actions/oidc/customization/sub` gives the prefix), so a renamed or re-made
+  repository can't take its place. No long-lived secret exists. `id-token: write` is on the `sign` job only. Everything the job downloads (the app,
   WiX and its extension) comes before it signs in, and its checkout keeps no token. The signing action then uses that
   sign-in alone.
 - **Its values,** all variables of the environment: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `WINDOWS_SIGNING_ENDPOINT`,
