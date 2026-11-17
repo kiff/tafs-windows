@@ -91,6 +91,8 @@ public sealed partial class TafPage
         if (opening is not { CloudId: { } id, Read: { } read }) return;
         var answer = await read(TafVersions.Path(id));
         if (opening?.CloudId != id) return;
+        // Its open trial with them, so Try it and Resume say what's open.
+        _ = LoadTrialAsync();
         if (answer.Answer is { } a && TafVersions.Read(a) is { } v) (versions, versionsWhy) = (v, null);
         else versionsWhy = answer.Why ?? App.Words.Get("kiff.kiff_did_not_answer_expected");
         if (tab == TafTab.Card && cardScreen == CardScreen.Versions) ShowCards();
@@ -112,6 +114,7 @@ public sealed partial class TafPage
         }
         else if (versionsWhy is null) inside.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Left });
         if (versionsWhy is { } why) inside.Children.Add(Words(why, 13, "TafsNoText"));
+        if (trialWhy is { } trialNotRead) inside.Children.Add(Words(trialNotRead, 13, "TafsNoText"));
         CardPane.Children.Add(Panel(inside));
     }
 
@@ -127,10 +130,13 @@ public sealed partial class TafPage
                 VerticalAlignment = VerticalAlignment.Center,
                 Child = new TextBlock { Text = w.Get("version.live_now"), FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold,
                     Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White) } });
+        else if (openTrial?.N == v.N) head.Children.Add(Capsule(w.Get("version.trying"), (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TafsAmber"]));
         row.Children.Add(head);
         if (v.Note is { Length: > 0 } note) row.Children.Add(Words(note, 14, "TafsInkText"));
         row.Children.Add(Words(TafVersions.Byline(w, v, TimeZoneInfo.Local), 12, "TafsDimText"));
         foreach (var t in v.Trials) row.Children.Add(Words(TafVersions.Tried(w, t, TimeZoneInfo.Local), 12, "TafsSoftText"));
+        // Try it, or Resume the trial: the version beside the live one, under a Card of its own.
+        if (TrialButtons(w, v) is { } buttons) row.Children.Add(buttons);
         return row;
     }
 

@@ -41,7 +41,9 @@ public sealed partial class MainWindow
         }
         var ordered = ListOrder.Listed(yours, r => r.Key, listOrder, latest, waiting, waitingWhenSettled);
         var (own, shared) = ListOrder.Split(ordered, r => Manages(listed, r.Key));
-        AddYourTafs([.. own, .. shared], own.Count);
+        // Each open trial on its own row under its taf.
+        var mine = WithTrials(w, listed, own);
+        AddYourTafs([.. mine, .. shared], mine.Count);
         AddSettingUp(listed.SettingUp);
         YourTafs.Visibility = listed.Tafs.Count > 0 && yours.Count == 0 && listed.SettingUp.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
     }

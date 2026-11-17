@@ -46,9 +46,11 @@
     </Grid>
 
     <!-- Chat, Activity, Card, Setup on the system grey track. -->
-    <Border Grid.Row="1" Margin="0,12,0,0" Style="{StaticResource TafsSegmentTrack}">
+    <Border x:Name="TabsTrack" Grid.Row="1" Margin="0,12,0,0" Style="{StaticResource TafsSegmentTrack}">
       <Grid x:Name="Tabs" ColumnSpacing="2" />
     </Border>
+    <!-- A trial's bar, in the tabs' place: "Trying version 2", not live, Go back and Install. -->
+    <StackPanel x:Name="TrialBar" Grid.Row="1" Margin="0,12,0,0" Spacing="8" Visibility="Collapsed" />
 
     <!-- The Card bar: a small Card in the taf's colour with the Card's mark, what's left of its limit, and its name. It
          opens the Card tab, as its chevron says. -->

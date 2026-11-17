@@ -88,10 +88,11 @@ public static class TafChatSend
     /// The message to tafs cloud, as the session. Not taken: why, in tafs cloud's words, else not reached; the thread keeps it
     /// as not sent with that line (<see cref="Unsent"/>).
     /// </summary>
+    /// <param name="path">Another chat's path, sent to the same way: a trial's (<see cref="TafTrials.MessagesPath"/>).</param>
     public static async Task<Refusal?> SendAsync(WordBook w, string taf, string text, Func<string, byte[], Task<CloudRead>> send,
-        IReadOnlyList<string>? attachments = null)
+        IReadOnlyList<string>? attachments = null, string? path = null)
     {
-        var answer = await send(MessagesPath(taf), Body(text, attachments));
+        var answer = await send(path ?? MessagesPath(taf), Body(text, attachments));
         return answer.Answer is not null ? null : Refusal.Of(answer, w.Get("error.offline"));
     }
 
