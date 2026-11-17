@@ -302,7 +302,7 @@ public sealed partial class MainWindow : Window
         AccountPage.SignInChosen += OpenSignIn;
         // The choices only for a KIFF account, as the iPad's mode == .kiff: never over the sample.
         AccountPage.AlertsChosen += () => OpenBeside(typeof(AlertsPage), new AlertsOpening(sample ? null : App.Sessions.Kept()?.Tenant));
-        AccountPage.DevicesChosen += () => OpenBeside(typeof(DevicesPage), new DevicesOpening(kiffRead));
+        AccountPage.DevicesChosen += () => OpenBeside(typeof(DevicesPage), new DevicesOpening(kiffRead, DevicesSigning()));
         // Connect apps and Plan & usage from Account, as the iPad's People & apps and Plan rows: the sidebar's screens.
         // From Account, Connect apps has Back to it; from the sidebar, none.
         AccountPage.ConnectAppsChosen += () =>
@@ -313,7 +313,8 @@ public sealed partial class MainWindow : Window
         AccountPage.CloseChosen += CloseAccount;
         AccountPage.UsageChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
         AccountPage.PeopleChosen += () => OpenBeside(typeof(PeoplePage), new PeopleOpening(kiffRead,
-            agent => home?.Tafs.FirstOrDefault(t => t.Agent == agent)?.Name));
+            agent => home?.Tafs.FirstOrDefault(t => t.Agent == agent)?.Name, PeopleChangeFor(),
+            Tafs.Core.Account.PeopleChanges.MayManagePeople(kiffAccount?.Capabilities)));
         AccountPage.AddThisDeviceChosen += OpenPairing;
         // As the iPad's sign-out (its forgetSession): everything read as the last session goes, and nothing reads as anyone.
         AccountPage.SignedOut += () =>
@@ -1297,6 +1298,26 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
+    /// One change to People &amp; groups from this PC (P24, <see cref="Tafs.Core.Account.PeopleChanges.MakeAsync"/>): Windows Hello
+    /// naming it, as Your step asks it, then this session's TPM key signs exactly that request, as the time zone's. Only on a
+    /// session that approves; none otherwise, and People only reads.
+    /// </summary>
+    Func<Tafs.Core.Account.PeopleChange, Task<(bool Done, string? Why)>>? PeopleChangeFor()
+    {
+        if (App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session)) return null;
+        var reading = sessions;
+        return change => Tafs.Core.Account.PeopleChanges.MakeAsync(App.Words, session.Tenant, change, ConfirmStepAsync,
+            async message =>
+            {
+                using var key = TpmKey.Open(session.KeyName);
+                return await key.SignDerAsync(message);
+            },
+            (c, header) => KiffHttp.SignedChangeAsync(new HttpMethod(c.Method), new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, c.Path), c.Body,
+                session.AccessToken, App.Words.Language, ("KIFF-Device-Signature", header)),
+            () => SigningTime.Next(DateTimeOffset.UtcNow), () => reading == sessions && App.Sessions.Kept()?.AccessToken == session.AccessToken);
+    }
+
+    /// <summary>
     /// The account's time zone set from this PC (<see cref="Tafs.Core.Account.AccountTimeZone.SetAsync"/>): Windows Hello as
     /// Your step asks it, then this session's TPM key signs KIFF's change. Taken, the account is read again, and Account and
     /// every time read after it follow. None without a session.
@@ -1836,7 +1857,7 @@ public sealed partial class MainWindow : Window
                 // isn't read on this PC yet, so its issuer is the iPad's for anyone else: "The account".
                 Cards: taf.Cards, IssuedBy: w.Get("card.issued_by_account"), Revoked: taf.Revoked,
                 CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof,
-                Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream, Remove: RemoveFor(taf), ApproveEvent: EventFor(taf),
+                Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream, Remove: RemoveFor(taf), ApproveEvent: EventFor(taf), Share: ShareFor(taf),
                 // Setup › Starts when and Results go to: when it starts and where results go, as Home says, and the changes made at once.
                 Change: cloudChange, Starts: taf.Starts, Paused: taf.State == "paused", Email: kiffAccount?.Email, TimeZone: kiffAccount?.TimeZone,
                 // Coach on improving this taf, as the iPad's improveTaf; offered while KIFF says this person may use Coach.
@@ -1888,6 +1909,38 @@ public sealed partial class MainWindow : Window
     readonly Dictionary<(string Taf, string Item), Tafs.Core.Taf.KnobEventReceipt> eventReceipts = [];
 
     /// <summary>
+    /// Signing another device out and removing a passkey from Devices (P11): approvals at KIFF, so only on a PC that signs
+    /// with its own passkey, which approves exactly that <c>DELETE</c> behind Windows Hello. Removing a passkey is an owner's or
+    /// an admin's, as on the iPad. None for anyone else: the list says to use a device that can approve.
+    /// </summary>
+    DevicesSigning? DevicesSigning()
+    {
+        if (App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session) || session.PasskeyId is not { } id) return null;
+        var bearer = session.AccessToken;
+        var reading = sessions;
+        var kiff = Tafs.Core.SignIn.DeviceSignIn.Api;
+        return new(
+            async path =>
+            {
+                var windowsHello = new WindowsHello(() => App.WindowHandle);
+                var passkey = new PasskeyApprover(windowsHello, KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);
+                return (PasskeyApprover.HeaderName, await passkey.ApproveAsync(session.Tenant, "DELETE", path, [], SigningTime.Next(DateTimeOffset.UtcNow)));
+            },
+            async (path, signature) =>
+            {
+                try
+                {
+                    var (status, body) = await KiffHttp.DeleteAsync(new Uri(kiff, path), bearer, App.Words.Language, signature: signature);
+                    return status is >= 200 and <= 299 ? new CloudRead(null, Status: status)
+                        : new CloudRead(null, Tafs.Core.Kiff.KiffErrors.Words(App.Words, status), status);
+                }
+                catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(App.Words); }
+            },
+            () => reading == sessions && App.Sessions.Kept()?.AccessToken == bearer,
+            Tafs.Core.Account.Passkeys.MayRemove(kiffAccount?.Role, approves: true));
+    }
+
+    /// <summary>
     /// Remove for good, only for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume: a
     /// removal is the approval key's act, never the device key's. None for anyone else, and no button.
     /// </summary>
@@ -1919,6 +1972,35 @@ public sealed partial class MainWindow : Window
                     },
                     () => reading == sessions && App.Sessions.Kept()?.AccessToken == bearer);
             });
+    }
+
+    /// <summary>
+    /// Sharing a taf (P32, <see cref="Tafs.Core.Account.Shares.ApplyAsync"/>), for whoever manages it on a PC whose own passkey
+    /// approves: KIFF's people, groups and shares read as the session; each new share approved by this PC's passkey behind
+    /// Windows Hello; each one taken away signed by this session's TPM key. None for anyone else, and no Share.
+    /// </summary>
+    TafSharing? ShareFor(HomeTaf taf)
+    {
+        if (taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || kiffRead is not { } read) return null;
+        if (App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session) || session.PasskeyId is not { } id) return null;
+        var reading = sessions;
+        var kiff = Tafs.Core.SignIn.DeviceSignIn.Api;
+        return new(agent, read, (add, remove) => Tafs.Core.Account.Shares.ApplyAsync(App.Words, session.Tenant, taf.Name, agent, add, remove,
+            async (path, body) =>
+            {
+                var passkey = new PasskeyApprover(new WindowsHello(() => App.WindowHandle), KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);
+                return (PasskeyApprover.HeaderName, await passkey.ApproveAsync(session.Tenant, "POST", path, body, SigningTime.Next(DateTimeOffset.UtcNow)));
+            },
+            ConfirmStepAsync,
+            async message =>
+            {
+                using var key = TpmKey.Open(session.KeyName);
+                return await key.SignDerAsync(message);
+            },
+            () => SigningTime.Next(DateTimeOffset.UtcNow),
+            (method, path, body, signature) => KiffHttp.SignedChangeAsync(new HttpMethod(method), new Uri(kiff, path), body, session.AccessToken,
+                App.Words.Language, signature),
+            () => reading == sessions && App.Sessions.Kept()?.AccessToken == session.AccessToken));
     }
 
     /// <summary>

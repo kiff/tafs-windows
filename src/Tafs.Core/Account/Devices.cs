@@ -15,6 +15,9 @@ public static class Devices
 {
     public const string Path = "/v1/me/devices";
 
+    /// <summary>Signing a device out: an approval at KIFF, never for this PC itself (which signs out from Account).</summary>
+    public static string DevicePath(string id) => Path + "/" + CloudRead.PathPart(id);
+
     /// <summary>
     /// <c>{"devices": […]}</c>, as the iPad decodes it: each needs its id. Its name is KIFF's <c>display_name</c> in the app's
     /// language, else the name it gave at sign-in; last used is <c>last_used_at</c>, else <c>last_seen_at</c> for a session from

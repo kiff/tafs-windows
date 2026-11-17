@@ -108,7 +108,8 @@ held call raises while tafs runs, `needs-you.md`).
   - Haptics, the phone's.
 ## People & groups (`People`, `PeoplePage`)
 
-Ported from the iPad's `PeopleGroupsView` and `refreshPeople`, first in **People & apps**, read-only as here.
+Ported from the iPad's `PeopleGroupsView`, `GroupNameSheet`, `AddToGroupSheet`, `refreshPeople` and `changePeople`, first
+in **People & apps**.
 - **The read:** `GET /v1/groups`, `GET /v1/tenant/members` and `GET /v1/me` as the session, when it opens and every 20
   seconds while open. A group needs its id, name, members and agents; a person their subject, role and status. A field
   of the wrong kind fails the read, which says "People and groups couldn't be read." with why, over what was shown.
@@ -120,8 +121,22 @@ Ported from the iPad's `PeopleGroupsView` and `refreshPeople`, first in **People
 - **Each person:** managers first, then by email. Their initial on a raised circle, their email (else KIFF's id for
   them), and "Manager" in amber or "Member".
 - "No groups yet." once read, with no groups and no error.
-- **Not yet:** the iPad's changes (a new group, renaming or deleting one, adding someone, making them the manager or
-  removing them). Each is an approval signed on the device (`changePeople`), as Devices' Sign out.
+- **The changes** (P24, `PeopleChanges`), on a PC that approves; elsewhere People only reads. Who sees what, as the
+  iPad's and as KIFF allows:
+  - **+ Group** by the title, and each group's ⋯ with **Rename** and **Delete**, for whoever manages people (KIFF's
+    `members.manage`). Never on KIFF's default group, which is everyone on the account.
+  - **+ Add someone to Support** under a group, for whoever manages it (they manage people, or they're its manager).
+    It opens the account's people not in it yet, each one tap, with **As the group's manager** first for whoever
+    manages people; or "Everyone on the account is here."
+  - **Each person's ⋯** (and right-click): **Make the manager** or **Make a member**, for whoever manages people;
+    **Remove from Support**, for a group's manager over its members, or for whoever manages people over anyone.
+  - Naming asks for a name (Create or Save only with one, trimmed). Delete asks first, with what deleting does.
+- **Each change** is the person's act behind Windows Hello, naming it ("Rename Support to Help"), as Your step asks it.
+  Then this session's TPM key signs exactly that request (`KIFF-Device-Signature`, `kiff.request.v1`), as KIFF asks of a
+  phone for these routes: `POST /v1/groups`, `PATCH` or `DELETE /v1/groups/{id}`, and `PUT` or `DELETE
+  /v1/groups/{id}/members/{subject}`. A removal sends and signs no body. Then everything is read again. Windows Hello
+  closed says nothing. A refusal says "Rename Support to Help didn't go through." with KIFF's reason in plain words,
+  over the list. One change at a time.
 
 ## Export my chats (`ChatsExport`, `ShareFiles`)
 
@@ -158,14 +173,24 @@ Ported from the iPad's `DevicesView` and `KIFFClient.Device`, opened from **Peop
   largest with at least one, counted from the time elapsed: a month is 30 days and a year 365, where Apple counts
   calendar units.
 - **The footer:** what signing a device out does, and that this PC signs out with Sign out of KIFF.
-- **Sign out, for another device,** is an approval, signed by this device (`prepareRemoveDevice` behind Face ID on the
-  iPad). Until this PC can sign one, it's left out, and Android's line says why under the list: "To sign another device
-  out, use a device that can approve."
+- **Sign out, for another device** (P11), is an approval at KIFF (`DELETE /v1/me/devices/{id}`, in its phone approval
+  rules), as the iPad's `prepareRemoveDevice` behind Face ID. On a PC whose own passkey approves, each other device has
+  Sign out in red. It asks first, "Sign Laptop out?" ("Sign this device out?" for one with no name). Then this PC's
+  passkey approves exactly that `DELETE` behind Windows Hello (`KIFF-Passkey-Assertion`, `AccountRemoval`), and the list
+  is read again. Windows Hello closed: "Cancelled. Nothing changed." A refusal: "Sign Laptop out of your account didn't go
+  through." with KIFF's reason, at the top. A PC that can't approve shows no Sign out, and Android's line says why under
+  the list: "To sign another device out, use a device that can approve."
+- **Passkeys** (P11, `Passkeys`), as the iPad's section, from `GET /v1/me/passkeys`: each by its name, else "A device";
+  a computer's own (with a `device_id`) says "Goes with its computer" and has no Remove, since it's removed with its
+  computer. Remove, for the person's own, shows for an owner or an admin (`GET /v1/me`'s `role`) on a PC that approves.
+  It asks "Remove iPhone?", then approves `DELETE /v1/me/passkeys/{id}` the same way. A failed read says "Couldn't load
+  your passkeys." with why. **Add a passkey** stays the phone's: its words say "this phone".
 - **Not for Windows:** the iPad's **Add a device** (`PairComputerView`), where a phone adds a computer by its code. On
   Windows, this PC is the computer, and it's added from the phone.
 
 **Not yet:**
-- **Signing another device out,** with the approvals.
+- **Reading Devices again when the window comes back** (the iPad's on its scene's return): it's read on opening and after
+  each change.
 - **The KIFF account's rows**, from `GET /v1/me`:
   - KIFF account (its name, opening its details);
   - Signed in as (the email), as its own row, shown only when the account isn't named after it;
