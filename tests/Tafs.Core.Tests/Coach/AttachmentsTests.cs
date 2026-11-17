@@ -52,4 +52,13 @@ public class AttachmentsTests
         Assert.Null(Attachments.Link(JsonDocument.Parse("""{"url": "http://x/y"}""").RootElement));
         Assert.Equal("/v1/tafs/t1/attachments/att%2F1", Attachments.FilePath("t1", "att/1"));
     }
+
+    /// <summary>A message takes the ready files' ids; with none, its words alone, as before.</summary>
+    [Fact]
+    public void A_message_carries_its_ready_files()
+    {
+        Assert.Equal("""{"text":"See the invoice","attachments":["att_1","att_2"]}""",
+            Encoding.UTF8.GetString(Tafs.Core.Taf.TafChatSend.Body("See the invoice", ["att_1", "att_2"])));
+        Assert.Equal("""{"text":"Hi"}""", Encoding.UTF8.GetString(Tafs.Core.Taf.TafChatSend.Body("Hi", [])));
+    }
 }

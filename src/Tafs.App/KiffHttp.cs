@@ -15,6 +15,39 @@ static class KiffHttp
     /// <summary>For a card's answer, which can take tafs cloud a while: 70 seconds, as the iPad's <c>sendData</c>.</summary>
     static readonly HttpClient Patient = new() { Timeout = TimeSpan.FromSeconds(70) };
 
+    /// <summary>Storage, for a file's bytes: its own client, so no session ever goes with them.</summary>
+    static readonly HttpClient Storage = new() { Timeout = TimeSpan.FromSeconds(120) };
+
+    /// <summary>
+    /// A file's bytes, straight to storage where tafs cloud's declare said (https only, as <c>Attachments.Declared</c> takes
+    /// it), with its headers as given and no session. True once storage took them.
+    /// </summary>
+    public static async Task<bool> UploadAsync(Tafs.Core.Coach.FileUpload upload, byte[] bytes, CancellationToken cancel = default)
+    {
+        if (upload.Url.Scheme != Uri.UriSchemeHttps) return false;
+        using var request = new HttpRequestMessage(new HttpMethod(upload.Method), upload.Url) { Content = new ByteArrayContent(bytes) };
+        foreach (var (name, value) in upload.Headers)
+            if (!request.Headers.TryAddWithoutValidation(name, value)) request.Content.Headers.TryAddWithoutValidation(name, value);
+        try
+        {
+            using var answer = await Storage.SendAsync(request, cancel);
+            return answer.IsSuccessStatusCode;
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { return false; }
+    }
+
+    /// <summary>A sent file's bytes, from the one-minute link tafs cloud gave (https only), with no session; none when it fails.</summary>
+    public static async Task<byte[]?> DownloadAsync(Uri link, CancellationToken cancel = default)
+    {
+        if (link.Scheme != Uri.UriSchemeHttps) return null;
+        try
+        {
+            using var answer = await Storage.GetAsync(link, cancel);
+            return answer.IsSuccessStatusCode ? await answer.Content.ReadAsByteArrayAsync(cancel) : null;
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { return null; }
+    }
+
     /// <summary>For an answer that streams while a taf works: no overall timeout, ended by its own end or a cancel.</summary>
     static readonly HttpClient Streaming = new() { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
 

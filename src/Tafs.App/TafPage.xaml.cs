@@ -203,7 +203,7 @@ public sealed partial class TafPage : Page
         Draft.PlaceholderText = working ? w.Get("chat.send_while_works", ("taf", name)) : w.Get("chat.message_taf", ("taf", name));
         AutomationProperties.SetName(Draft, Draft.PlaceholderText);
         SendButton.Content = w.Get(sending ? "common.sending" : "common.send");
-        SendButton.IsEnabled = !sending;
+        ShowTray();
         StopButton.Content = w.Get("chat.stop");
         StopButton.Visibility = working && opening.Manages ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -221,7 +221,10 @@ public sealed partial class TafPage : Page
     /// </summary>
     async void OnSend(object sender, RoutedEventArgs e)
     {
+        // Send waits while a file is going up; a message may be words, files, or both.
+        if (FilesUploading) return;
         var (text, why) = TafChatSend.Check(App.Words, Draft.Text);
+        if (text is null && Draft.Text.Trim().Length == 0 && ReadyFiles().Count > 0) (text, why) = ("", null);
         if (text is null)
         {
             (chatNote, chatNoteIsError) = (why, why is not null);
@@ -246,7 +249,10 @@ public sealed partial class TafPage : Page
         // The box is the Send button's to clear: Retry leaves what's being typed there alone, as the iPad's submitChat.
         (sending, chatNote) = (true, null);
         ShowChat();
-        var refused = mine.Stream is { } stream ? await StreamAsync(w, id, text, stream, send, mine) : await TafChatSend.SendAsync(w, id, text, send);
+        // The files ready in the tray go with it; the tray empties once it's taken.
+        var files = ReadyFiles();
+        var refused = mine.Stream is { } stream ? await StreamAsync(w, id, text, stream, send, mine, files) : await TafChatSend.SendAsync(w, id, text, send, files);
+        if (refused is null && files.Count > 0) ClearSentFiles(files);
         if (opening != mine) return null;
         (sending, live) = (false, null);
         if (refused is { Consent: true })
@@ -305,11 +311,11 @@ public sealed partial class TafPage : Page
     /// never sent again. A stream that breaks leaves the rest to the thread.
     /// </summary>
     async Task<Refusal?> StreamAsync(Tafs.Core.Words.WordBook w, string id, string text, TafStream stream,
-        Func<string, byte[], Task<CloudRead>> send, TafOpening mine)
+        Func<string, byte[], Task<CloudRead>> send, TafOpening mine, IReadOnlyList<string>? files = null)
     {
         (int Status, string Body, System.Net.Http.HttpResponseMessage? Open) answer;
-        try { answer = await stream(TafChatStream.Path(id), TafChatSend.Body(text), CancellationToken.None); }
-        catch (System.Net.Http.HttpRequestException) { return await TafChatSend.SendAsync(w, id, text, send); }
+        try { answer = await stream(TafChatStream.Path(id), TafChatSend.Body(text, files), CancellationToken.None); }
+        catch (System.Net.Http.HttpRequestException) { return await TafChatSend.SendAsync(w, id, text, send, files); }
         if (answer.Open is not { } open)
             return Refusal.Of(CloudRead.Refused(w, answer.Status, answer.Body), w.Get("error.ours"));
         using (open)
@@ -390,7 +396,8 @@ public sealed partial class TafPage : Page
                 var said = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0) };
                 // Through a door, someone else's words: where they came from, over them.
                 if (m.Door is { } door) said.Children.Add(ChatViews.DoorStamp(door, fromOwner: true, Brush));
-                if (m.Files is { } files) said.Children.Add(ChatViews.MessageFiles(files, Brush));
+                // Each opens again, full size, in Windows' own app for its kind.
+                if (m.Files is { } files) said.Children.Add(ChatViews.MessageFiles(files, Brush, file => _ = OpenFileAsync(file)));
                 if (m.Text.Length > 0) said.Children.Add(ChatViews.OwnerBubble(m.Text, Brush));
                 // Written while a card waited: these words were its answer. Not a door's.
                 if (m is { Answers: not null, Door: null }) said.Children.Add(ChatViews.AnsweredCardLine());

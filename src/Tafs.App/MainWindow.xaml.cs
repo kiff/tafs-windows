@@ -960,6 +960,8 @@ public sealed partial class MainWindow : Window
         (hello, helloChecked) = (HelloReadiness.Ready, false);
         // The last export's files too, as the iPad's removeOpenedFiles: a person's chats never stay on this PC after them.
         ChatsExport.Remove(ChatsExport.Folder);
+        // The files opened again from a chat: a person's own, never left on this PC after them.
+        ChatsExport.Remove(Path.Combine(Path.GetTempPath(), "tafs", "attachments"));
         ChatsExport.Remove(Tafs.Core.Record.ReceiptsExport.Folder);
         cloudRead = null;
         cloudReadWithProof = null;

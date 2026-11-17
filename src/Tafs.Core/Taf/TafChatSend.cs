@@ -27,6 +27,11 @@ public static class TafChatSend
 
     public static byte[] Body(string text) => JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, string> { ["text"] = text });
 
+    /// <summary>A message with the files ready to go with it (<c>{text, attachments: [id]}</c>); words alone with none.</summary>
+    public static byte[] Body(string text, IReadOnlyList<string>? attachments) =>
+        attachments is not { Count: > 0 } ids ? Body(text)
+        : JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, object> { ["text"] = text, ["attachments"] = ids });
+
     public static byte[] StopBody(string session) => JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, string> { ["session"] = session });
 
     /// <summary>
@@ -83,9 +88,10 @@ public static class TafChatSend
     /// The message to tafs cloud, as the session. Not taken: why, in tafs cloud's words, else not reached; the thread keeps it
     /// as not sent with that line (<see cref="Unsent"/>).
     /// </summary>
-    public static async Task<Refusal?> SendAsync(WordBook w, string taf, string text, Func<string, byte[], Task<CloudRead>> send)
+    public static async Task<Refusal?> SendAsync(WordBook w, string taf, string text, Func<string, byte[], Task<CloudRead>> send,
+        IReadOnlyList<string>? attachments = null)
     {
-        var answer = await send(MessagesPath(taf), Body(text));
+        var answer = await send(MessagesPath(taf), Body(text, attachments));
         return answer.Answer is not null ? null : Refusal.Of(answer, w.Get("error.offline"));
     }
 
