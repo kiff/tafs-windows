@@ -13,7 +13,7 @@ namespace Tafs.App;
 /// <c>VersionCardSheet</c> and <c>useVersion</c>): the switch begun, the Card it waits for read, the install, and Not now.
 /// </summary>
 public sealed record TafInstalling(Func<int, bool, bool, Task<SwitchBegun>> Begin, Func<string, Task<(AgentDraft? Draft, string? Why)>> Card,
-    Func<int, string?, Task<SwitchResult>> Install, Func<Task<string?>> Cancel);
+    Func<int, AgentDraft?, Task<SwitchResult>> Install, Func<Task<string?>> Cancel);
 
 public sealed partial class TafPage
 {
@@ -171,7 +171,8 @@ public sealed partial class TafPage
         if (opening != mine) return;
         installing = v.N;
         ShowVersionsAgain();
-        var result = await calls.Install(v.N, draft!.Version);
+        // Exactly the draft shown, by its id and version.
+        var result = await calls.Install(v.N, draft);
         if (opening != mine) return;
         installing = null;
         Settle(result, v);

@@ -41,6 +41,9 @@ public class TafSwitchTests
             prompt => { Said.Add("hello " + prompt); return Task.FromResult(Here); });
     }
 
+    /// <summary>The Card the owner read: d_3 at v7.</summary>
+    static readonly Tafs.Core.Approvals.AgentDraft Shown = new("d_3", "rae-k3f9", "draft", "v7");
+
     static Calls WithCard()
     {
         var calls = new Calls();
@@ -52,7 +55,7 @@ public class TafSwitchTests
     public async Task A_version_with_a_Card_is_begun_its_Card_confirmed_then_made_live()
     {
         var calls = WithCard();
-        Assert.Equal(new SwitchResult(true), await TafSwitch.InstallAsync(En, "t1", "Rae", 3, "v7", calls.Make()));
+        Assert.Equal(new SwitchResult(true), await TafSwitch.InstallAsync(En, "t1", "Rae", 3, Shown, calls.Make()));
         Assert.Equal(["POST /v1/tafs/t1/versions/3/switch", "KIFF GET /v1/me/agent-drafts/d_3", "sign /v1/me/agent-drafts/d_3/confirm",
             "KIFF POST /v1/me/agent-drafts/d_3/confirm", "POST /v1/tafs/t1/versions/3/live"], calls.Said);
         Assert.Equal("""{"redraft":false,"stop_blocking":true}""", Encoding.UTF8.GetString(TafSwitch.Body(false, true)));
@@ -77,10 +80,17 @@ public class TafSwitchTests
     {
         var calls = WithCard();
         calls.Draft = """{"id":"d_3","agent_id":"rae-k3f9","status":"draft","version":"v8"}""";
-        var result = await TafSwitch.InstallAsync(En, "t1", "Rae", 3, "v7", calls.Make());
+        var result = await TafSwitch.InstallAsync(En, "t1", "Rae", 3, Shown, calls.Make());
         Assert.Equal("v8", result.Changed!.Version);
         Assert.DoesNotContain(calls.Said, s => s.StartsWith("sign", StringComparison.Ordinal));
         Assert.Equal("DELETE /v1/tafs/t1/switching", calls.Said[^1]);
+
+        // Begun again, another draft at the same version: not the one read, so never signed.
+        var other = new Calls();
+        other.Cloud["POST /v1/tafs/t1/versions/3/switch"] = Answer("""{"switching": {"n": 3, "draft": "d_9", "at": "2026-11-17T01:00:00Z"}}""");
+        other.Draft = """{"id":"d_9","agent_id":"rae-k3f9","status":"draft","version":"v7"}""";
+        Assert.Equal("d_9", (await TafSwitch.InstallAsync(En, "t1", "Rae", 3, Shown, other.Make())).Changed!.Id);
+        Assert.DoesNotContain(other.Said, s => s.StartsWith("sign", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -88,7 +98,7 @@ public class TafSwitchTests
     {
         var calls = WithCard();
         calls.Confirmed = (409, """{"error": "a Card changed", "code": "card_revised"}""");
-        var result = await TafSwitch.InstallAsync(En, "t1", "Rae", 3, "v7", calls.Make());
+        var result = await TafSwitch.InstallAsync(En, "t1", "Rae", 3, Shown, calls.Make());
         Assert.True(result.Stale);
         Assert.Equal("Version 3's Card is out of date: a Card changed since it was drafted. Draft it again, then read it before you approve.", result.Why);
         Assert.DoesNotContain(calls.Said, s => s.EndsWith("/live", StringComparison.Ordinal));

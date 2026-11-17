@@ -91,14 +91,14 @@ public static class TafSwitch
     /// <summary>
     /// Install, as the iPad's <c>useVersion</c>: the switch begun again (the same one when it's under way), then:
     /// <list type="bullet">
-    /// <item>With a Card: the draft read is the one shown (<paramref name="shownDraft"/>), else it's shown again and the switch
-    /// dropped; one Windows Hello, this PC's passkey, confirms it in KIFF unless KIFF has it already; KIFF saying a Card moved on
+    /// <item>With a Card: the draft read is the one shown (<paramref name="shown"/>, the same id and version), else it's shown
+    /// again and the switch dropped; one Windows Hello, this PC's passkey, confirms it in KIFF unless KIFF has it already; KIFF saying a Card moved on
     /// since it was drafted is "Draft its Card again".</item>
     /// <item>Without: Windows Hello for the owner's presence, nothing signed.</item>
     /// </list>
     /// Then the version goes live. Windows Hello closed drops the switch, and the taf runs as it was.
     /// </summary>
-    public static async Task<SwitchResult> InstallAsync(WordBook w, string taf, string name, int n, string? shownDraft, SwitchCalls switching)
+    public static async Task<SwitchResult> InstallAsync(WordBook w, string taf, string name, int n, AgentDraft? shown, SwitchCalls switching)
     {
         var calls = switching.Calls;
         var none = new SwitchResult(false);
@@ -113,13 +113,15 @@ public static class TafSwitch
         if (sw.Draft is { } id)
         {
             // Nothing shown, nothing signed.
-            if (shownDraft is null) return none;
+            if (shown is null) return none;
             var (draft, why) = await CardAsync(w, id, calls);
             if (!calls.Current()) return none;
             if (draft is null) return new(false, Why: why);
             // A claimed draft is later than confirmed, its Cards issued all the same.
             var issued = draft.Signed;
-            if (draft.Version != shownDraft && !issued) return await Dropped(new(false, Changed: draft, Why: w.Get("version.out_of_date_card")));
+            // What the owner read is what's signed: the same draft at the same version.
+            if ((draft.Id != shown.Id || draft.Version != shown.Version) && !issued)
+                return await Dropped(new(false, Changed: draft, Why: w.Get("version.out_of_date_card")));
             if (!issued)
             {
                 var (path, body) = TafTrials.Confirm(draft.Id, draft.Version, asTrial: false);
