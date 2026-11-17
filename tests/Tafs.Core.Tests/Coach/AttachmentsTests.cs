@@ -61,4 +61,14 @@ public class AttachmentsTests
             Encoding.UTF8.GetString(Tafs.Core.Taf.TafChatSend.Body("See the invoice", ["att_1", "att_2"])));
         Assert.Equal("""{"text":"Hi"}""", Encoding.UTF8.GetString(Tafs.Core.Taf.TafChatSend.Body("Hi", [])));
     }
+
+    /// <summary>Coach's messages carry their files too, beside where they go.</summary>
+    [Fact]
+    public void A_message_to_Coach_carries_its_files()
+    {
+        Assert.Equal("""{"text":"Here","attachments":["att_1"],"new_chat":true,"new_chat_after_handover":true}""",
+            Encoding.UTF8.GetString(CoachSend.Body("Here", CoachConversation.New, ["att_1"])));
+        Assert.Equal("""{"text":"Here","session":"s1","new_chat_after_handover":true}""",
+            Encoding.UTF8.GetString(CoachSend.Body("Here", CoachConversation.Of("s1"))));
+    }
 }

@@ -82,9 +82,10 @@ public static class CoachSend
 {
     public static string Path(string coach) => $"/v1/tafs/{CloudRead.PathPart(coach)}/messages";
 
-    public static byte[] Body(string text, CoachConversation to)
+    public static byte[] Body(string text, CoachConversation to, IReadOnlyList<string>? attachments = null)
     {
         var body = new Dictionary<string, object> { ["text"] = text };
+        if (attachments is { Count: > 0 } ids) body["attachments"] = ids;
         if (to.Fresh) body["new_chat"] = true;
         else if (to.Session is { } session) body["session"] = session;
         body["new_chat_after_handover"] = true;
@@ -96,9 +97,9 @@ public static class CoachSend
     /// (<see cref="Unsent"/>). An answer without its session isn't the iPad's <c>Sent</c>, so it reads as not taken.
     /// </summary>
     public static async Task<(string? Session, Refusal? Why)> SendAsync(WordBook w, string coach, string text, CoachConversation to,
-        Func<string, byte[], Task<CloudRead>> send)
+        Func<string, byte[], Task<CloudRead>> send, IReadOnlyList<string>? attachments = null)
     {
-        var r = await send(Path(coach), Body(text, to));
+        var r = await send(Path(coach), Body(text, to, attachments));
         if (r.Answer is { } a && Lenient.Text(a, "session") is { } session) return (session, null);
         return (null, r.Answer is null ? Refusal.Of(r, w.Get("error.offline")) : new Refusal(w.Get("error.ours")));
     }
