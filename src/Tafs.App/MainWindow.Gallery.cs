@@ -32,6 +32,8 @@ public sealed partial class MainWindow
         // A read that fails keeps what was shown.
         if (answer is { } json && Gallery.Read(json) is { } read2) gallery = read2;
         ShowGalleryRows();
+        // Coach's empty conversation lists the same jobs, for someone who may use Coach.
+        CoachMode.Recipes = gallery;
         // For a screenshot (--page gallery, gallery-job): opened once it's read, on its first strip job's sheet for the second.
         if (galleryAsked is { } asked && gallery is { } g)
         {

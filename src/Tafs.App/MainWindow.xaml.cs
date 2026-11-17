@@ -1005,9 +1005,10 @@ public sealed partial class MainWindow : Window
         unproven = [];
         mayAnswerHolds = true;
         ForgetOrder();
-        // The gallery is the account's: its rows go.
+        // The gallery is the account's: its rows go, and Coach's list with them.
         gallery = null;
         ShowGalleryRows();
+        CoachMode.Recipes = null;
         listedSteps = [];
         // The brief is the account's: Needs you is back in its place.
         (brief, briefLabel, needsYouUnderBrief, mayUseCoach) = (null, null, false, false);
