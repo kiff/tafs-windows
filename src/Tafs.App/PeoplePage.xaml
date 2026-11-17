@@ -8,7 +8,18 @@
       <!-- Back to Account, as the iPad's navigation back. -->
       <Button x:Name="BackButton" Click="OnBack" Style="{StaticResource TafsQuietButton}" FontSize="15" Foreground="{ThemeResource TafsCoach}"
               Padding="0" AutomationProperties.AutomationId="back" />
-      <TextBlock x:Name="Heading" FontSize="28" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
+      <Grid ColumnSpacing="12">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <TextBlock x:Name="Heading" FontSize="28" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
+        <!-- A new group, for whoever manages people: words, as the iPad's "+ Group". -->
+        <Button x:Name="AddGroup" Grid.Column="1" Click="OnAddGroup" Style="{StaticResource TafsOutlineButton}" VerticalAlignment="Center"
+                Visibility="Collapsed" AutomationProperties.AutomationId="people.add-group" />
+      </Grid>
+      <!-- Why the last change didn't go through, kept over a read again. -->
+      <TextBlock x:Name="ChangeError" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
       <TextBlock x:Name="Error" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
       <ProgressRing x:Name="Spinner" IsActive="True" Width="24" Height="24" HorizontalAlignment="Left" />
       <TextBlock x:Name="AccountLine" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" Visibility="Collapsed" />

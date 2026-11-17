@@ -313,7 +313,8 @@ public sealed partial class MainWindow : Window
         AccountPage.CloseChosen += CloseAccount;
         AccountPage.UsageChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
         AccountPage.PeopleChosen += () => OpenBeside(typeof(PeoplePage), new PeopleOpening(kiffRead,
-            agent => home?.Tafs.FirstOrDefault(t => t.Agent == agent)?.Name));
+            agent => home?.Tafs.FirstOrDefault(t => t.Agent == agent)?.Name, PeopleChangeFor(),
+            Tafs.Core.Account.PeopleChanges.MayManagePeople(kiffAccount?.Capabilities)));
         AccountPage.AddThisDeviceChosen += OpenPairing;
         // As the iPad's sign-out (its forgetSession): everything read as the last session goes, and nothing reads as anyone.
         AccountPage.SignedOut += () =>
@@ -1294,6 +1295,26 @@ public sealed partial class MainWindow : Window
                 },
                 () => reading == sessions && App.Sessions.Kept()?.AccessToken == bearer);
         };
+    }
+
+    /// <summary>
+    /// One change to People &amp; groups from this PC (P24, <see cref="Tafs.Core.Account.PeopleChanges.MakeAsync"/>): Windows Hello
+    /// naming it, as Your step asks it, then this session's TPM key signs exactly that request, as the time zone's. Only on a
+    /// session that approves; none otherwise, and People only reads.
+    /// </summary>
+    Func<Tafs.Core.Account.PeopleChange, Task<(bool Done, string? Why)>>? PeopleChangeFor()
+    {
+        if (App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session)) return null;
+        var reading = sessions;
+        return change => Tafs.Core.Account.PeopleChanges.MakeAsync(App.Words, session.Tenant, change, ConfirmStepAsync,
+            async message =>
+            {
+                using var key = TpmKey.Open(session.KeyName);
+                return await key.SignDerAsync(message);
+            },
+            (c, header) => KiffHttp.SignedChangeAsync(new HttpMethod(c.Method), new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, c.Path), c.Body,
+                session.AccessToken, App.Words.Language, ("KIFF-Device-Signature", header)),
+            () => SigningTime.Next(DateTimeOffset.UtcNow), () => reading == sessions && App.Sessions.Kept()?.AccessToken == session.AccessToken);
     }
 
     /// <summary>

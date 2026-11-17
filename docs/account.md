@@ -108,7 +108,8 @@ held call raises while tafs runs, `needs-you.md`).
   - Haptics, the phone's.
 ## People & groups (`People`, `PeoplePage`)
 
-Ported from the iPad's `PeopleGroupsView` and `refreshPeople`, first in **People & apps**, read-only as here.
+Ported from the iPad's `PeopleGroupsView`, `GroupNameSheet`, `AddToGroupSheet`, `refreshPeople` and `changePeople`, first
+in **People & apps**.
 - **The read:** `GET /v1/groups`, `GET /v1/tenant/members` and `GET /v1/me` as the session, when it opens and every 20
   seconds while open. A group needs its id, name, members and agents; a person their subject, role and status. A field
   of the wrong kind fails the read, which says "People and groups couldn't be read." with why, over what was shown.
@@ -120,8 +121,22 @@ Ported from the iPad's `PeopleGroupsView` and `refreshPeople`, first in **People
 - **Each person:** managers first, then by email. Their initial on a raised circle, their email (else KIFF's id for
   them), and "Manager" in amber or "Member".
 - "No groups yet." once read, with no groups and no error.
-- **Not yet:** the iPad's changes (a new group, renaming or deleting one, adding someone, making them the manager or
-  removing them). Each is an approval signed on the device (`changePeople`), as Devices' Sign out.
+- **The changes** (P24, `PeopleChanges`), on a PC that approves; elsewhere People only reads. Who sees what, as the
+  iPad's and as KIFF allows:
+  - **+ Group** by the title, and each group's ⋯ with **Rename** and **Delete**, for whoever manages people (KIFF's
+    `members.manage`). Never on KIFF's default group, which is everyone on the account.
+  - **+ Add someone to Support** under a group, for whoever manages it (they manage people, or they're its manager).
+    It opens the account's people not in it yet, each one tap, with **As the group's manager** first for whoever
+    manages people; or "Everyone on the account is here."
+  - **Each person's ⋯** (and right-click): **Make the manager** or **Make a member**, for whoever manages people;
+    **Remove from Support**, for a group's manager over its members, or for whoever manages people over anyone.
+  - Naming asks for a name (Create or Save only with one, trimmed). Delete asks first, with what deleting does.
+- **Each change** is the person's act behind Windows Hello, naming it ("Rename Support to Help"), as Your step asks it.
+  Then this session's TPM key signs exactly that request (`KIFF-Device-Signature`, `kiff.request.v1`), as KIFF asks of a
+  phone for these routes: `POST /v1/groups`, `PATCH` or `DELETE /v1/groups/{id}`, and `PUT` or `DELETE
+  /v1/groups/{id}/members/{subject}`. A removal sends and signs no body. Then everything is read again. Windows Hello
+  closed says nothing. A refusal says "Rename Support to Help didn't go through." with KIFF's reason in plain words,
+  over the list. One change at a time.
 
 ## Export my chats (`ChatsExport`, `ShareFiles`)
 
