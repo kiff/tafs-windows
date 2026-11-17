@@ -151,7 +151,8 @@ public sealed partial class MainWindow
         if (gallery is { } g)
             Pages.Navigate(typeof(GalleryPage), new GalleryOpening(g, Browse: false,
                 Hand: CoachMode.Answer is not null ? job => CoachMode.Write(job.Say, newConversation: true) : null, Logos: HomeList.Api,
-                OwnWords: () => CoachMode.Write("", newConversation: true)));
+                // "Say it in your own words" only for someone who may use Coach, as the iPad's canHand.
+                OwnWords: CoachMode.Answer is not null ? () => CoachMode.Write("", newConversation: true) : null));
         else CoachMode.Write("", newConversation: true);
     }
 
