@@ -87,6 +87,29 @@ public sealed partial class TafPage
         return true;
     }
 
+    /// <summary>
+    /// The head's way into its versions, as the iPad's <c>versionLine</c>: for whoever manages a tafs cloud taf, "Version 2 ·
+    /// live" once its versions are read (else "Versions"), opening them on the Card tab. Never in a trial, which has its bar.
+    /// </summary>
+    void ShowVersionLine()
+    {
+        var shown = opening is { CloudId: not null, Manages: true, InTrial: null };
+        VersionLine.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
+        if (!shown) return;
+        var w = App.Words;
+        VersionLineText.Text = versions?.Versions.FirstOrDefault(v => v.Live)?.N is { } live
+            ? w.Get("version.live_number", ("version", live.ToString(CultureInfo.InvariantCulture))) : w.Get("version.title");
+        AutomationProperties.SetName(VersionLine, VersionLineText.Text);
+    }
+
+    void OnVersionLine(object sender, RoutedEventArgs e)
+    {
+        if (!Built(TafTab.Card)) return;
+        tab = TafTab.Card;
+        OpenCardScreen(CardScreen.Versions);
+        ShowTab();
+    }
+
     async Task LoadVersionsAsync()
     {
         if (opening is not { CloudId: { } id, Read: { } read }) return;
@@ -96,6 +119,7 @@ public sealed partial class TafPage
         _ = LoadTrialAsync();
         if (answer.Answer is { } a && TafVersions.Read(a) is { } v) (versions, versionsWhy) = (v, null);
         else versionsWhy = answer.Why ?? App.Words.Get("kiff.kiff_did_not_answer_expected");
+        ShowVersionLine();
         if (tab == TafTab.Card && cardScreen == CardScreen.Versions) ShowCards();
     }
 

@@ -124,6 +124,9 @@ public sealed partial class TafPage : Page
         Initial.Text = head.Initial;
         NameText.Text = head.Name;
         ShowShare();
+        // Its live version in the head, for whoever manages it, read now.
+        ShowVersionLine();
+        if (opening is { CloudId: not null, Manages: true, InTrial: null }) _ = LoadVersionsAsync();
         StateText.Text = head.State;
         WaitingText.Text = head.State;
         PausedText.Text = App.Words.Get("taf.state.paused");
