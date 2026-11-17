@@ -483,7 +483,16 @@ public sealed partial class MainWindow : Window
         var w = App.Words;
         var reading = sessions;
         // Answered after another session began: it's the last session's, so it's dropped, as the iPad's accountGeneration.
-        if ((await read(HomeList.Path)).Answer is not { } answer || reading != sessions) return;
+        var homeRead = await read(HomeList.Path);
+        if (reading != sessions) return;
+        // A session KIFF no longer accepts (401: revoked, expired, or left by an older build): forgotten, and sign-in shows,
+        // as the iPad's signed-out answer. Try again could never help it.
+        if (homeRead.Status == 401)
+        {
+            await SessionRefusedAsync();
+            return;
+        }
+        if (homeRead.Answer is not { } answer) return;
         cloudRead = read;
         ShowHome(HomeList.Read(w, answer, TimeZoneInfo.Local));
         // Home's steps; a list that can't be read leaves them as they were.
@@ -962,6 +971,20 @@ public sealed partial class MainWindow : Window
     /// later is dropped. Until a
     /// session is used, nothing reads as anyone.
     /// </summary>
+    /// <summary>
+    /// The kept session refused by KIFF: it goes, as Sign out's does (KIFF told, the store and its TPM key cleared, a store that
+    /// refuses left as it is), and the window signs in again.
+    /// </summary>
+    async Task SessionRefusedAsync()
+    {
+        try { await App.Sessions.SignOutAsync(); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        ViewOnly.IsOpen = false;
+        requestedHold = null;
+        ForgetSession();
+        ShowGate(typeof(SignedOutPage));
+    }
+
     void ForgetSession()
     {
         sessions++;
