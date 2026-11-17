@@ -248,7 +248,7 @@ jobs:
       - name: The installer
         env:
           PLATFORM: ${{ matrix.platform }}
-        run: bash ci/installer.sh msi && bash ci/installer.sh bundle
+        run: bash ci/installer.sh tools && bash ci/installer.sh msi && bash ci/installer.sh bundle
       # On x64: the setup installs quietly, tafs starts from where it put it and saves its sign-in screen, and it uninstalls.
       - name: It installs, starts and uninstalls
         if: matrix.platform == 'x64'
@@ -423,7 +423,10 @@ jobs:
             [ -n "${!var}" ] || case $name in TENANT|CLIENT) missing="$missing AZURE_${name}_ID" ;; *) missing="$missing WINDOWS_SIGNING_$name" ;; esac
           done
           if [ -n "$missing" ]; then echo "::error::windows-signing is missing the variables:$missing"; exit 1; fi
+      # Nothing here pushes, so the checkout keeps no token.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/setup
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -435,6 +438,9 @@ jobs:
           RELEASE: ${{ inputs.release }}
           RUN: ${{ github.run_number }}
         run: bash ci/version.sh
+      # Everything downloaded comes before the sign-in, so no fetch runs while the signing identity is live.
+      - name: WiX and its extension, before signing in
+        run: bash ci/installer.sh tools
       - name: Signed in to Azure, by OIDC
         uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:

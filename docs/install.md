@@ -46,7 +46,7 @@ signed. Everyone else waits for the signed package.
 
   ```bash
   export PLATFORM=x64 VERSION=0.1.0.0 SETUP_NAME=0.1.0.0
-  bash ci/installer.sh msi && bash ci/installer.sh bundle   # artifacts/installer/tafs-setup-0.1.0.0-x64.exe
+  bash ci/installer.sh tools && bash ci/installer.sh msi && bash ci/installer.sh bundle   # artifacts/installer/tafs-setup-0.1.0.0-x64.exe
   ```
 - **Its icon** is the mascot's (`src/Tafs.App/Assets/tafs.ico`): the app's, in Start and the taskbar, and the setup's and
   Windows' installed-apps list.
@@ -97,7 +97,8 @@ signed. Everyone else waits for the signed package.
   **Only the owner approves a `windows-signing` deployment, in the UI;** no session does.
 - **No secret:** the job signs in to Azure by OIDC (`azure/login`), as an app registration whose federated credential's
   subject is exactly `repo:kiff/tafs-windows:environment:windows-signing`, so only a run in that environment can sign,
-  and no long-lived secret exists. `id-token: write` is on the `sign` job only. The signing action then uses that
+  and no long-lived secret exists. `id-token: write` is on the `sign` job only. Everything the job downloads (the app,
+  WiX and its extension) comes before it signs in, and its checkout keeps no token. The signing action then uses that
   sign-in alone.
 - **Its values,** all variables of the environment: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `WINDOWS_SIGNING_ENDPOINT`,
   `WINDOWS_SIGNING_ACCOUNT`, `WINDOWS_SIGNING_PROFILE` and `WINDOWS_SIGNING_SUBJECT` (the certificate's full subject, as
