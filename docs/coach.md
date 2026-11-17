@@ -297,7 +297,7 @@ a second reference.
   else that it was reported already, each with Done. Not sent, it stays open with "Not sent:" and tafs cloud's `words`,
   or that the answer isn't on tafs cloud any more (404), or "It didn't reach KIFF. Try again.", never tafs cloud's codes.
   One answered after the person signed out says "You signed out."
-- **Not yet:** a taf's and a trial's answers, whose chats aren't on Windows yet.
+- **Not yet:** a taf's and a trial's answers.
 
 **Not yet:**
 - **Coach's words as Markdown:** they show as written until `MarkdownText` is ported.

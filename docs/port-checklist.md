@@ -15,6 +15,7 @@ their lines here are d14217f's.
 | ExportChatsView.swift | 82 | Export my chats | | Account › Export my chats: tafs cloud's export as the JSON and text files, Windows' share sheet, removed at every session change (`ChatsExport`, `ShareFiles`, #74) |
 | HaltScreen.swift | 176 | A halt of one taf or every taf | | A taf's halt row and the sidebar's Halt all, each opening the Halt screen with its state and words (`HaltPage`, `Tafs.Core/Taf/Halt.cs`, #70) |
 | NotificationSettingsView.swift | 138 | Account › Alerts | | Alerts on this PC per account, Sound, the two sample alerts (`AlertsPage`, `AlertPrefs`, #72). Not for Windows: "even with tafs closed", What alerts you (a phone's push token) and Haptics |
+| TrialViews.swift | 214 | Trials of a new version | | Try it with its Card, Start trying, the trial's row and chat with its bar and guide, Resume, Go back, Install (`TafPage.Trial.cs`, `MainWindow.Trials.cs`, `Tafs.Core/Taf/TafTrials.cs`) |
 
 ## Partial
 
@@ -66,7 +67,6 @@ their lines here are d14217f's.
 | TafKnobRemote.swift | 64 | The remote's buttons: back, lower, pause, raise, next | KnobNavigation |
 | TafKnobView.swift | 377 | The taf's remote | KnobNavigation |
 | TafSetupViews.swift | 512 | A taf's Setup: Starts when, Results go to, the pending dial | DoorsModel |
-| TrialViews.swift | 214 | Trials of a new version | |
 | YourStepCard.swift | 46 | A step a taf hands the person (#77, open) | |
 
 ## Not for Windows
@@ -103,4 +103,4 @@ their lines here are d14217f's.
 
 ## Coverage
 
-Ported 1, partial 21, not started 25, not for Windows 3: the 50 view files at d14217f.
+Ported 5, partial 23, not started 19, not for Windows 3: the 50 view files at d14217f.

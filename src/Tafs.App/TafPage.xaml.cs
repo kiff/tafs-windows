@@ -21,7 +21,7 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     TafRemove? Remove = null, Func<HttpMethod, string, byte[]?, Task<CloudRead>>? Change = null, TafStarts? Starts = null,
     bool Paused = false, string? Email = null, string? TimeZone = null, Action? AskCoach = null, SetupScreen SetupOn = SetupScreen.Main,
     TafHealth? Health = null, Action<string>? AskCoachWith = null, Action? OpenUsage = null, Func<bool>? MayUseCoach = null,
-    CardScreen CardOn = CardScreen.Main)
+    CardScreen CardOn = CardScreen.Main, TafTrying? Trying = null, TafInTrial? InTrial = null)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
@@ -117,6 +117,18 @@ public sealed partial class TafPage : Page
         paused = opening.Paused;
         liveResults = opening.Starts?.Results;
         tab = Built(opening.OpensOn) ? opening.OpensOn : TafTab.Activity;
+        // A trial: its own chat only, under its bar where the tabs are.
+        if (opening.InTrial is not null)
+        {
+            tab = TafTab.Chat;
+            TabsTrack.Visibility = Visibility.Collapsed;
+            TrialBar.Visibility = Visibility.Visible;
+            ShowTrialBar();
+            ShowState();
+            ShowTab();
+            _ = LoadChatAsync();
+            return;
+        }
 
         if (opening.Card is { } card)
         {
@@ -146,7 +158,7 @@ public sealed partial class TafPage : Page
     async Task LoadChatAsync()
     {
         if (opening is not { CloudId: { } id, Read: { } read } mine) return;
-        var (thread, error) = await TafChat.LoadAsync(App.Words, id, read);
+        var (thread, error) = await TafChat.LoadAsync(App.Words, id, read, mine.InTrial is null ? null : TafTrials.ConversationPath(id));
         // An answer for a page since opened on another taf is dropped. A sign-out leaves for the sign-in page, and a taf's
         // page is never brought back from history, so an answer landing after it reaches a page nobody sees.
         if (opening != mine) return;
@@ -213,6 +225,8 @@ public sealed partial class TafPage : Page
         AutomationProperties.SetName(Draft, Draft.PlaceholderText);
         SendButton.Content = w.Get(sending ? "common.sending" : "common.send");
         ShowTray();
+        // A trial's chat takes words only.
+        AttachButton.Visibility = opening.InTrial is null ? Visibility.Visible : Visibility.Collapsed;
         StopButton.Content = w.Get("chat.stop");
         StopButton.Visibility = working && opening.Manages ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -260,7 +274,9 @@ public sealed partial class TafPage : Page
         ShowChat();
         // The files ready in the tray go with it; the tray empties once it's taken.
         var files = ReadyFiles();
-        var refused = mine.Stream is { } stream ? await StreamAsync(w, id, text, stream, send, mine, files) : await TafChatSend.SendAsync(w, id, text, send, files);
+        // A trial's message goes to its own chat, words only, never the live taf's.
+        var refused = mine.InTrial is not null ? await TafChatSend.SendAsync(w, id, text, send, path: TafTrials.MessagesPath(id))
+            : mine.Stream is { } stream ? await StreamAsync(w, id, text, stream, send, mine, files) : await TafChatSend.SendAsync(w, id, text, send, files);
         if (refused is null && files.Count > 0) ClearSentFiles(files);
         if (opening != mine) return null;
         (sending, live) = (false, null);
@@ -387,7 +403,9 @@ public sealed partial class TafPage : Page
             : (opening?.SampleChat ?? []).Select(m => new Tafs.Core.Coach.ThreadItem(m, null)).ToList();
         // What the person sent that the thread doesn't have yet, after it, in the order sent.
         if (sent.Count > 0) items = [.. items, .. sent.Select(m => new Tafs.Core.Coach.ThreadItem(m, null))];
-        if (items.Count == 0 && unsent.Count == 0)
+        // Before a trial's first message, what it is and what to try.
+        if (items.Count == 0 && unsent.Count == 0 && opening?.InTrial is { } trial) AddTrialGuide(trial);
+        else if (items.Count == 0 && unsent.Count == 0)
         {
             var empty = CoachPanel.Words(TafChat.Empty(w, opening?.Head.Name), 14, "TafsDimText", HorizontalAlignment.Center);
             empty.Margin = new Thickness(0, 30, 0, 30);
@@ -825,6 +843,7 @@ public sealed partial class TafPage : Page
     /// </summary>
     bool Built(TafTab each) => each switch
     {
+        _ when opening?.InTrial is not null => each == TafTab.Chat,
         TafTab.Activity => true,
         TafTab.Chat => opening is { CloudId: not null, Read: not null } || opening?.SampleChat is not null,
         TafTab.Setup => opening?.Setup is not null,
@@ -843,6 +862,12 @@ public sealed partial class TafPage : Page
     void ShowState()
     {
         var waiting = opening?.Head.Waiting == true;
+        // A trial says it isn't live in its bar, never the live taf's state.
+        if (opening?.InTrial is not null)
+        {
+            WorkingChip.Visibility = WaitingChip.Visibility = PausedChip.Visibility = StoppedChip.Visibility = Visibility.Collapsed;
+            return;
+        }
         WorkingChip.Visibility = !paused && !revoked && !waiting ? Visibility.Visible : Visibility.Collapsed;
         WaitingChip.Visibility = !paused && !revoked && waiting ? Visibility.Visible : Visibility.Collapsed;
         PausedChip.Visibility = paused && !revoked ? Visibility.Visible : Visibility.Collapsed;

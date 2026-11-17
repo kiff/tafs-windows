@@ -1708,6 +1708,7 @@ public sealed partial class MainWindow : Window
             Pages.Navigate(typeof(ConnectAppsPage), new ConnectAppsOpening(connectApps, cloudReadWithProof, setupProof, ConnectionsFor(), Back: back));
         }
         else if (item.Tag is Screen.Calendar) Pages.Navigate(typeof(CalendarPage), calendarOpensOn);
+        else if (item.Tag is TafRow trial && TrialFromRow(trial.Key) is { } inTrial) Pages.Navigate(typeof(TafPage), inTrial);
         else if (item.Tag is TafRow taf) Pages.Navigate(typeof(TafPage), OpenTaf(App.Words, taf.Key));
         else if (item.Tag is GalleryRow job) OpenGallery(job);
         else Pages.Navigate(typeof(ComingPage), item.Content);
@@ -1782,7 +1783,9 @@ public sealed partial class MainWindow : Window
                 Health: taf.Health, AskCoachWith: mayUseCoach ? words => CoachMode.Write(words, newConversation: true) : null,
                 OpenUsage: () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage),
                 // Stop is for whoever manages the taf (cards.manage), as KIFF says, once read.
-                Manages: taf.Agent is { } agent && manage?.GetValueOrDefault(agent) == true)
+                Manages: taf.Agent is { } agent && manage?.GetValueOrDefault(agent) == true,
+                // Try it on its versions, for whoever manages it on a PC whose passkey signs.
+                Trying: TryingFor(taf))
             : SampleTaf(w, key, opensOn);
 
     /// <summary>

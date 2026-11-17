@@ -18,9 +18,11 @@ public static class TafChat
     /// loaded." and why (the iPad's <c>chatErrors</c>): tafs cloud's words, else not reached; for an answer that doesn't
     /// decode, the iPad says the system's words, and this app its own.
     /// </summary>
-    public static async Task<(CoachThread? Thread, string? Error)> LoadAsync(WordBook w, string taf, Func<string, Task<CloudRead>> read)
+    /// <param name="path">Another thread's path, read the same way: a trial's (<see cref="TafTrials.ConversationPath"/>).</param>
+    public static async Task<(CoachThread? Thread, string? Error)> LoadAsync(WordBook w, string taf, Func<string, Task<CloudRead>> read,
+        string? path = null)
     {
-        var answer = await read(Path(taf));
+        var answer = await read(path ?? Path(taf));
         if (answer.Answer is not { } a) return (null, NotLoaded(w, answer.Why ?? w.Get("error.offline")));
         return CoachThread.Read(a) is { } thread ? (thread, null) : (null, NotLoaded(w, w.Get("error.ours")));
     }
