@@ -39,6 +39,9 @@ public sealed partial class UsagePage : Page
     void ShowBalance(Balance? b)
     {
         BalancePanel.Visibility = Seen(b is not null);
+        BalanceUnread.Text = BalanceWhy.Text = balanceWhy ?? "";
+        BalanceUnread.Visibility = Seen(b is null && balanceWhy is not null);
+        BalanceWhy.Visibility = Seen(b is not null && balanceWhy is not null);
         if (b is null) return;
         BalancePanel.Style = Look(b.State switch { Tone.Waiting => "TafsCardWaiting", Tone.Warning => "TafsCardWarning", _ => "TafsCard" });
         BalanceWords.Text = b.Words;
@@ -66,14 +69,40 @@ public sealed partial class UsagePage : Page
     void ShowCredits()
     {
         var c = previous ? reads.Previous : reads.This;
-        CreditsPanel.Visibility = Seen((reads.This ?? reads.Previous) is not null && reads.Balance?.CreditsPanel != false);
+        // Shown with a period read, or to say why this period's read didn't come; not when tafs cloud says to leave it out.
+        CreditsPanel.Visibility = Seen(((reads.This ?? reads.Previous) is not null || creditsWhy is not null) && reads.Balance?.CreditsPanel != false);
         LastPeriod.Style = Look(previous ? "TafsSegmentChosen" : "TafsSegment");
         ThisPeriod.Style = Look(previous ? "TafsSegment" : "TafsSegmentChosen");
         CreditsWords.Text = c?.Words ?? "";
+        // This period's or the period before's read that failed: why, under the picker.
+        var why = previous ? previousWhy : creditsWhy;
+        CreditsWhy.Text = why ?? "";
+        CreditsWhy.Visibility = Seen(why is not null);
         CreditsRows.Children.Clear();
         if (c is null || CreditsPanel.Visibility == Visibility.Collapsed) return;
-        // Each taf that used credits, most first, in its own panel. They open their runs once tafs cloud's read is wired.
-        foreach (var t in c.Tafs) CreditsRows.Children.Add(Card(Line(t.Words, 15)));
+        // Each taf that used credits, most first, in its own panel: it opens its credits and runs in that period, as the
+        // iPad's TafCreditsView. A taf removed since has no id and doesn't open.
+        foreach (var t in c.Tafs)
+        {
+            if (t.Taf is not { } taf || TafCreditsChosen is null)
+            {
+                CreditsRows.Children.Add(Card(Line(t.Words, 15)));
+                continue;
+            }
+            var row = new Grid { ColumnSpacing = 10 };
+            row.ColumnDefinitions.Add(new ColumnDefinition());
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.Children.Add(Line(t.Words, 15));
+            var chevron = new FontIcon { Glyph = "\uE76C", FontSize = 12, Style = Look("TafsAmberIcon"), VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(chevron, 1);
+            row.Children.Add(chevron);
+            var open = new Button { Content = Card(row), Style = Look("TafsQuietButton"), Padding = new Thickness(0),
+                HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(open, t.Words);
+            var inPrevious = previous;
+            open.Click += (_, _) => TafCreditsChosen?.Invoke(taf, inPrevious);
+            CreditsRows.Children.Add(open);
+        }
         // Coach past its fair use: counted, its own row.
         if (c.Coach is { } coach) CreditsRows.Children.Add(Card(Line(coach, 15)));
         if (UsageScreen.ShowsNotCounted(c))
@@ -93,6 +122,9 @@ public sealed partial class UsagePage : Page
     }
 
     static Border Card(UIElement child) => new() { Style = Look("TafsCard"), Child = child };
+
+    /// <summary>A taf's row in Credits: its page on Card › Usage, in this period or the one before.</summary>
+    public static event Action<string, bool>? TafCreditsChosen;
 
     static TextBlock Line(string text, double size, bool bold = false, bool soft = false) => new()
     {

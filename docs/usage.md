@@ -44,6 +44,7 @@ time it opens, as the iPad's `.task`: tafs cloud's balance (`GET /v1/usage/balan
 
 **Not on Windows in this release:** buying Solo and packs, and Raise the limit (they move money).
 
-**Not yet:**
-- **A taf's runs:** opening a taf's row shows its runs.
-- **A read that failed:** tafs cloud's words for it.
+- **A taf's runs** (P10): a taf's row in Credits opens its Card › Usage in the period shown (`period=previous` for Last
+  period), and a run that opens (`opens`) shows its own page: the request and what it did step by step.
+- **A read that failed** keeps what was read before and says why in tafs cloud's words, in red: over the balance (alone when
+  none was read), and under Credits' picker for the period shown. A tafs cloud without the read (404) says nothing.

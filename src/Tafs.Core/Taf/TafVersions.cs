@@ -82,8 +82,12 @@ public sealed record CreditRun(string Run, DateTimeOffset At, string Words, bool
 /// </summary>
 public sealed record TafCredits(string Words, IReadOnlyList<CreditRun> Runs, string? Next)
 {
-    public static string Path(string taf, string? after = null) =>
-        "/v1/usage/credits/tafs/" + CloudRead.PathPart(taf) + (after is null ? "" : "?after=" + CloudRead.QueryPart(after));
+    /// <param name="previous">The period before (<c>period=previous</c>), as Plan &amp; usage's Last period opens it.</param>
+    public static string Path(string taf, string? after = null, bool previous = false)
+    {
+        var query = new[] { previous ? "period=previous" : null, after is null ? null : "after=" + CloudRead.QueryPart(after) }.OfType<string>().ToList();
+        return "/v1/usage/credits/tafs/" + CloudRead.PathPart(taf) + (query.Count == 0 ? "" : "?" + string.Join('&', query));
+    }
 
     public static TafCredits? Read(JsonElement a)
     {
