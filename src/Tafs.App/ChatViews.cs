@@ -219,18 +219,14 @@ static class ChatViews
     /// A finished answer's work, folded, as the iPad's <c>WorkSummary</c>: "Worked for 12 s ›", which opens its steps, each with
     /// its mark, "2 tries" after a step tried again.
     /// </summary>
-    public static StackPanel WorkSummary(IReadOnlyList<WorkRow> rows, int ms, Func<string, Brush> brush)
+    /// <summary>
+    /// Steps done, as the iPad's <c>StepList</c>: each row's mark (a check, a failure, not made), its words without the trailing
+    /// "…", and not made or the tries it took; under a line at its left. Under "Worked for", and under the live line while a taf works.
+    /// </summary>
+    public static StackPanel StepList(IReadOnlyList<WorkRow> rows, Func<string, Brush> brush)
     {
         var w = App.Words;
-        var took = WorkLog.Duration(w, ms);
-        var chevron = new FontIcon { Glyph = "", FontSize = 11, Foreground = brush("TafsDim") };
-        var label = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
-        label.Children.Add(CoachPanel.Words(w.Get("chat.work.worked_for", ("ms", took)), 13, "TafsDimText"));
-        label.Children.Add(chevron);
-        var toggle = new Button { Content = label, Style = (Style)Application.Current.Resources["TafsQuietButton"], Padding = new Thickness(0) };
-        AutomationProperties.SetName(toggle, w.Count("chat.work.worked_for_steps", rows.Count, ("took", took)));
-        AutomationProperties.SetHelpText(toggle, w.Get("chat.work.shows_steps"));
-        var steps = new StackPanel { Spacing = 4, Padding = new Thickness(6, 0, 0, 0), Margin = new Thickness(4, 0, 0, 0), Visibility = Visibility.Collapsed,
+        var steps = new StackPanel { Spacing = 4, Padding = new Thickness(6, 0, 0, 0), Margin = new Thickness(4, 0, 0, 0),
             BorderThickness = new Thickness(1, 0, 0, 0), BorderBrush = brush("TafsLine") };
         foreach (var row in rows)
         {
@@ -242,6 +238,22 @@ static class ChatViews
             else if (row.Tries > 1) line.Children.Add(CoachPanel.Words(w.Count("chat.work.tries", row.Tries), 12, "TafsDimText"));
             steps.Children.Add(line);
         }
+        return steps;
+    }
+
+    public static StackPanel WorkSummary(IReadOnlyList<WorkRow> rows, int ms, Func<string, Brush> brush)
+    {
+        var w = App.Words;
+        var took = WorkLog.Duration(w, ms);
+        var chevron = new FontIcon { Glyph = "", FontSize = 11, Foreground = brush("TafsDim") };
+        var label = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+        label.Children.Add(CoachPanel.Words(w.Get("chat.work.worked_for", ("ms", took)), 13, "TafsDimText"));
+        label.Children.Add(chevron);
+        var toggle = new Button { Content = label, Style = (Style)Application.Current.Resources["TafsQuietButton"], Padding = new Thickness(0) };
+        AutomationProperties.SetName(toggle, w.Count("chat.work.worked_for_steps", rows.Count, ("took", took)));
+        AutomationProperties.SetHelpText(toggle, w.Get("chat.work.shows_steps"));
+        var steps = StepList(rows, brush);
+        steps.Visibility = Visibility.Collapsed;
         toggle.Click += (_, _) =>
         {
             var open = steps.Visibility != Visibility.Visible;
