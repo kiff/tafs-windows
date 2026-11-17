@@ -64,8 +64,19 @@ public sealed partial class MainWindow
 
         var calls = ConnectCallsFor(session, passkeyId);
 
+        async Task<KeySheet?> Sheet(string grantId)
+        {
+            // tafs cloud's words for a key's sheet, read with this PC's signed grants read, as Connect apps is.
+            string? proof;
+            try { proof = await SetupProofAsync(session); }
+            catch (System.Security.Cryptography.CryptographicException) { proof = null; }
+            var read = await ReadAsync(new Uri(HomeList.Api, KeySheet.Path(grantId)), bearer, proof);
+            return read.Answer is { } a ? KeySheet.Read(a) : null;
+        }
+
         return new ConnectAppsConnecting(tafs, Start, Read,
-            (grantId, digest, words) => ConnectFlow.ApproveAsync(w, session.Tenant, grantId, digest, words, calls));
+            (grantId, digest, words) => ConnectFlow.ApproveAsync(w, session.Tenant, grantId, digest, words, calls),
+            Sheet, (grantId, digest, words, key) => ConnectFlow.GiveKeyAsync(w, session.Tenant, grantId, digest, words, key, calls));
     }
 
     /// <summary>KIFF's words for exactly a grant's profile, read with the session and checked before they're shown; or why not.</summary>
@@ -156,7 +167,14 @@ public sealed partial class MainWindow
                 }
                 finally { App.SignedInReturned -= Returned; }
             },
-            Current, SessionStore.Why);
+            Current, SessionStore.Why,
+            async (window, path, body, vendorKey) =>
+            {
+                if (await Device() is not { } device) return (0, "{}");
+                using var key = TpmKey.Open(session.KeyName);
+                var header = await ApprovalWindow.PlanqueTapAsync(session.Tenant, device, window, key, SigningTime.Next(DateTimeOffset.UtcNow), "POST", path, body);
+                return await KiffHttp.PlanquePostAsync(new Uri(PlanqueProof.Api, path), body, header, w.Language, vendorKey: vendorKey);
+            });
 
     }
 }

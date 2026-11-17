@@ -201,14 +201,16 @@ static class KiffHttp
 
     /// <summary>A JSON POST to planque as this device (its enrolment), signed with <c>Planque-Device-Signature</c>, with no token.</summary>
     /// <exception cref="HttpRequestException">It wasn't reached, or isn't planque.</exception>
+    /// <param name="vendorKey">An API-key grant's key, in planque's own header only (never in what's signed or logged).</param>
     public static async Task<(int Status, string Body)> PlanquePostAsync(Uri url, byte[] body, string deviceSignature, string language,
-        CancellationToken cancel = default)
+        CancellationToken cancel = default, string? vendorKey = null)
     {
         if (!Tafs.Core.Kiff.PlanqueProof.IsPlanque(url)) throw new HttpRequestException("not planque");
         using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = new ByteArrayContent(body) };
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
         request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
         request.Headers.Add("Planque-Device-Signature", deviceSignature);
+        if (vendorKey is not null) request.Headers.Add(Tafs.Core.Connections.KeySheet.KeyHeader, vendorKey);
         return await SendAsync(request, cancel);
     }
 
