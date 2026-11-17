@@ -5,7 +5,7 @@ using Tafs.Core.Taf;
 namespace Tafs.App;
 
 /// <summary>
-/// The sent message at the top, as the iPad's TafChatView and SetupChatView (as in ChatGPT and Claude): once the person sends,
+/// The sent message at the top, as the iPad's TafChatView and SetupChatView: once the person sends,
 /// their message moves to the top of the chat and stays there while the answer grows below it, rather than the answer
 /// pushing it away. Under it, room enough for it to reach the top at once: the screen less its turn (the iPad's
 /// <c>PinnedTurn.room</c>), which shrinks as the answer grows into it. Each redraw puts it back at the top, unless the person
