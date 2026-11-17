@@ -339,7 +339,7 @@ public sealed partial class CoachPanel
         if (refused is not null)
         {
             coachSent.Remove(pending);
-            coachUnsent.Add(UnsentMessage.Of(text, refused.Why, DateTimeOffset.UtcNow, refused.Halted, mid));
+            coachUnsent.Add(UnsentMessage.After(text, refused, DateTimeOffset.UtcNow, mid));
             ShowConversation();
             return false;
         }

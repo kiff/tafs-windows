@@ -12,15 +12,31 @@ public sealed record UnsentMessage(string Id, string Text, string Why, DateTimeO
 {
     public static UnsentMessage Of(string text, string why, DateTimeOffset at, string? halted = null, string? messageId = null) =>
         new(Guid.NewGuid().ToString("N"), text, why, at, halted, messageId);
+
+    /// <summary>
+    /// A message tafs cloud refused, kept as not sent: it keeps the id it was sent under only when it may have landed (see
+    /// <see cref="Refusal.KeepsMessageId"/>), so Retry gets that message back; otherwise Retry is a new message, with a new id.
+    /// </summary>
+    public static UnsentMessage After(string text, Refusal why, DateTimeOffset at, string? messageId) =>
+        Of(text, why.Why, at, why.Halted, why.KeepsMessageId ? messageId : null);
 }
 
 /// <summary>
 /// Why a message wasn't taken: tafs cloud's words, the halt it was refused for, when it was (<c>account</c> or <c>taf</c>),
 /// and whether it was refused for want of the AI-data consent, whose screen then says why.
 /// </summary>
-public sealed record Refusal(string Why, string? Halted = null, bool Consent = false)
+/// <param name="Status">tafs cloud's answer (0 when it wasn't reached, or the answer said nothing either way).</param>
+public sealed record Refusal(string Why, string? Halted = null, bool Consent = false, int Status = 0)
 {
-    public static Refusal Of(CloudRead r, string fallback) => new(r.Why ?? fallback, r.Halted, r.AsksConsent);
+    public static Refusal Of(CloudRead r, string fallback) => new(r.Why ?? fallback, r.Halted, r.AsksConsent, r.Status);
+
+    /// <summary>
+    /// Whether Retry keeps the message's id (kiff-admin's contract for <c>client_message_id</c>): after a 503 or another 5xx, a
+    /// timeout (408), a dropped connection or no clear answer, nothing was taken or it isn't known, so Retry goes under the same
+    /// id and gets the first send back if it landed. After a 409 <c>dedup_key_conflict</c> (the id is another message's) or
+    /// any other 4xx, the message gives up its id, and Retry is a new message with a new one: never refused forever.
+    /// </summary>
+    public bool KeepsMessageId => Status is 0 or 408 || Status >= 500;
 }
 
 /// <summary>The unsent bubble's words and its list, as the iPad's <c>UnsentBubble</c> and <c>retryChat</c>, the same in a taf's chat and Coach.</summary>
