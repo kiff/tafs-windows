@@ -2,6 +2,7 @@
 # The installer people download (docs/install.md): an MSI of a published app folder, and WiX's standard setup .exe around
 # it, by WiX v5.0.2 (pinned in .config/dotnet-tools.json) and its one extension. In stages, so the sign job can sign
 # between them, each from the repository's root:
+#   tools     WiX and its extension, fetched (the sign job does this before it signs in, so nothing is downloaded after)
 #   msi       the MSI of artifacts/zip/tafs-$PLATFORM
 #   bundle    the setup .exe around that MSI
 #   detach    the setup's engine, out to artifacts/installer/engine-<arch>.exe to be signed (a setup's own signature
@@ -19,9 +20,11 @@ engine="artifacts/installer/engine-$arch.exe"
 icon=$(cygpath -w "$PWD/src/Tafs.App/Assets/tafs.ico")
 
 case "${1:-}" in
-  msi)
+  tools)
     dotnet tool restore
     dotnet wix extension add WixToolset.Bal.wixext/5.0.2
+    ;;
+  msi)
     app=$(cygpath -w "$PWD/artifacts/zip/tafs-$PLATFORM")
     # -wx makes a warning (a folder it can't harvest, say) fail the build instead of shipping an installer with nothing in it.
     dotnet wix build installer/Package.wxs -wx -arch "$arch" -d AppDir="$app" -d Version="$VERSION" -d Icon="$icon" -o "$msi"
@@ -43,7 +46,7 @@ case "${1:-}" in
     rm -f "$engine"
     ;;
   *)
-    echo "usage: ci/installer.sh msi|bundle|detach|reattach" >&2
+    echo "usage: ci/installer.sh tools|msi|bundle|detach|reattach" >&2
     exit 2
     ;;
 esac
