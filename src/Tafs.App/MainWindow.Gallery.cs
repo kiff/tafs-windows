@@ -176,6 +176,9 @@ public sealed partial class MainWindow
         SheetTitle.Text = g.Title(true);
         SheetClose.Content = App.Words.Get("common.close");
         Sheet.Visibility = Visibility.Visible;
+        // The screen behind takes no click while the sheet is over it; Tab cycles inside the sheet (TabFocusNavigation),
+        // which takes focus on Close.
+        Nav.IsHitTestVisible = false;
         if (SheetClose.KeyboardAccelerators.Count == 0)
             SheetClose.KeyboardAccelerators.Add(new Microsoft.UI.Xaml.Input.KeyboardAccelerator { Key = Windows.System.VirtualKey.Escape });
         DispatcherQueue.TryEnqueue(() => SheetClose.Focus(FocusState.Programmatic));
@@ -184,6 +187,7 @@ public sealed partial class MainWindow
     void CloseSheet()
     {
         Sheet.Visibility = Visibility.Collapsed;
+        Nav.IsHitTestVisible = true;
         SheetFrame.Content = null;
     }
 

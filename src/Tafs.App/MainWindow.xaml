@@ -104,7 +104,8 @@
       <Border Background="#66000000" Tapped="OnSheetDim" />
       <Border Width="580" Margin="0,48" CornerRadius="24" Background="{ThemeResource TafsBackground}" BorderBrush="{ThemeResource TafsLine}"
               BorderThickness="1" HorizontalAlignment="Center">
-        <Grid>
+        <!-- Tab stays in the sheet while it's open, as a modal sheet's does. -->
+        <Grid TabFocusNavigation="Cycle">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
