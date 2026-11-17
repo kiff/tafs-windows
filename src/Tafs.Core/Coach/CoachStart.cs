@@ -34,7 +34,8 @@ public sealed record StartCalls(
     Func<byte[], (string Header, string Value), Task<(int Status, string Body)>> SubmitDraft,
     Func<byte[], Task<CloudRead>> Claim,
     Func<string> SignedAt,
-    Func<bool> Current);
+    Func<bool> Current,
+    Func<Task>? KeepAlerts = null);
 
 /// <summary>
 /// Starting Coach, as the iPad's <c>AppModel.startSetup</c> from Start (<c>SetupChatView.introBefore</c>): planque first, as
@@ -154,6 +155,11 @@ public static class CoachStart
             return stopped.Outcome == EnrolOutcome.Cancelled ? Stopped() : new(StartOutcome.Failed, stopped.Why);
         }
         // Signed out meanwhile: nothing more is sent, as the iPad's accountGeneration checks after each await.
+        if (!calls.Current()) return new(StartOutcome.Cancelled);
+
+        // KIFF's alerts kept with tafs cloud, behind the Windows Hello just asked, as the iPad's keepKIFFAlerts before planque.
+        // Best effort: nothing here stops Start.
+        if (calls.KeepAlerts is { } keepAlerts) await keepAlerts();
         if (!calls.Current()) return new(StartOutcome.Cancelled);
 
         if (!planqueReady)

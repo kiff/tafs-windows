@@ -189,7 +189,13 @@ public sealed partial class CoachPanel : UserControl
         ShowStart();
         // Started: its conversation and box show, even with nothing in it yet.
         begun |= result.Started;
-        if (result.Started) await LoadThreadAsync();
+        if (result.Started)
+        {
+            await LoadThreadAsync();
+            // A Start ends on the step that asks for Coach's tools, behind its own Windows Hello, when tafs cloud says they're
+            // still to give (the iPad's coachToolsAsked): nothing is given inside Start's.
+            if (gen == generation && tools is { ToGive: true } && GiveTools is not null) OnToolsRow(ToolsRow, new RoutedEventArgs());
+        }
         else if (result.Why is { } why)
         {
             IntroError.Text = why;

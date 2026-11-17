@@ -318,6 +318,17 @@ Ported from the iPad's `ReportAnswerSheet` and `reportable`, `AppModel.canReport
   Windows Hello closed says nothing. A refusal stays in the step, in KIFF's words. tafs cloud's read after says whether
   they're given, and the row goes once they are.
 
+**Start's last steps,** as the iPad's `startSetup`:
+- **KIFF's alerts** (`KiffAlerts`, the iPad's `keepKIFFAlerts`), behind Start's Windows Hello and before planque, for
+  someone who may answer held calls: tafs cloud is asked whether it already holds KIFF's alert target
+  (`GET /v1/alerts`). If it doesn't, KIFF points the account's held-call alerts at tafs cloud (`POST
+  /v1/me/alert-targets` with tafs cloud's `/v1/kiff/alerts`, a setup call this session's TPM key signs), and the target
+  it answers with goes straight to tafs cloud (`POST /v1/alerts`). Kept already, or tafs cloud not saying: nothing is
+  made. A target tafs cloud didn't take waits in memory for the next Start, and is never registered twice or written
+  anywhere. Best effort: none of it stops Start.
+- **Coach's tools after Start:** when tafs cloud says they're still to give, the tools step opens at once, behind its own
+  Windows Hello (the iPad's `coachToolsAsked`). Nothing is given inside Start's.
+
 **Not yet:**
 - **Coach's words as Markdown:** they show as written until `MarkdownText` is ported.
 - **See version 3,** which opens the taf's Versions on the iPad: Versions aren't ported, so the made line shows instead,
@@ -330,11 +341,5 @@ Ported from the iPad's `ReportAnswerSheet` and `reportable`, `AppModel.canReport
 - **Writing to Coach, the rest:** the stream as Coach writes (here the thread is read again every 2 s), Stop, queued
   messages, steering, files and dictation, and `starts` and its recipes. A message refused for want of the AI-data
   consent goes back in the box, with no Not sent row, and the consent's screen says why, as the iPad's.
-- **Starting Coach, the rest of `startSetup`:**
-  - the tools step for a first start without tafs cloud's words (`CoachToolsStep`), and its Not now;
-  - KIFF's alerts (`keepKIFFAlerts`);
-  - keeping planque's enrolment across launches (the iPad's Keychain `planqueTenant`). Here it's asked again after each
-    sign-in, and planque keeps its key (`kept`), so nothing is minted;
-  - then the recipes;
-  - "Taking shape" beside a wide chat.
+- **Starting Coach, the rest of `startSetup`:** the recipes after Start.
 - **The backdrop as a button** for Narrator: it has its name, but a tap is the only way to use it. Back and Escape close Coach from the keyboard.
