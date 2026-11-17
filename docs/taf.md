@@ -29,6 +29,9 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
   come keeps the thread there was and says "The thread couldn't be loaded." and why, in red at 13. A sample taf's
   thread is its greeting (`sample.hello`), with what it's doing as its Overview line says it. Coach's thread draws
   its bubbles, run starts and work the same way (`ChatViews`).
+  A taf's answer, or a trial's, is reported with a right-click, as Coach's (the iPad's `reportable`): the reasons, the
+  note, Send, and tafs cloud's answer, sent against this taf with the message's session
+  (`POST /v1/tafs/{id}/messages/{message}/report`), for a KIFF account, on an answer tafs cloud has an id for.
   While the taf works, the step running is on the live line, and the steps done are under it (`TafChatStream.DoneRows`,
   the iPad's `LiveWork`): tries of one step as one row, and failures left out until it's done.
 - **The Card bar:** a small Card in the taf's colour with the Card's mark, its Card's figure and words ("€1,960 left
@@ -357,7 +360,7 @@ is the approval key's act, never the device key's); a revoked taf can still be r
   days are titled as sent, in 12 semibold, not in the sample's capitals. Pull to refresh has no Windows gesture yet.
 - **Chat's Retry** on a message kept unsent, and steering a run at work (`/steer`).
 - **Chat's other items:** held calls in the thread and the Needs you pill, what became of an approved call, a door's
-  knocks, a setting handed to Coach, a run stopped at its cap, the answer's Report menu, opening a sent file full size
+  knocks, a setting handed to Coach, a run stopped at its cap, opening a sent file full size
   (it's named only, until its bytes are read), and a connected tool's title
   in its steps ("Asking KIFF: Create refund…", from planque's grants). The taf's words are drawn as written, not as
   Markdown, as Coach's are.

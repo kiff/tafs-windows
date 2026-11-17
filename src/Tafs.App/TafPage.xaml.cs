@@ -386,6 +386,23 @@ public sealed partial class TafPage : Page
     /// connection's lines; a run's start as a line. A message through a door has its stamp: over it, where it came from;
     /// under the taf's answer, how it went back. With nothing in it, what the chat is for; a read that didn't come, why, in red.
     /// </summary>
+    /// <summary>
+    /// A taf's answer's menu, as Coach's and the iPad's <c>reportable</c>: Report this answer, opening the report. It goes to
+    /// tafs cloud against this taf (a trial's answers too), with the message's session, as the iPad's <c>reportAnswer</c>.
+    /// </summary>
+    MenuFlyout ReportMenu(Tafs.Core.Coach.ChatMessage m)
+    {
+        var w = App.Words;
+        var item = new MenuFlyoutItem { Text = w.Get("report.menu"), Icon = new FontIcon { Glyph = "" } };
+        item.Click += async (_, _) =>
+        {
+            if (opening?.CloudId is not { } taf || opening.Send is not { } send) return;
+            await new ReportAnswerDialog(XamlRoot, (reason, note) =>
+                Tafs.Core.Coach.AnswerReport.SendAsync(w, async (path, body) => await send(path, body), taf, m, reason, note)).ShowAsync();
+        };
+        return new MenuFlyout { Items = { item } };
+    }
+
     void ShowChat()
     {
         var w = App.Words;
@@ -441,6 +458,8 @@ public sealed partial class TafPage : Page
             {
                 var text = CoachPanel.Words(m.Text, 16, "TafsInkText");
                 text.IsTextSelectionEnabled = true;
+                // Its answers can be reported, as Coach's (the iPad's reportable, for a taf's chat and a trial's).
+                if (Tafs.Core.Coach.AnswerReport.Can(m, kiff: opening?.Send is not null && opening.CloudId is not null)) text.ContextFlyout = ReportMenu(m);
                 lines.Children.Add(text);
                 // Its answer to a door's message: how it went back, under it.
                 if (m.Door is { } door) lines.Children.Add(ChatViews.DoorStamp(door, fromOwner: false, Brush));
