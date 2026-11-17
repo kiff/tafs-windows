@@ -17,6 +17,8 @@ public static class Screen {
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
   [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr hwnd, uint msg, IntPtr w, IntPtr l);
+  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+  [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out RECT rect, int size);
 }
 '@
 [void][Screen]::SetProcessDPIAware()
@@ -51,10 +53,12 @@ function Wait-For([scriptblock] $what, [int] $seconds, [string] $why) {
 function Save-Window($window, [string] $file) {
     [void][Screen]::SetForegroundWindow([IntPtr]$window.Current.NativeWindowHandle)
     Start-Sleep -Seconds 1
-    $r = $window.Current.BoundingRectangle
-    $bmp = New-Object System.Drawing.Bitmap ([int]$r.Width), ([int]$r.Height)
+    # The window as drawn (DWMWA_EXTENDED_FRAME_BOUNDS), without its invisible resize border.
+    $r = New-Object Screen+RECT
+    [void][Screen]::DwmGetWindowAttribute([IntPtr]$window.Current.NativeWindowHandle, 9, [ref]$r, 16)
+    $bmp = New-Object System.Drawing.Bitmap ($r.Right - $r.Left), ($r.Bottom - $r.Top)
     $g = [System.Drawing.Graphics]::FromImage($bmp)
-    $g.CopyFromScreen([int]$r.X, [int]$r.Y, 0, 0, $bmp.Size)
+    $g.CopyFromScreen($r.Left, $r.Top, 0, 0, $bmp.Size)
     $g.Dispose(); $bmp.Save($file, [System.Drawing.Imaging.ImageFormat]::Png); $bmp.Dispose()
     Write-Host "saved $file"
 }
