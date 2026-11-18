@@ -7,7 +7,7 @@ public sealed record SampleTaf(string Key, string Name, int Colour, TafCard Card
 
 /// <summary>
 /// The iPad's five sample tafs, in the reference set's overview.png order, each with its Card's total as the sample's Record
-/// has used it: Deploys 1 of 10 deploys today, Late parcels 1 of 100 delay messages, Support replies 1 of 40 replies, Lead
+/// has used it: Deploys 1 of 10 deploys today, Late parcels 1 of 100 delay messages, Support replies 12 of 40 replies, Lead
 /// follow-up 2 of 50 replies, Access 1 of 40 roles today. No sample moves money: each Card counts, asks and refuses. Each
 /// Card holds its template's rules, as the iPad starts each sample taf from its template (<c>TafTemplates</c>).
 /// </summary>

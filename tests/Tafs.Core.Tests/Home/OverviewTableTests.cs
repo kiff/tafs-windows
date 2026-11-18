@@ -26,7 +26,7 @@ public class OverviewTableTests
         }, rows.Select(r => r.Now));
         Assert.Equal(new[]
         {
-            "9 calls left today of 10", "99 calls left today of 100", "39 calls left today of 40",
+            "9 calls left today of 10", "99 calls left today of 100", "28 calls left today of 40",
             "48 calls left today of 50", "39 calls left today of 40",
         }, rows.Select(r => r.Card));
         Assert.All(rows, r => Assert.Equal("–", r.LastResult));

@@ -41,7 +41,7 @@ public static class TafScreen
     /// <summary>
     /// The sample's own Card, as the iPad's sample keeps it for Support replies: up to 40 replies a day (as kiff.dev/tafs's
     /// example Card says), a promise of a refund, a discount or a replacement always asks, and a customer's details are never
-    /// sent on; 1 reply used today. No money moves.
+    /// sent on; 12 replies used today, as its live Card on the Card screen counts. No money moves.
     /// </summary>
     public static TafCard SampleOwnCard(WordBook w)
     {
@@ -51,7 +51,7 @@ public static class TafScreen
             new("reply_ticket", w.Get("sample.support.rule.replies"), day, CountPerWindow: 40),
             new("promise", w.Get("sample.support.rule.promises"), day, AlwaysAsk: true),
             new("share_customer_data", w.Get("sample.support.rule.customer_data"), day, Never: true, Outside: Outside.Refuse),
-        ], Calls: new CallsTotal(40, 1, day));
+        ], Calls: new CallsTotal(40, 12, day));
     }
 
     /// <summary>
@@ -64,6 +64,6 @@ public static class TafScreen
         return [new TafCard("sample-support", w.Get("sample.card.refunds_stripe"), SampleOwnCard(w).Rules, Calls: new CallsTotal(40, 12, day))];
     }
 
-    /// <summary>The sample's Card bar above its Activity, as taf.png: "39 calls left today of 40", from its one Card.</summary>
+    /// <summary>The sample's Card bar above its Activity, as taf.png: "28 calls left today of 40", from its one Card.</summary>
     public static CardBarLine SampleCard(WordBook w) => SampleOwnCard(w).Bar(w, 1);
 }

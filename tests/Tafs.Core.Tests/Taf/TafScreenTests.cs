@@ -32,7 +32,7 @@ public class TafScreenTests
 
     [Fact]
     public void The_sample_s_Card_bar_says_what_s_left_of_its_limit() =>
-        Assert.Equal(new CardBarLine("39 calls left today of 40", "Support replies"), TafScreen.SampleCard(En));
+        Assert.Equal(new CardBarLine("28 calls left today of 40", "Support replies"), TafScreen.SampleCard(En));
 
     [Theory]
     [MemberData(nameof(Shipped))]
