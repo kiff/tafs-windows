@@ -162,20 +162,22 @@ public static class NeedsYouScreen
     }
 
     /// <summary>
-    /// The iPad's two sample calls (TafTemplates), in the person's language: Deploys' migration, which its
-    /// Card always asks about, and Bill pay's €8,400, over €5,000 each. For screenshots, and the docs.
+    /// The iPad's three sample calls (TafTemplates), in the person's language: Deploys' migration, Late parcels' reship
+    /// and Support replies' promise, each of which its Card always asks about. No sample call moves money. For
+    /// screenshots, and the docs.
     /// </summary>
     public static IReadOnlyList<HeldCall> Sample(WordBook w, DateTimeOffset now)
     {
         var lapses = now + new TimeSpan(0, 9, 37);
+        HeldCall Asks(string taf, int colour, string summary, string rule) =>
+            new(w.Get($"sample.{taf}.name"), colour, w.Get($"sample.{taf}.{summary}"), null, w.Get($"sample.{taf}.{summary}_why"),
+                w.Get("card.check.always_asks", ("rule", w.Get($"sample.{taf}.rule.{rule}"))), lapses,
+                [w.Get($"sample.{taf}.next_step")]);
         return
         [
-            new(w.Get("sample.deploys.name"), 1, w.Get("sample.deploys.migration"), null, w.Get("sample.deploys.migration_why"),
-                w.Get("card.check.always_asks", ("rule", w.Get("sample.deploys.rule.migrations"))), lapses,
-                [w.Get("sample.deploys.next_step")]),
-            new(w.Get("sample.bill_pay.name"), 3, w.Get("sample.bill_pay.pay_atlas"), Euros(w, 8_400), w.Get("sample.bill_pay.pay_atlas_why"),
-                w.Get("card.check.over_each", ("amount", Euros(w, 5_000))), lapses,
-                [w.Get("sample.bill_pay.next_step")]),
+            Asks("deploys", 1, "migration", "migrations"),
+            Asks("parcels", 3, "reship_5098", "reships"),
+            Asks("support", 4, "promise_7802", "promises"),
         ];
     }
 }

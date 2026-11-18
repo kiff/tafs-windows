@@ -1925,8 +1925,8 @@ public sealed partial class MainWindow : Window
         AccountIconChosen.Visibility = chosen ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>The taf the reference set opens: the sample's Refunds, on its Activity (taf.png), its Setup (taf-setup.png) or its Card (taf-card.png).</summary>
-    TafOpening SampleTaf(Tafs.Core.Words.WordBook w, TafTab opensOn) => SampleTaf(w, "refunds", opensOn);
+    /// <summary>The taf the reference set opens: the sample's Support replies, on its Activity (taf.png), its Setup (taf-setup.png) or its Card (taf-card.png).</summary>
+    TafOpening SampleTaf(Tafs.Core.Words.WordBook w, TafTab opensOn) => SampleTaf(w, "support", opensOn);
 
     /// <summary>
     /// A taf's page from its line: from Home's answer, its head (its state in the app's words) and its Card bar; its
@@ -2139,7 +2139,7 @@ public sealed partial class MainWindow : Window
         var activity = (Func<string, ActivityPage>)(filter => TafActivity.Sample(w, taf.Name, filter, now, TimeZoneInfo.Local));
         // Its Chat, as the iPad's sample: its greeting, with what it's doing as its Overview line says it.
         var chat = TafChat.Sample(w, taf.Name, OverviewScreen.SampleRows(w, now).FirstOrDefault(r => r.Key == key)?.Now ?? "", now);
-        return key == "refunds"
+        return key == "support"
             ? new(head, TafScreen.SampleCard(w), activity, new SetupOpening(TafSetup.SampleJob(w), TafSetup.SampleNotes(w, now)), opensOn,
                 TafScreen.SampleCards(w), w.Get("common.you"), SampleChat: chat)
             // The others with their own Card and job, so every tab opens on each, as the iPad's.

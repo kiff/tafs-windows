@@ -88,14 +88,19 @@ public class NeedsYouScreenTests
     }
 
     [Fact]
-    public void The_samples_are_the_iPad_s_two_calls()
+    public void The_samples_are_the_iPad_s_three_calls()
     {
         var calls = NeedsYouScreen.Sample(En, Now);
-        Assert.Equal(new[] { "Deploys", "Bill pay" }, calls.Select(c => c.Taf));
+        Assert.Equal(new[] { "Deploys", "Late parcels", "Support replies" }, calls.Select(c => c.Taf));
+        Assert.Equal(new[] { 1, 3, 4 }, calls.Select(c => c.TafColor));
         Assert.Equal("Run migration 0042_orders_index", calls[0].Summary);
         Assert.Equal("Schema migrations: always asks you", calls[0].Reason);
-        Assert.Null(calls[0].Amount);
-        Assert.Equal(("€8,400", "Pay Atlas Freight", "Over €5,000 each"), (calls[1].Amount, calls[1].Summary, calls[1].Reason));
+        Assert.Equal(("Send a new parcel for order #5098", "Reships: always asks you"), (calls[1].Summary, calls[1].Reason));
+        Assert.Equal(("Promise a replacement on ticket #7802", "Promises: always asks you"), (calls[2].Summary, calls[2].Reason));
+        Assert.Equal(new[] { "Wait one more day" }, calls[1].NextSteps);
+        Assert.Equal(new[] { "Ask for a photo first" }, calls[2].NextSteps);
+        // No sample call moves money.
+        Assert.All(calls, c => Assert.Null(c.Amount));
         Assert.All(calls, c => Assert.Equal("9:37 left", NeedsYouScreen.Left(En, c, Now)));
     }
 

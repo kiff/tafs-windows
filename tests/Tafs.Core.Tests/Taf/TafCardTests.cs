@@ -166,7 +166,7 @@ public class TafCardTests
     public void Narrator_reads_a_Card_figure_first_and_its_end_as_it_is()
     {
         var card = TafScreen.SampleCards(En)[0];
-        Assert.Equal("€1,520 left today of €2,000. Refunds · Stripe. up to €150 each; more asks you first. 2 tools. Issued by You. No end date.",
+        Assert.Equal("28 calls left today of 40. Support replies · Zendesk. 3 tools. Issued by You. No end date.",
             card.Spoken(En, "You", revoked: false));
         var ends = new DateTimeOffset(2026, 12, 31, 12, 0, 0, TimeSpan.Zero);
         Assert.EndsWith("Until 31 Dec 2026.", (card with { Expires = ends }).Spoken(En, "You", false));
@@ -185,18 +185,17 @@ public class TafCardTests
         Assert.Equal("this sprint", CardWindow.Of(En, "rolling_1h", now: "this sprint").Current);
     }
 
-    /// <summary>The reference set's taf-card.png: the live Card in front, then Read Stripe and the test copy.</summary>
+    /// <summary>The reference set's taf-card.png: Support replies' one live Card, named for its helpdesk, its replies counted.</summary>
     [Fact]
     public void The_sample_s_Cards_are_the_reference_s()
     {
-        var cards = TafScreen.SampleCards(En);
-        Assert.Equal(new[] { "Refunds · Stripe", "Read Stripe", "Refunds · Stripe test" }, cards.Select(c => c.Title));
-        Assert.Equal(("€1,520", "left today of €2,000"), cards[0].Hero(En));
-        Assert.Equal(new[] { "up to €150 each; more asks you first", "2 tools" }, cards[0].Facts(En));
-        Assert.Equal(new[] { "Refunds", "Credits" }, cards[0].Rules.Select(r => r.Label));
-        Assert.Equal("up to €100 each; more asks you first · €1,000 in total a day, then it asks you", cards[0].Rules[1].Summary(En));
-        Assert.Equal(("180", "calls left today of 200"), cards[1].Hero(En));
-        Assert.Equal(("TEST", false), (cards[2].EnvironmentLabel, cards[2].Live));
+        var card = Assert.Single(TafScreen.SampleCards(En));
+        Assert.Equal("Support replies · Zendesk", card.Title);
+        Assert.Equal(("28", "calls left today of 40"), card.Hero(En));
+        Assert.Equal(new[] { "3 tools" }, card.Facts(En));
+        Assert.Equal(new[] { "reply_ticket", "promise", "share_customer_data" }, card.Rules.Select(r => r.Action));
+        Assert.True(card.Live);
+        Assert.All(card.Rules, r => Assert.True(r.PerAction is null && r.PerWindow is null, r.Action));
     }
 
     [Theory]

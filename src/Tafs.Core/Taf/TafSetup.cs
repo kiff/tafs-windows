@@ -196,8 +196,8 @@ public static class TafSetup
                 .Select(part => (part.EndsWith(".md", StringComparison.Ordinal) ? part[..^3] : part).Replace('-', ' '))
                 .Append(TimeZoneInfo.ConvertTime(note.UpdatedAt, zone).ToString("HH:mm", CultureInfo.InvariantCulture)));
 
-    /// <summary>The sample Refunds' job, as the reference set's taf-setup.png.</summary>
-    public static string SampleJob(WordBook w) => w.Get("sample.refunds.job");
+    /// <summary>The sample Support replies' job, as the reference set's taf-setup.png.</summary>
+    public static string SampleJob(WordBook w) => w.Get("sample.support.job");
 
     /// <summary>
     /// The sample's notes, as the iPad's: the kind of thing a real taf writes down as it learns, an hour, a day and three

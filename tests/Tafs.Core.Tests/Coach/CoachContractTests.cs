@@ -125,7 +125,7 @@ public class CoachContractTests
     {
         var thread = CoachThread.Read(ContractFile.Answer(SharedFiles.Contract("coach-wider.json")))!;
         var approval = Assert.Single(thread.Shown, s => s.Card.Kind == "approval");
-        Assert.Equal("The sign-in for Google Sheets can't be narrowed to this job: its screen will ask for more access than the taf uses. The taf can still use only the tools on its Card, and tafs refuses any other call. The code that does this is public, so you can check it.",
+        Assert.Equal("Composio connects your Google Sheets account. Google Sheets may ask for broader access than this job needs, but your taf can only use the tools allowed on its Card. tafs enforces those limits and blocks every other tool call.",
             approval.Card.Wider);
     }
 }

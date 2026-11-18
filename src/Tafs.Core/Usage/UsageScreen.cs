@@ -77,10 +77,10 @@ public static class UsageScreen
     /// <summary>The sample's credits, this period or the one before, in its tafs' words as tafs cloud writes them.</summary>
     public static Credits SampleCredits(WordBook w, bool previous = false) => previous
         ? new(2310, 126, w.Get("sample.credits.last_period"),
-            [new("sample-refunds", 1480, 74, w.Get("sample.credits.refunds_last")), new("sample-invoices", 830, 52, w.Get("sample.credits.invoices_last"))],
+            [new("sample-support", 1480, 74, w.Get("sample.credits.refunds_last")), new("sample-parcels", 830, 52, w.Get("sample.credits.invoices_last"))],
             null, null, w.Get("sample.credits.note"))
         : new(1240, 69, w.Get("sample.credits.this_period"),
-            [new("sample-refunds", 820, 41, w.Get("sample.credits.refunds_this")), new("sample-invoices", 420, 28, w.Get("sample.credits.invoices_this"))],
+            [new("sample-support", 820, 41, w.Get("sample.credits.refunds_this")), new("sample-parcels", 420, 28, w.Get("sample.credits.invoices_this"))],
             null,
             new NotCounted(9, w.Get("sample.credits.not_counted"),
                 [("coach", 6, w.Get("sample.credits.not_counted_coach")), ("trial", 2, w.Get("sample.credits.not_counted_trials")),

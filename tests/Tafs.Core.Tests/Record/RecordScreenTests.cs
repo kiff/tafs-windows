@@ -102,13 +102,16 @@ public class RecordScreenTests
     {
         var sample = RecordScreen.Sample(En, Now);
         Assert.Equal(15, sample.Count);
-        Assert.Equal(("Chargebacks", "Accept dispute on #3342", "€35, within the Card"), (sample[0].Taf, sample[0].Title, sample[0].Detail));
+        Assert.Equal(("Lead follow-up", "Confirm the call with Nord Atelier", "Within the Card"), (sample[0].Taf, sample[0].Title, sample[0].Detail));
         Assert.Equal(("Held: Run migration 0042_orders_index", "Schema migrations: always asks you", EntryKind.Held), (sample[1].Title, sample[1].Detail, sample[1].Kind));
-        Assert.Equal(("Refunds started", "Card issued by You", EntryKind.Started), (sample[10].Title, sample[10].Detail, sample[10].Kind));
-        Assert.Equal(new[] { 0, 1, 2, 3, 4 }, new[] { "Chargebacks", "Deploys", "Access", "Bill pay", "Refunds" }.Select(t => sample.First(e => e.Taf == t).TafColor));
-        Assert.Equal(5, sample.Count(e => RecordScreen.Keeps(RecordFilter.MoneyMoved, e)));
+        Assert.Equal(("Held: Send a new parcel for order #5098", "Reships: always asks you", EntryKind.Held), (sample[3].Title, sample[3].Detail, sample[3].Kind));
+        Assert.Equal(("Held: Promise a replacement on ticket #7802", "Promises: always asks you", EntryKind.Held), (sample[4].Title, sample[4].Detail, sample[4].Kind));
+        Assert.Equal(("Support replies started", "Card issued by You", EntryKind.Started), (sample[10].Title, sample[10].Detail, sample[10].Kind));
+        Assert.Equal(new[] { 0, 1, 2, 3, 4 }, new[] { "Lead follow-up", "Deploys", "Access", "Late parcels", "Support replies" }.Select(t => sample.First(e => e.Taf == t).TafColor));
+        // No sample line moves money.
+        Assert.Equal(0, sample.Count(e => RecordScreen.Keeps(RecordFilter.MoneyMoved, e)));
         Assert.Equal(sample, sample.OrderByDescending(e => e.At));
-        Assert.Equal(new[] { "Refunds", "Bill pay", "Access", "Deploys", "Chargebacks" }, RecordScreen.TafChips(sample).Select(c => c.Taf));
+        Assert.Equal(new[] { "Support replies", "Late parcels", "Access", "Deploys", "Lead follow-up" }, RecordScreen.TafChips(sample).Select(c => c.Taf));
     }
 
     [Theory]

@@ -33,43 +33,37 @@ public static class TafScreen
     public static TafHead Head(WordBook w, string name, int colour, string stateKey) =>
         new(name, Initial(name), colour, w.Get("taf.state." + stateKey), stateKey == "waiting");
 
-    /// <summary>The sample's taf the reference set opens (taf.png): Refunds, the fifth colour, working.</summary>
+    /// <summary>The sample's taf the reference set opens (taf.png): Support replies, the fifth colour, working.</summary>
     public static TafHead SampleHead(WordBook w) => Head(w, SampleTaf(w), 4, "working");
 
-    public static string SampleTaf(WordBook w) => w.Get("sample.refunds.name");
+    public static string SampleTaf(WordBook w) => w.Get("sample.support.name");
 
     /// <summary>
-    /// The sample's own Card, as the iPad's sample keeps it for Refunds: refunds up to €150 each and €2,000 a day, credits
-    /// up to €100 each and €1,000 a day (past them it asks), never a payout; €40 used today.
+    /// The sample's own Card, as the iPad's sample keeps it for Support replies: up to 40 replies a day (as kiff.dev/tafs's
+    /// example Card says), a promise of a refund, a discount or a replacement always asks, and a customer's details are never
+    /// sent on; 12 replies used today, as its live Card on the Card screen counts. No money moves.
     /// </summary>
     public static TafCard SampleOwnCard(WordBook w)
     {
         var day = CardWindow.Of(w, "calendar_day");
         return new TafCard("sample-own", SampleTaf(w),
         [
-            new("refund", w.Get("sample.refunds.rule.refunds"), day, KiffAmount.Euros(150), KiffAmount.Euros(2_000)),
-            new("credit", w.Get("sample.refunds.rule.credits"), day, KiffAmount.Euros(100), KiffAmount.Euros(1_000)),
-            new("payout", w.Get("sample.refunds.rule.payouts"), day, Never: true, Outside: Outside.Refuse),
-        ], new CardTotal(KiffAmount.Euros(2_000), KiffAmount.Euros(40), day));
+            new("reply_ticket", w.Get("sample.support.rule.replies"), day, CountPerWindow: 40),
+            new("promise", w.Get("sample.support.rule.promises"), day, AlwaysAsk: true),
+            new("share_customer_data", w.Get("sample.support.rule.customer_data"), day, Never: true, Outside: Outside.Refuse),
+        ], Calls: new CallsTotal(40, 12, day));
     }
 
     /// <summary>
-    /// The Cards the reference set's taf-card.png shows for Refunds, as KIFF would list them: a live one with its money
-    /// total (€480 of €2,000 used today), a read-only one with its calls (20 of 200), and a copy scoped to Stripe's test mode.
+    /// The Card the reference set's taf-card.png shows for Support replies, as KIFF would list it: its live Card, named for
+    /// its helpdesk, with its replies counted against the day's limit (12 of 40).
     /// </summary>
     public static IReadOnlyList<TafCard> SampleCards(WordBook w)
     {
         var day = CardWindow.Of(w, "calendar_day");
-        var refunds = new TafCard("sample-refunds", w.Get("sample.card.refunds_stripe"), SampleOwnCard(w).Rules.Take(2).ToList(),
-            new CardTotal(KiffAmount.Euros(2_000), KiffAmount.Euros(480), day));
-        var reads = new TafCard("sample-reads", w.Get("sample.card.read_stripe"),
-        [
-            new("list_charges", w.Get("sample.list_charges"), day, CountPerWindow: 200),
-            new("get_charge", w.Get("sample.look_up_charge"), day),
-        ], Calls: new CallsTotal(200, 20, day));
-        return [refunds, reads, refunds with { Id = "sample-test", Title = w.Get("sample.refunds_stripe_test"), Environment = "test", Live = false }];
+        return [new TafCard("sample-support", w.Get("sample.card.refunds_stripe"), SampleOwnCard(w).Rules, Calls: new CallsTotal(40, 12, day))];
     }
 
-    /// <summary>The sample's Card bar above its Activity, as taf.png: "€1,960 left today of €2,000", from its one Card.</summary>
+    /// <summary>The sample's Card bar above its Activity, as taf.png: "28 calls left today of 40", from its one Card.</summary>
     public static CardBarLine SampleCard(WordBook w) => SampleOwnCard(w).Bar(w, 1);
 }
