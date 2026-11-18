@@ -52,21 +52,24 @@ public class TafCardsTests
 
     /// <summary>
     /// Each sample taf's Card holds its template's rules, in the iPad's TafTemplates order, so its Card tab lists them;
-    /// Refunds keeps its own Card.
+    /// Support replies keeps its own Card. No sample's Card moves money.
     /// </summary>
     [Fact]
     public void Each_sample_taf_s_Card_holds_its_template_s_rules()
     {
         var cards = SampleTafs.All(En).ToDictionary(t => t.Key, t => t.Card);
         Assert.Equal(["deploy", "rollback", "migration", "destroy_data"], cards["deploys"].Rules.Select(r => r.Action));
-        Assert.Equal(["pay_bill", "wire", "bank_details", "new_payee"], cards["bill_pay"].Rules.Select(r => r.Action));
-        Assert.Equal(["submit_evidence", "accept_dispute"], cards["chargebacks"].Rules.Select(r => r.Action));
+        Assert.Equal(["delay_message", "reship", "change_address", "parcel_refund"], cards["parcels"].Rules.Select(r => r.Action));
+        Assert.Equal(["reply_ticket", "promise", "share_customer_data"], cards["support"].Rules.Select(r => r.Action));
+        Assert.Equal(["reply_lead", "offer_discount"], cards["leads"].Rules.Select(r => r.Action));
         Assert.Equal(["grant_role", "deactivate", "elevate", "grant_admin", "delete_user"], cards["access"].Rules.Select(r => r.Action));
-        Assert.Equal(["refund", "credit", "payout"], cards["refunds"].Rules.Select(r => r.Action));
-        Assert.Equal("Bills", cards["bill_pay"].Rules[0].Label);
-        Assert.Equal(25_000_00, cards["bill_pay"].Rules[0].PerWindow!.Minor);
+        Assert.Equal(["deploys", "parcels", "support", "leads", "access"], cards.Keys);
+        Assert.Equal("Reships", cards["parcels"].Rules[1].Label);
+        Assert.True(cards["parcels"].Rules[1].AlwaysAsk);
+        Assert.Equal(40, cards["support"].Rules[0].CountPerWindow);
         Assert.True(cards["deploys"].Rules[3].Never);
         Assert.All(cards.Values, c => Assert.NotEmpty(c.Rules));
+        Assert.All(cards.Values.SelectMany(c => c.Rules), r => Assert.True(r.PerAction is null && r.PerWindow is null, r.Action));
     }
 
     static JsonElement Card(string file) =>

@@ -20,8 +20,8 @@ public class TafScreenTests
     }
 
     [Fact]
-    public void The_sample_head_is_Refunds_working() =>
-        Assert.Equal(new TafHead("Refunds", "R", 4, "Working"), TafScreen.SampleHead(En));
+    public void The_sample_head_is_Support_replies_working() =>
+        Assert.Equal(new TafHead("Support replies", "S", 4, "Working"), TafScreen.SampleHead(En));
 
     [Theory]
     [InlineData("refunds", "R")]
@@ -32,7 +32,7 @@ public class TafScreenTests
 
     [Fact]
     public void The_sample_s_Card_bar_says_what_s_left_of_its_limit() =>
-        Assert.Equal(new CardBarLine("€1,960 left today of €2,000", "Refunds"), TafScreen.SampleCard(En));
+        Assert.Equal(new CardBarLine("39 calls left today of 40", "Support replies"), TafScreen.SampleCard(En));
 
     [Theory]
     [MemberData(nameof(Shipped))]

@@ -17,28 +17,28 @@ public class OverviewTableTests
     {
         var rows = OverviewScreen.SampleRows(WordBook.Load(SharedFiles.Strings, "en"), Now);
 
-        Assert.Equal(new[] { "Deploys", "Bill pay", "Refunds", "Chargebacks", "Access" }, rows.Select(r => r.Taf));
+        Assert.Equal(new[] { "Deploys", "Late parcels", "Support replies", "Lead follow-up", "Access" }, rows.Select(r => r.Taf));
         Assert.Equal(new[] { 1, 3, 4, 0, 2 }, rows.Select(r => r.Colour));
         Assert.Equal(new[]
         {
-            "Waiting for you · Run migration 0042_orders_index", "Waiting for you · Pay Atlas Freight",
-            "Credit on account #2290", "Accept dispute on #3342", "Deactivate Tom's accounts",
+            "Waiting for you · Run migration 0042_orders_index", "Waiting for you · Send a new parcel for order #5098",
+            "Waiting for you · Promise a replacement on ticket #7802", "Confirm the call with Nord Atelier", "Deactivate Tom's accounts",
         }, rows.Select(r => r.Now));
         Assert.Equal(new[]
         {
-            "9 calls left today of 10", "€23,760 left this week of €25,000", "€1,960 left today of €2,000",
-            "€465 left this week of €500", "39 calls left today of 40",
+            "9 calls left today of 10", "99 calls left today of 100", "39 calls left today of 40",
+            "48 calls left today of 50", "39 calls left today of 40",
         }, rows.Select(r => r.Card));
         Assert.All(rows, r => Assert.Equal("–", r.LastResult));
     }
 
-    /// <summary>overview.png's sidebar: only the tafs relevant now, the two a call of theirs waits on, each with what it's doing.</summary>
+    /// <summary>overview.png's sidebar: only the tafs relevant now, the three a call of theirs waits on, each with what it's doing.</summary>
     [Fact]
     public void Your_tafs_in_the_sidebar_are_the_ones_relevant_now()
     {
         var rows = Sidebar.SampleYourTafs(WordBook.Load(SharedFiles.Strings, "en"), Now);
-        Assert.Equal(new[] { "Deploys", "Bill pay" }, rows.Select(r => r.Taf));
-        Assert.Equal("Waiting for you · Pay Atlas Freight", rows[1].Now);
+        Assert.Equal(new[] { "Deploys", "Late parcels", "Support replies" }, rows.Select(r => r.Taf));
+        Assert.Equal("Waiting for you · Send a new parcel for order #5098", rows[1].Now);
     }
 
     [Theory]

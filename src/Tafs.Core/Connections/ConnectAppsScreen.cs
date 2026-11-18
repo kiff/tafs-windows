@@ -266,10 +266,10 @@ public static class ConnectAppsScreen
     public static ConnectAppsList Sample() => Read("""
         {"apps":[
          {"entry":"connector:composio:gmail","vendor":"Gmail","name":"Gmail","subtitle":"Mail: reads, and drafts replies","how":"oauth","method":"sign_in","state":"connected","connected":true,"whose":"Yours"},
-         {"entry":"stripe@3","vendor":"Stripe","name":"Stripe","subtitle":"Payments: refunds and charges","how":"key","method":"key","state":"connected","connected":true,"whose":"Yours"},
+         {"entry":"zendesk@1","vendor":"Zendesk","name":"Zendesk","subtitle":"Helpdesk: reads tickets, and replies","how":"key","method":"key","state":"connected","connected":true,"whose":"Yours"},
          {"entry":"connector:composio:googlesheets","vendor":"Google Sheets","name":"Google Sheets","subtitle":"Spreadsheets: rows read and written","how":"oauth","method":"sign_in","state":"available"},
          {"entry":"connector:composio:slack","vendor":"Slack","name":"Slack","subtitle":"Messages to your team's channels","how":"oauth","method":"sign_in","state":"available"},
-         {"entry":"qonto@1","vendor":"Qonto","name":"Qonto","subtitle":"Invoicing: reads, and invoice drafts from quotes","how":"key","method":"key","state":"available"},
+         {"entry":"pipedrive@1","vendor":"Pipedrive","name":"Pipedrive","subtitle":"Deals and contacts","how":"key","method":"key","state":"available"},
          {"entry":"connector:composio:hubspot","vendor":"HubSpot","name":"HubSpot","subtitle":"Contacts and deals","how":"oauth","method":"sign_in","state":"available"}
         ],"by_key":true}
         """);

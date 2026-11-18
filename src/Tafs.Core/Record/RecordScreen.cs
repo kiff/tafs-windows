@@ -160,33 +160,33 @@ public static class RecordScreen
 
     /// <summary>
     /// The iPad's sample Record (the reference set's record.png), in the person's language: what the five sample
-    /// tafs did today, newest first, Deploys' and Bill pay's calls held, and each taf started with its Card.
+    /// tafs did today, newest first (the scripts' second round, then their first), Deploys', Late parcels' and Support
+    /// replies' calls held, and each taf started with its Card. No sample line moves money.
     /// </summary>
     public static IReadOnlyList<RecordEntry> Sample(WordBook w, DateTimeOffset now)
     {
         string S(string key) => w.Get("sample." + key);
-        string Within(decimal euros) => w.Get("record.within_card", ("amount", NeedsYouScreen.Euros(w, euros)));
         var alone = w.Get("record.within_card_alone");
         var you = w.Get("common.you");
         var held = NeedsYouScreen.Sample(w, now);
-        var (chargebacks, deploys, access, billPay, refunds) =
-            (S("chargebacks.name"), S("deploys.name"), S("access.name"), S("bill_pay.name"), S("refunds.name"));
-        var colour = new Dictionary<string, int> { [chargebacks] = 0, [deploys] = 1, [access] = 2, [billPay] = 3, [refunds] = 4 };
+        var (leads, deploys, access, parcels, support) =
+            (S("leads.name"), S("deploys.name"), S("access.name"), S("parcels.name"), S("support.name"));
+        var colour = new Dictionary<string, int> { [leads] = 0, [deploys] = 1, [access] = 2, [parcels] = 3, [support] = 4 };
 
         var lines = new List<(string Taf, EntryKind Kind, string Title, string Detail, decimal? Euros)>
         {
-            (chargebacks, EntryKind.Done, S("chargebacks.accept_3342"), Within(35), 35),
+            (leads, EntryKind.Done, S("leads.confirm_nord"), alone, null),
             (deploys, EntryKind.Held, w.Get("record.held", ("summary", held[0].Summary)), held[0].Reason, null),
             (access, EntryKind.Done, S("access.deactivate_tom"), alone, null),
-            (billPay, EntryKind.Held, w.Get("record.held", ("summary", held[1].Summary)), held[1].Reason, null),
-            (refunds, EntryKind.Done, S("refunds.credit_2290"), Within(25), 25),
-            (chargebacks, EntryKind.Done, S("chargebacks.answer_3318"), Within(120), 120),
+            (parcels, EntryKind.Held, w.Get("record.held", ("summary", held[1].Summary)), held[1].Reason, null),
+            (support, EntryKind.Held, w.Get("record.held", ("summary", held[2].Summary)), held[2].Reason, null),
+            (leads, EntryKind.Done, S("leads.reply_kaya"), alone, null),
             (deploys, EntryKind.Done, S("deploys.deploy_api"), alone, null),
             (access, EntryKind.Done, S("access.sales_role"), alone, null),
-            (billPay, EntryKind.Done, S("bill_pay.pay_northwind"), Within(1_240), 1_240),
-            (refunds, EntryKind.Done, S("refunds.refund_4471"), Within(40), 40),
+            (parcels, EntryKind.Done, S("parcels.tell_5120"), alone, null),
+            (support, EntryKind.Done, S("support.reply_7781"), alone, null),
         };
-        foreach (var taf in new[] { refunds, billPay, access, deploys, chargebacks })
+        foreach (var taf in new[] { support, parcels, access, deploys, leads })
             lines.Add((taf, EntryKind.Started, w.Get("record.started", ("taf", taf)), w.Get("record.card_issued_by", ("owner", you)), null));
 
         // A second apart, newest first, so the order holds whatever the clock.

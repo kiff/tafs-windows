@@ -16,8 +16,8 @@ public class ConnectAppsScreenTests
     {
         var list = ConnectAppsScreen.Sample();
         var (yours, discover) = ConnectAppsScreen.Split(list.Apps);
-        Assert.Equal(["Gmail", "Stripe"], yours.Select(a => a.DisplayName));
-        Assert.Equal(["Google Sheets", "Slack", "Qonto", "HubSpot"], discover.Select(a => a.DisplayName));
+        Assert.Equal(["Gmail", "Zendesk"], yours.Select(a => a.DisplayName));
+        Assert.Equal(["Google Sheets", "Slack", "Pipedrive", "HubSpot"], discover.Select(a => a.DisplayName));
         Assert.True(list.ByKey);
     }
 

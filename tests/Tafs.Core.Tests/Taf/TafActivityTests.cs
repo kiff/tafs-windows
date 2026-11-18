@@ -67,16 +67,16 @@ public class TafActivityTests
         Assert.Equal(refused, TafActivity.Keeps("refused", kind));
     }
 
-    /// <summary>The reference set's taf.png: Refunds' three lines today, newest first, at 24-hour times.</summary>
+    /// <summary>The reference set's taf.png: Support replies' three lines today, newest first, at 24-hour times.</summary>
     [Fact]
-    public void The_sample_is_Refunds_own_lines_of_the_Record()
+    public void The_sample_is_Support_replies_own_lines_of_the_Record()
     {
-        var page = TafActivity.Sample(En, "Refunds", "all", Now, TimeZoneInfo.Utc);
+        var page = TafActivity.Sample(En, "Support replies", "all", Now, TimeZoneInfo.Utc);
 
         var day = Assert.Single(page.Groups);
         Assert.Equal("TODAY · NOV 15", day.Title);
-        Assert.Equal(new[] { "Credit on account #2290", "Refund order #4471", "Refunds started" }, day.Lines.Select(l => l.Title));
-        Assert.Equal(new[] { "€25, within the Card", "€40, within the Card", "Card issued by You" }, day.Lines.Select(l => l.Detail));
+        Assert.Equal(new[] { "Held: Promise a replacement on ticket #7802", "Reply to ticket #7781", "Support replies started" }, day.Lines.Select(l => l.Title));
+        Assert.Equal(new[] { "Promises: always asks you", "Within the Card", "Card issued by You" }, day.Lines.Select(l => l.Detail));
         Assert.All(day.Lines, l => Assert.Equal("02:56", l.Time));
         Assert.Equal(new[] { "All", "Done", "Held", "Refused" }, page.Filters.Select(f => f.Title));
     }
@@ -89,12 +89,12 @@ public class TafActivityTests
     [Fact]
     public void A_filter_narrows_the_sample_and_says_so_when_nothing_is_left()
     {
-        var done = TafActivity.Sample(En, "Refunds", "done", Now, TimeZoneInfo.Utc);
-        Assert.Equal(2, Assert.Single(done.Groups).Lines.Count);
+        var done = TafActivity.Sample(En, "Support replies", "done", Now, TimeZoneInfo.Utc);
+        Assert.Single(Assert.Single(done.Groups).Lines);
         Assert.Equal("done", done.Filter);
 
-        Assert.Empty(TafActivity.Sample(En, "Refunds", "held", Now, TimeZoneInfo.Utc).Groups);
-        Assert.Equal("Nothing here.", TafActivity.Empty(En, "held"));
+        Assert.Empty(TafActivity.Sample(En, "Support replies", "refused", Now, TimeZoneInfo.Utc).Groups);
+        Assert.Equal("Nothing here.", TafActivity.Empty(En, "refused"));
         Assert.Equal("Nothing yet.", TafActivity.Empty(En, "all"));
     }
 
