@@ -49,7 +49,39 @@ public sealed partial class WordBook
         return doc.RootElement.GetProperty("shipped").EnumerateArray().Select(e => e.GetString()!).ToList();
     }
 
+    /// <summary>
+    /// Each regional variant's base, from languages.json's "variants" ("pt-BR" reads "pt"). A variant holds only the
+    /// lines that read differently there: every other line is its base's.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> Variants(string stringsRoot)
+    {
+        // A folder of words with no languages.json (a test's own) has no variants.
+        var file = Path.Combine(stringsRoot, "languages.json");
+        if (!File.Exists(file)) return new Dictionary<string, string>();
+        using var doc = JsonDocument.Parse(File.ReadAllText(file));
+        return doc.RootElement.TryGetProperty("variants", out var v) && v.ValueKind == JsonValueKind.Object
+            ? v.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetString()!)
+            : new Dictionary<string, string>();
+    }
+
     public static WordBook Load(string stringsRoot, string language)
+    {
+        // A regional variant is its base's lines with its own on top, as the shared repository's apps read it.
+        if (Variants(stringsRoot).TryGetValue(language, out var baseLanguage))
+        {
+            var lines = Read(stringsRoot, baseLanguage);
+            foreach (var (key, line) in Read(stringsRoot, language))
+            {
+                if (!lines.ContainsKey(key))
+                    throw new InvalidDataException($"{language}: key '{key}' isn't one {baseLanguage} has");
+                lines[key] = line;
+            }
+            return new WordBook(language, lines);
+        }
+        return new WordBook(language, Read(stringsRoot, language));
+    }
+
+    static Dictionary<string, Line> Read(string stringsRoot, string language)
     {
         var folder = Path.Combine(stringsRoot, language);
         if (!Directory.Exists(folder))
@@ -68,7 +100,7 @@ public sealed partial class WordBook
                     throw new InvalidDataException($"{language}: key '{p.Name}' is in two files");
             }
         }
-        return new WordBook(language, lines);
+        return lines;
     }
 
     /// <summary>A line with no count: values fill {name}, {name|possessive}, {name|this} and {name|This}.</summary>

@@ -46,10 +46,10 @@ public class AlertPrefsTests
     public void The_screen_reads_as_the_iPad_s()
     {
         var previews = AlertsScreen.Previews(En);
-        Assert.Equal(new AlertPreview("Chargebacks needs you", "Dispute #4825 · €640 is over its limit", true), previews[0]);
-        Assert.Equal(new AlertPreview("Refunds answered maria@…", "By email", false), previews[1]);
-        Assert.Equal("With sound: Chargebacks needs you. Dispute #4825 · €640 is over its limit", previews[0].Spoken(En));
-        Assert.Equal("Silent: Refunds answered maria@…. By email", previews[1].Spoken(En));
+        Assert.Equal(new AlertPreview("Late parcels needs you", "Order #5098 · Reships wait for your yes", true), previews[0]);
+        Assert.Equal(new AlertPreview("Support replies answered maria@…", "By email", false), previews[1]);
+        Assert.Equal("With sound: Late parcels needs you. Order #5098 · Reships wait for your yes", previews[0].Spoken(En));
+        Assert.Equal("Silent: Support replies answered maria@…. By email", previews[1].Spoken(En));
         Assert.Equal("Alerts on this Windows PC", AlertsScreen.OnThisDevice(En));
     }
 }

@@ -12,8 +12,27 @@ public class WordBookTests
     public static IEnumerable<object[]> Languages() => Shipped.Select(l => new object[] { l });
 
     [Fact]
-    public void The_eight_languages_of_the_spec_are_shipped() =>
-        Assert.Equal(new[] { "de", "en", "es", "fr", "it", "nl", "pl", "pt" }, Shipped.Order());
+    public void The_languages_of_the_spec_are_shipped() =>
+        Assert.Equal(new[] { "de", "en", "es", "fr", "it", "ko", "nl", "pl", "pt", "pt-BR" }, Shipped.Order(StringComparer.Ordinal));
+
+    [Fact]
+    public void A_regional_variant_is_its_base_with_its_own_lines_on_top()
+    {
+        var variant = WordBook.Variants(SharedFiles.Strings);
+        Assert.Equal("pt", variant["pt-BR"]);
+        var pt = WordBook.Load(SharedFiles.Strings, "pt");
+        var br = WordBook.Load(SharedFiles.Strings, "pt-BR");
+        Assert.Equal(pt.Keys.Order(StringComparer.Ordinal), br.Keys.Order(StringComparer.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("pt", 0, "other")]
+    [InlineData("pt-BR", 0, "one")]
+    [InlineData("pt-BR", 1, "one")]
+    [InlineData("pt-BR", 2, "other")]
+    [InlineData("ko", 1, "other")]
+    public void A_count_in_Korean_or_Brazilian_Portuguese_takes_its_form(string language, long count, string form) =>
+        Assert.Equal(form, PluralRules.Form(language, count));
 
     [Theory, MemberData(nameof(Languages))]
     public void Every_shipped_language_has_every_english_key(string language)
