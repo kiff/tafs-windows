@@ -31,7 +31,7 @@ public class WordBookTests
     [InlineData("pt-BR", 1, "one")]
     [InlineData("pt-BR", 2, "other")]
     [InlineData("ko", 1, "other")]
-    public void A_count_takes_its_language_s_form(string language, long count, string form) =>
+    public void A_count_in_Korean_or_Brazilian_Portuguese_takes_its_form(string language, long count, string form) =>
         Assert.Equal(form, PluralRules.Form(language, count));
 
     [Theory, MemberData(nameof(Languages))]
