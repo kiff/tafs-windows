@@ -55,7 +55,10 @@ public sealed partial class WordBook
     /// </summary>
     public static IReadOnlyDictionary<string, string> Variants(string stringsRoot)
     {
-        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(stringsRoot, "languages.json")));
+        // A folder of words with no languages.json (a test's own) has no variants.
+        var file = Path.Combine(stringsRoot, "languages.json");
+        if (!File.Exists(file)) return new Dictionary<string, string>();
+        using var doc = JsonDocument.Parse(File.ReadAllText(file));
         return doc.RootElement.TryGetProperty("variants", out var v) && v.ValueKind == JsonValueKind.Object
             ? v.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetString()!)
             : new Dictionary<string, string>();
