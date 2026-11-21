@@ -14,6 +14,12 @@ public static class PluralRules
             // pt is European Portuguese (pt-PT), where only 1 is "one"; Brazil's rule would make 0 "one" too.
             case "en": case "de": case "es": case "it": case "nl": case "pt":
                 return n == 1 ? "one" : "other";
+            // Brazilian Portuguese (pt-BR): 0 and 1 are "one" (CLDR pt).
+            case "pt-BR":
+                return n <= 1 ? "one" : "other";
+            // Korean and Japanese have one form for every number.
+            case "ko": case "ja":
+                return "other";
             case "fr":
                 return n <= 1 ? "one" : "other";
             case "pl":
