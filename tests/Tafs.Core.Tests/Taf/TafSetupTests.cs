@@ -54,7 +54,7 @@ public class TafSetupTests
         Assert.Equal(("needs_reconnect", "Sign in again", true), (gmail.Status, gmail.StatusWords, gmail.Reconnect));
         Assert.Equal("Ask Coach to set its workflow", gmail.WorkflowWords);
         Assert.Equal(new ConnectAgain("grt_gmail", "Gmail", "Connect again",
-            "Gmail's sign-in has expired, so Rae can't use it. Connect again to sign in.",
+            "Gmail was signed out, so Rae can't use it. Connect again to sign in.",
             "Gmail is connected again. Rae can use it."), setup.ConnectAgain);
     }
 
