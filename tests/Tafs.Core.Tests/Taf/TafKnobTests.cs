@@ -135,4 +135,18 @@ public class TafKnobTests
         Assert.Equal(("Next run Fri 12:30", false), (starts.NextRunWords, starts.Unscheduled));
         Assert.Equal(["door_reply"], starts.Results!);
     }
+
+    /// <summary>Coach's dial card shows a draft only for the version it names (agentgabo's read on #244).</summary>
+    [Fact]
+    public void A_dial_card_shows_the_draft_only_for_the_version_it_names()
+    {
+        var knob = new TafKnob(true, 3, null, [], [], ["Every Monday at 9"], null, null, DraftVersion: 4);
+        Assert.True(knob.ShowsDraft(4));
+        Assert.False(knob.ShowsDraft(5));
+        Assert.False(knob.ShowsDraft(null));
+        Assert.False((knob with { DraftVersion = null }).ShowsDraft(null));
+        Assert.True(knob.IsLive(3));
+        Assert.False(knob.IsLive(4));
+        Assert.False(knob.IsLive(null));
+    }
 }
