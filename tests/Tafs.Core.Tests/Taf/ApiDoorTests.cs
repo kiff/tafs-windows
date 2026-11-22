@@ -76,4 +76,30 @@ public class ApiDoorTests
         Assert.Contains("$TAFS_API_KEY", example);
         Assert.StartsWith("curl -X POST https://cloud.tafs.example/v1/doors/api/door_ord7/requests", example);
     }
+
+    /// <summary>
+    /// The example carries the developer's key, so its address is only ever on tafs cloud's own host, over https (agentgabo's
+    /// note on tafs-linux#88, parity-steward's on #90): anything else becomes its path there.
+    /// </summary>
+    [Theory]
+    [InlineData("/v1/doors/api/x/requests", "https://cloud.tafs.example/v1/doors/api/x/requests")]
+    [InlineData("v1/x", "https://cloud.tafs.example/v1/x")]
+    [InlineData("https://cloud.tafs.example/v1/doors/api/x/requests", "https://cloud.tafs.example/v1/doors/api/x/requests")]
+    [InlineData("https://CLOUD.tafs.example/v1/x", "https://cloud.tafs.example/v1/x")]
+    [InlineData("https://evil.example/v1/doors/api/x/requests", "https://cloud.tafs.example/v1/doors/api/x/requests")]
+    [InlineData("http://cloud.tafs.example/v1/x", "https://cloud.tafs.example/v1/x")]
+    [InlineData("https://user@cloud.tafs.example/v1/x", "https://cloud.tafs.example/v1/x")]
+    [InlineData("https://cloud.tafs.example:8443/v1/x", "https://cloud.tafs.example/v1/x")]
+    [InlineData("https://cloud.tafs.example.evil.example/v1/x", "https://cloud.tafs.example/v1/x")]
+    [InlineData("foo:x@evil.example/v1/x", "https://cloud.tafs.example/x@evil.example/v1/x")]
+    [InlineData("mailto:a@evil.example", "https://cloud.tafs.example/")]
+    [InlineData("//evil.example/v1/x", "https://cloud.tafs.example/evil.example/v1/x")]
+    [InlineData("\\\\evil.example\\v1", "https://cloud.tafs.example/v1")]
+    public void The_endpoint_is_only_ever_on_tafs_clouds_own_host(string address, string shown)
+    {
+        var endpoint = ApiDoor.Endpoint(Pinned() with { Address = address }, new Uri("https://cloud.tafs.example/"));
+        Assert.Equal("cloud.tafs.example", new Uri(endpoint).Host);
+        Assert.Equal(Uri.UriSchemeHttps, new Uri(endpoint).Scheme);
+        Assert.Equal(shown, endpoint);
+    }
 }

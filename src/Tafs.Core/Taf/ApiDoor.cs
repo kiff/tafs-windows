@@ -78,8 +78,26 @@ public static class ApiDoor
     public static string When(WordBook w, DateTimeOffset at, TimeZoneInfo zone) =>
         TimeZoneInfo.ConvertTime(at, zone).ToString("d MMM yyyy, HH:mm", Locale.Culture(w.Language));
 
-    /// <summary>Where the door's caller sends work: its address on tafs cloud, whole.</summary>
-    public static string Endpoint(Door door, Uri cloud) => Uri.TryCreate(cloud, door.Address, out var u) ? u.AbsoluteUri : door.Address;
+    /// <summary>
+    /// Where the door's caller sends work: its address on tafs cloud, whole, and only ever on tafs cloud's own host, over https
+    /// (agentgabo's note on tafs-linux#88; parity-steward's on #90). The example request carries the developer's key, so an
+    /// address elsewhere becomes its path on tafs cloud: another host, http, a port, a user or password, or a scheme with no host
+    /// (<c>mailto:a@evil.example</c>, whose path has no leading <c>/</c> and would otherwise run on into the host).
+    /// </summary>
+    public static string Endpoint(Door door, Uri cloud)
+    {
+        var address = door.Address.Trim();
+        if (Uri.TryCreate(address, UriKind.Absolute, out var whole) && !address.StartsWith('/'))
+        {
+            if (whole.Scheme == Uri.UriSchemeHttps && string.Equals(whole.Host, cloud.Host, StringComparison.OrdinalIgnoreCase)
+                && whole.IsDefaultPort && whole.UserInfo.Length == 0)
+                return whole.AbsoluteUri;
+            address = whole.IsAbsoluteUri && whole.HostNameType != UriHostNameType.Unknown ? whole.PathAndQuery : whole.AbsolutePath;
+        }
+        // On tafs cloud: one leading "/", whatever came before it, so nothing can run on into the host.
+        var path = "/" + address.TrimStart('/', '\\');
+        return Uri.TryCreate(cloud, path, out var on) && on.Host == cloud.Host && on.Scheme == Uri.UriSchemeHttps ? on.AbsoluteUri : cloud.AbsoluteUri;
+    }
 
     /// <summary>An example request. It reads the key from the caller's own secret, <c>$TAFS_API_KEY</c>: the key is never written in it.</summary>
     public static string Example(string endpoint) =>
