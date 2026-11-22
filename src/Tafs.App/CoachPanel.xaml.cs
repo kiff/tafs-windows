@@ -500,6 +500,7 @@ public sealed partial class CoachPanel : UserControl
                 else if (shown.Card.Kind == "confirm") ThreadItems.Children.Add(Confirm(thread, shown.Card));
                 else if (shown.Card.Kind == "approval") ThreadItems.Children.Add(Approval(thread, shown.Card));
                 else if (shown.Card.Kind == "sign_in") ThreadItems.Children.Add(SignIn(thread, shown.Card));
+                else if (shown.Card.Kind == "knob") ThreadItems.Children.Add(KnobCard(shown.Card));
                 continue;
             }
             var m = items[i].Message!;
