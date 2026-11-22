@@ -102,6 +102,10 @@ public sealed partial class CoachPanel
         var full = coachQueued is not null && (coachSending || CoachBusy);
         CoachSendButton.Content = w.Get(full && coachSending ? "common.sending" : "common.send");
         CoachSendButton.IsEnabled = !full;
+        // Stop while Coach works, as the iPad's: its current run is cancelled.
+        CoachStopButton.Content = w.Get("chat.stop");
+        CoachStopButton.Visibility = thread?.Working is not null && answer is not null ? Visibility.Visible : Visibility.Collapsed;
+        CoachStopButton.IsEnabled = !coachStopping;
         ChatError.Text = chatError ?? "";
         ChatError.Visibility = chatError is null ? Visibility.Collapsed : Visibility.Visible;
     }
@@ -153,6 +157,9 @@ public sealed partial class CoachPanel
                 HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0),
                 Children = { ChatViews.OwnerBubble(m.Text, Brush) },
             }, m.Text));
+        // How the last run ended, when the person stopped it, as the iPad's ended: "Stopped", until the next message.
+        if (coachStopped && thread?.Working is null)
+            ThreadItems.Children.Add(Words(App.Words.Get("taf.state.stopped"), 13, "TafsDimText"));
         // What was written while Coach works, as the iPad's QueuedBubble: faded, "Sends when this answer is done", Don't send.
         if (coachQueued is { } queued) ThreadItems.Children.Add(ChatPinner.Own(QueuedBubble(queued), queued));
         // What tafs cloud didn't take, after it, where it was written.
@@ -343,7 +350,7 @@ public sealed partial class CoachPanel
         var pending = TafChatSend.Pending(text, thread?.Messages ?? [], DateTimeOffset.UtcNow);
         coachSent.Add(pending);
         // The box is the Send button's to clear: Retry leaves what's being typed there alone, as the iPad's submitSetup.
-        (coachSending, chatError) = (true, null);
+        (coachSending, chatError, coachStopped) = (true, null, false);
         ShowConversation();
         var files = CoachTray.Ready;
         // Improving a taf: its first message goes to that taf's improve route, as the iPad's; then Coach's as usual.
@@ -384,6 +391,26 @@ public sealed partial class CoachPanel
         }
         await LoadThreadAsync();
         return true;
+    }
+
+    bool coachStopping;
+    /// <summary>The person stopped Coach's last run: "Stopped" under the thread until the next message goes.</summary>
+    bool coachStopped;
+
+    /// <summary>Stop, as the iPad's <c>stopSetup</c>: the run at work in Coach's conversation is cancelled; not taken, why.</summary>
+    async void OnCoachStop(object sender, RoutedEventArgs e)
+    {
+        if (coachStopping || coach is not { } id || answer is not { } send || thread?.Working is not { } working) return;
+        coachStopping = true;
+        ShowChatTools();
+        var gen = generation;
+        var why = await TafChatSend.StopAsync(App.Words, id, working, send);
+        // Reset first: a chat or account switch meanwhile must never leave Stop off for good (mac-local's read).
+        coachStopping = false;
+        if (gen != generation) return;
+        (coachStopped, chatError) = (why is null, why);
+        await LoadThreadAsync();
+        ShowConversation();
     }
 
     /// <summary>The one message written while Coach sends or works, sent once it's done; none when nothing waits.</summary>

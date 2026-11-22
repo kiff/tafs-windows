@@ -502,6 +502,7 @@ public sealed partial class CoachPanel : UserControl
                 else if (shown.Card.Kind == "confirm") ThreadItems.Children.Add(Confirm(thread, shown.Card));
                 else if (shown.Card.Kind == "approval") ThreadItems.Children.Add(Approval(thread, shown.Card));
                 else if (shown.Card.Kind == "sign_in") ThreadItems.Children.Add(SignIn(thread, shown.Card));
+                else if (shown.Card.Kind == "door") ThreadItems.Children.Add(DoorCard(shown.Card));
                 else if (shown.Card.Kind == "knob") ThreadItems.Children.Add(KnobCard(shown.Card));
                 if (shown == waitingCard && ThreadItems.Children.Count > before) waitingElement = ThreadItems.Children[^1] as FrameworkElement;
                 continue;
@@ -532,7 +533,7 @@ public sealed partial class CoachPanel : UserControl
                 else
                 {
                     // Coach's words as Markdown, as the iPad's MarkdownText: no symbol shows as written.
-                    var text = MarkdownView.Build(m.Text, 16, Brush);
+                    var text = Revealing(m);
                     said.Children.Add(text);
                     // The answer's menu, Report this answer, on an answer the person can report (the iPad's reportable).
                     if (AnswerReport.Can(m, kiff: report is not null)) text.ContextFlyout = said.ContextFlyout = ReportMenu(m);
