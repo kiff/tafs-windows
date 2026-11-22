@@ -30,6 +30,7 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | SetupShapePanel.swift | 130 | What Coach has made so far | SetupShape | "Taking shape" beside Coach's conversation on a wide panel: the taf's name, the plan, the tools it connects and the Card KIFF drafted, from what this PC holds (`CoachPanel.Shape.cs`, `Tafs.Core/Coach/CoachShape.cs`, the `coach-wide` screenshot) |
 | TafSetupViews.swift | 512 | A taf's Setup: Starts when, Results go to, the pending dial | DoorsModel | Setup › Starts when (its schedule with − and +, If busy, the app events, the doors with Edit and Add a door, the follow-ups with Remove, Pause every start) and Results go to (tafs' own places at once, the connected apps' through the next version, the last place kept on), and the dial's next version waiting with Make it live (`TafPage.Starts.cs`, `TafPage.Doors.cs`, `Tafs.Core/Taf/TafKnob.cs`, the `taf-starts` and `taf-results` screenshots) |
 | YourStepCard.swift | 46 | A step a taf hands the person | | On Needs you and on a taf's own page, one card (`StepCard.cs`): tafs cloud's words, the vouched link and its host, Done and Skip signed with this PC's device key (`NeedsYouPage.xaml.cs`, `Tafs.Core/NeedsYou/YourStep.cs`, #77); on the taf's page (`onTaf`) in place of a request's line, with no taf name, Home's step when listed, and its work read again once answered (`TafPage.Work.cs`, `TafWork`'s `your_step`) |
+| WatchDaysViews.swift | 93 | "From your watch" in Coach's Previous conversations | | The watch's days, newest first with their count, Today by tafs cloud's today in the account's zone, a switch that's off showing none; a day read only, oldest first: "⌚ Sent from your watch" and when, what was said, the taf that took it and what came of it, a reply under what it answers, messages to a taf left out (`CoachPanel.Watch.cs`, `Tafs.Core/Coach/WatchDays.cs`) |
 
 ## Partial
 
@@ -77,7 +78,6 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | APIDoorViews.swift | 406 | A door "From another application": its count and cap, last request, keys, New key, Revoke, the instructions (new since d14217f; batch: a taf) | DoorsModel |
 | ChromeViews.swift | 178 | Account › Chrome: paired Chromes, Pair a Chrome, Unpair, once planque offers it (new since d14217f; batch: Account) | |
 | ReportPaymentSheet.swift | 64 | "Report this payment" from a receipt: KIFF marks it and the taf is halted (new since d14217f; batch: Record) | |
-| WatchDaysViews.swift | 93 | "From your watch" in Coach's Previous conversations, one a day (new since d14217f; batch: Coach, as on Linux) | |
 
 ## Not for Windows
 
@@ -113,4 +113,4 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 ## Coverage
 
-Ported 16, partial 25, not started 13, not for Windows 3: the 57 view files at the pin (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial, approvals' ApprovalSetupView, AllowSheetView and AppEventApprovalSheet, with YourStepCard partial; a taf's batch moved FilesViews to partial, and recounted SetupShapePanel and TafSetupViews to ported, DoorsView to partial; a taf's batch moved FilesViews to partial and YourStepCard to ported).
+Ported 17, partial 25, not started 12, not for Windows 3: the 57 view files at the pin (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial, approvals' ApprovalSetupView, AllowSheetView and AppEventApprovalSheet, with YourStepCard partial; a taf's batch moved FilesViews to partial, and recounted SetupShapePanel and TafSetupViews to ported, DoorsView to partial; a taf's batch moved FilesViews to partial and YourStepCard to ported).
