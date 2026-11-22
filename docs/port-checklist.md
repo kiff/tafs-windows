@@ -68,14 +68,9 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 | iPad file | Lines | What | Models |
 | :- | -: | :- | :- |
-| DoorsView.swift | 923 | A taf's Doors tab | DoorsModel, PlanqueClient |
 | DriveViews.swift | 73 | Coach asks to drive the app, and what it did | DriveSession |
 | MicButton.swift | 122 | The mic in a chat's message bar | Dictation |
 | PlanViews.swift | 268 | Buying credits and Solo, asking an admin, declining a request. `BuyCreditsView` and `SoloView` buy through the App Store, so Windows needs its own store or KIFF's web flow; `AskAdminView` and `DeclineRequestView` are plain tafs cloud calls | Purchases |
-| SetupShapePanel.swift | 130 | What Coach has made so far | SetupShape |
-| AttachViews.swift | 267 | Attaching photos and files in a chat | Attachment |
-| DeleteAccountView.swift | 60 | Deleting the account | |
-| RecordSearchViews.swift | 192 | The Record's search | |
 | TafDialPanel.swift | 228 | The dial's requests and confirmation | KnobNavigation, DoorsModel |
 | TafKnobRemote.swift | 64 | The remote's buttons: back, lower, pause, raise, next | KnobNavigation |
 | TafKnobView.swift | 377 | The taf's remote | KnobNavigation |
@@ -118,4 +113,4 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 ## Coverage
 
-Ported 20, partial 24, not started 15, not for Windows 3: the 57 view files at the pin (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial, approvals' ApprovalSetupView, AllowSheetView and AppEventApprovalSheet, with YourStepCard partial; a taf's batch moved FilesViews to partial; recounted against the code: PeopleViews, ReportAnswerSheet, DeleteAccountView and RecordSearchViews ported, AttachViews partial; a taf's batch moved FilesViews to partial and YourStepCard to ported; a taf's batch moved FilesViews to partial, and recounted SetupShapePanel and TafSetupViews to ported, DoorsView to partial).
+Ported 20, partial 24, not started 10, not for Windows 3: the 57 view files at the pin (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial, approvals' ApprovalSetupView, AllowSheetView and AppEventApprovalSheet, with YourStepCard partial; a taf's batch moved FilesViews to partial; recounted against the code: PeopleViews, ReportAnswerSheet, DeleteAccountView and RecordSearchViews ported, AttachViews partial; a taf's batch moved FilesViews to partial and YourStepCard to ported; a taf's batch moved FilesViews to partial, and recounted SetupShapePanel and TafSetupViews to ported, DoorsView to partial).
