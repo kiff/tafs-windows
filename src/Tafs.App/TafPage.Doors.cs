@@ -142,7 +142,13 @@ public sealed partial class TafPage
             await AddWhatsAppDoorAsync(chosen, id);
             return;
         }
-        // A Slack channel's subscription isn't on Windows yet: said where it's added.
+        // A Slack door: a connection, then a channel, approved with Windows Hello (the iPad's SlackDoorSheet).
+        if (chosen.Kind == "slack" && opening.SlackDoor is { } slack)
+        {
+            await AddSlackDoorAsync(chosen, slack);
+            return;
+        }
+        // A Slack door on a PC that can't approve: said where it's added.
         if (chosen.Kind != "email")
         {
             doorsWhy = w.Get(chosen.Kind == "slack" ? "door.slack.connect_first_in_connect_apps" : "door.whatsapp_elsewhere", ("taf", opening.Head.Name));
@@ -256,6 +262,22 @@ public sealed partial class TafPage
                 PrimaryButtonText = w.Get("door.remove"), CloseButtonText = w.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
             };
             if (await ask.ShowAsync() != ContentDialogResult.Primary) return;
+            // A Slack door's subscription stops first, as the iPad's removeSlackDoor: one planque didn't stop keeps its door.
+            if (door.Kind == "slack" && door.Trigger is not null)
+            {
+                if (opening.SlackDoor is not { } slack)
+                {
+                    doorsWhy = w.Get("door.start_connected_tools_first_slack", ("device", w.Get("device.windows")));
+                    ShowSetup();
+                    return;
+                }
+                if (await slack.Stop(door) is { } kept)
+                {
+                    doorsWhy = kept;
+                    ShowSetup();
+                    return;
+                }
+            }
             if (await DoorChangeAsync(HttpMethod.Delete, TafDoors.DoorPath(id, door.Id), null)) { setupScreen = SetupScreen.StartsWhen; ShowSetup(); }
         };
         keys.Add(remove);

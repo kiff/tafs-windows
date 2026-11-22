@@ -26,7 +26,7 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     TafInstalling? Installing = null, Func<int, KnobItem, Task<KnobEventResult>>? ApproveEvent = null, TafSharing? Share = null,
     Action<string>? AskCoachAbout = null, Func<Task<string?>>? Revoke = null, bool RevokeNeedsApprover = false, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null,
     Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafSteps? Steps = null, TafFiles? Files = null, TafDoorSigning? DoorSigning = null,
-    string? DoorOn = null)
+    string? DoorOn = null, TafSlackDoor? SlackDoor = null)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
