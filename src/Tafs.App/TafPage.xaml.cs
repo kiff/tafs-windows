@@ -300,6 +300,37 @@ public sealed partial class TafPage : Page
     /// Send, as the iPad's <c>sendChat</c>: checked first (nothing to send says nothing; too long says so), shown at once,
     /// then sent. Not taken, it stays in the thread as not sent, with why, Edit and Retry (<see cref="Unsent"/>).
     /// </summary>
+    /// <summary>
+    /// A message's menu, as the iPad's <c>askAgain</c>: Send again (its words only; files picked for the next message stay in
+    /// the tray, so with files there its words wait in the box), Edit and send (its words in the box), and Copy.
+    /// </summary>
+    MenuFlyout AskAgain(string text)
+    {
+        var w = App.Words;
+        var again = new MenuFlyoutItem { Text = w.Get("chat.send_again"), Icon = new SymbolIcon(Symbol.Refresh) };
+        again.Click += (_, _) =>
+        {
+            Draft.Text = text;
+            if (ReadyFiles().Count == 0 && !FilesUploading) OnSend(again, new RoutedEventArgs());
+            else Draft.Focus(FocusState.Programmatic);
+        };
+        var edit = new MenuFlyoutItem { Text = w.Get("chat.edit_and_send"), Icon = new SymbolIcon(Symbol.Edit) };
+        edit.Click += (_, _) =>
+        {
+            Draft.Text = text;
+            Draft.SelectionStart = text.Length;
+            Draft.Focus(FocusState.Programmatic);
+        };
+        var copy = new MenuFlyoutItem { Text = w.Get("common.copy"), Icon = new SymbolIcon(Symbol.Copy) };
+        copy.Click += (_, _) =>
+        {
+            var data = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            data.SetText(text);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(data);
+        };
+        return new MenuFlyout { Items = { again, edit, copy } };
+    }
+
     async void OnSend(object sender, RoutedEventArgs e)
     {
         // Send waits while a file is going up; a message may be words, files, or both.
@@ -638,6 +669,8 @@ public sealed partial class TafPage : Page
                 if (m.Text.Length > 0) said.Children.Add(ChatViews.OwnerBubble(m.Text, Brush));
                 // Written while a card waited: these words were its answer. Not a door's.
                 if (m is { Answers: not null, Door: null }) said.Children.Add(ChatViews.AnsweredCardLine());
+                // The person's own words, again, as the iPad's askAgain: Send again, Edit and send, Copy. Not someone else's (a door's).
+                if (m.Door is null && m.Text.Length > 0 && opening?.Send is not null) said.ContextFlyout = AskAgain(m.Text);
                 if (said.Children.Count > 0) ChatPane.Children.Add(Own(said, m.Text));
                 continue;
             }

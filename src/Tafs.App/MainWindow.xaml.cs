@@ -262,6 +262,8 @@ public sealed partial class MainWindow : Window
         // The chat open in Coach isn't listed as waiting; closed, it is again.
         // Coach's start switch offers to improve the taf whose page shows.
         CoachMode.TafOnScreen = () => Pages.Content is TafPage tafShown ? tafShown.OnScreen : null;
+        // The watch's days and times in the account's zone, as KIFF has it.
+        CoachMode.AccountTimeZone = () => kiffAccount?.TimeZone;
         CoachMode.Closed += ShowCoachWaiting;
         NeedsYouPage.CoachWaitingOpenChosen += OpenCoachWaiting;
         NeedsYouPage.SetAsideChosen += session => _ = SetAsideAsync(session);

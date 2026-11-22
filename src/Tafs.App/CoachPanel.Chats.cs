@@ -612,7 +612,7 @@ public sealed partial class CoachPanel
 
     void OnChatsBack(object sender, RoutedEventArgs e)
     {
-        if (showingArchived) { _ = ShowChatsAsync(archived: false); return; }
+        if (showingArchived || watchDayShown is not null) { watchDayShown = null; _ = ShowChatsAsync(archived: false); return; }
         ChatsView.Visibility = Visibility.Collapsed;
         if (ShowsConversation(thread)) ShowConversation();
         else
@@ -649,6 +649,8 @@ public sealed partial class CoachPanel
             ChatsItems.Children.Add(ChatRow(id, row, archived));
         if (rows is { Count: 0 })
             ChatsItems.Children.Add(Words(w.Get(archived ? "coach.chats.nothing_archived" : "coach.chats.none"), 14, "TafsDimText", HorizontalAlignment.Center));
+        // From your watch (W11), between the chats and Archived, only when there are days.
+        if (!archived) await AddWatchDaysAsync(gen);
         if (!archived)
         {
             var more = new Button
