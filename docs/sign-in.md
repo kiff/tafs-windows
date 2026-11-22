@@ -69,9 +69,32 @@ Mac's `SignInView`, on tafs's shared words.
   - it asks for a passkey-only session, because on Windows the approval key is a Windows Hello passkey (`Features.WindowsPasskeyApprovals`). The button shows only with that flag on.
 - **A refused start** shows KIFF's status and error code only (`KIFF answered 400 invalid_device_name`), never free text from the answer.
 - **The code:** the browser opens on the link, the code is shown to check, and Open KIFF to approve opens it again.
-- **The terms line** links tafs's Terms and Privacy policy in the app's language (`kiff.dev/<lang>/tafs/terms`, `/<lang>/tafs/privacy` for de, es, fr, it, nl, pl and pt), and in English otherwise (`kiff.dev/tafs/terms`, `/tafs/privacy`). Account's Legal rows open the same pages.
+- **The terms line** links tafs's Terms and Privacy policy in the app's language where kiff.dev has it, under KIFF's code (`kiff.dev/<code>/tafs/terms`; zh-Hant is `zh`, sr-Latn `sr`, pt-BR `pt`; 39 codes, `SignInScreen.LegalCode`), and in English otherwise (`kiff.dev/tafs/terms`).
 - **Signed in:**
   - the window opens the Overview, with the view-only notice when `approval_mode` says view (or says nothing it knows);
   - **the session is kept** across launches, sealed for this Windows user ([the session](session.md)). A session it replaces is signed out at KIFF.
 - **The link opened** is https on one of KIFF's own hosts, exactly: `kiff.dev`, `app.kiff.dev` or the API's.
 - **Tests:** checks that create state never run against KIFF's production API. They run against a local or CI KIFF.
+
+## The welcome's consent (`Onboarding`, `SignedOutPage`)
+
+As the iPad's `OnboardingView` (kiff/tafs `docs/onboarding.md`), under both halves of the signed-out window:
+
+- **One tick:** "I agree to KIFF's Terms of Service and the tafs Terms", each name a link to its page in the app's language (`Onboarding.ConsentTick`; KIFF's own pages are `kiff.dev/<code>/terms` and `/privacy`). The box is its own control, so a link never ticks it.
+- **Privacy as two links,** KIFF's and tafs's, never ticked.
+- **The age line:** legal-i18n's `ages.json` at the pin, by this PC's region (`GlobalizationPreferences.HomeGeographicRegion`): the country's own age where the law asks more than 16, else the line every country reads.
+- **Continue and Show the code wait on the tick.** The terms version in force (`GET /v1/auth/app/terms`) is read as the welcome shows; nothing is sent without one, and it goes with whichever way the person signs in.
+- **The terms changed** (KIFF's 409 `terms_outdated`, on the token or the pairing claim): the box unticks, "The Terms changed…" shows, and the new version is read for the new tick.
+
+## Signing in inside the app (K5, `AppSignIn`, `AppSignInFlow`)
+
+Continue opens KIFF's sign-in in the person's browser, as tafs-linux does (kiff/cloud's `api/internal/appsignin/README.md`):
+
+1. **The link:** `https://api.kiff.dev/oauth/authorize` with `client_id=tafs-app`, `redirect_uri=dev.kiff.tafs:/oauth`, a PKCE S256 challenge (a 43-character verifier from `RandomNumberGenerator`, checked against RFC 7636's vector), a fresh 256-bit `state`, and `ui_locales` where KIFF's page speaks the app's language. Neither the verifier nor the state is ever printed.
+2. **The way back:** tafs registers `dev.kiff.tafs` with Windows (`RegisterForProtocolActivation`, as for planque's `tafs:`). The browser's launch is handed to the running tafs (`RedirectActivationToAsync`). Only the waiting attempt's link is taken: `dev.kiff.tafs:/oauth` exactly, no host, no fragment, its `state`, each field once. Anything else is dropped, not even read as a refusal. Another app could register the scheme too; PKCE makes a code useless without this attempt's verifier.
+3. **The token:** `POST /v1/auth/app/token` with the code, the verifier, the ticked terms version and the device exactly as `/v1/auth/device/start` sends it (this PC's TPM key). The OAuth fields are written last, so no device field can stand in for one. The session is kept as the device sign-in keeps one, and the window celebrates.
+4. **How it ends otherwise:** declined on KIFF's page, nothing is said; `unsupported_client`, KIFF's words or "isn't on yet"; `terms_outdated`, unticked and the code kept 50 of its 60 seconds for the new tick; anything else, "Signing in didn't work.", the tick kept.
+
+## The three cards (`OnboardingCards`)
+
+After the celebration's Let's go, once on this PC (`%LOCALAPPDATA%\tafs\cards-seen`): what a taf is (the sample's taf rows), a Card (the Card tab's own face, `TafPage.CardFace`), and staying in control (Needs you's held call, shown, not live). Skip from any card, Next, then Get started; the last card's lead is `onboarding.control_lead_desktop`. **Account › How tafs works** reopens each card, and Legal lists the four pages, KIFF's and tafs's, each titled as its page is. `--page cards-1`, `cards-2` and `cards-3` show them for screenshots.
