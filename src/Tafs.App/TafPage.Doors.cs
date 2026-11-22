@@ -136,7 +136,13 @@ public sealed partial class TafPage
         list.Children.Add(Words(w.Get("door.replies_only"), 12, "TafsDimText"));
         await dialog.ShowAsync();
         if (chosen is null) return;
-        // WhatsApp's sign-up and a Slack channel's subscription aren't on Windows yet: said where they're added.
+        // WhatsApp: Meta's sign-up in the browser, its return taken only with this attempt's state.
+        if (chosen.Kind == "whatsapp")
+        {
+            await AddWhatsAppDoorAsync(chosen, id);
+            return;
+        }
+        // A Slack channel's subscription isn't on Windows yet: said where it's added.
         if (chosen.Kind != "email")
         {
             doorsWhy = w.Get(chosen.Kind == "slack" ? "door.slack.connect_first_in_connect_apps" : "door.whatsapp_elsewhere", ("taf", opening.Head.Name));
