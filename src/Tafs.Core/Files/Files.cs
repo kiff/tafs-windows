@@ -186,6 +186,40 @@ public static class FileText
         return clean.Length == 0 || clean is "." or ".." ? fallback : clean;
     }
 
+    /// <summary>Windows' device names: never a file's name on disk, whatever follows them.</summary>
+    static readonly HashSet<string> Reserved = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    };
+
+    /// <summary>
+    /// A name to write on this PC's disk (agentgabo's read): <see cref="Name"/>, then every character Windows refuses in a file's
+    /// name made <c>_</c> (so <c>C:evil.exe</c> is no drive-relative path and <c>a:b</c> no alternate stream), trailing dots and
+    /// spaces trimmed, and a device name (<c>CON</c>, <c>NUL.txt</c>) prefixed; <paramref name="fallback"/> if nothing's left.
+    /// </summary>
+    public static string DiskName(string raw, string fallback)
+    {
+        var invalid = new HashSet<char>(Path.GetInvalidFileNameChars()) { ':', '*', '?', '"', '<', '>', '|', '/', (char)92 };
+        var name = new string(Name(raw, fallback).Select(c => invalid.Contains(c) ? '_' : c).ToArray()).TrimEnd('.', ' ');
+        if (name.Length == 0 || name is "." or "..") name = fallback;
+        var stem = name.Split('.')[0].TrimEnd(' ');
+        return Reserved.Contains(stem) ? "_" + name : name;
+    }
+
+    /// <summary>
+    /// Where a file's copy goes under <paramref name="root"/>: its own folder (the id, made a disk name), then the file's disk name;
+    /// none when the path wouldn't stay inside that folder, so nothing is written then.
+    /// </summary>
+    public static string? CopyPath(string root, string id, string name)
+    {
+        var top = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var folder = Path.GetFullPath(Path.Combine(top, DiskName(id, "file")));
+        var path = Path.GetFullPath(Path.Combine(folder, DiskName(name, DiskName(id, "file"))));
+        return folder.StartsWith(top, StringComparison.OrdinalIgnoreCase) && folder.Length > top.Length
+            && path.StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ? path : null;
+    }
+
     /// <summary>A preview's text: lines and tabs kept, Windows' line ends made one, every other control or direction character taken out.</summary>
     public static string Preview(string raw)
     {

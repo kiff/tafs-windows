@@ -412,11 +412,10 @@ static class FileCopies
 {
     public static string Root => Path.Combine(Path.GetTempPath(), "tafs", "files");
 
-    public static string Write(string id, string name, byte[] bytes)
+    public static string? Write(string id, string name, byte[] bytes)
     {
-        var folder = Path.Combine(Root, FileText.Name(id, "file"));
-        Directory.CreateDirectory(folder);
-        var path = Path.Combine(folder, FileText.Name(name, id));
+        if (FileText.CopyPath(Root, id, name) is not { } path) return null;
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllBytes(path, bytes);
         return path;
     }

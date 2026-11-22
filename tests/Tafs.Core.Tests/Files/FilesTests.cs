@@ -150,4 +150,29 @@ public class FilesTests
         Assert.Equal(PreviewKind.Copy, (await DeliveredFiles.PreviewAsync(png, Unreached, Bytes)).Kind);
         Assert.Equal(PreviewKind.Unreachable, (await DeliveredFiles.PreviewAsync(png, NoStart, _ => Task.FromResult<byte[]?>(null))).Kind);
     }
+
+    /// <summary>A copy's name on this PC's disk never leaves its folder (agentgabo's read): no drive, no stream, no device name.</summary>
+    [Theory]
+    [InlineData("C:evil.exe", "C_evil.exe")]
+    [InlineData("a:b", "a_b")]
+    [InlineData("CON", "_CON")]
+    [InlineData("nul.txt", "_nul.txt")]
+    [InlineData("name. ", "name")]
+    [InlineData("../../etc/week.csv", "week.csv")]
+    [InlineData("re*port?.csv", "re_port_.csv")]
+    [InlineData("...", "f1")]
+    public void A_name_on_disk_is_one_plain_file_name(string raw, string disk) => Assert.Equal(disk, FileText.DiskName(raw, "f1"));
+
+    [Fact]
+    public void A_copy_s_path_stays_inside_its_own_folder()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "tafs-test", "files");
+        foreach (var name in new[] { "C:evil.exe", "a:b", "CON", "..", "../x", @"C:\Windows\x.dll", @"\\server\share\x" })
+        {
+            var path = FileText.CopyPath(root, "fil_1", name)!;
+            Assert.StartsWith(Path.Combine(Path.GetFullPath(root), "fil_1") + Path.DirectorySeparatorChar, path);
+            Assert.DoesNotContain(':', Path.GetFileName(path));
+        }
+        Assert.StartsWith(Path.GetFullPath(root) + Path.DirectorySeparatorChar, FileText.CopyPath(root, "..", "x.csv")!);
+    }
 }
