@@ -1,11 +1,11 @@
 # The port checklist
 
-Each iPad view file (kiff/tafs `ios/Tafs/Views`, at the pin, 7d0c091: 57 files) against its Windows status. A file is
+Each iPad view file (kiff/tafs `ios/Tafs/Views`, at the pin, 43da43e: 57 files) against its Windows status. A file is
 **ported** when every branch it draws is on Windows, **partial** when part of it is (what's missing is named), **not
 started**, or **not for Windows** (and why). The tables describe main; what an open pull request brings is marked with
 its number, "(#65, open)". The PR that ports a file updates its line here.
 
-**Re-anchored at 7d0c091 (22 Nov).** The seven files added since d14217f are listed under Not started. The rows' words
+**Re-anchored at 43da43e (22 Nov).** The seven files added since d14217f are listed under Not started. The rows' words
 are still d14217f's: 30 files have grown since (most: SignInView, OnboardingView, SetupChatView, ConnectAppsView), and
 each row is read again, against the pin's file, by the batch PR that ports it. Items marked "(#NN, merged)" are on main
 (they merged on 16 Nov) but still sit in the row's Missing column until that batch moves them.
@@ -113,4 +113,4 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 ## Coverage
 
-Ported 5, partial 23, not started 26, not for Windows 3: the 57 view files at 7d0c091 (the seven new ones are not started; the rows are recounted batch by batch, as above).
+Ported 5, partial 23, not started 26, not for Windows 3: the 57 view files at 43da43e (the seven new ones are not started; the rows are recounted batch by batch, as above).
