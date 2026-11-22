@@ -37,6 +37,7 @@ public class FilesTests
         Assert.Equal(new FilePreviewText("name,amount\nAna,12.50\n", false), DeliveredFiles.ReadStart(Contract("files-file.json")));
         Assert.Equal("s3.test", DeliveredFiles.ReadDownload(Contract("files-download.json"))!.Host);
         Assert.Null(DeliveredFiles.ReadDownload(JsonDocument.Parse("""{"url":"http://s3.test/x"}""").RootElement));
+        Assert.Null(DeliveredFiles.ReadDownload(JsonDocument.Parse("""{"url":"https://user:pw@s3.test/x"}""").RootElement));
         Assert.Null(DeliveredFiles.ReadStart(JsonDocument.Parse("""{"id":"f"}""").RootElement));
     }
 
@@ -95,15 +96,24 @@ public class FilesTests
         Assert.Equal("goes in 12 days", DeliveredFiles.Goes(En, 12));
     }
 
-    [Fact]
-    public void A_size_is_in_the_language_s_numbers()
-    {
-        Assert.Equal("22 B", DeliveredFiles.Size(22, CultureInfo.InvariantCulture));
-        Assert.Equal("2 KB", DeliveredFiles.Size(1500, CultureInfo.GetCultureInfo("en")));
-        Assert.Equal("1.5 MB", DeliveredFiles.Size(1_500_000, CultureInfo.GetCultureInfo("en")));
-        Assert.Equal("1,5 MB", DeliveredFiles.Size(1_500_000, CultureInfo.GetCultureInfo("fr")));
-        Assert.Equal("120 MB", DeliveredFiles.Size(120_000_000, CultureInfo.GetCultureInfo("en")));
-    }
+    /// <summary>Sizes as each language writes them, the iPad's ByteCountFormatter and desktop-linux's table: units, plural bytes, decimals only when not whole.</summary>
+    [Theory]
+    [InlineData("en", 1, "1 byte")]
+    [InlineData("en", 22, "22 byte")]
+    [InlineData("fr", 8, "8 o")]
+    [InlineData("fr", 1500, "2 ko")]
+    [InlineData("fr", 1_500_000, "1,5 Mo")]
+    [InlineData("en", 1_000_000, "1 MB")]
+    [InlineData("en", 120_000_000, "120 MB")]
+    [InlineData("en", 2_345_000_000, "2.35 GB")]
+    [InlineData("sl", 2, "2 bajta")]
+    [InlineData("hr", 3, "3 bajta")]
+    [InlineData("ar", 1500, "2 كيلوبايت")]
+    [InlineData("ja", 1500, "2 KB")]
+    [InlineData("pt-BR", 5, "5 bytes")]
+    [InlineData("xx", 5, "5 byte")]
+    public void A_size_is_written_as_the_language_writes_it(string language, long bytes, string words) =>
+        Assert.Equal(words, FileSizes.Words(language, bytes));
 
     [Fact]
     public async Task Every_page_is_read_and_a_failed_page_keeps_nothing()
