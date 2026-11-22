@@ -2261,9 +2261,7 @@ public sealed partial class MainWindow : Window
                 {
                     return w.Get("common.didnt_go_through", ("what", w.Get("chrome.remove_named", ("name", chrome.Name))), ("why", w.Get("error.offline")));
                 }
-            },
-            // The account's connections, read on planque as this device as the approval cards read them.
-            () => GrantsAsync(session));
+            });
     }
 
     /// <summary>
