@@ -76,6 +76,7 @@ public sealed partial class CoachPanel
         (conversation, session, begun, coachSending, chatError, previousAsked, drawnOrder) = (CoachConversation.Newest, null, false, false, null, false, null);
         coachSent.Clear();
         coachUnsent.Clear();
+        coachQueued = null;
         coachClock.Stop();
         CoachDraft.Text = "";
         ChatsView.Visibility = Visibility.Collapsed;
@@ -97,8 +98,10 @@ public sealed partial class CoachPanel
         CoachComposer.Visibility = coach is not null && answer is not null ? Visibility.Visible : Visibility.Collapsed;
         CoachDraft.PlaceholderText = thread?.Working is not null ? w.Get("chat.write_next") : w.Get("coach.ask_anything");
         AutomationProperties.SetName(CoachDraft, CoachDraft.PlaceholderText);
-        CoachSendButton.Content = w.Get(coachSending ? "common.sending" : "common.send");
-        CoachSendButton.IsEnabled = !coachSending;
+        // While Coach sends or works, Send queues one message (the iPad's setupQueued); a second waits for that one to go.
+        var full = coachQueued is not null && (coachSending || CoachBusy);
+        CoachSendButton.Content = w.Get(full && coachSending ? "common.sending" : "common.send");
+        CoachSendButton.IsEnabled = !full;
         // Stop while Coach works, as the iPad's: its current run is cancelled.
         CoachStopButton.Content = w.Get("chat.stop");
         CoachStopButton.Visibility = thread?.Working is not null && answer is not null ? Visibility.Visible : Visibility.Collapsed;
@@ -151,6 +154,8 @@ public sealed partial class CoachPanel
         // How the last run ended, when the person stopped it, as the iPad's ended: "Stopped", until the next message.
         if (coachStopped && thread?.Working is null)
             ThreadItems.Children.Add(Words(App.Words.Get("taf.state.stopped"), 13, "TafsDimText"));
+        // What was written while Coach works, as the iPad's QueuedBubble: faded, "Sends when this answer is done", Don't send.
+        if (coachQueued is { } queued) ThreadItems.Children.Add(ChatPinner.Own(QueuedBubble(queued), queued));
         // What tafs cloud didn't take, after it, where it was written.
         foreach (var m in coachUnsent)
             ThreadItems.Children.Add(ChatPinner.Own(ChatViews.UnsentBubble(App.Words, m, Brush, coachSending,
@@ -161,6 +166,16 @@ public sealed partial class CoachPanel
         ChatsView.Visibility = Visibility.Collapsed;
         ThreadView.Visibility = Visibility.Visible;
         ShowChatTools();
+        // Coach done: what was queued goes now, as its next message.
+        if (coachQueued is { } next && !CoachBusy && !coachSending)
+        {
+            coachQueued = null;
+            DispatcherQueue.TryEnqueue(async () =>
+            {
+                Pinner.Next(next);
+                if (await SendCoachAsync(next) is null) { Pinner.Clear(); if (CoachDraft.Text.Length == 0) CoachDraft.Text = next; }
+            });
+        }
         // Read again while Coach works, a sent message waits, or a new version is still being prepared.
         if (thread?.Working is not null || coachSent.Count > 0 || thread?.AwaitsImprovement(DateTimeOffset.UtcNow) == true) coachClock.Start();
         else coachClock.Stop();
@@ -225,6 +240,7 @@ public sealed partial class CoachPanel
             (conversation, session, thread, chatError, coachSending, drawnOrder) = (CoachConversation.New, null, null, null, false, null);
             coachSent.Clear();
             coachUnsent.Clear();
+            coachQueued = null;
             answered.Clear();
             notes.Clear();
             cards.Clear();
@@ -265,6 +281,7 @@ public sealed partial class CoachPanel
         (conversation, session, thread, chatError, coachSending, drawnOrder) = (CoachConversation.Of(chosenSession), chosenSession, null, null, false, null);
         coachSent.Clear();
         coachUnsent.Clear();
+        coachQueued = null;
         ChatsView.Visibility = Visibility.Collapsed;
         ThreadItems.Children.Clear();
         ThreadView.Visibility = Visibility.Visible;
@@ -293,6 +310,14 @@ public sealed partial class CoachPanel
         {
             chatError = why;
             ShowChatTools();
+            return;
+        }
+        // Coach still sending or working: held as its next message, shown faded, sent once it's done (the iPad's setupQueued).
+        if ((coachSending || CoachBusy) && coachQueued is null && CoachTray.Ready.Count == 0)
+        {
+            coachQueued = text;
+            CoachDraft.Text = "";
+            ShowConversation();
             return;
         }
         // Out of the box at once, as it shows in the thread, and to the top; not tried at all, back in the box unless something
@@ -380,6 +405,35 @@ public sealed partial class CoachPanel
         (coachStopped, chatError) = (why is null, why);
         await LoadThreadAsync();
         ShowConversation();
+    }
+
+    /// <summary>The one message written while Coach sends or works, sent once it's done; none when nothing waits.</summary>
+    string? coachQueued;
+
+    /// <summary>Coach is at work on an answer (tafs cloud's <c>working</c>): a new message waits for it.</summary>
+    bool CoachBusy => thread?.Working is not null;
+
+    /// <summary>The queued message, as the iPad's <c>QueuedBubble</c>: the person's bubble faded, its line under it, and Don't send in its menu.</summary>
+    StackPanel QueuedBubble(string text)
+    {
+        var w = App.Words;
+        var bubble = ChatViews.OwnerBubble(text, Brush);
+        bubble.Opacity = 0.6;
+        var box = new StackPanel { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0) };
+        box.Children.Add(bubble);
+        box.Children.Add(new TextBlock { Text = w.Get("chat.queued.sends_when_done", ("who", w.Get("chat.queued.this_answer"))), FontSize = 13,
+            HorizontalAlignment = HorizontalAlignment.Right, Foreground = Brush("TafsDim") });
+        var dontSend = new MenuFlyoutItem { Text = w.Get("chat.queued.dont_send") };
+        dontSend.Click += (_, _) =>
+        {
+            // Back in the box, unless something new is there: taken back, never lost.
+            if (CoachDraft.Text.Length == 0) CoachDraft.Text = text;
+            coachQueued = null;
+            ShowConversation();
+        };
+        box.ContextFlyout = new MenuFlyout { Items = { dontSend } };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(box, "coach.queued");
+        return box;
     }
 
     AttachTray? coachTray;
@@ -520,7 +574,7 @@ public sealed partial class CoachPanel
 
     void OnChatsBack(object sender, RoutedEventArgs e)
     {
-        if (showingArchived) { _ = ShowChatsAsync(archived: false); return; }
+        if (showingArchived || watchDayShown is not null) { watchDayShown = null; _ = ShowChatsAsync(archived: false); return; }
         ChatsView.Visibility = Visibility.Collapsed;
         if (ShowsConversation(thread)) ShowConversation();
         else
@@ -557,6 +611,8 @@ public sealed partial class CoachPanel
             ChatsItems.Children.Add(ChatRow(id, row, archived));
         if (rows is { Count: 0 })
             ChatsItems.Children.Add(Words(w.Get(archived ? "coach.chats.nothing_archived" : "coach.chats.none"), 14, "TafsDimText", HorizontalAlignment.Center));
+        // From your watch (W11), between the chats and Archived, only when there are days.
+        if (!archived) await AddWatchDaysAsync(gen);
         if (!archived)
         {
             var more = new Button
@@ -617,6 +673,7 @@ public sealed partial class CoachPanel
                     (conversation, session, thread, drawnOrder) = (CoachConversation.New, null, null, null);
                     coachSent.Clear();
                     coachUnsent.Clear();
+                    coachQueued = null;
                 }
                 await ShowChatsAsync(archived, why);
             };
