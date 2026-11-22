@@ -43,7 +43,7 @@ public sealed record KiffAmount
     public string Figure(WordBook w)
     {
         if (!Writable) return "–";
-        var culture = CultureInfo.GetCultureInfo(w.Language == "pt" ? "pt-PT" : w.Language);
+        var culture = Tafs.Core.Words.Locale.Culture(w.Language);
         var value = Minor / (decimal)Math.Pow(10, Scale);
         var places = value == decimal.Truncate(value) ? 0 : Scale;
         if (Unit is null) return value.ToString("N" + places, culture);

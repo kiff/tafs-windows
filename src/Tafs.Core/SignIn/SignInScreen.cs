@@ -61,9 +61,24 @@ public static class SignInScreen
 
     /// <summary>
     /// The languages kiff.dev has tafs's Terms and Privacy policy in, besides English, at
-    /// <c>kiff.dev/&lt;lang&gt;/tafs/terms</c> and <c>/&lt;lang&gt;/tafs/privacy</c>. The English pages govern.
+    /// <c>kiff.dev/&lt;lang&gt;/tafs/terms</c> and <c>/&lt;lang&gt;/tafs/privacy</c>, by KIFF's code (checked against kiff.dev,
+    /// 22 Nov). The English pages govern.
     /// </summary>
-    public static readonly IReadOnlySet<string> LegalLanguages = new HashSet<string> { "de", "es", "fr", "it", "nl", "pl", "pt" };
+    public static readonly IReadOnlySet<string> LegalLanguages = new HashSet<string>
+    {
+        "de", "es", "fr", "it", "nl", "pl", "pt", "ko", "ja", "et", "lt", "lv", "cs", "sk", "sl", "hu", "ro", "bg", "hr", "tr",
+        "id", "vi", "th", "zh", "ar", "sr", "sq", "ka", "hy", "az", "bn", "he", "ca", "mk", "mn", "ne", "km", "lo", "el",
+    };
+
+    /// <summary>
+    /// The code kiff.dev serves a language's legal pages under, if it has them: KIFF's code, so Traditional Chinese is "zh",
+    /// Latin Serbian "sr" and Brazilian Portuguese "pt" (the iPad's <c>Legal.translated</c>).
+    /// </summary>
+    public static string? LegalCode(string language)
+    {
+        var code = language switch { "zh-Hant" => "zh", "sr-Latn" => "sr", "pt-BR" => "pt", _ => language };
+        return LegalLanguages.Contains(code) ? code : null;
+    }
 
     /// <summary>tafs's own Terms, in the app's language where kiff.dev has it, else in English.</summary>
     public static Uri Terms(string language) => Legal(language, "terms");
@@ -72,7 +87,7 @@ public static class SignInScreen
     public static Uri Privacy(string language) => Legal(language, "privacy");
 
     static Uri Legal(string language, string page) =>
-        new(LegalLanguages.Contains(language) ? $"https://kiff.dev/{language}/tafs/{page}" : $"https://kiff.dev/tafs/{page}");
+        new(LegalCode(language) is { } code ? $"https://kiff.dev/{code}/tafs/{page}" : $"https://kiff.dev/tafs/{page}");
 
     /// <summary>"By signing in, you agree to …", in pieces: the two names linked wherever the language puts them.</summary>
     public static IReadOnlyList<(string Text, Uri? Link)> Agreement(WordBook w)

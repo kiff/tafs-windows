@@ -262,7 +262,7 @@ public sealed partial class CalendarPage : Page
     void ShowDayList(Tafs.Core.Words.WordBook w)
     {
         DayList.Children.Clear();
-        DayList.Children.Add(new TextBlock { Text = CalendarScreen.DayHeading(w, state.Selected).ToUpper(CultureInfo.GetCultureInfo(w.Language)),
+        DayList.Children.Add(new TextBlock { Text = CalendarScreen.DayHeading(w, state.Selected).ToUpper(Tafs.Core.Words.Locale.Culture(w.Language)),
             Style = (Style)Application.Current.Resources["TafsEyebrow"] });
         var on = CalendarWork.On(Events, state.Selected);
         if (CalendarWork.Current(read, state.Selected) is not null && on.Count == 0) DayList.Children.Add(Empty(w.Get("calendar.nothing_on_day")));
@@ -273,7 +273,7 @@ public sealed partial class CalendarPage : Page
     void ShowAgenda(Tafs.Core.Words.WordBook w)
     {
         Agenda.Children.Clear();
-        Agenda.Children.Add(new TextBlock { Text = w.Get("calendar.agenda").ToUpper(CultureInfo.GetCultureInfo(w.Language)),
+        Agenda.Children.Add(new TextBlock { Text = w.Get("calendar.agenda").ToUpper(Tafs.Core.Words.Locale.Culture(w.Language)),
             Style = (Style)Application.Current.Resources["TafsEyebrow"] });
         var groups = CalendarWork.Agenda(Events, CalendarWork.Shown(state));
         if (CalendarWork.Current(read, state.Selected) is { } current && groups.Count == 0)

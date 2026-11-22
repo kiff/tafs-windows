@@ -48,7 +48,7 @@ public sealed record TafVersions(IReadOnlyList<TafVersion> Versions, int? Switch
         string.Join(" · ", new[]
         {
             v.ByWords,
-            TimeZoneInfo.ConvertTime(v.Created, zone).ToString("d MMM yyyy, HH:mm", CultureInfo.GetCultureInfo(w.Language)),
+            TimeZoneInfo.ConvertTime(v.Created, zone).ToString("d MMM yyyy, HH:mm", Tafs.Core.Words.Locale.Culture(w.Language)),
             v.Draft is null ? null : w.Get("version.brings_new_card"),
         }.OfType<string>());
 
@@ -68,7 +68,7 @@ public sealed record TafVersions(IReadOnlyList<TafVersion> Versions, int? Switch
             "idle" => w.Get("version.tried.ended_unused"),
             _ => w.Get("version.tried.ended"),
         };
-        var on = w.Get("version.tried.on", ("date", TimeZoneInfo.ConvertTime(t.Started, zone).ToString("d MMM", CultureInfo.GetCultureInfo(w.Language))));
+        var on = w.Get("version.tried.on", ("date", TimeZoneInfo.ConvertTime(t.Started, zone).ToString("d MMM", Tafs.Core.Words.Locale.Culture(w.Language))));
         return string.Join(" · ", on, counts, how);
     }
 }

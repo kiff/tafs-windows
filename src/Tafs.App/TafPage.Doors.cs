@@ -239,7 +239,7 @@ public sealed partial class TafPage
         {
             var ask = new ContentDialog
             {
-                XamlRoot = XamlRoot, RequestedTheme = ActualTheme, Title = w.Get("door.remove_title", ("door", door.Label.ToLower(CultureInfo.GetCultureInfo(w.Language)))),
+                XamlRoot = XamlRoot, RequestedTheme = ActualTheme, Title = w.Get("door.remove_title", ("door", door.Label.ToLower(Tafs.Core.Words.Locale.Culture(w.Language)))),
                 Content = new TextBlock { Text = w.Get("door.remove_body", ("taf", opening.Head.Name)), TextWrapping = TextWrapping.Wrap },
                 PrimaryButtonText = w.Get("door.remove"), CloseButtonText = w.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
             };
@@ -280,7 +280,7 @@ public sealed partial class TafPage
         var name = new TextBox { PlaceholderText = w.Get("door.name_optional") };
         AutomationProperties.SetName(name, name.PlaceholderText);
         var body = new StackPanel { Spacing = 10 };
-        body.Children.Add(Words(w.Get("door.pair_intro", ("door", door.Label.ToLower(CultureInfo.GetCultureInfo(w.Language)))), 14, "TafsSoftText"));
+        body.Children.Add(Words(w.Get("door.pair_intro", ("door", door.Label.ToLower(Tafs.Core.Words.Locale.Culture(w.Language)))), 14, "TafsSoftText"));
         body.Children.Add(sender);
         body.Children.Add(name);
         var ask = new ContentDialog

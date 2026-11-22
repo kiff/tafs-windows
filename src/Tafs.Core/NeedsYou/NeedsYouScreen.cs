@@ -155,8 +155,7 @@ public static class NeedsYouScreen
     /// </summary>
     public static string Euros(WordBook w, decimal amount)
     {
-        var culture = w.Language == "pt" ? "pt-PT" : w.Language;
-        var format = (NumberFormatInfo)CultureInfo.GetCultureInfo(culture).NumberFormat.Clone();
+        var format = (NumberFormatInfo)Locale.Culture(w.Language).NumberFormat.Clone();
         format.CurrencySymbol = "€";
         return amount.ToString(decimal.Truncate(amount) == amount ? "C0" : "C2", format);
     }

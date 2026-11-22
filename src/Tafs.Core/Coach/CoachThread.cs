@@ -476,7 +476,7 @@ public static class CoachChat
         var at = items[i].At;
         if (i > 0 && at - items[i - 1].At < TimeSpan.FromHours(1)) return null;
         var local = TimeZoneInfo.ConvertTime(at, zone);
-        var culture = CultureInfo.GetCultureInfo(w.Language == "pt" ? "pt-PT" : w.Language);
+        var culture = Tafs.Core.Words.Locale.Culture(w.Language);
         return local.Date == TimeZoneInfo.ConvertTime(now, zone).Date
             ? local.ToString("HH:mm", CultureInfo.InvariantCulture)
             : local.ToString("d MMM yyyy, HH:mm", culture);

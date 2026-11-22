@@ -486,8 +486,8 @@ public sealed partial class AccountPage : Page
     }
 
     /// <summary>
-    /// The language picker, as Android's: "Language", with "This Windows PC's language" first, then English, Deutsch,
-    /// Français, Español, Italiano, Português, Nederlands and Polski, the current choice marked. Choosing one applies it at
+    /// The language picker, as Android's: "Language", with "This Windows PC's language" first, then each language tafs ships,
+    /// named in itself (`AppLanguage.Picker`), the current choice marked. Choosing one applies it at
     /// once (tafs starts again in it, still signed in); the one in use changes nothing.
     /// </summary>
     async Task ChooseLanguageAsync()
@@ -496,14 +496,15 @@ public sealed partial class AccountPage : Page
         var kept = App.KeptLanguage();
         var list = new RadioButtons { MaxColumns = 1 };
         list.Items.Add(new RadioButton { Content = w.Get("settings.language_device", ("device", w.Get("device.windows"))), Tag = "" });
-        foreach (var (code, name) in AppLanguage.Named)
+        var rows = AppLanguage.Picker(App.Shipped);
+        foreach (var (code, name) in rows)
         {
             var item = new RadioButton { Content = name, Tag = code };
             // Read in its own language by Narrator.
             item.Language = code;
             list.Items.Add(item);
         }
-        list.SelectedIndex = kept is null ? 0 : 1 + AppLanguage.Named.ToList().FindIndex(l => l.Code == kept);
+        list.SelectedIndex = kept is null ? 0 : 1 + rows.ToList().FindIndex(l => l.Code == kept);
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot, Title = w.Get("settings.language_title"), Content = new ScrollViewer { Content = list, MaxHeight = 440 },

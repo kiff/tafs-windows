@@ -62,6 +62,51 @@ public partial class App : Application
         return null;
     }
 
+    /// <summary>The direction the app's language reads in: right to left for Arabic and Hebrew, as the iPad mirrors.</summary>
+    internal static FlowDirection Direction { get; private set; } = FlowDirection.LeftToRight;
+
+    /// <summary>
+    /// Right to left for Arabic and Hebrew. The window's root takes <see cref="Direction"/> (MainWindow); dialogs, flyouts and
+    /// tooltips open in a popup layer that doesn't inherit it, so each takes it from an implicit style based on WinUI's own.
+    /// </summary>
+    static void FollowDirection(string language)
+    {
+        Direction = Locale.RightToLeft(language) ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+        if (Direction == FlowDirection.LeftToRight) return;
+        foreach (var (type, key) in new[]
+        {
+            (typeof(Microsoft.UI.Xaml.Controls.ContentDialog), "DefaultContentDialogStyle"),
+            (typeof(Microsoft.UI.Xaml.Controls.FlyoutPresenter), "DefaultFlyoutPresenterStyle"),
+            (typeof(Microsoft.UI.Xaml.Controls.MenuFlyoutPresenter), "DefaultMenuFlyoutPresenterStyle"),
+            (typeof(Microsoft.UI.Xaml.Controls.ToolTip), "DefaultToolTipStyle"),
+        })
+        {
+            // Never an implicit style without WinUI's as its base: it would drop the control's template.
+            if (!Current.Resources.TryGetValue(key, out var basis) || basis is not Style based) continue;
+            var style = new Style(type) { BasedOn = based };
+            style.Setters.Add(new Setter(FrameworkElement.FlowDirectionProperty, FlowDirection.RightToLeft));
+            Current.Resources[type] = style;
+        }
+    }
+
+    /// <summary>
+    /// Spaced capitals (<c>TafsEyebrow</c>) are a Latin look: in Hangul, kana, Han and Arabic the monospaced face and the
+    /// spacing are dropped, as the iPad's <c>Eyebrow.ideographic</c>, since spacing pulls Arabic's joined letters apart.
+    /// </summary>
+    static void FollowScript(string language)
+    {
+        if (language is not ("ja" or "ko" or "zh-Hant" or "ar")) return;
+        if (!Current.Resources.TryGetValue("TafsEyebrow", out var found) || found is not Style eyebrow) return;
+        // The style itself, changed before anything draws with it (a style is sealed once used): Theme.xaml's own templates
+        // reach it inside their dictionary, where a replacement at the app's level wouldn't. Its size and theme-following
+        // colour stay; only the face and the spacing change.
+        if (eyebrow.IsSealed) return;
+        foreach (var setter in eyebrow.Setters.OfType<Setter>().ToList())
+            if (setter.Property == Microsoft.UI.Xaml.Controls.TextBlock.FontFamilyProperty
+                || setter.Property == Microsoft.UI.Xaml.Controls.TextBlock.CharacterSpacingProperty)
+                eyebrow.Setters.Remove(setter);
+    }
+
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         var options = Environment.GetCommandLineArgs();
@@ -77,6 +122,8 @@ public partial class App : Application
         Shipped = shipped;
         Words = WordBook.Load(strings, AppLanguage.Resolve(Option("--lang"), KeptLanguage(),
             Windows.System.UserProfile.GlobalizationPreferences.Languages.Append(CultureInfo.CurrentUICulture.Name), shipped));
+        FollowDirection(Words.Language);
+        FollowScript(Words.Language);
 
         // Notifications for held calls, registered before the window: a click on one can be what started tafs.
         var screenshot = Option("--screenshot");

@@ -103,7 +103,7 @@ jobs:
           PART: ${{ matrix.part }}
 
   # The WinUI app, on Windows, only when it changed (or nightly): it builds, then saves the main
-  # screens in en, fr and pt, light and dark, at a laptop's size, for the PR.
+  # screens in en, fr, ar (right to left) and ja, light and dark, at a laptop's size, for the PR.
   app:
     needs: plan
     if: contains(needs.plan.outputs.parts, '"app"') || contains(needs.plan.outputs.parts, '"all"')
@@ -120,7 +120,7 @@ jobs:
         run: dotnet run --project tools/Tafs.Ci -- xaml-keys
       - name: Build
         run: dotnet build src/Tafs.App -c Release -p:Platform=x64
-      # Each screen in en, fr and pt, light and dark. The job fails if any is missing: a crash at launch
+      # Each screen in en, fr, ar (right to left) and ja, light and dark. The job fails if any is missing: a crash at launch
       # or a missing word stops the app before it saves.
       - name: Screenshots
         run: |
@@ -158,7 +158,7 @@ jobs:
               taf-setup) opts=(--page taf-setup --sample) ;;
               taf-card) opts=(--page taf-card --sample) ;;
             esac
-            for lang in en fr pt; do for theme in light dark; do
+            for lang in en fr ar ja; do for theme in light dark; do
               file="screenshots/$screen-$lang-$theme.png"
               timeout 120 "$exe" "${opts[@]}" --lang "$lang" --theme "$theme" --screenshot "$file" || true
               if [ ! -s "$file" ]; then echo "::error::no screenshot: $file"; missing=$((missing + 1)); fi

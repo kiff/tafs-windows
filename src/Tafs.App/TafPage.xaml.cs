@@ -1127,7 +1127,7 @@ public sealed partial class TafPage : Page
         if (opening!.Cards is not { Count: > 0 } cards) return;
         SidePane.Children.Add(new TextBlock
         {
-            Text = w.Count("card.heading", cards.Count).ToUpper(System.Globalization.CultureInfo.GetCultureInfo(w.Language)),
+            Text = w.Count("card.heading", cards.Count).ToUpper(Tafs.Core.Words.Locale.Culture(w.Language)),
             Style = Look("TafsEyebrow"),
         });
         SidePane.Children.Add(CardStack(cards, () => ShowSide()));
@@ -1410,7 +1410,7 @@ public sealed partial class TafPage : Page
         // A Card with no end says so, never a far-off date.
         var endWord = revoked ? "card.revoked" : !card.Active ? "card.ended" : card.Expires is null ? "card.ends" : "card.until";
         ends.Children.Add(Text(w.Get(endWord), 10, 0.75));
-        ends.Children.Add(Text(card.Expires?.ToString("d MMM yyyy", System.Globalization.CultureInfo.GetCultureInfo(w.Language == "pt" ? "pt-PT" : w.Language))
+        ends.Children.Add(Text(card.Expires?.ToString("d MMM yyyy", Tafs.Core.Words.Locale.Culture(w.Language))
             ?? w.Get("card.no_end_date"), 12, bold: true));
         foreach (var t in ends.Children.OfType<TextBlock>()) t.HorizontalAlignment = HorizontalAlignment.Right;
         Grid.SetColumn(ends, 1);

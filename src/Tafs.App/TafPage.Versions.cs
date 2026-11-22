@@ -204,7 +204,7 @@ public sealed partial class TafPage
                 line.ColumnDefinitions.Add(new ColumnDefinition());
                 line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 line.Children.Add(Words(run.Words, 14, "TafsSoftText"));
-                var at = new TextBlock { Text = run.At.ToLocalTime().ToString("d MMM, HH:mm", CultureInfo.GetCultureInfo(w.Language)), FontSize = 12,
+                var at = new TextBlock { Text = run.At.ToLocalTime().ToString("d MMM, HH:mm", Tafs.Core.Words.Locale.Culture(w.Language)), FontSize = 12,
                     FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas"), Style = Look("TafsDimText") };
                 Grid.SetColumn(at, 1);
                 line.Children.Add(at);

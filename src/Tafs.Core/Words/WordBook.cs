@@ -172,10 +172,14 @@ public sealed partial class WordBook
     string Fill(string key, string text, (string Name, string Value)[] values)
     {
         var byName = values.ToDictionary(v => v.Name, v => v.Value);
+        // In a right-to-left language each value is set apart (U+2068 … U+2069), as the iPad's Words.isolated does, so a
+        // name, a number or "#5098" keeps its own direction inside the line. A marker the caller splits on stays as it is.
+        var isolate = Locale.RightToLeft(Language);
         return Placeholder().Replace(text, m =>
         {
             if (!byName.TryGetValue(m.Groups[1].Value, out var value))
                 throw new ArgumentException($"'{key}' needs a value for {{{m.Groups[1].Value}}}");
+            if (isolate && value.Length > 0 && !(value.Length == 1 && char.IsControl(value[0]))) value = Locale.Isolated(value);
             return m.Groups[2].Value switch
             {
                 "" => value,

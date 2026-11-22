@@ -35,11 +35,11 @@ public static class Sidebar
     /// </summary>
     public static (string? Count, string Name) NeedsYouCount(WordBook w, int waiting) =>
         waiting > 0
-            ? (waiting.ToString(CultureInfo.GetCultureInfo(w.Language)), w.Get("needs_you.tab_label", ("n", waiting.ToString(CultureInfo.GetCultureInfo(w.Language)))))
+            ? (waiting.ToString(Tafs.Core.Words.Locale.Culture(w.Language)), w.Get("needs_you.tab_label", ("n", waiting.ToString(Tafs.Core.Words.Locale.Culture(w.Language)))))
             : (null, w.Get("needs_you.title"));
 
     /// <summary>A section's label, as the iPad's Eyebrow: in capitals, by the language's own rules.</summary>
-    public static string Eyebrow(WordBook w, string key) => w.Get(key).ToUpper(CultureInfo.GetCultureInfo(w.Language));
+    public static string Eyebrow(WordBook w, string key) => w.Get(key).ToUpper(Tafs.Core.Words.Locale.Culture(w.Language));
 
     /// <summary>
     /// Whether a taf belongs in the sidebar's Your tafs, as the iPad's relevantNow (one sidebar for the whole app shows only

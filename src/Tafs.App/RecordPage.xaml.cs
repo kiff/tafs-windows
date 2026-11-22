@@ -330,7 +330,7 @@ public sealed partial class RecordPage : Page
         var row = new StackPanel { Spacing = 4 };
         row.Children.Add(new TextBlock
         {
-            Text = hit.TafName.ToUpper(System.Globalization.CultureInfo.GetCultureInfo(App.Words.Language)), FontSize = 11,
+            Text = hit.TafName.ToUpper(Tafs.Core.Words.Locale.Culture(App.Words.Language)), FontSize = 11,
             FontFamily = new FontFamily("Cascadia Mono, Consolas"), Foreground = Look("TafsDim"),
         });
         var line = new Grid { ColumnSpacing = 10 };

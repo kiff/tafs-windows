@@ -173,5 +173,5 @@ public sealed record TafCard(string Id, string Title, IReadOnlyList<CardRule> Ru
         return local.Date == today ? local.ToString("HH:mm", CultureInfo.InvariantCulture) : local.ToString("d MMM yyyy, HH:mm", Culture(w));
     }
 
-    static CultureInfo Culture(WordBook w) => CultureInfo.GetCultureInfo(w.Language == "pt" ? "pt-PT" : w.Language);
+    static CultureInfo Culture(WordBook w) => Tafs.Core.Words.Locale.Culture(w.Language);
 }

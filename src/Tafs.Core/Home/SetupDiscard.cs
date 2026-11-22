@@ -71,7 +71,7 @@ public static class SetupDiscard
         if (answer.Code == CardsInForce)
         {
             var count = Math.Max(Math.Max(answer.Cards.Count, failed), 1);
-            return new(false, w.Get("card.kiff_did_not_revoke_cards", ("cards_left", count.ToString(CultureInfo.GetCultureInfo(w.Language)))),
+            return new(false, w.Get("card.kiff_did_not_revoke_cards", ("cards_left", count.ToString(Tafs.Core.Words.Locale.Culture(w.Language)))),
                 answer.Cards.Count > 0 ? answer.Cards : null);
         }
         return new(false, answer.Why ?? w.Get("error.ours"));

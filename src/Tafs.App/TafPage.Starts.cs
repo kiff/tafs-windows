@@ -234,7 +234,7 @@ public sealed partial class TafPage
                 var said = new StackPanel { Spacing = 2 };
                 said.Children.Add(Words(item.Line, 15, "TafsInkText"));
                 if (item.Expires is { } at)
-                    said.Children.Add(Words(at.ToLocalTime().ToString("d MMM, HH:mm", CultureInfo.GetCultureInfo(w.Language)), 12, "TafsDimText"));
+                    said.Children.Add(Words(at.ToLocalTime().ToString("d MMM, HH:mm", Tafs.Core.Words.Locale.Culture(w.Language)), 12, "TafsDimText"));
                 row.Children.Add(said);
                 if (manages && item.FollowUp is { } fid && opening?.CloudId is { } id)
                 {
