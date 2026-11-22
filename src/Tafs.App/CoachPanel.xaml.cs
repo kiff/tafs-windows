@@ -503,6 +503,7 @@ public sealed partial class CoachPanel : UserControl
                 else if (shown.Card.Kind == "approval") ThreadItems.Children.Add(Approval(thread, shown.Card));
                 else if (shown.Card.Kind == "sign_in") ThreadItems.Children.Add(SignIn(thread, shown.Card));
                 else if (shown.Card.Kind == "door") ThreadItems.Children.Add(DoorCard(shown.Card));
+                else if (shown.Card.Kind == "knob") ThreadItems.Children.Add(KnobCard(shown.Card));
                 if (shown == waitingCard && ThreadItems.Children.Count > before) waitingElement = ThreadItems.Children[^1] as FrameworkElement;
                 continue;
             }

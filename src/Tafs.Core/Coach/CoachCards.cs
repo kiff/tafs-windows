@@ -37,9 +37,12 @@ public sealed record CoachCard(string Kind, string Id, string? Title = null, str
     /// </summary>
     public string? Wider { get; init; }
 
-    /// <summary>A door card's taf (tafs cloud's id) and its draft (Coach's <c>taf_door_api</c>), read from tafs cloud by these: the card carries no words of Coach's.</summary>
+    /// <summary>A card's taf (tafs cloud's id): a door card's, read with its draft (Coach's <c>taf_door_api</c>), or a dial card's (K4).</summary>
     public string? TafId { get; init; }
+    /// <summary>A door card's draft, read from tafs cloud by it: the card carries no words of Coach's.</summary>
     public string? DraftId { get; init; }
+    /// <summary>A dial card's version, the one Coach drafted for the taf (K4).</summary>
+    public int? Version { get; init; }
 }
 
 /// <summary>
@@ -178,6 +181,7 @@ public sealed record ShownCard(DateTimeOffset FirstAt, string Session, string Ru
         {
             Grant = Lenient.Text(c, "grant"), Draft = Lenient.Text(c, "draft"), Service = Lenient.Text(c, "service"),
             TafId = Lenient.Text(c, "taf_id"), DraftId = Lenient.Text(c, "draft_id"),
+            Version = Lenient.Field(c, "version") is { } version && Shape.Int(version) ? (int)version.GetDouble() : null,
             ConnectionDone = Lenient.Field(c, "connection") is { } done && Lenient.Bool(done, "done") && Lenient.Text(done, "words") is { } line
                 && line.Trim().Length > 0 ? line : null,
             Signs = Lenient.Field(c, "signs") is { ValueKind: JsonValueKind.Object } s
