@@ -38,6 +38,7 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | AccountPreferencesView.swift | 37 | Account's theme and time zone pickers |  | `ThemePicker`: Light, Dark and System, kept across launches (`AccountPage.xaml.cs`, `Tafs.Core/Account/ThemeChoice.cs`) The time zone picker is on Windows too: the search a moment after the last key, tafs cloud's zones, the one chosen ticked, and Use this PC's (`AccountPage.xaml.cs`, `AccountTimeZone`). |
 | CoachMode.swift | 131 | Coach mode over the app: the panel, its toolbar, the phone's sheet |  | `CoachView`'s Back and ⤢; `CoachPanel`: a third of the window, sliding in (fading with animations off), the backdrop that closes it, full screen and back, the handle dragged to widen, narrow or close it, its width and full screen kept for next time (`CoachPanel.xaml.cs`, `CoachPanel.Chats.cs`, `Tafs.Core/Coach/CoachScreen.cs`) Its swipe to the right is a touch gesture: on Windows the panel closes with its own button, and `PhoneCoachPanel` is the phone's layout. |
 | DevicesView.swift | 69 | Account › Devices |  | The title, each device's name or "A device", Last used or Not used yet, This device, the footer, and a failed read in plain words (`DevicesPage.xaml.cs`, `Tafs.Core/Account/Devices.cs`) + Sign out for another device and the passkeys with Remove, each approved by this PC's passkey (`AccountRemoval`, `Passkeys.cs`); read again when the window comes back Pairing a computer and adding a passkey from here are the phone's acts (`PairComputerView`): a Windows PC is the computer being added, from Add this Windows PC. |
+| ReportPaymentSheet.swift | 64 | "Report this payment" from a receipt: KIFF marks it and the taf is halted | ReportPayment | On the receipt a taf's Activity line or a Record search hit opens, where tafs cloud sends `report`: the sheet in the receipt's place, Report and halt {taf} as the session (no signature), Reported, Home read again (`ReceiptSheet.ShowReport`, `Tafs.Core/Record/ReportPayment.cs`) |
 
 ## Partial
 
@@ -73,7 +74,6 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | :- | -: | :- | :- |
 | MicButton.swift | 122 | The mic in a chat's message bar | Dictation |
 | ChromeViews.swift | 178 | Account › Chrome: paired Chromes, Pair a Chrome, Unpair, once planque offers it (new since d14217f; batch: Account) | |
-| ReportPaymentSheet.swift | 64 | "Report this payment" from a receipt: KIFF marks it and the taf is halted (new since d14217f; batch: Record) | |
 
 ## Not for Windows
 

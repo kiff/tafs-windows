@@ -88,15 +88,19 @@ public sealed record TafDayView(string Title, IReadOnlyList<TafLineView> Lines) 
 
 /// <summary>One line of a taf's Activity, as drawn: its dot, what it was, its time, the words under it, and any money it moved.</summary>
 public sealed record TafLineView(string Title, string Time, string Detail, string Amount, Visibility HasAmount,
-    Visibility IsDone, Visibility IsWaiting, Visibility IsRefused)
+    Visibility IsDone, Visibility IsWaiting, Visibility IsRefused, RecordEntry? Evidence = null)
 {
-    public static TafLineView Of(ActivityLine l)
+    /// <summary>A line as drawn; with tafs cloud's call, its receipt opens on a click (<see cref="ReportPayment.Evidence"/>).</summary>
+    public static TafLineView Of(ActivityLine l, TafHead? taf = null)
     {
         static Visibility Seen(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
         var dot = RecordScreen.DotOf(l.Kind);
         return new(l.Title, l.Time, l.Detail, l.Amount ?? "", Seen(l.Amount is not null),
-            Seen(dot == Dot.Went), Seen(dot == Dot.Waiting), Seen(dot == Dot.Stopped));
+            Seen(dot == Dot.Went), Seen(dot == Dot.Waiting), Seen(dot == Dot.Stopped), taf is null ? null : ReportPayment.Evidence(l, taf.Name, taf.Colour));
     }
+
+    /// <summary>Whether a click opens its receipt.</summary>
+    public bool Opens => Evidence is not null;
 }
 
 /// <summary>A taf's page, on its Chat, its Activity, its Card or its Setup.</summary>
@@ -1586,7 +1590,7 @@ public sealed partial class TafPage : Page
         FilterChips.Children.Clear();
         foreach (var f in page.Filters) FilterChips.Children.Add(Chip(f, f.Id == page.Filter));
 
-        Days.ItemsSource = page.Groups.Select(g => new TafDayView(g.Title, g.Lines.Select(TafLineView.Of).ToList())).ToList();
+        Days.ItemsSource = page.Groups.Select(g => new TafDayView(g.Title, g.Lines.Select(l => TafLineView.Of(l, opening?.Head)).ToList())).ToList();
         Empty.Text = TafActivity.Empty(w, page.Filter);
         Empty.Visibility = page.Groups.Count == 0 && page.EndWords is null ? Visibility.Visible : Visibility.Collapsed;
         EndWords.Text = page.EndWords ?? "";
@@ -1602,7 +1606,7 @@ public sealed partial class TafPage : Page
         var pages = CloudPages();
         FilterChips.Children.Clear();
         foreach (var f in pages.Filters) FilterChips.Children.Add(Chip(f, f.Id == filter));
-        Days.ItemsSource = pages.Groups.Select(g => new TafDayView(g.Title, g.Lines.Select(TafLineView.Of).ToList())).ToList();
+        Days.ItemsSource = pages.Groups.Select(g => new TafDayView(g.Title, g.Lines.Select(l => TafLineView.Of(l, opening?.Head)).ToList())).ToList();
         Empty.Visibility = Visibility.Collapsed;
         var end = pages.End(App.Words);
         EndWords.Text = end.Words ?? "";
@@ -1612,6 +1616,12 @@ public sealed partial class TafPage : Page
         ActivityLoading.Visibility = ring ? Visibility.Visible : Visibility.Collapsed;
         ActivityError.Text = end.Words ?? "";
         ActivityFailed.Visibility = end.Kind == ActivityEndKind.Error ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>A line's receipt, for a call tafs cloud sent with it; a line without one opens nothing.</summary>
+    async void OnLine(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: RecordEntry entry }) await ReceiptSheet.ShowAsync(XamlRoot, ActualTheme, entry);
     }
 
     /// <summary>A filter chip, as the Record's: 13, in a capsule; the chosen one inverts.</summary>

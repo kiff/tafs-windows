@@ -269,6 +269,8 @@ public sealed partial class MainWindow : Window
         CoachMode.Closed += ShowCoachWaiting;
         NeedsYouPage.CoachWaitingOpenChosen += OpenCoachWaiting;
         NeedsYouPage.SetAsideChosen += session => _ = SetAsideAsync(session);
+        // A payment reported from a receipt halts its taf: Home is read again to show it.
+        ReceiptSheet.Reported += () => { if (cloudRead is { } read) _ = ReadHomeAsync(read); };
         OverviewPage.TafChosen += key => OpenBeside(typeof(TafPage), OpenTaf(w, key));
         // A result card in Coach: its taf, or Plan & usage, with Coach closed, as the iPad's beside its sidebar.
         CoachMode.Tafs = () => home?.Tafs ?? [];
@@ -1051,6 +1053,8 @@ public sealed partial class MainWindow : Window
                 () => SigningTime.Next(DateTimeOffset.UtcNow), () => usageFor == sessions),
             async () => Tafs.Core.Coach.CoachAccess.Capabilities((await KiffReadAsync(bearer, Tafs.Core.Coach.CoachAccess.MePath)).Answer)?.Contains("billing.manage") == true);
         ReceiptSheet.Read = path => KiffBytesAsync(bearer, path);
+        // Report this payment, as the session: no signature and no Windows Hello, since it only takes authority away.
+        ReceiptSheet.SendReport = async path => ReportPayment.Took((await CloudSendAsync(bearer, path, ReportPayment.Body)).Answer);
         // The Record's search, across the person's tafs, as the session.
         RecordPage.Read = path => CloudReadAsync(bearer, path);
         // The Calendar's work to come, as the session; a taf's work opens the taf when it's on Home.
@@ -1147,6 +1151,7 @@ public sealed partial class MainWindow : Window
         kiffAccount = null;
         ShowKiffAccount();
         ReceiptSheet.Read = null;
+        ReceiptSheet.SendReport = null;
         RecordPage.Read = null;
         UsagePage.Calls = null;
         CalendarPage.Read = null;

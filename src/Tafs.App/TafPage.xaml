@@ -162,6 +162,9 @@
                   </ItemsControl.ItemsPanel>
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="local:TafLineView">
+                      <!-- With tafs cloud's call, a click opens its receipt, as the iPad's SourceActivityRow. -->
+                      <Button Style="{StaticResource TafsRow}" Background="Transparent" Padding="0" Click="OnLine" Tag="{x:Bind Evidence}"
+                              IsTabStop="{x:Bind Opens}" AutomationProperties.Name="{x:Bind Title}">
                       <Border Background="{ThemeResource TafsPanel}" BorderBrush="{ThemeResource TafsLine}" BorderThickness="1"
                               CornerRadius="14" Padding="14">
                         <Grid ColumnSpacing="12">
@@ -190,6 +193,7 @@
                           </StackPanel>
                         </Grid>
                       </Border>
+                      </Button>
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
