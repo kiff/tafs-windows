@@ -373,7 +373,7 @@ public sealed partial class MainWindow : Window
         // The three cards on how tafs works, over the app, for a screenshot.
         if (page is "cards-1" or "cards-2" or "cards-3")
         {
-            var preview = OnboardingCards.Preview((Tafs.Core.SignIn.Onboarding.Card)(page[^1] - '1'));
+            var preview = OnboardingCards.Preview((Tafs.Core.SignIn.Onboarding.Card)(page[^1] - '1'), Root.RequestedTheme == ElementTheme.Default ? Root.ActualTheme : Root.RequestedTheme);
             Grid.SetRowSpan((FrameworkElement)preview, 99);
             Grid.SetColumnSpan((FrameworkElement)preview, 99);
             Root.Children.Add(preview);

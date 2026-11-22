@@ -38,6 +38,7 @@ static class OnboardingCards
     /// <summary>The cards over the window, from <paramref name="start"/>. After sign-in, finishing them marks them seen.</summary>
     public static async Task ShowAsync(XamlRoot root, ElementTheme theme, Onboarding.Card start = Onboarding.Card.Tafs, bool afterSignIn = false)
     {
+        shown = theme;
         var dialog = new ContentDialog { XamlRoot = root, RequestedTheme = theme };
         dialog.Content = View(start, () =>
         {
@@ -53,19 +54,23 @@ static class OnboardingCards
     /// For a screenshot (<c>--page cards-1</c>, 2 or 3): the same view on a panel over the window, since a dialog opens in a
     /// popup layer the window's picture doesn't hold.
     /// </summary>
-    public static UIElement Preview(Onboarding.Card card) => new Grid
+    public static UIElement Preview(Onboarding.Card card, ElementTheme theme)
     {
-        Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x66, 0, 0, 0)),
-        Children =
+        shown = theme;
+        return new Grid
         {
-            new Border
+            Background = new SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb(0x66, 0, 0, 0)),
+            Children =
             {
-                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
-                Padding = new Thickness(24), CornerRadius = new CornerRadius(8), Background = Brush("TafsBackground"),
-                Child = View(card, () => { }),
+                new Border
+                {
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                    Padding = new Thickness(24), CornerRadius = new CornerRadius(8), Background = Brush("TafsBackground"), RequestedTheme = theme,
+                    Child = View(card, () => { }),
+                },
             },
-        },
-    };
+        };
+    }
 
     /// <summary>The cards from <paramref name="start"/>: Skip, the picture, the title and lead, the dots, Next or Get started.</summary>
     static UIElement View(Onboarding.Card start, Action finish)
@@ -171,5 +176,8 @@ static class OnboardingCards
     static Style Look(string key) => (Style)Application.Current.Resources[key];
 
     /// <summary>A theme colour as the window shows it now (light or dark), never the app's default dictionary.</summary>
-    static Brush Brush(string key) => ChatViews.Themed(key);
+    /// <summary>The theme the cards show in, light or dark, as their opener says: the window's may not be known yet when a screenshot builds them.</summary>
+    static ElementTheme shown = ElementTheme.Light;
+
+    static Brush Brush(string key) => ChatViews.ThemeBrush(shown, key);
 }
