@@ -14,7 +14,8 @@ namespace Tafs.App;
 /// <param name="Manages">Whether this person manages the account's tafs (KIFF's <c>cards.manage</c>): who may change suggestions.</param>
 public sealed record AccountOpening(bool Sample, ElementTheme Theme, Func<string, Task<CloudRead>>? Read = null,
     KiffAccount? Account = null, Func<string, string, byte[]?, Task<CloudRead>>? Write = null, bool Manages = false,
-    Func<string, Task<(string? Zone, string? Why)>>? SetTimeZone = null, Func<Task<(Deleted Done, string? Why)>>? DeleteAccount = null);
+    Func<string, Task<(string? Zone, string? Why)>>? SetTimeZone = null, Func<Task<(Deleted Done, string? Why)>>? DeleteAccount = null,
+    Func<Task<bool>>? ChromesOffered = null);
 
 /// <summary>
 /// Account. Its rows follow where this PC stands (the sample, signed in with KIFF, or signed out). The KIFF account's name,
@@ -31,6 +32,7 @@ public sealed partial class AccountPage : Page
     public static event Action? DevicesChosen;
     public static event Action? PeopleChosen;
     public static event Action? ConnectAppsChosen;
+    public static event Action? ChromeChosen;
     public static event Action? FilesChosen;
 
     /// <summary>Close: Account goes, and what was open before it shows again.</summary>
@@ -53,8 +55,23 @@ public sealed partial class AccountPage : Page
     {
         AutomationProperties.SetName(CloseButton, App.Words.Get("common.close"));
         opening = e.Parameter as AccountOpening ?? opening;
+        chromesOffered = false;
         Show();
         _ = ReadSettingsAsync();
+        _ = ReadChromesAsync();
+    }
+
+    /// <summary>Whether Account shows Chrome: only once planque lists the account's Chromes (its switch decides, never the app).</summary>
+    bool chromesOffered;
+
+    async Task ReadChromesAsync()
+    {
+        if (opening.ChromesOffered is not { } offered) return;
+        var mine = opening;
+        var on = await offered();
+        if (opening != mine || on == chromesOffered) return;
+        chromesOffered = on;
+        Show();
     }
 
     string? zoneWhy;
@@ -157,6 +174,8 @@ public sealed partial class AccountPage : Page
             [
                 Opens(Row(w.Get("people.title"), "", chevron: true), w.Get("people.title"), () => PeopleChosen?.Invoke()),
                 Opens(Row(w.Get("settings.devices.title"), "", chevron: true), w.Get("settings.devices.title"), () => DevicesChosen?.Invoke()),
+                // Chrome (docs/chrome.md): only once planque offers Chromes, as the iPad's.
+                .. (chromesOffered ? new UIElement[] { Opens(Row(w.Get("chrome.title"), "", chevron: true), w.Get("chrome.title"), () => ChromeChosen?.Invoke()) } : []),
                 Opens(Row(w.Get("connect.apps.title"), "", chevron: true), w.Get("connect.apps.title"), () => ConnectAppsChosen?.Invoke()),
                 // Files (docs/files.md): every file the account's tafs delivered.
                 Opens(Row(w.Get("files.title"), "", chevron: true), w.Get("files.title"), () => FilesChosen?.Invoke()),

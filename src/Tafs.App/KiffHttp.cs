@@ -197,10 +197,15 @@ static class KiffHttp
     /// <c>Planque-Device-Signature</c>, with no token. Only planque's exact host.
     /// </summary>
     /// <exception cref="HttpRequestException">It wasn't reached, or isn't planque.</exception>
-    public static async Task<(int Status, string Body)> PlanqueGetAsync(Uri url, string deviceSignature, string language, CancellationToken cancel = default)
+    public static Task<(int Status, string Body)> PlanqueGetAsync(Uri url, string deviceSignature, string language, CancellationToken cancel = default) =>
+        PlanqueSendAsync(HttpMethod.Get, url, deviceSignature, language, cancel);
+
+    /// <summary>A bodiless planque call as this device (a read, or a Chrome unpaired), signed as <see cref="PlanqueGetAsync"/>; only planque's exact host.</summary>
+    /// <exception cref="HttpRequestException">It wasn't reached, or isn't planque.</exception>
+    public static async Task<(int Status, string Body)> PlanqueSendAsync(HttpMethod method, Uri url, string deviceSignature, string language, CancellationToken cancel = default)
     {
         if (!Tafs.Core.Kiff.PlanqueProof.IsPlanque(url)) throw new HttpRequestException("not planque");
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        using var request = new HttpRequestMessage(method, url);
         request.Headers.AcceptLanguage.Add(new StringWithQualityHeaderValue(language));
         request.Headers.Add("Planque-Device-Signature", deviceSignature);
         return await SendAsync(request, cancel);

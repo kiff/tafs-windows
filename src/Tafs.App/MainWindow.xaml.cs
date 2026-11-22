@@ -349,6 +349,8 @@ public sealed partial class MainWindow : Window
         AccountPage.UsageChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
         // Files from Account, as the iPad's People & apps row: every file the account's tafs delivered.
         AccountPage.FilesChosen += () => { if (FilesOpeningFor(null) is { } files) OpenBeside(typeof(FilesPage), files); };
+        // Account › Chrome: the Chromes paired to the account, read and unpaired as this device.
+        AccountPage.ChromeChosen += () => { if (ChromesCallsFor() is { } chromes) _ = ChromesDialog.ShowAsync(Root.XamlRoot, Root.ActualTheme, chromes); };
         AccountPage.PeopleChosen += () => OpenBeside(typeof(PeoplePage), new PeopleOpening(kiffRead,
             agent => home?.Tafs.FirstOrDefault(t => t.Agent == agent)?.Name, PeopleChangeFor(),
             Tafs.Core.Account.PeopleChanges.MayManagePeople(kiffAccount?.Capabilities)));
@@ -2017,7 +2019,8 @@ public sealed partial class MainWindow : Window
         OpenBeside(typeof(AccountPage), new AccountOpening(sample, Root.RequestedTheme,
             path => cloudRead is { } read ? read(path) : Task.FromResult(CloudRead.Unreached(App.Words)), kiffAccount,
             App.Sessions.Kept() is { } session ? (method, path, body) => CloudWriteAsync(session.AccessToken, method, path, body) : null,
-            Halt.ManagesCards(capabilities), SetTimeZoneFor(), DeleteAccountFor()));
+            Halt.ManagesCards(capabilities), SetTimeZoneFor(), DeleteAccountFor(),
+            ChromesCallsFor() is { } chromes ? async () => (await chromes.Load()).Status is >= 200 and <= 299 : null));
         ShowAccountChosen(true);
     }
 
@@ -2176,6 +2179,57 @@ public sealed partial class MainWindow : Window
     /// Remove for good, only for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume: a
     /// removal is the approval key's act, never the device key's. None for anyone else, and no button.
     /// </summary>
+    /// <summary>
+    /// Account › Chrome's calls as this device (planque's <c>signedSafe</c> routes: the TPM device key, no window), as the iPad's
+    /// <c>refreshChromes</c> and <c>removeChrome</c>. None over the sample or signed out.
+    /// </summary>
+    ChromesCalls? ChromesCallsFor()
+    {
+        if (sample || App.Sessions.Kept() is not { } session) return null;
+        var w = App.Words;
+        async Task<(int Status, string Body)> Send(HttpMethod method, string path)
+        {
+            using var key = TpmKey.Open(session.KeyName);
+            var gen = sessions;
+            var signature = await PlanqueProof.SignAsync(session.Tenant, deviceId, async () =>
+            {
+                var devices = await ReadAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, PlanqueProof.DevicesPath), session.AccessToken);
+                var device = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
+                if (gen == sessions) deviceId = device;
+                return device;
+            }, key, () => SigningTime.Next(DateTimeOffset.UtcNow), method.Method, path, []);
+            if (signature is null) return (0, "");
+            return await KiffHttp.PlanqueSendAsync(method, new Uri(PlanqueProof.Api, path), signature, w.Language);
+        }
+        return new(
+            async () =>
+            {
+                try
+                {
+                    var (status, body) = await Send(HttpMethod.Get, PlanqueChromes.ListPath(session.Tenant));
+                    if (status is >= 200 and <= 299)
+                        return (status, PlanqueChromes.Read(System.Text.Json.JsonDocument.Parse(body).RootElement), null);
+                    return (status, null, status == 0 ? w.Get("error.offline") : KiffErrors.Words(w, status));
+                }
+                catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException
+                    or System.Security.Cryptography.CryptographicException or InvalidOperationException) { return (0, null, w.Get("error.offline")); }
+            },
+            async chrome =>
+            {
+                try
+                {
+                    var (status, _) = await Send(HttpMethod.Delete, PlanqueChromes.ChromePath(session.Tenant, chrome.Id));
+                    return status is >= 200 and <= 299 ? null
+                        : w.Get("common.didnt_go_through", ("what", w.Get("chrome.remove_named", ("name", chrome.Name))), ("why", status == 0 ? w.Get("error.offline") : KiffErrors.Words(w, status)));
+                }
+                catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Security.Cryptography.CryptographicException
+                    or InvalidOperationException)
+                {
+                    return w.Get("common.didnt_go_through", ("what", w.Get("chrome.remove_named", ("name", chrome.Name))), ("why", w.Get("error.offline")));
+                }
+            });
+    }
+
     TafRemove? RemoveFor(HomeTaf taf)
     {
         if (taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is not { } read) return null;
