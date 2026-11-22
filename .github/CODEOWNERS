@@ -1,5 +1,6 @@
-# Every change asks for a code owner's review: kiff-qa, or agentgabo when kiff-qa wrote it.
-*                                         @kiff-qa @agentgabo
+# Every change asks for a code owner's review: kiff-qa, agentgabo, or kiffagents (the parity lanes; never on its own pull
+# requests). The lines below stay kiff-qa's and agentgabo's alone (the owner's yes, kiff/work#20, 23 Nov 00:46).
+*                                         @kiff-qa @agentgabo @kiffagents
 
 # What holds a key, signs, or gives authority: a pull request that touches any of these asks for kiff-qa's review, or
 # agentgabo's when kiff-qa wrote it. The last matching line wins, so each line names both.
