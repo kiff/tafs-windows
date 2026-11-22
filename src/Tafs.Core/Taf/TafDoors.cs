@@ -6,7 +6,10 @@ using Tafs.Core.Words;
 namespace Tafs.Core.Taf;
 
 /// <summary>Someone a door knows: their address or number, the name given, and whether tafs paired them (the owner's own sign-in).</summary>
-public sealed record DoorKey(string Id, string? Name, bool Auto);
+/// <param name="Last4">An <c>api</c> door's key: its last four, the only part ever shown again.</param>
+/// <param name="MadeAt">An <c>api</c> door's key: when it was made.</param>
+/// <param name="LastUsedAt">An <c>api</c> door's key: when it last handed the taf work; none yet.</param>
+public sealed record DoorKey(string Id, string? Name, bool Auto, string? Last4 = null, DateTimeOffset? MadeAt = null, DateTimeOffset? LastUsedAt = null);
 
 /// <summary>tafs cloud's words for a door: where it stands, what a tap on it does, and that its settings are below.</summary>
 public sealed record DoorWords(string State, string Tap, string Settings);
@@ -16,9 +19,13 @@ public sealed record DoorWords(string State, string Tap, string Settings);
 /// work reaches the taf from outside, the answer going back the same way. <c>proven</c>: it can tell who wrote, so it holds keys.
 /// </summary>
 public sealed record Door(string Id, string App, string Kind, string Label, bool Open, string Address, string Proof, string How,
-    IReadOnlyList<DoorKey> Keys, int Today, int Limit, bool Resting, int? OthersToday = null, int? OthersLimit = null, DoorWords? Words = null)
+    IReadOnlyList<DoorKey> Keys, int Today, int Limit, bool Resting, int? OthersToday = null, int? OthersLimit = null, DoorWords? Words = null,
+    int? CountedToday = null, ApiLastRequest? LastRequest = null)
 {
     public bool HoldsKeys => Proof == "proven";
+
+    /// <summary>A door "From another application" (docs/doors.md): a company's own software hands the taf work with a key.</summary>
+    public bool IsApi => Kind == "api";
 }
 
 /// <summary>An app a door can open on here: its id, label and kind, and how it knows who's writing.</summary>
@@ -97,11 +104,16 @@ public sealed record TafDoors(IReadOnlyList<Door> Doors, IReadOnlyList<DoorApp> 
         if (required.Any(n => Lenient.Text(d, n) is null) || Lenient.Int(d, "today") is not { } today || Lenient.Int(d, "limit") is not { } limit) return null;
         string T(string n) => Lenient.Text(d, n)!;
         var keys = Lenient.Array(d, "keys").Where(k => k.ValueKind == JsonValueKind.Object && Lenient.Text(k, "id") is not null)
-            .Select(k => new DoorKey(Lenient.Text(k, "id")!, Lenient.Text(k, "name"), Lenient.Bool(k, "auto"))).ToList();
+            .Select(k => new DoorKey(Lenient.Text(k, "id")!, Lenient.Text(k, "name"), Lenient.Bool(k, "auto"), Lenient.Text(k, "last4"),
+                Lenient.At(k, "made_at"), Lenient.At(k, "last_used_at"))).ToList();
+        var counted = Lenient.Field(d, "counts") is { ValueKind: JsonValueKind.Object } c ? Lenient.Int(c, "today") : null;
+        var last = Lenient.Field(d, "last_request") is { ValueKind: JsonValueKind.Object } l
+            ? new ApiLastRequest(Lenient.Text(l, "status") ?? "", Lenient.At(l, "at"), Lenient.Text(l, "words")?.Trim() is { Length: > 0 } said ? said : null)
+            : null;
         var words = Lenient.Field(d, "words") is { ValueKind: JsonValueKind.Object } w && Lenient.Text(w, "state") is { } state
             && Lenient.Text(w, "tap") is { } tap && Lenient.Text(w, "settings") is { } settings ? new DoorWords(state, tap, settings) : null;
         return new(T("id"), T("app"), T("kind"), T("label"), Lenient.Bool(d, "open"), T("address"), T("proof"), T("how"), keys, today, limit,
-            Lenient.Bool(d, "resting"), Lenient.Int(d, "others_today"), Lenient.Int(d, "others_limit"), words);
+            Lenient.Bool(d, "resting"), Lenient.Int(d, "others_today"), Lenient.Int(d, "others_limit"), words, counted, last);
     }
 
     static DoorApp? App(JsonElement a)

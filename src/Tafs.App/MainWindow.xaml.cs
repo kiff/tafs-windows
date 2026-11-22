@@ -262,6 +262,8 @@ public sealed partial class MainWindow : Window
         // The chat open in Coach isn't listed as waiting; closed, it is again.
         // Coach's dial card offers Versions only to whoever installs there: manages the taf, on a PC that approves.
         CoachMode.CanInstall = id => home?.Tafs.FirstOrDefault(t => t.Id == id) is { } knobTaf && InstallingFor(knobTaf) is not null;
+        // The watch's days and times in the account's zone, as KIFF has it.
+        CoachMode.AccountTimeZone = () => kiffAccount?.TimeZone;
         CoachMode.Closed += ShowCoachWaiting;
         NeedsYouPage.CoachWaitingOpenChosen += OpenCoachWaiting;
         NeedsYouPage.SetAsideChosen += session => _ = SetAsideAsync(session);
@@ -482,6 +484,14 @@ public sealed partial class MainWindow : Window
                 OpenBeside(typeof(TafPage), OpenTaf(w, shown.Id, TafTab.Setup) with
                 {
                     Manages = true, SetupOn = page == "taf-starts" ? SetupScreen.StartsWhen : SetupScreen.ResultsGoTo,
+                });
+            // A door "From another application", from doors-api.json beside the Home file, as whoever manages the taf on a PC
+            // whose passkey signs: its keys, New key and Revoke drawn; a signed change says it didn't reach, as offline.
+            if (page == "taf-api-door" && home?.Tafs.FirstOrDefault() is { } doored)
+                OpenBeside(typeof(TafPage), OpenTaf(w, doored.Id, TafTab.Setup) with
+                {
+                    Manages = true, SetupOn = SetupScreen.Door, DoorOn = "door_ord7",
+                    DoorSigning = new TafDoorSigning((_, _, _, _) => Task.FromResult<CloudRead?>(CloudRead.Unreached(w)), HomeList.Api),
                 });
             // Connect apps from connect-apps.json beside the Home contract, as tafs cloud's list.
             // With planque-grants.json beside it, the account's connections too, ended with nothing confirmed.
@@ -1609,6 +1619,8 @@ public sealed partial class MainWindow : Window
         {
             (status, answer) = method == HttpMethod.Put ? await KiffHttp.PutAsync(url, body ?? "{}"u8.ToArray(), bearer, w.Language)
                 : method == HttpMethod.Delete ? await KiffHttp.DeleteAsync(url, bearer, w.Language)
+                // A door opened or paused (PATCH …/doors/{door}): sent as a PATCH, never as a POST tafs cloud answers 404.
+                : method == HttpMethod.Patch ? await KiffHttp.PatchAsync(url, body ?? "{}"u8.ToArray(), bearer, w.Language)
                 : await KiffHttp.PostAsync(url, body ?? "{}"u8.ToArray(), bearer, w.Language);
         }
         catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(w); }
@@ -1772,6 +1784,7 @@ public sealed partial class MainWindow : Window
                 : path.StartsWith("/v1/record?", StringComparison.Ordinal) ? "record-search.json"
                 : path.StartsWith(Tafs.Core.Missions.Brief.Route, StringComparison.Ordinal) ? "brief.json"
                 : path.StartsWith("/v1/calendar?", StringComparison.Ordinal) ? "calendar.json"
+                : path.EndsWith("/doors", StringComparison.Ordinal) ? "doors-api.json"
                 : path.Contains("/work/runs?") ? "taf-work-runs.json" : path.Contains("/requests/") ? "taf-request.json"
                 : path.EndsWith("/setup") ? "taf-setup.json" : path.EndsWith("/runs") ? "taf-runs.json" : path.EndsWith("/knob") ? "taf-knob.json" : path.EndsWith("/work") ? "taf-work.json" : path.EndsWith("/versions") ? "taf-versions.json"
                 : path.StartsWith("/v1/usage/credits/tafs/", StringComparison.Ordinal) ? "taf-credits.json"
@@ -2055,6 +2068,8 @@ public sealed partial class MainWindow : Window
                 Cards: taf.Cards, IssuedBy: w.Get("card.issued_by_account"), Revoked: taf.Revoked,
                 CloudId: taf.Id, Read: cloudRead, ReadWithProof: cloudReadWithProof, SetupProof: setupProof,
                 Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream, ResumeStream: cloudResume, Remove: RemoveFor(taf), ApproveEvent: EventFor(taf), Share: ShareFor(taf),
+                // A door "From another application": its keys, reopening and removal signed, as Remove for good.
+                DoorSigning: DoorSigningFor(taf),
                 Revoke: RevokeFor(taf), RevokeNeedsApprover: Manages(taf) && App.Sessions.Kept()?.Mode == ApprovalMode.View,
                 // Setup › Starts when and Results go to: when it starts and where results go, as Home says, and the changes made at once.
                 Change: cloudChange, Starts: taf.Starts, Paused: taf.State == "paused", Email: kiffAccount?.Email, TimeZone: kiffAccount?.TimeZone,
@@ -2186,6 +2201,42 @@ public sealed partial class MainWindow : Window
     /// Remove for good, only for whoever manages the taf as KIFF says, on a PC that signs with its passkey, as Resume: a
     /// removal is the approval key's act, never the device key's. None for anyone else, and no button.
     /// </summary>
+    /// <summary>
+    /// A door "From another application"'s signed changes (the iPad's <c>signDoorRequest</c>), for whoever manages the taf on a PC
+    /// that approves with its passkey, as <see cref="RemoveFor"/>: Windows Hello names the act, the passkey asserts over the
+    /// method, path and exact body, and the change goes to tafs cloud with <c>KIFF-Passkey-Assertion</c>. None for anyone else.
+    /// </summary>
+    TafDoorSigning? DoorSigningFor(HomeTaf taf)
+    {
+        if (taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is null) return null;
+        if (App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session) || session.PasskeyId is not { } id) return null;
+        var bearer = session.AccessToken;
+        var w = App.Words;
+        return new(async (method, path, body, act) =>
+        {
+            (string Header, string Value) signature;
+            try
+            {
+                var passkey = new PasskeyApprover(new NamedHello(), KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);
+                using var _ = HelloAct.Naming(act);
+                signature = (PasskeyApprover.HeaderName, await passkey.ApproveAsync(session.Tenant, method.Method, path, body, SigningTime.Next(DateTimeOffset.UtcNow)));
+            }
+            catch (OperationCanceledException) { return null; }
+            catch (Exception e) when (e is PasskeyRefusedException or InvalidDataException or System.Runtime.InteropServices.COMException
+                or System.Security.Cryptography.CryptographicException or InvalidOperationException or UnauthorizedAccessException)
+            {
+                return new CloudRead(null, w.Get("common.not_sent_unconfirmed"));
+            }
+            if (App.Sessions.Kept()?.AccessToken != bearer) return null;
+            try
+            {
+                var (status, answer) = await KiffHttp.SignedChangeAsync(method, new Uri(HomeList.Api, path), body, bearer, w.Language, signature);
+                return Answered(w, status, answer);
+            }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { return CloudRead.Unreached(w); }
+        }, HomeList.Api);
+    }
+
     TafRemove? RemoveFor(HomeTaf taf)
     {
         if (taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudRead is not { } read) return null;
