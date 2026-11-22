@@ -80,10 +80,10 @@ public static class DeliveredFiles
         answer.ValueKind == JsonValueKind.Object && Lenient.Text(answer, "preview") is { } text
             ? new(FileText.Preview(text), Lenient.Bool(answer, "preview_truncated")) : null;
 
-    /// <summary>Where the bytes are, for a minute (<c>contracts/files-download.json</c>): https only, else none.</summary>
+    /// <summary>Where the bytes are, for a minute (<c>contracts/files-download.json</c>): https with a host and no credentials in it, else none.</summary>
     public static Uri? ReadDownload(JsonElement answer) =>
         answer.ValueKind == JsonValueKind.Object && Lenient.Text(answer, "url") is { } url && Uri.TryCreate(url, UriKind.Absolute, out var u)
-            && u.Scheme == Uri.UriSchemeHttps ? u : null;
+            && u.Scheme == Uri.UriSchemeHttps && u.UserInfo.Length == 0 && u.Host.Length > 0 ? u : null;
 
     /// <summary>
     /// Every file, page by page (at most <see cref="Pages"/>), newest first; null with why when a page couldn't be read, so a
@@ -154,19 +154,6 @@ public static class DeliveredFiles
         _ => w.Count("files.goes_in_days", days),
     };
 
-    /// <summary>
-    /// A size in the app's language, as the iPad's <c>ByteCountFormatter</c> (file style, 1000 to a kilobyte): bytes, KB, MB or
-    /// GB, the number in the language's own digits and separators.
-    /// </summary>
-    public static string Size(long bytes, CultureInfo culture)
-    {
-        if (bytes < 1000) return string.Format(culture, "{0} B", bytes);
-        string[] units = ["KB", "MB", "GB", "TB"];
-        double value = bytes;
-        var unit = -1;
-        while (value >= 1000 && unit < units.Length - 1) { value /= 1000; unit++; }
-        return string.Format(culture, value < 10 && unit > 0 ? "{0:0.#} {1}" : "{0:0} {1}", value, units[unit]);
-    }
 }
 
 /// <summary>
