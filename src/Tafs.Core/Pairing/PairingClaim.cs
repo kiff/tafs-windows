@@ -17,7 +17,7 @@ public sealed record PairedSession(string AccessToken, string Tenant, string Sub
 /// Where a claim stands. <see cref="Refused"/>: the phone's approve was refused, and KIFF says so to this PC only, the one
 /// that proves the refused key (the claim's <c>403 pairing_refused</c>, KIFF's desktop client contract, §5.4).
 /// </summary>
-public enum ClaimStatus { Pending, SlowDown, Expired, InvalidProof, Paired, Failed, Refused }
+public enum ClaimStatus { Pending, SlowDown, Expired, InvalidProof, Paired, Failed, Refused, TermsOutdated }
 
 /// <param name="Reason">For <see cref="ClaimStatus.Refused"/>: KIFF's reason code (<c>key_registered</c>), never its message.</param>
 public sealed record ClaimResult(ClaimStatus Status, PairedSession? Session = null, string? Detail = null, string? Reason = null);
@@ -55,8 +55,10 @@ public static class PairingClaim
     }
 
     /// <param name="withPasskeyProof">Send the passkey's creation proof, when the offer has one (<see cref="Features.PairingPasskeyProof"/>).</param>
+    /// <param name="termsVersion">The version the welcome's tick agreed to (<c>Onboarding</c>), which KIFF records for this PC with the
+    /// session, as the iPad's <c>claimPairing(termsVersion:)</c>; KIFF answers <c>terms_outdated</c> before claiming anything when it's old.</param>
     public static async Task<byte[]> BodyAsync(PairingOffer offer, IKiffSigner deviceKey, CancellationToken cancel = default,
-        bool withPasskeyProof = false)
+        bool withPasskeyProof = false, string? termsVersion = null)
     {
         if (!deviceKey.PublicKeyDer.AsSpan().SequenceEqual(offer.PublicKeyDer))
             throw new ArgumentException("the claim is signed by the device key the QR showed", nameof(deviceKey));
@@ -73,6 +75,7 @@ public static class PairingClaim
                 ["client_data_json"] = KiffSigning.Base64Url(made.ClientDataJson),
                 ["attestation_object"] = KiffSigning.Base64Url(made.AttestationObject),
             };
+        if (termsVersion is { Length: > 0 }) body["terms_version"] = termsVersion;
         return JsonSerializer.SerializeToUtf8Bytes(body);
     }
 
@@ -98,6 +101,7 @@ public static class PairingClaim
                 (400, "slow_down") => new ClaimResult(ClaimStatus.SlowDown),
                 (400, "expired_token") => new ClaimResult(ClaimStatus.Expired),
                 (403, "invalid_proof") => new ClaimResult(ClaimStatus.InvalidProof),
+                (409, "terms_outdated") => new ClaimResult(ClaimStatus.TermsOutdated),
                 (403, "pairing_refused") => new ClaimResult(ClaimStatus.Refused,
                     Reason: root.TryGetProperty("reason", out var why) && why.ValueKind == JsonValueKind.String ? why.GetString() : null),
                 _ => new ClaimResult(ClaimStatus.Failed, Detail: $"{status} {error}"),
@@ -120,13 +124,14 @@ public static class PairingClaim
         Func<byte[], CancellationToken, Task<(int Status, string Body)>> post,
         Func<DateTimeOffset> now,
         Func<TimeSpan, CancellationToken, Task> delay,
-        CancellationToken cancel = default)
+        CancellationToken cancel = default,
+        string? termsVersion = null)
     {
         var interval = MinimumInterval;
         while (true)
         {
             if (offer.IsExpired(now())) return new ClaimResult(ClaimStatus.Expired);
-            var (status, body) = await post(await BodyAsync(offer, deviceKey, cancel, Features.PairingPasskeyProof), cancel);
+            var (status, body) = await post(await BodyAsync(offer, deviceKey, cancel, Features.PairingPasskeyProof, termsVersion), cancel);
             var result = Read(status, body);
             switch (result.Status)
             {

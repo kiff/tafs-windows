@@ -287,3 +287,27 @@ public class PairingTests
         Assert.Equal(ClaimStatus.InvalidProof, result.Status);
     }
 }
+
+[Part("pairing")]
+public class PairingClaimTermsTests
+{
+    [Fact]
+    public async Task A_claim_after_the_welcome_s_tick_carries_the_terms_and_one_without_doesn_t()
+    {
+        using var key = new Tafs.Core.Tests.Kiff.TestSigner();
+        var offer = PairingOffer.Create(key.PublicKeyDer, null, "tafs on this Windows PC", DateTimeOffset.UtcNow, deviceKeyInSoftware: true);
+        using var with = System.Text.Json.JsonDocument.Parse(await PairingClaim.BodyAsync(offer, key, termsVersion: "2026-11-14"));
+        Assert.Equal("2026-11-14", with.RootElement.GetProperty("terms_version").GetString());
+        using var without = System.Text.Json.JsonDocument.Parse(await PairingClaim.BodyAsync(offer, key));
+        Assert.False(without.RootElement.TryGetProperty("terms_version", out _));
+    }
+
+    [Fact]
+    public void KIFF_s_terms_outdated_unticks_the_welcome()
+    {
+        var result = PairingClaim.Read(409, """{"error":"terms_outdated"}""");
+        Assert.Equal(ClaimStatus.TermsOutdated, result.Status);
+        var w = Tafs.Core.Words.WordBook.Load(Tafs.Core.Tests.Strings.SharedFiles.Strings, "en");
+        Assert.Equal(w.Get("onboarding.terms_changed"), PairingScreen.Why(w, result));
+    }
+}
