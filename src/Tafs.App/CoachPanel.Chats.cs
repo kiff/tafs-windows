@@ -120,6 +120,8 @@ public sealed partial class CoachPanel
             {
                 var w = App.Words;
                 var empty = new StackPanel { Spacing = 8, Margin = new Thickness(4, 40, 4, 0) };
+                // What this conversation is about, as the iPad's startSwitch: a new taf, or the taf on screen (or being improved).
+                if (StartSwitch() is { } choice) empty.Children.Add(choice);
                 // Board 7, Coach with no taf or one, as the iPad's SetupChatView.starts: its spark beside one card.
                 if (TafCount <= 1)
                 {
@@ -135,6 +137,10 @@ public sealed partial class CoachPanel
                 // tafs cloud's recipes by category, for a new taf (not while improving one), as the iPad's starts: a click puts
                 // the job's words in the box, to edit and send; it never sends.
                 if (improving is null && Recipes is { } jobs) AddRecipes(empty, jobs);
+                // Improving a taf, as the iPad's improveExamples: three questions that go at a click.
+                if (improving is not null)
+                    foreach (var key in new[] { "coach.improve.how_is_it_going", "coach.improve.why_refused", "coach.improve.cant_find_work" })
+                        empty.Children.Add(ImproveExample(w.Get(key)));
                 ThreadItems.Children.Add(empty);
             }
         }
@@ -418,6 +424,65 @@ public sealed partial class CoachPanel
                 empty.Children.Add(row);
             }
         }
+    }
+
+    /// <summary>The taf on screen beside Coach (its tafs cloud id and name), for the start switch; none when no taf's page shows.</summary>
+    public Func<(string Id, string Name)?>? TafOnScreen { get; set; }
+
+    /// <summary>
+    /// The start switch, as the iPad's <c>startSwitch</c> (kiff/tafs#138): New taf, or Improve the taf on screen (or the one being
+    /// improved), the chosen one filled in Coach's colour. Only when there's a taf to choose.
+    /// </summary>
+    UIElement? StartSwitch()
+    {
+        var w = App.Words;
+        var onScreen = TafOnScreen?.Invoke();
+        if ((improving ?? onScreen) is not { } taf) return null;
+        Button Choice(string title, bool chosen, Action act)
+        {
+            var b = new Button
+            {
+                Content = new TextBlock { Text = title, FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold },
+                Style = (Style)Application.Current.Resources["TafsQuietButton"], CornerRadius = new CornerRadius(16), Padding = new Thickness(14, 8, 14, 8),
+                Background = chosen ? Brush("TafsCoach") : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                Foreground = chosen ? Brush("TafsOnFill") : Brush("TafsCoach"), IsEnabled = !coachSending,
+            };
+            AutomationProperties.SetName(b, title);
+            if (chosen) AutomationProperties.SetItemStatus(b, "selected");
+            b.Click += (_, _) => { if (!chosen) act(); };
+            return b;
+        }
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0, HorizontalAlignment = HorizontalAlignment.Left };
+        row.Children.Add(Choice(w.Get("home.new_taf"), improving is null, () =>
+        {
+            improving = null;
+            ShowImproving();
+            ShowConversation();
+        }));
+        row.Children.Add(Choice(w.Get("coach.improve_taf", ("taf", taf.Name)), improving is not null, () => Improve(taf.Id, taf.Name)));
+        var box = new Border { Child = row, Padding = new Thickness(3), CornerRadius = new CornerRadius(19), BorderThickness = new Thickness(1),
+            BorderBrush = Brush("TafsLine"), Background = Brush("TafsPanel"), HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 8) };
+        AutomationProperties.SetName(box, w.Get("coach.what_conversation_about"));
+        return box;
+    }
+
+    /// <summary>One of the improve examples: its words go as the first message to the taf's improve route, as a click on the iPad's.</summary>
+    Button ImproveExample(string words)
+    {
+        var b = new Button
+        {
+            Content = new TextBlock { Text = words, FontSize = 15, TextWrapping = TextWrapping.Wrap },
+            HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Left, Padding = new Thickness(14, 12, 14, 12),
+            Style = (Style)Application.Current.Resources["TafsQuietButton"], CornerRadius = new CornerRadius(14), BorderThickness = new Thickness(1),
+            BorderBrush = Brush("TafsLine"), Background = Brush("TafsPanel"), IsEnabled = !coachSending,
+        };
+        AutomationProperties.SetName(b, words);
+        b.Click += async (_, _) =>
+        {
+            Pinner.Next(words);
+            if (await SendCoachAsync(words) is null) Pinner.Clear();
+        };
+        return b;
     }
 
     /// <summary>The taf a new conversation improves, as the iPad's <c>setupImproving</c>: its id and name; none once its first message went.</summary>
