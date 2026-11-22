@@ -29,12 +29,32 @@ public sealed record CoachShape(string? Name, string? Title, IReadOnlyList<Shape
     /// <summary>The cards that ask the person something, in the order they came: what the plan is when Coach shows none.</summary>
     static readonly string[] Asks = ["approval", "sign_in", "questions", "confirm"];
 
+    /// <summary>The card waiting for the person: the latest that waits on them, not answered, of a kind that asks something.</summary>
+    public static ShownCard? Waiting(CoachThread thread) =>
+        thread.Shown.LastOrDefault(c => c.Card.Waits == "owner" && c.Answer is null && Asks.Contains(c.Card.Kind));
+
+    /// <summary>
+    /// The pinned bar's words for that card, as the iPad's <c>NeedsYouBar</c>: approve at its vendor, sign in at it, let Coach
+    /// drive, or a question. The vendor is planque's for the grant, else the card's service.
+    /// </summary>
+    public static string NeedsYouBar(WordBook w, CoachCard c, IReadOnlyList<PlanqueGrant> grants)
+    {
+        var vendor = grants.FirstOrDefault(g => g.Id == c.Grant)?.Vendor ?? c.Service;
+        return c.Kind switch
+        {
+            "approval" => w.Get("coach.needs_you_approve") + (vendor is { Length: > 0 } a ? " " + a : ""),
+            "sign_in" => w.Get("coach.sign_in.eyebrow") + (vendor is { Length: > 0 } b ? " · " + b : ""),
+            "drive" => w.Get("drive.needs_you_let_coach_drive"),
+            _ => w.Get("coach.needs_you_question"),
+        };
+    }
+
     public static CoachShape Of(WordBook w, CoachThread thread, IReadOnlyList<PlanqueGrant> grants, IReadOnlyDictionary<string, AgentDraft> drafts)
     {
         var shown = thread.Shown;
         var name = shown.LastOrDefault(c => c.Card.Kind == "result" && c.Card.Taf is not null)?.Card.Taf?.Name;
         // The card waiting for the person: the latest that waits on them, not answered.
-        var waiting = shown.LastOrDefault(c => c.Card.Waits == "owner" && c.Answer is null && Asks.Contains(c.Card.Kind));
+        var waiting = Waiting(thread);
 
         string? title = null;
         List<ShapeStep> steps;
