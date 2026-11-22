@@ -46,7 +46,7 @@ public sealed record OpenTrial(string Id, int N, string Draft, string? Session, 
         }.OfType<string>().ToList();
 
     static string Day(WordBook w, DateTimeOffset at, TimeZoneInfo zone) =>
-        TimeZoneInfo.ConvertTime(at, zone).ToString("d MMM", CultureInfo.GetCultureInfo(w.Language));
+        TimeZoneInfo.ConvertTime(at, zone).ToString("d MMM", Tafs.Core.Words.Locale.Culture(w.Language));
 }
 
 /// <summary>

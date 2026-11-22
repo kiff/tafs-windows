@@ -24,9 +24,32 @@ public class AppLanguageTests
     [Fact]
     public void The_picker_lists_tafs_s_languages_each_named_in_itself()
     {
-        Assert.Equal(Shipped, AppLanguage.Named.Select(l => l.Code));
-        Assert.Equal(["English", "Deutsch", "Français", "Español", "Italiano", "Português", "Português (Brasil)", "Nederlands", "Polski", "한국어"], AppLanguage.Named.Select(l => l.Name));
+        var picker = AppLanguage.Picker(Shipped);
+        Assert.Equal(["en", "de", "fr", "es", "it", "pt", "nl", "pl", "ko", "pt-BR"], picker.Select(l => l.Code));
+        Assert.Equal(["English", "Deutsch", "Français", "Español", "Italiano", "Português", "Nederlands", "Polski", "한국어", "Português (Brasil)"], picker.Select(l => l.Name));
     }
+
+    /// <summary>Every language tafs ships at the pin has its name, so the picker never drops one.</summary>
+    [Fact]
+    public void Every_shipped_language_at_the_pin_is_named()
+    {
+        var shipped = WordBook.Shipped(SharedFiles.Strings);
+        Assert.Equal(shipped.Order(StringComparer.Ordinal), AppLanguage.Picker(shipped).Select(l => l.Code).Order(StringComparer.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("zh-Hant-TW", "zh-Hant")]
+    [InlineData("zh-TW", "zh-Hant")]
+    [InlineData("zh-HK", "zh-Hant")]
+    [InlineData("zh-Hans-CN", null)]
+    [InlineData("zh-CN", null)]
+    [InlineData("sr-Latn-RS", "sr-Latn")]
+    [InlineData("sr-Cyrl-RS", null)]
+    [InlineData("sr-RS", null)]
+    [InlineData("he-IL", "he")]
+    [InlineData("ar-EG", "ar")]
+    public void A_Windows_tag_reads_as_the_language_tafs_ships(string tag, string? expected) =>
+        Assert.Equal(expected, AppLanguage.Kept(tag, ["en", "zh-Hant", "sr-Latn", "he", "ar"]));
 
     /// <summary>A kept choice wins over this PC's languages; one tafs doesn't ship, or none, falls back to them; --lang wins over both.</summary>
     [Fact]

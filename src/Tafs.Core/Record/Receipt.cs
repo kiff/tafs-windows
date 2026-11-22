@@ -72,7 +72,7 @@ public static class Receipt
     /// <summary>"Nov 15, 2026, 09:40:12", in this PC's zone, as the sheet's times are written; a step's time alone without its date.</summary>
     public static string Shown(WordBook w, DateTimeOffset at, TimeZoneInfo zone, bool withDate = true)
     {
-        var culture = CultureInfo.GetCultureInfo(w.Language == "pt" ? "pt-PT" : w.Language);
+        var culture = Tafs.Core.Words.Locale.Culture(w.Language);
         var local = TimeZoneInfo.ConvertTime(at, zone);
         return withDate ? local.ToString("d MMM yyyy, HH:mm:ss", culture) : local.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
     }
@@ -130,7 +130,7 @@ public static class Receipt
         if (e.Call?.Answer is { } answer)
         {
             var who = KiffActivity.Answerer(w, answer);
-            var how = answer.You == true ? w.Get("receipt.decided_by.you") : who[..1].ToUpper(CultureInfo.GetCultureInfo(w.Language == "pt" ? "pt-PT" : w.Language)) + who[1..];
+            var how = answer.You == true ? w.Get("receipt.decided_by.you") : who[..1].ToUpper(Tafs.Core.Words.Locale.Culture(w.Language)) + who[1..];
             return answer.Signed == true
                 ? w.Get("receipt.decided_by.signed_on", ("who", how), ("device", answer.Device ?? w.Get("receipt.decided_by.your_device"))) : how;
         }

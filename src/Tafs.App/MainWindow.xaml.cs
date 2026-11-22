@@ -136,6 +136,8 @@ public sealed partial class MainWindow : Window
         string? newVersion = null)
     {
         InitializeComponent();
+        // Right to left for Arabic and Hebrew: every panel, list and row mirrors, as SwiftUI does on the iPad.
+        Root.FlowDirection = App.Direction;
         // The mascot in the title bar and the taskbar, as the exe's own icon.
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "tafs.ico"));
         // Back at the front: Your tafs' order settles again, as the iPad's when the app comes back.

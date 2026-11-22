@@ -91,7 +91,7 @@ public static class TafRemoval
             }
         var said = left == 0
             ? w.Get("taf.remove.cards_revoked")
-            : w.Get("card.kiff_did_not_revoke_cards", ("cards_left", left.ToString(CultureInfo.GetCultureInfo(w.Language))));
+            : w.Get("card.kiff_did_not_revoke_cards", ("cards_left", left.ToString(Tafs.Core.Words.Locale.Culture(w.Language))));
 
         var answer = await delete(path, signature);
         if (!current()) return new(false, null);

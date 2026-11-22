@@ -223,7 +223,7 @@ public sealed partial class GalleryPage : Page
     /// <summary>A section's label, as the iPad's Eyebrow: tafs cloud's words in capitals, by the language's own rules.</summary>
     TextBlock Eyebrow(string text) => new()
     {
-        Text = text.ToUpper(System.Globalization.CultureInfo.GetCultureInfo(App.Words.Language)),
+        Text = text.ToUpper(Tafs.Core.Words.Locale.Culture(App.Words.Language)),
         Style = (Style)Application.Current.Resources["TafsEyebrow"],
     };
 

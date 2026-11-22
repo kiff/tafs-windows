@@ -90,7 +90,7 @@ public class SignInScreenTests
 
     [Theory]
     [InlineData("en")]
-    [InlineData("ja")]
+    [InlineData("xx")]
     [InlineData("")]
     public void English_and_any_language_kiff_dev_lacks_open_the_English_pages(string language)
     {
@@ -118,4 +118,18 @@ public class SignInScreenTests
             .OfType<string>();
         Assert.All(all, line => Assert.DoesNotContain("{", line));
     }
+}
+
+[Part("pairing")]
+public class LegalCodeTests
+{
+    [Theory]
+    [InlineData("ja", "https://kiff.dev/ja/tafs/terms")]
+    [InlineData("ar", "https://kiff.dev/ar/tafs/terms")]
+    [InlineData("he", "https://kiff.dev/he/tafs/terms")]
+    [InlineData("zh-Hant", "https://kiff.dev/zh/tafs/terms")]
+    [InlineData("sr-Latn", "https://kiff.dev/sr/tafs/terms")]
+    [InlineData("pt-BR", "https://kiff.dev/pt/tafs/terms")]
+    public void Each_language_opens_kiff_dev_s_page_under_KIFF_s_code(string language, string terms) =>
+        Assert.Equal(terms, SignInScreen.Terms(language).AbsoluteUri);
 }

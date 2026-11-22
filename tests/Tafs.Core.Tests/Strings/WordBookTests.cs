@@ -13,7 +13,7 @@ public class WordBookTests
 
     [Fact]
     public void The_languages_of_the_spec_are_shipped() =>
-        Assert.Equal(new[] { "de", "en", "es", "fr", "it", "ko", "nl", "pl", "pt", "pt-BR" }, Shipped.Order(StringComparer.Ordinal));
+        Assert.Equal(new[] { "ar", "az", "bg", "bn", "ca", "cs", "de", "en", "es", "et", "fr", "he", "hr", "hu", "hy", "id", "it", "ja", "ka", "km", "ko", "lo", "lt", "lv", "mk", "mn", "ne", "nl", "pl", "pt", "pt-BR", "ro", "sk", "sl", "sq", "sr-Latn", "th", "tr", "vi", "zh-Hant" }, Shipped.Order(StringComparer.Ordinal));
 
     [Fact]
     public void A_regional_variant_is_its_base_with_its_own_lines_on_top()
@@ -26,7 +26,7 @@ public class WordBookTests
     }
 
     [Theory]
-    [InlineData("pt", 0, "other")]
+    [InlineData("pt", 0, "one")]
     [InlineData("pt-BR", 0, "one")]
     [InlineData("pt-BR", 1, "one")]
     [InlineData("pt-BR", 2, "other")]

@@ -49,7 +49,7 @@ public static class CoachChats
     /// <summary>When a conversation was last updated, as the iPad's abbreviated date and short time: "15 Nov 2026, 09:00", in this PC's zone.</summary>
     public static string When(WordBook w, DateTimeOffset at, TimeZoneInfo zone) =>
         TimeZoneInfo.ConvertTime(at, zone).ToString("d MMM yyyy, HH:mm",
-            System.Globalization.CultureInfo.GetCultureInfo(w.Language == "pt" ? "pt-PT" : w.Language));
+            Tafs.Core.Words.Locale.Culture(w.Language));
 
     /// <summary>A list read: its rows, else why it couldn't be read ("The conversation couldn't be loaded:" and why).</summary>
     public static async Task<(IReadOnlyList<CoachChatRow>? Rows, string? Why)> ReadAsync(WordBook w, string path, Func<string, Task<CloudRead>> read)

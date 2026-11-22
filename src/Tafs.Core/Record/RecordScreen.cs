@@ -156,7 +156,7 @@ public static class RecordScreen
     public static (string Title, string Time) Line(RecordEntry e, TimeZoneInfo zone) =>
         ($"{e.Taf} · {e.Title}", TimeZoneInfo.ConvertTime(e.At, zone).ToString("HH:mm", CultureInfo.InvariantCulture));
 
-    static CultureInfo Culture(WordBook w) => CultureInfo.GetCultureInfo(w.Language == "pt" ? "pt-PT" : w.Language);
+    static CultureInfo Culture(WordBook w) => Tafs.Core.Words.Locale.Culture(w.Language);
 
     /// <summary>
     /// The iPad's sample Record (the reference set's record.png), in the person's language: what the five sample

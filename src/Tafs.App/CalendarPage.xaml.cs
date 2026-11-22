@@ -45,7 +45,7 @@ public sealed partial class CalendarPage : Page
         NavTitle.Text = CalendarScreen.Heading(w);
         // The date in the person's language, "November 15, 2026" or "15 novembre 2026": the full month, so juin and juillet never read alike.
         // A template, not a pattern: Windows' formatter for the language decides the order, the particles and the case.
-        Picker.Language = w.Language == "pt" ? "pt-PT" : w.Language;
+        Picker.Language = w.Language;
         // As the iPad's compact DatePicker: the month short ("Nov 15, 2026"), in the language's own order.
         Picker.DateFormat = "day month.abbreviated year.full";
         AutomationProperties.SetName(Modes, w.Get("calendar.view_picker"));
@@ -262,7 +262,7 @@ public sealed partial class CalendarPage : Page
     void ShowDayList(Tafs.Core.Words.WordBook w)
     {
         DayList.Children.Clear();
-        DayList.Children.Add(new TextBlock { Text = CalendarScreen.DayHeading(w, state.Selected).ToUpper(CultureInfo.GetCultureInfo(w.Language)),
+        DayList.Children.Add(new TextBlock { Text = CalendarScreen.DayHeading(w, state.Selected).ToUpper(Tafs.Core.Words.Locale.Culture(w.Language)),
             Style = (Style)Application.Current.Resources["TafsEyebrow"] });
         var on = CalendarWork.On(Events, state.Selected);
         if (CalendarWork.Current(read, state.Selected) is not null && on.Count == 0) DayList.Children.Add(Empty(w.Get("calendar.nothing_on_day")));
@@ -273,7 +273,7 @@ public sealed partial class CalendarPage : Page
     void ShowAgenda(Tafs.Core.Words.WordBook w)
     {
         Agenda.Children.Clear();
-        Agenda.Children.Add(new TextBlock { Text = w.Get("calendar.agenda").ToUpper(CultureInfo.GetCultureInfo(w.Language)),
+        Agenda.Children.Add(new TextBlock { Text = w.Get("calendar.agenda").ToUpper(Tafs.Core.Words.Locale.Culture(w.Language)),
             Style = (Style)Application.Current.Resources["TafsEyebrow"] });
         var groups = CalendarWork.Agenda(Events, CalendarWork.Shown(state));
         if (CalendarWork.Current(read, state.Selected) is { } current && groups.Count == 0)

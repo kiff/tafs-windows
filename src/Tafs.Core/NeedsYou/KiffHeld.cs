@@ -304,23 +304,56 @@ public static class KiffHeld
     public const string SetupAgent = "setup";
 
     /// <summary>
-    /// "1st", "2nd": as Apple's ordinal formatter writes digits in each shipped language, which .NET has no formatter for.
-    /// A language without a rule here writes the number alone.
+    /// "1st", "2nd": as Apple's ordinal formatter (ICU's rule-based numbers) writes digits in each language, which .NET has
+    /// no formatter for. The same table as tafs-linux's <c>held::ordinal</c>, checked there against ICU. Digits are Latin.
     /// </summary>
     public static string Ordinal(string language, long n)
     {
         var d = n.ToString(CultureInfo.InvariantCulture);
+        var n10 = n % 10;
+        var n100 = n % 100;
         switch (language.Split('-')[0])
         {
             case "en":
-                var tens = n % 100;
-                return d + (tens is >= 11 and <= 13 ? "th" : (n % 10) switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" });
-            case "fr": return d + (n == 1 ? "er" : "e");
+                return d + (n100 is >= 11 and <= 13 ? "th" : n10 switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" });
+            case "fr": return n == 1 ? "1er" : d + "e";
             case "nl": return d + "e";
-            case "de" or "pl": return d + ".";
             case "es": return d + ".º";
             case "it" or "pt": return d + "º";
-            default: return d;
+            case "ja" or "zh": return "第" + d;
+            case "ko": return d + "번째";
+            case "id": return "ke-" + d;
+            case "vi": return "thứ " + d;
+            case "th": return "ที่ " + d;
+            case "ro": return d + "a";
+            case "bg":
+                var bg = n100 == 0 && n % 1000 != 0 ? "тен"
+                    : n100 is >= 11 and <= 19 ? "и"
+                    : n10 switch { 1 => "ви", 2 => "ри", 3 or 4 => "ти", _ => "и" };
+                return d + "-" + bg;
+            case "ca":
+                var ca = n switch
+                {
+                    1 or 3 => "r",
+                    2 => "n",
+                    4 => "t",
+                    _ when n100 == 1 && n > 100 => "r",
+                    _ when n100 == 2 && n > 100 => "n",
+                    _ when n10 == 1 && n100 != 11 && n > 20 => "r",
+                    _ when n10 == 2 && n100 != 12 && n > 20 => "n",
+                    _ => "è",
+                };
+                return d + ca;
+            // ICU's own data: Mongolian takes the English "th", Lao Thai's "ที่", Khmer its "ទី".
+            case "mn": return d + "th";
+            case "km": return "ទី" + d;
+            case "lo": return "ที่​" + d;
+            case "az": return d + "'inci";
+            // ICU's Bengali: English's suffixes by CLDR's Bengali ordinal classes.
+            case "bn":
+                return d + (n switch { 1 or 5 or 7 or 8 or 9 or 10 => "st", 2 or 3 => "nd", 4 => "rd", 6 => "th", _ => "th" });
+            case "ar" or "he": return d;
+            default: return d + ".";
         }
     }
 }
