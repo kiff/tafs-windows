@@ -21,7 +21,7 @@ public sealed record CoachCard(string Kind, string Id, string? Title = null, str
     IReadOnlyList<CardChoice>? Options = null, IReadOnlyList<CardQuestion>? Questions = null, string? Waits = null,
     IReadOnlyList<PlanStep>? Steps = null, CardTaf? Taf = null, IReadOnlyList<string>? Tools = null, string? Yes = null)
 {
-    public static readonly string[] Kinds = ["steps", "notice", "confirm", "questions", "approval", "sign_in", "result", "knob", "drive"];
+    public static readonly string[] Kinds = ["steps", "notice", "confirm", "questions", "approval", "sign_in", "result", "knob", "drive", "door"];
 
     /// <summary>An approval's planque grant id, KIFF's draft id (the taf's Cards), and the vendor's host.</summary>
     public string? Grant { get; init; }
@@ -36,6 +36,10 @@ public sealed record CoachCard(string Kind, string Id, string? Title = null, str
     /// planque couldn't narrow it (<c>usual_access</c>), so it asks for more access than the taf uses. None when it didn't say.
     /// </summary>
     public string? Wider { get; init; }
+
+    /// <summary>A door card's taf (tafs cloud's id) and its draft (Coach's <c>taf_door_api</c>), read from tafs cloud by these: the card carries no words of Coach's.</summary>
+    public string? TafId { get; init; }
+    public string? DraftId { get; init; }
 }
 
 /// <summary>
@@ -151,7 +155,7 @@ public sealed record ShownCard(DateTimeOffset FirstAt, string Session, string Ru
     {
         if (c.ValueKind != JsonValueKind.Object || !Shape.Required(c, "type", Shape.Text) || !CoachCard.Kinds.Contains(c.GetProperty("type").GetString())
             || !Shape.Required(c, "id", Shape.Text)) return null;
-        foreach (var text in (string[])["title", "text", "tone", "grant", "draft", "service", "yes", "no", "note", "waits", "taf_id"])
+        foreach (var text in (string[])["title", "text", "tone", "grant", "draft", "service", "yes", "no", "note", "waits", "taf_id", "draft_id"])
             if (!Shape.Optional(c, text, Shape.Text)) return null;
         if (!Shape.Optional(c, "steps", v => Shape.List(v, Step)) || !Shape.Optional(c, "options", v => Shape.List(v, Option))
             || !Shape.Optional(c, "questions", v => Shape.List(v, Question)) || !Shape.Optional(c, "taf", Taf)
@@ -173,6 +177,7 @@ public sealed record ShownCard(DateTimeOffset FirstAt, string Session, string Ru
             Lenient.Text(c, "yes"))
         {
             Grant = Lenient.Text(c, "grant"), Draft = Lenient.Text(c, "draft"), Service = Lenient.Text(c, "service"),
+            TafId = Lenient.Text(c, "taf_id"), DraftId = Lenient.Text(c, "draft_id"),
             ConnectionDone = Lenient.Field(c, "connection") is { } done && Lenient.Bool(done, "done") && Lenient.Text(done, "words") is { } line
                 && line.Trim().Length > 0 ? line : null,
             Signs = Lenient.Field(c, "signs") is { ValueKind: JsonValueKind.Object } s
