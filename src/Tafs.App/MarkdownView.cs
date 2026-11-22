@@ -64,6 +64,8 @@ static class MarkdownView
     static Inline Inline(MarkdownSpan s, bool heading, double size, Func<string, Brush> brush)
     {
         var run = new Run { Text = s.Text };
+        // Where a link really goes, after its words, dim: never a link itself.
+        if (s.Note) { run.Foreground = brush("TafsDim"); run.FontSize = size - 2; return run; }
         if (s.Bold || heading) run.FontWeight = FontWeights.SemiBold;
         if (s.Italic) run.FontStyle = Windows.UI.Text.FontStyle.Italic;
         if (s.Code) { run.FontFamily = Mono; run.FontSize = size - 1; }
@@ -71,6 +73,8 @@ static class MarkdownView
         {
             var a = new Hyperlink { NavigateUri = uri, Foreground = brush("TafsCoach") };
             a.Inlines.Add(run);
+            // The whole address on hover, before the click.
+            ToolTipService.SetToolTip(a, uri.AbsoluteUri);
             AutomationProperties.SetName(a, s.Text);
             return a;
         }

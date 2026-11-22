@@ -4,7 +4,8 @@ using System.Text.RegularExpressions;
 namespace Tafs.Core.Words;
 
 /// <summary>A run of a line's text with its inline marks: bold, italic, code, or a link's address.</summary>
-public sealed record MarkdownSpan(string Text, bool Bold = false, bool Italic = false, bool Code = false, string? Link = null);
+/// <param name="Note">Where a link really goes, drawn dim after its words when they don't say it (agentgabo's read): never a link itself.</param>
+public sealed record MarkdownSpan(string Text, bool Bold = false, bool Italic = false, bool Code = false, string? Link = null, bool Note = false);
 
 public enum MarkdownKind { Paragraph, Heading, Bullet, Numbered, Code, Table }
 
@@ -161,7 +162,12 @@ public static partial class Markdown
             if (c == '[' && link is null && LinkAt(text, i) is { } found)
             {
                 Flush();
+                var first = spans.Count;
                 Walk(found.Label, bold, italic, found.Url, spans);
+                // A link whose words aren't its own host or address shows where it goes after them: a taf's words carry what
+                // it read, so "your bank" must never open somewhere else unseen.
+                if (found.Url is { } url && LinkNote(string.Concat(spans.Skip(first).Select(x => x.Text)), url) is { } note)
+                    spans.Add(new(" (" + note + ")", Note: true));
                 i = found.End;
                 continue;
             }
@@ -220,8 +226,25 @@ public static partial class Markdown
         }
         if (end < 0) return null;
         var address = text[(close + 2)..end].Trim();
-        var url = Uri.TryCreate(address, UriKind.Absolute, out var u) && u.Scheme is "https" or "http" or "mailto" ? u.AbsoluteUri : null;
+        // https and mailto only: a taf has no reason to hand the owner an unencrypted page, and anything else is its words.
+        var url = Uri.TryCreate(address, UriKind.Absolute, out var u) && u.Scheme is "https" or "mailto" ? u.AbsoluteUri : null;
         return new(text[(i + 1)..close], url, end + 1);
+    }
+
+    /// <summary>
+    /// Where a link goes, when its words don't say it: its host (a mail link's address); none when the words are that host, the
+    /// address itself, or the address without its scheme.
+    /// </summary>
+    public static string? LinkNote(string label, string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var u)) return null;
+        var host = u.Scheme == "mailto" ? u.UserInfo + "@" + u.Host : u.IdnHost;
+        var said = label.Trim().TrimEnd('/');
+        var plain = u.AbsoluteUri.TrimEnd('/');
+        var bare = plain.Contains("://", StringComparison.Ordinal) ? plain[(plain.IndexOf("://", StringComparison.Ordinal) + 3)..] : plain.Replace("mailto:", "");
+        return string.Equals(said, host, StringComparison.OrdinalIgnoreCase) || string.Equals(said, plain, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(said, bare, StringComparison.OrdinalIgnoreCase) || string.Equals(said, "www." + host, StringComparison.OrdinalIgnoreCase)
+            || string.Equals("www." + said, host, StringComparison.OrdinalIgnoreCase) ? null : host;
     }
 
     /// <summary>Neighbouring runs with the same marks become one, so a line is drawn in as few runs as it needs.</summary>

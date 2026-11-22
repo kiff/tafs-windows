@@ -64,7 +64,7 @@ public class MarkdownTests
     public void Inline_marks_never_show_as_written()
     {
         var s = Markdown.Inline("Refunded **$20** to *Ana* with `ch_1`, see [the order](https://shop.test/o/1) or [this](javascript:alert(1)).");
-        Assert.Equal("Refunded $20 to Ana with ch_1, see the order or this.", Text(s));
+        Assert.Equal("Refunded $20 to Ana with ch_1, see the order (shop.test) or this.", Text(s));
         Assert.Contains(s, x => x is { Text: "$20", Bold: true });
         Assert.Contains(s, x => x is { Text: "Ana", Italic: true });
         Assert.Contains(s, x => x is { Text: "ch_1", Code: true });
@@ -101,5 +101,22 @@ public class MarkdownTests
         Assert.DoesNotContain('*', drawn);
         Assert.DoesNotContain('`', drawn);
         Assert.DoesNotContain('[', drawn);
+    }
+
+    /// <summary>A link's words that aren't where it goes show its host after them (agentgabo's read); its own host or address shows nothing more.</summary>
+    [Theory]
+    [InlineData("[https://kiff.dev](https://evil.example)", "https://kiff.dev (evil.example)")]
+    [InlineData("[your bank](https://evil.example/login)", "your bank (evil.example)")]
+    [InlineData("[kiff.dev](https://kiff.dev)", "kiff.dev")]
+    [InlineData("[https://kiff.dev/](https://kiff.dev/)", "https://kiff.dev/")]
+    [InlineData("[shop.test/o/1](https://shop.test/o/1)", "shop.test/o/1")]
+    [InlineData("[write to us](mailto:help@kiff.dev)", "write to us (help@kiff.dev)")]
+    [InlineData("[an old page](http://shop.test)", "an old page")]
+    public void A_link_shows_where_it_goes_when_its_words_don_t(string source, string shown)
+    {
+        var spans = Markdown.Inline(source);
+        Assert.Equal(shown, Text(spans));
+        Assert.All(spans.Where(s => s.Note), s => Assert.Null(s.Link));
+        if (source.Contains("http://", StringComparison.Ordinal)) Assert.All(spans, s => Assert.Null(s.Link));
     }
 }
