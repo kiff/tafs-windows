@@ -72,7 +72,6 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 | iPad file | Lines | What | Models |
 | :- | -: | :- | :- |
-| MicButton.swift | 122 | The mic in a chat's message bar | Dictation |
 | ReportPaymentSheet.swift | 64 | "Report this payment" from a receipt: KIFF marks it and the taf is halted (new since d14217f; batch: Record) | |
 
 ## Not for Windows
@@ -86,6 +85,7 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | TafKnobView.swift | 377 | Not reachable at the pin, as `TafDialPanel` (only `TafKnobView.color` is reused, by Coach's chat). Reopen it if the iPad turns it on. |
 | TafKnobRemote.swift | 64 | Not reachable at the pin, as `TafDialPanel`. Reopen it if the iPad turns it on. |
 | DriveViews.swift | 73 | The phone's: Coach drives the phone's own screen (docs/drive.md is the iOS and Android contract), so there's nothing on Windows for it to drive (the PM's 21:45). |
+| MicButton.swift | 122 | The iPad's promise is that recognition runs on the device only, so no audio leaves it (`Dictation.swift`: "no audio leaves the phone"; `voice.voice_becomes_text_device_not`). An app's free dictation on Windows (`SpeechRecognizer` with the dictation topic) goes through Microsoft's online speech service and works only with Online speech recognition on, so that promise can't hold. Windows' own voice typing (Win+H) already types into the message box. The PM allowed either way (kiff/work#20, 01:00); reopen if Windows gives apps on-device dictation |
 
 ## Shared pieces
 
@@ -113,4 +113,4 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 ## Coverage
 
-Ported 27, partial 21, not started 2, not for Windows 7: the 57 view files at the pin (the batch of #234–#246 and #240 moved SetupChatView, APIDoorViews and ChromeViews to ported, and recounted the rows feature PRs had moved; rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial, approvals' ApprovalSetupView, AllowSheetView and AppEventApprovalSheet, with YourStepCard partial; a taf's batch moved FilesViews to partial, and recounted SetupShapePanel and TafSetupViews to ported, DoorsView to partial; a taf's batch moved FilesViews to partial and YourStepCard to ported; recounted against the code: PeopleViews, ReportAnswerSheet, DeleteAccountView and RecordSearchViews ported, AttachViews partial).
+Ported 27, partial 21, not started 1, not for Windows 8: the 57 view files at the pin (the batch of #234–#246 and #240 moved SetupChatView, APIDoorViews and ChromeViews to ported, MicButton to not for Windows (on-device dictation isn't open to Windows apps), and recounted the rows feature PRs had moved; rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial, approvals' ApprovalSetupView, AllowSheetView and AppEventApprovalSheet, with YourStepCard partial; a taf's batch moved FilesViews to partial, and recounted SetupShapePanel and TafSetupViews to ported, DoorsView to partial; a taf's batch moved FilesViews to partial and YourStepCard to ported; recounted against the code: PeopleViews, ReportAnswerSheet, DeleteAccountView and RecordSearchViews ported, AttachViews partial).
