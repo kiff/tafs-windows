@@ -8,7 +8,7 @@
   <Page.Resources>
     <DataTemplate x:Key="RecordRow" x:DataType="local:RecordLineView">
       <!-- A tap opens its sheet, as the iPad's RecordRow. -->
-      <Button Style="{StaticResource TafsRow}" Background="Transparent" Padding="0" Click="OnLine" Tag="{x:Bind Entry}"
+      <Button Style="{StaticResource TafsRow}" Background="Transparent" Padding="0" Click="OnLine" Tag="{x:Bind Entry}" IsTabStop="{x:Bind Opens}"
               AutomationProperties.Name="{x:Bind Name}" AutomationProperties.HelpText="{x:Bind Hint}">
       <Border Background="{ThemeResource TafsPanel}" BorderBrush="{ThemeResource TafsLine}" BorderThickness="1"
               CornerRadius="14" Padding="14">
@@ -22,6 +22,8 @@
             <Ellipse Width="9" Height="9" Fill="{ThemeResource TafsOk}" Visibility="{x:Bind IsDone}" />
             <Ellipse Width="9" Height="9" Fill="{StaticResource TafsAmber}" Visibility="{x:Bind IsWaiting}" />
             <Ellipse Width="9" Height="9" Fill="{ThemeResource TafsNo}" Visibility="{x:Bind IsRefused}" />
+            <!-- Done in tafs itself (a halt, a knock), not a call: dim. -->
+            <Ellipse Width="9" Height="9" Fill="{ThemeResource TafsDim}" Visibility="{x:Bind IsQuiet}" />
           </Grid>
           <StackPanel Grid.Column="1" Spacing="4">
             <Grid ColumnSpacing="6">

@@ -61,7 +61,7 @@ sealed class ReceiptSheet
     StackPanel Draw(WordBook w)
     {
         var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        var colour = Brush(RecordScreen.DotOf(entry.Kind) switch { Dot.Went => "TafsOk", Dot.Waiting => "TafsAmber", _ => "TafsNo" });
+        var colour = Brush(RecordScreen.DotOf(entry.Kind) switch { Dot.Went => "TafsOk", Dot.Waiting => "TafsAmber", Dot.Quiet => "TafsDim", _ => "TafsNo" });
         head.Children.Add(new Ellipse { Width = 10, Height = 10, Fill = colour, VerticalAlignment = VerticalAlignment.Center });
         head.Children.Add(new TextBlock { Text = Receipt.StateLabel(w, entry), FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = colour });
         body.Children.Add(head);
@@ -71,6 +71,8 @@ sealed class ReceiptSheet
         var lines = new StackPanel { Spacing = 8 };
         lines.Children.Add(Fact(w.Get("receipt.fact.taf"), entry.Taf));
         lines.Children.Add(Fact(w.Get("receipt.fact.at"), Receipt.Shown(w, entry.At, TimeZoneInfo.Local)));
+        // What it acted on, when tafs knows the value and it's what KIFF hashed (kiff/tafs#167).
+        if (entry.OnValue is { } on) lines.Children.Add(Fact(w.Get("receipt.fact.on"), ((entry.Call?.OnArg ?? "").Replace('_', ' ') + " " + on).Trim()));
         lines.Children.Add(Fact(w.Get("receipt.fact.outcome"), Receipt.Outcome(w, entry), bold: true));
         // KIFF's words, never its codes.
         if (entry.Call?.Reason is { } why) lines.Children.Add(Fact(w.Get("receipt.fact.why"), why));

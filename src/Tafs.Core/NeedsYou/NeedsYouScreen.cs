@@ -18,6 +18,9 @@ public sealed record HeldCall(
     /// <summary>KIFF's id for the hold, when it came from KIFF.</summary>
     public string? KiffId { get; init; }
 
+    /// <summary>KIFF's id for the call the hold is on (<c>proposal_id</c>), which its Record line carries; none when KIFF doesn't say.</summary>
+    public string? ProposalId { get; init; }
+
     /// <summary>KIFF's accounting version for the hold, signed with the answer.</summary>
     public int? AccountingVersion { get; init; }
 

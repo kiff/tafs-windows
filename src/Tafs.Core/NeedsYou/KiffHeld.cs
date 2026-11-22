@@ -280,7 +280,7 @@ public static class KiffHeld
         return new(taf, tafColor, summary, Amount(e)?.Formatted(w), "", Reason(w, e), e.ExpiresAt ?? e.CreatedAt.AddMinutes(10),
             e.NextSteps ?? [], TafWords(e.TafAbout, 120), TafWords(e.TafReason, 280))
         {
-            Details = Details(e), KiffId = e.Id, AccountingVersion = e.AccountingVersion, ApprovableOnce = e.CanApproveOnce ?? true,
+            Details = Details(e), KiffId = e.Id, ProposalId = e.ProposalId, AccountingVersion = e.AccountingVersion, ApprovableOnce = e.CanApproveOnce ?? true,
             Action = e.Action, Agent = e.Subject, BreachOutcomes = e.Breaches.Select(b => b.Outcome).ToList(),
             Install = InstallOf(e),
         };
