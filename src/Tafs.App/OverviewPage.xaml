@@ -90,6 +90,20 @@
           <!-- Board 2, no tafs yet, above the empty table's words, when tafs cloud lists no recipes either. -->
           <Border x:Name="NoTafsArt" HorizontalAlignment="Left" Visibility="Collapsed" />
           <TextBlock x:Name="Empty" FontSize="14" Foreground="{ThemeResource TafsDim}" />
+          <!-- The first Home (the iPad's HomeView, docs/onboarding.md), in the empty line's place for someone who may use
+               Coach: tafs cloud's line, else the app's; Ask Coach; How tafs works. -->
+          <StackPanel x:Name="FirstHome" Visibility="Collapsed" Spacing="10" MaxWidth="520" HorizontalAlignment="Left">
+            <Border Style="{StaticResource TafsCard}">
+              <StackPanel Spacing="6">
+                <TextBlock x:Name="FirstHomeTitle" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{ThemeResource TafsInk}" />
+                <TextBlock x:Name="FirstHomeLead" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+              </StackPanel>
+            </Border>
+            <Button x:Name="AskCoach" Style="{StaticResource TafsPrimary}" HorizontalAlignment="Stretch" Click="OnAskCoach"
+                    AutomationProperties.AutomationId="home.askCoach" />
+            <Button x:Name="HowItWorks" Style="{StaticResource TafsOutlineButton}" HorizontalAlignment="Stretch" Click="OnHowItWorks"
+                    AutomationProperties.AutomationId="home.howItWorks" />
+          </StackPanel>
         </StackPanel>
       </Grid>
 

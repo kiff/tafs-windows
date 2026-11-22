@@ -19,7 +19,7 @@ public sealed record HeldLine(string Title, string AnswerBy)
 /// the account's labels.
 /// </summary>
 public sealed record OverviewOpening(IReadOnlyList<HeldCall> Held, IReadOnlyList<OverviewRow> Rows, HomeLabels? Labels = null,
-    GalleryOpening? Recipes = null, string? Rest = null);
+    GalleryOpening? Recipes = null, string? Rest = null, (string Title, string? Lead)? FirstHome = null);
 
 public sealed partial class OverviewPage : Page
 {
@@ -28,6 +28,40 @@ public sealed partial class OverviewPage : Page
 
     /// <summary>A held call's row was chosen: Needs you opens.</summary>
     public static event Action? NeedsYouChosen;
+
+    /// <summary>The first Home's Ask Coach: a new conversation (the iPad's <c>startNewTaf</c>).</summary>
+    public static event Action? AskCoachChosen;
+
+    /// <summary>The first Home's How tafs works: the three cards again.</summary>
+    public static event Action? HowItWorksChosen;
+
+    void OnAskCoach(object sender, RoutedEventArgs e) => AskCoachChosen?.Invoke();
+
+    void OnHowItWorks(object sender, RoutedEventArgs e) => HowItWorksChosen?.Invoke();
+
+    /// <summary>The first Home's lines, when the window says it shows (no taf, no recipes, someone who may use Coach).</summary>
+    (string Title, string? Lead)? firstHome;
+
+    /// <summary>The first Home, given again once the window knows more (the recipes read, who may use Coach).</summary>
+    internal void ShowFirstHome((string Title, string? Lead)? lines)
+    {
+        firstHome = lines;
+        ApplyFirstHome();
+    }
+
+    /// <summary>The first Home takes the empty line's place, under the same board, while there's no taf.</summary>
+    void ApplyFirstHome()
+    {
+        var first = allRows.Count == 0 ? firstHome : null;
+        if (first is { } f)
+        {
+            FirstHomeTitle.Text = f.Title;
+            FirstHomeLead.Text = f.Lead ?? "";
+            FirstHomeLead.Visibility = f.Lead is null ? Visibility.Collapsed : Visibility.Visible;
+        }
+        FirstHome.Visibility = first is null ? Visibility.Collapsed : Visibility.Visible;
+        Empty.Visibility = allRows.Count == 0 && first is null ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     void OnHeld(object sender, RoutedEventArgs e) => NeedsYouChosen?.Invoke();
 
@@ -59,6 +93,9 @@ public sealed partial class OverviewPage : Page
         var w = App.Words;
         var opening = e.Parameter as OverviewOpening;
         NeedsYouLabel.Text = Sidebar.Eyebrow(w, "needs_you.title");
+        AskCoach.Content = w.Get("coach.ask");
+        HowItWorks.Content = w.Get("onboarding.how_it_works");
+        firstHome = opening?.FirstHome;
         ShowHeld(opening?.Held ?? [], opening?.Rest);
         ShowRows(opening?.Rows ?? [], opening?.Labels);
         ShowRecipes(opening?.Rows.Count == 0 ? opening.Recipes : null);
@@ -153,6 +190,7 @@ public sealed partial class OverviewPage : Page
         // taf (the recipes, when tafs cloud lists them, take the table's place instead).
         OverviewArt.Child ??= Illustrations.Overview();
         NoTafsArt.Visibility = Empty.Visibility;
+        ApplyFirstHome();
         if (allRows.Count == 0) NoTafsArt.Child ??= Illustrations.NoTafs();
         // Drawn again when tafs cloud answers: the lines under the headings go first.
         foreach (var old in Table.Children.OfType<FrameworkElement>().Where(c => Grid.GetRow(c) >= 2).ToList()) Table.Children.Remove(old);
