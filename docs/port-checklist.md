@@ -69,12 +69,8 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 | iPad file | Lines | What | Models |
 | :- | -: | :- | :- |
-| DriveViews.swift | 73 | Coach asks to drive the app, and what it did | DriveSession |
 | MicButton.swift | 122 | The mic in a chat's message bar | Dictation |
 | PlanViews.swift | 268 | Buying credits and Solo, asking an admin, declining a request. `BuyCreditsView` and `SoloView` buy through the App Store, so Windows needs its own store or KIFF's web flow; `AskAdminView` and `DeclineRequestView` are plain tafs cloud calls | Purchases |
-| TafDialPanel.swift | 228 | The dial's requests and confirmation | KnobNavigation, DoorsModel |
-| TafKnobRemote.swift | 64 | The remote's buttons: back, lower, pause, raise, next | KnobNavigation |
-| TafKnobView.swift | 377 | The taf's remote | KnobNavigation |
 | ChromeViews.swift | 178 | Account › Chrome: paired Chromes, Pair a Chrome, Unpair, once planque offers it (new since d14217f; batch: Account) | |
 | ReportPaymentSheet.swift | 64 | "Report this payment" from a receipt: KIFF marks it and the taf is halted (new since d14217f; batch: Record) | |
 | WatchDaysViews.swift | 93 | "From your watch" in Coach's Previous conversations, one a day (new since d14217f; batch: Coach, as on Linux) | |
@@ -86,6 +82,10 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | HomeView.swift | 403 | The phone's Home. A wide window uses HomeSplitView. Its first Home (lines 137–152: Ask Coach and How tafs works over an empty Home) is every desktop's, and is on Windows (`OverviewPage`, `Onboarding.FirstHomeLines`). |
 | TafsBar.swift | 121 | The phone's bar along the foot. A wide window has the sidebar. |
 | PairComputerView.swift | 222 | The phone's side of pairing: the camera reads a computer's code. |
+| TafDialPanel.swift | 228 | Not reachable at the pin: the iPad opens `DoorsView` only as `.only(door.id)` from Setup › Starts when, so the remote's panel never shows (the PM's 21:45). Reopen it if the iPad turns it on. |
+| TafKnobView.swift | 377 | Not reachable at the pin, as `TafDialPanel` (only `TafKnobView.color` is reused, by Coach's chat). Reopen it if the iPad turns it on. |
+| TafKnobRemote.swift | 64 | Not reachable at the pin, as `TafDialPanel`. Reopen it if the iPad turns it on. |
+| DriveViews.swift | 73 | The phone's: Coach drives the phone's own screen (docs/drive.md is the iOS and Android contract), so there's nothing on Windows for it to drive (the PM's 21:45). |
 
 ## Shared pieces
 
@@ -113,4 +113,4 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 ## Coverage
 
-Ported 21, partial 24, not started 9, not for Windows 3: the 57 view files at the pin (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial, approvals' ApprovalSetupView, AllowSheetView and AppEventApprovalSheet, with YourStepCard partial; a taf's batch moved FilesViews to partial and APIDoorViews to ported; a taf's batch moved FilesViews and APIDoorViews to partial; a taf's batch moved FilesViews to partial and YourStepCard to ported; a taf's batch moved FilesViews to partial, and recounted SetupShapePanel and TafSetupViews to ported, DoorsView to partial; recounted against the code: PeopleViews, ReportAnswerSheet, DeleteAccountView and RecordSearchViews ported, AttachViews partial).
+Ported 21, partial 24, not started 5, not for Windows 7: the 57 view files at the pin (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial, approvals' ApprovalSetupView, AllowSheetView and AppEventApprovalSheet, with YourStepCard partial; a taf's batch moved FilesViews to partial and APIDoorViews to ported; a taf's batch moved FilesViews and APIDoorViews to partial; a taf's batch moved FilesViews to partial and YourStepCard to ported; a taf's batch moved FilesViews to partial, and recounted SetupShapePanel and TafSetupViews to ported, DoorsView to partial; recounted against the code: PeopleViews, ReportAnswerSheet, DeleteAccountView and RecordSearchViews ported, AttachViews partial).
