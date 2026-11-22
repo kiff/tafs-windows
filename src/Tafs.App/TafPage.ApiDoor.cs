@@ -176,44 +176,9 @@ public sealed partial class TafPage
         if (issued is { } key) await ShowKeyOnceAsync(key, door);
     }
 
-    /// <summary>
-    /// The key, shown this once, as the iPad's <c>IssuedKeyView</c>: Copy (kept out of Windows' clipboard history and cloud
-    /// clipboard, cleared after a minute), where to send work and an example that reads the key from the caller's own secret.
-    /// While it shows, the window is kept out of screenshots, recordings and screen sharing; closing it forgets the key.
-    /// </summary>
-    async Task ShowKeyOnceAsync(IssuedKey key, Door door)
-    {
-        var w = App.Words;
-        var endpoint = ApiDoor.Endpoint(door, opening?.DoorSigning?.Cloud ?? Tafs.Core.Home.HomeList.Api);
-        var body = new StackPanel { Spacing = 12 };
-        body.Children.Add(Words(w.Get("door.api.shown_once_body", ("app", door.Label)), 15, "TafsSoftText"));
-        var shown = new TextBlock { Text = key.Key, FontFamily = new FontFamily("Cascadia Mono, Consolas"), FontSize = 14, IsTextSelectionEnabled = true,
-            TextWrapping = TextWrapping.Wrap, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Style = Look("TafsInkText") };
-        AutomationProperties.SetAutomationId(shown, "door.api.key");
-        body.Children.Add(new Border { Child = shown, Padding = new Thickness(12), CornerRadius = new CornerRadius(12), Background = ChatViews.ThemeBrush(ActualTheme, "TafsRaised") });
-        var copy = new Button { Content = w.Get("door.api.copy_key"), Style = Look("TafsPrimary"), Padding = new Thickness(18, 8, 18, 8) };
-        AutomationProperties.SetAutomationId(copy, "door.api.copy_key");
-        copy.Click += (_, _) =>
-        {
-            SecretClipboard.Copy(key.Key);
-            copy.Content = w.Get("door.api.copied");
-        };
-        body.Children.Add(copy);
-        body.Children.Add(new TextBlock { Text = w.Get("door.api.where"), Style = Look("TafsEyebrow") });
-        body.Children.Add(Code(endpoint, wrap: true));
-        body.Children.Add(new TextBlock { Text = w.Get("door.api.example"), Style = Look("TafsEyebrow") });
-        body.Children.Add(Code(ApiDoor.Example(endpoint), wrap: false));
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot, RequestedTheme = ActualTheme, Title = w.Get("door.api.shown_once"),
-            Content = new ScrollViewer { Content = body, MaxHeight = 520 }, PrimaryButtonText = w.Get("common.done"), DefaultButton = ContentDialogButton.Primary,
-        };
-        // Escape doesn't close it: only Done, so the key isn't lost to a stray key press.
-        dialog.Closing += (_, e) => { if (e.Result == ContentDialogResult.None) e.Cancel = true; };
-        CaptureGuard.Exclude(true);
-        try { await dialog.ShowAsync(); }
-        finally { CaptureGuard.Exclude(false); }
-    }
+    /// <summary>The key, shown this once (<see cref="ApiDoorDialogs.ShowKeyOnceAsync"/>).</summary>
+    Task ShowKeyOnceAsync(IssuedKey key, Door door) =>
+        ApiDoorDialogs.ShowKeyOnceAsync(XamlRoot, ActualTheme, key, door, opening?.DoorSigning?.Cloud ?? Tafs.Core.Home.HomeList.Api);
 
     /// <summary>API instructions, as the iPad's <c>APIInstructionsView</c>: everything a developer needs but the key.</summary>
     async Task InstructionsAsync(Door door)
@@ -234,19 +199,7 @@ public sealed partial class TafPage
         }.ShowAsync();
     }
 
-    /// <summary>Code, as written: monospaced, selectable, scrolled sideways rather than wrapped (an address may wrap).</summary>
-    UIElement Code(string text, bool wrap)
-    {
-        var t = new TextBlock { Text = text, FontFamily = new FontFamily("Cascadia Mono, Consolas"), FontSize = 12, IsTextSelectionEnabled = true,
-            TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap, Style = Look("TafsInkText"),
-            FlowDirection = FlowDirection.LeftToRight };
-        return new Border
-        {
-            Child = new ScrollViewer { Content = t, HorizontalScrollBarVisibility = wrap ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalScrollMode = wrap ? ScrollMode.Disabled : ScrollMode.Enabled },
-            Padding = new Thickness(12), CornerRadius = new CornerRadius(12), Background = ChatViews.ThemeBrush(ActualTheme, "TafsRaised"),
-        };
-    }
+    UIElement Code(string text, bool wrap) => ApiDoorDialogs.Code(text, wrap, ActualTheme);
 
     /// <summary>A question with its act and Cancel, Cancel the default.</summary>
     async Task<bool> AskAsync(string title, string body, string act) =>
@@ -255,6 +208,71 @@ public sealed partial class TafPage
             XamlRoot = XamlRoot, RequestedTheme = ActualTheme, Title = title, Content = new TextBlock { Text = body, TextWrapping = TextWrapping.Wrap },
             PrimaryButtonText = act, CloseButtonText = App.Words.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
         }.ShowAsync() == ContentDialogResult.Primary;
+}
+
+/// <summary>
+/// An <c>api</c> door's dialogs shared by a taf's page and Coach's drafted door card (the iPad's <c>IssuedKeyView</c> and
+/// <c>CodeBlock</c>).
+/// </summary>
+static class ApiDoorDialogs
+{
+    static Style Look(string key) => (Style)Application.Current.Resources[key];
+
+    static TextBlock Line(string text, double size, string style) =>
+        new() { Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, Style = Look(style) };
+
+    /// <summary>Code, as written: monospaced, selectable, scrolled sideways rather than wrapped (an address may wrap).</summary>
+    public static UIElement Code(string text, bool wrap, ElementTheme theme)
+    {
+        var t = new TextBlock { Text = text, FontFamily = new FontFamily("Cascadia Mono, Consolas"), FontSize = 12, IsTextSelectionEnabled = true,
+            TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap, Style = Look("TafsInkText"),
+            FlowDirection = FlowDirection.LeftToRight };
+        return new Border
+        {
+            Child = new ScrollViewer { Content = t, HorizontalScrollBarVisibility = wrap ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, HorizontalScrollMode = wrap ? ScrollMode.Disabled : ScrollMode.Enabled },
+            Padding = new Thickness(12), CornerRadius = new CornerRadius(12), Background = ChatViews.ThemeBrush(theme, "TafsRaised"),
+        };
+    }
+
+    /// <summary>
+    /// The key, shown this once, as the iPad's <c>IssuedKeyView</c>: Copy (kept out of Windows' clipboard history and cloud
+    /// clipboard, cleared after a minute), where to send work and an example that reads the key from the caller's own secret.
+    /// While it shows, the window is kept out of screenshots, recordings and screen sharing; closing it forgets the key.
+    /// </summary>
+    public static async Task ShowKeyOnceAsync(XamlRoot root, ElementTheme theme, IssuedKey key, Door door, Uri cloud)
+    {
+        var w = App.Words;
+        var endpoint = ApiDoor.Endpoint(door, cloud);
+        var body = new StackPanel { Spacing = 12 };
+        body.Children.Add(Line(w.Get("door.api.shown_once_body", ("app", door.Label)), 15, "TafsSoftText"));
+        var shown = new TextBlock { Text = key.Key, FontFamily = new FontFamily("Cascadia Mono, Consolas"), FontSize = 14, IsTextSelectionEnabled = true,
+            TextWrapping = TextWrapping.Wrap, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Style = Look("TafsInkText") };
+        AutomationProperties.SetAutomationId(shown, "door.api.key");
+        body.Children.Add(new Border { Child = shown, Padding = new Thickness(12), CornerRadius = new CornerRadius(12), Background = ChatViews.ThemeBrush(theme, "TafsRaised") });
+        var copy = new Button { Content = w.Get("door.api.copy_key"), Style = Look("TafsPrimary"), Padding = new Thickness(18, 8, 18, 8) };
+        AutomationProperties.SetAutomationId(copy, "door.api.copy_key");
+        copy.Click += (_, _) =>
+        {
+            SecretClipboard.Copy(key.Key);
+            copy.Content = w.Get("door.api.copied");
+        };
+        body.Children.Add(copy);
+        body.Children.Add(new TextBlock { Text = w.Get("door.api.where"), Style = Look("TafsEyebrow") });
+        body.Children.Add(Code(endpoint, wrap: true, theme));
+        body.Children.Add(new TextBlock { Text = w.Get("door.api.example"), Style = Look("TafsEyebrow") });
+        body.Children.Add(Code(ApiDoor.Example(endpoint), wrap: false, theme));
+        var dialog = new ContentDialog
+        {
+            XamlRoot = root, RequestedTheme = theme, Title = w.Get("door.api.shown_once"),
+            Content = new ScrollViewer { Content = body, MaxHeight = 520 }, PrimaryButtonText = w.Get("common.done"), DefaultButton = ContentDialogButton.Primary,
+        };
+        // Escape doesn't close it: only Done, so the key isn't lost to a stray key press.
+        dialog.Closing += (_, e) => { if (e.Result == ContentDialogResult.None) e.Cancel = true; };
+        CaptureGuard.Exclude(true);
+        try { await dialog.ShowAsync(); }
+        finally { CaptureGuard.Exclude(false); }
+    }
 }
 
 /// <summary>
