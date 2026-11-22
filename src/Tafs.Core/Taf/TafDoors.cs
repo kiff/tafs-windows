@@ -20,7 +20,7 @@ public sealed record DoorWords(string State, string Tap, string Settings);
 /// </summary>
 public sealed record Door(string Id, string App, string Kind, string Label, bool Open, string Address, string Proof, string How,
     IReadOnlyList<DoorKey> Keys, int Today, int Limit, bool Resting, int? OthersToday = null, int? OthersLimit = null, DoorWords? Words = null,
-    int? CountedToday = null, ApiLastRequest? LastRequest = null)
+    int? CountedToday = null, ApiLastRequest? LastRequest = null, string? Grant = null, string? Trigger = null)
 {
     public bool HoldsKeys => Proof == "proven";
 
@@ -113,7 +113,8 @@ public sealed record TafDoors(IReadOnlyList<Door> Doors, IReadOnlyList<DoorApp> 
         var words = Lenient.Field(d, "words") is { ValueKind: JsonValueKind.Object } w && Lenient.Text(w, "state") is { } state
             && Lenient.Text(w, "tap") is { } tap && Lenient.Text(w, "settings") is { } settings ? new DoorWords(state, tap, settings) : null;
         return new(T("id"), T("app"), T("kind"), T("label"), Lenient.Bool(d, "open"), T("address"), T("proof"), T("how"), keys, today, limit,
-            Lenient.Bool(d, "resting"), Lenient.Int(d, "others_today"), Lenient.Int(d, "others_limit"), words, counted, last);
+            Lenient.Bool(d, "resting"), Lenient.Int(d, "others_today"), Lenient.Int(d, "others_limit"), words, counted, last,
+            Lenient.Text(d, "grant"), Lenient.Text(d, "trigger"));
     }
 
     static DoorApp? App(JsonElement a)
