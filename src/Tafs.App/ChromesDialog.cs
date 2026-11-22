@@ -9,9 +9,7 @@ namespace Tafs.App;
 /// Account › Chrome's calls, as this device: the list (its status and planque's answer), and Unpair (why it didn't go through,
 /// or none).
 /// </summary>
-/// <param name="Grants">The account's connections on planque (none when they couldn't be read), for each Chrome's own (docs/chrome.md, "Your Chrome" 4).</param>
-sealed record ChromesCalls(Func<Task<(int Status, IReadOnlyList<PairedChrome>? Chromes, string? Why)>> Load, Func<PairedChrome, Task<string?>> Remove,
-    Func<Task<IReadOnlyList<PlanqueGrant>?>>? Grants = null);
+sealed record ChromesCalls(Func<Task<(int Status, IReadOnlyList<PairedChrome>? Chromes, string? Why)>> Load, Func<PairedChrome, Task<string?>> Remove);
 
 /// <summary>
 /// Account › Chrome (docs/chrome.md), as the iPad's <c>ChromesView</c>: the Chromes paired to the account, each with what it
@@ -42,7 +40,6 @@ static class ChromesDialog
             body.Children.Clear();
             body.Children.Add(new ProgressRing { IsActive = true, Width = 20, Height = 20, HorizontalAlignment = HorizontalAlignment.Left });
             var (_, chromes, why) = await calls.Load();
-            var grants = calls.Grants is { } readGrants ? await readGrants() ?? [] : [];
             body.Children.Clear();
             if ((said ?? (why is null ? null : w.Get("chrome.not_loaded", ("why", why)))) is { } line) body.Children.Add(Line(line, 14, "TafsNoText"));
             if (chromes is { Count: 0 }) body.Children.Add(Line(w.Get("chrome.none"), 15, "TafsDimText"));
@@ -56,9 +53,8 @@ static class ChromesDialog
                 name.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
                 words.Children.Add(name);
                 if (PlanqueChromes.Says(w, chrome) is { } says) words.Children.Add(Line(says, 13, "TafsDimText"));
-                // The connections on it, each by its name and its sites ("Your Chrome" 4): what unpairing ends.
-                var on = PlanqueChromes.ConnectionsOn(grants, chrome.Id);
-                foreach (var connection in on) words.Children.Add(Line("• " + connection, 13, "TafsSoftText"));
+                // What it's used for, as planque lists its live connections ("Your Chrome" 4): planque decides, never this PC.
+                if (PlanqueChromes.UsedFor(w, chrome) is { } used) words.Children.Add(Line(used, 13, "TafsSoftText"));
                 row.Children.Add(words);
                 var unpair = new HyperlinkButton { Content = w.Get("chrome.remove"), Foreground = ChatViews.ThemeBrush(theme, "TafsNo"), VerticalAlignment = VerticalAlignment.Center };
                 AutomationProperties.SetName(unpair, w.Get("chrome.remove_named", ("name", chrome.Name)));
@@ -67,8 +63,8 @@ static class ChromesDialog
                     // Asked first, inside the same dialog: Windows shows one ContentDialog at a time.
                     var ask = new StackPanel { Spacing = 10 };
                     ask.Children.Add(Line(w.Get("chrome.remove_named", ("name", chrome.Name)), 15, "TafsInkText"));
-                    // What it ends with it, as the contract's unpair confirm lists them ("Your Chrome" 3): planque revokes each.
-                    foreach (var connection in on) ask.Children.Add(Line("• " + connection, 13, "TafsNoText"));
+                    // What it ends with it, before it asks ("Your Chrome" 3): planque ends each connection that runs in it.
+                    if (PlanqueChromes.UnpairEnds(w, chrome) is { } ends) ask.Children.Add(Line(ends, 13, "TafsNoText"));
                     var yes = new Button { Content = w.Get("chrome.remove"), Style = Look("TafsOutlineNo") };
                     var no = new Button { Content = w.Get("common.cancel"), Style = Look("TafsOutlineButton") };
                     ask.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { yes, no } });

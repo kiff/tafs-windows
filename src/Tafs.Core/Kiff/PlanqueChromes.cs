@@ -4,8 +4,14 @@ using Tafs.Core.Words;
 
 namespace Tafs.Core.Kiff;
 
-/// <summary>A Chrome paired to the account: planque's id, the name it was given, and what it says it is.</summary>
-public sealed record PairedChrome(string Id, string Name, string? Browser, string? Os);
+/// <summary>
+/// A Chrome paired to the account: planque's id, the name it was given, and what it says it is; with the connections that run
+/// in it, as planque decides them (none when planque doesn't say: an older planque).
+/// </summary>
+public sealed record PairedChrome(string Id, string Name, string? Browser, string? Os, IReadOnlyList<ChromeUse>? Connections = null);
+
+/// <summary>A connection that runs in a Chrome, as planque lists it: its grant, the taf's name, and the sites it reaches.</summary>
+public sealed record ChromeUse(string Grant, string Name, IReadOnlyList<string> Sites);
 
 /// <summary>
 /// Account › Chrome (docs/chrome.md), as the iPad's <c>ChromesView</c> and <c>PlanqueClient</c>'s Chrome routes: the Chromes
@@ -23,7 +29,8 @@ public static class PlanqueChromes
         a.ValueKind == JsonValueKind.Object && Lenient.Field(a, "chromes") is { ValueKind: JsonValueKind.Array } list
             ? list.EnumerateArray()
                 .Where(c => c.ValueKind == JsonValueKind.Object && Lenient.Text(c, "chrome_id") is { Length: > 0 } && Lenient.Text(c, "name") is not null)
-                .Select(c => new PairedChrome(Lenient.Text(c, "chrome_id")!, Lenient.Text(c, "name")!, Lenient.Text(c, "browser"), Lenient.Text(c, "os")))
+                .Select(c => new PairedChrome(Lenient.Text(c, "chrome_id")!, Lenient.Text(c, "name")!, Lenient.Text(c, "browser"), Lenient.Text(c, "os"),
+                    Lenient.Field(c, "connections") is { ValueKind: JsonValueKind.Array } on ? Uses(on) : null))
                 .ToList()
             : null;
 
@@ -38,11 +45,30 @@ public static class PlanqueChromes
         c.Browser is { Length: > 0 } b && c.Os is { Length: > 0 } o ? w.Get("chrome.browser_on", ("browser", b), ("system", o)) : null;
 
     /// <summary>
-    /// The connections on a Chrome (docs/chrome.md, "Your Chrome" 3 and 4): the account's live browser connections that run in it,
-    /// each as "Wiki lookup · wikipedia.org" (the connection's name, then its sites). Unpairing the Chrome ends exactly these.
+    /// planque's connections on a Chrome (<c>connections: [{grant, name, sites}]</c>, planque#370): the live ones, decided by
+    /// planque once so no app writes the rule again. One without a grant is left out; its sites are the texts among them.
     /// </summary>
-    public static IReadOnlyList<string> ConnectionsOn(IEnumerable<PlanqueGrant> grants, string chromeId) =>
-        grants.Where(g => g.Chrome?.ChromeId == chromeId && g.Status != "disconnected")
-            .Select(g => string.Join(" · ", new[] { g.Title ?? g.AgentName ?? g.Request.Agent, string.Join(", ", g.Chrome!.Sites) }.Where(x => x.Length > 0)))
+    static List<ChromeUse> Uses(JsonElement on) =>
+        on.EnumerateArray()
+            .Where(u => u.ValueKind == JsonValueKind.Object && Lenient.Text(u, "grant") is { Length: > 0 })
+            .Select(u => new ChromeUse(Lenient.Text(u, "grant")!, Lenient.Text(u, "name") ?? "",
+                Lenient.Array(u, "sites").Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()!).Where(x => x.Length > 0).ToList()))
             .ToList();
+
+    /// <summary>
+    /// The sites a Chrome's connections reach, as the owner reads them ("wikipedia.org, shop.example"): each once, in planque's
+    /// order. Empty when it has none, or planque didn't say.
+    /// </summary>
+    public static string Sites(PairedChrome c)
+    {
+        var seen = new List<string>();
+        foreach (var site in (c.Connections ?? []).SelectMany(u => u.Sites)) if (!seen.Contains(site)) seen.Add(site);
+        return string.Join(", ", seen);
+    }
+
+    /// <summary>"Used for wikipedia.org, shop.example" under a Chrome; none when nothing runs in it.</summary>
+    public static string? UsedFor(WordBook w, PairedChrome c) => Sites(c) is { Length: > 0 } sites ? w.Get("chrome.used_for", ("sites", sites)) : null;
+
+    /// <summary>What Unpair says it ends, before it asks ("Your Chrome" 3); none when nothing runs in it.</summary>
+    public static string? UnpairEnds(WordBook w, PairedChrome c) => Sites(c) is { Length: > 0 } sites ? w.Get("chrome.unpair_ends", ("sites", sites)) : null;
 }

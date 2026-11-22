@@ -38,22 +38,52 @@ public class PlanqueChromesTests
         Assert.Equal("/v1/accounts/t_1/chromes/chr%2F1", PlanqueChromes.ChromePath("t_1", "chr/1"));
     }
 
-    /// <summary>"Your Chrome" 3 and 4: a Chrome's connections are the account's live browser grants on it, each by name and sites; unpairing ends exactly these.</summary>
+    /// <summary>
+    /// "Your Chrome" 3 and 4: what a Chrome is used for, and what unpairing it ends, are planque's list of its live connections
+    /// (planque#370), never this PC's own rule.
+    /// </summary>
     [Fact]
-    public void A_chrome_lists_the_live_connections_that_run_in_it()
+    public void A_chrome_says_what_it_s_used_for_from_planque_s_own_list()
     {
-        static string Grant(string id, string status, string title, string browser) =>
-            "{\"id\": \"" + id + "\", \"status\": \"" + status + "\", \"text\": \"t\", \"digest\": \"d\", \"title\": \"" + title
-            + "\", \"events\": [], \"request\": {\"server\": \"https://planque.kiff.dev/browser\", \"agent\": \"a\", \"tools\": [], \"browser\": " + browser + "}}";
-        var json = "{\"grants\": [" + string.Join(",",
-            Grant("g1", "connected", "Wiki lookup", """{"driver": "extension", "chrome": "chr_1", "chrome_name": "Work laptop", "sites": ["wikipedia.org"]}"""),
-            Grant("g2", "disconnected", "Old", """{"driver": "extension", "chrome": "chr_1", "sites": ["old.example"]}"""),
-            Grant("g3", "connected", "Elsewhere", """{"driver": "extension", "chrome": "chr_2", "sites": ["shop.example"]}"""),
-            Grant("g4", "connected", "Hosted", """{"sites": ["news.example"]}""")) + "]}";
+        var list = PlanqueChromes.Read(JsonDocument.Parse("""
+            {"chromes":[
+              {"chrome_id":"chr_1","name":"Work laptop","connections":[
+                {"grant":"g1","name":"Wiki lookup","sites":["wikipedia.org"]},
+                {"grant":"g2","name":"Shop","sites":["shop.example","wikipedia.org"]},
+                {"name":"no grant","sites":["x.example"]},
+                {"grant":"g3","name":"Odd","sites":[1, "", "news.example"]}]},
+              {"chrome_id":"chr_2","name":"Home","connections":[]},
+              {"chrome_id":"chr_3","name":"Older planque"}]}
+            """).RootElement)!;
+
+        Assert.Equal(["g1", "g2", "g3"], list[0].Connections!.Select(u => u.Grant));
+        Assert.Equal(["news.example"], list[0].Connections![2].Sites);
+        // Each site once, in planque's order.
+        Assert.Equal("Used for wikipedia.org, shop.example, news.example", PlanqueChromes.UsedFor(En, list[0]));
+        Assert.Equal("Unpairing ends the connections that use it: wikipedia.org, shop.example, news.example. They come back only when you connect them again.",
+            PlanqueChromes.UnpairEnds(En, list[0]));
+
+        // Nothing runs in it, or planque doesn't say: nothing is written, and Unpair asks as before.
+        Assert.Empty(list[1].Connections!);
+        Assert.Null(list[2].Connections);
+        foreach (var quiet in list.Skip(1))
+        {
+            Assert.Null(PlanqueChromes.UsedFor(En, quiet));
+            Assert.Null(PlanqueChromes.UnpairEnds(En, quiet));
+        }
+    }
+
+    /// <summary>A grant still says which Chrome drives it (<c>request.browser</c>), as planque sends it.</summary>
+    [Fact]
+    public void A_grant_names_the_chrome_that_drives_it()
+    {
+        var json = """
+            {"grants": [{"id": "g1", "status": "connected", "text": "t", "digest": "d", "events": [], "request": {"server": "https://planque.kiff.dev/browser",
+              "agent": "a", "tools": [], "browser": {"driver": "extension", "chrome": "chr_1", "chrome_name": "Work laptop", "sites": ["wikipedia.org"]}}},
+              {"id": "g4", "status": "connected", "text": "t", "digest": "d", "events": [], "request": {"server": "s", "agent": "a", "tools": [], "browser": {"sites": ["news.example"]}}}]}
+            """;
         var grants = PlanqueGrants.Read(System.Text.Encoding.UTF8.GetBytes(json))!;
-        Assert.Equal(new[] { "Wiki lookup · wikipedia.org" }, PlanqueChromes.ConnectionsOn(grants, "chr_1"));
-        Assert.Equal("Work laptop", grants[0].Chrome!.ChromeName);
-        Assert.Null(grants[3].Chrome);
-        Assert.Empty(PlanqueChromes.ConnectionsOn(grants, "chr_9"));
+        Assert.Equal(("chr_1", "Work laptop"), (grants[0].Chrome!.ChromeId, grants[0].Chrome!.ChromeName));
+        Assert.Null(grants[1].Chrome);
     }
 }
