@@ -20,6 +20,9 @@ public sealed partial class SignInPage : Page
     /// <summary>The person approved in the browser: the window opens tafs.</summary>
     public static event Action<SignedInSession>? SignedIn;
 
+    /// <summary>A session the welcome's Continue made (in-app sign-in, <c>AppSignInFlow</c>), announced as this page's own, so the window moves on the same way.</summary>
+    public static void Announce(SignedInSession session) => SignedIn?.Invoke(session);
+
     /// <summary>Add this PC with the phone instead.</summary>
     public static event Action? PairInsteadChosen;
 

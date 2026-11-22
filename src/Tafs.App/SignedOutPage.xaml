@@ -22,6 +22,38 @@
     </Style>
   </Page.Resources>
 
+  <Grid>
+  <Grid.RowDefinitions>
+    <RowDefinition Height="*" />
+    <RowDefinition Height="Auto" />
+  </Grid.RowDefinitions>
+
+  <!-- The welcome's consent (the iPad's OnboardingView, `consent`): one tick for both Terms, each name a link; privacy as two
+       links below it, never ticked; the age line. Continue and Show the code wait on the tick. Under both halves. -->
+  <Border Grid.Row="1" Background="{ThemeResource TafsRaised}" BorderBrush="{ThemeResource TafsLine}" BorderThickness="0,1,0,0"
+          Padding="24,16">
+    <StackPanel MaxWidth="760" HorizontalAlignment="Center" Spacing="8">
+      <TextBlock x:Name="TermsChanged" Visibility="Collapsed" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"
+                 Foreground="{ThemeResource TafsAmberText}" AutomationProperties.LiveSetting="Assertive" />
+      <TextBlock x:Name="Problem" Visibility="Collapsed" FontSize="14" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}"
+                 AutomationProperties.LiveSetting="Assertive" />
+      <Grid ColumnSpacing="10">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <!-- The box is its own control, so a link opens its page and never ticks the box. -->
+        <CheckBox x:Name="Tick" MinWidth="0" Padding="0" VerticalAlignment="Top" Checked="OnTicked" Unchecked="OnTicked"
+                  AutomationProperties.AutomationId="onboarding.tick" />
+        <RichTextBlock x:Name="TickWords" Grid.Column="1" FontSize="14" TextWrapping="Wrap" VerticalAlignment="Center"
+                       Foreground="{ThemeResource TafsInk}" />
+      </Grid>
+      <RichTextBlock x:Name="PrivacyWords" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+      <TextBlock x:Name="AgeLine" FontSize="12" TextWrapping="Wrap" Foreground="{ThemeResource TafsDim}"
+                 AutomationProperties.AutomationId="onboarding.age" />
+    </StackPanel>
+  </Border>
+
   <Grid x:Name="Halves" SizeChanged="OnSized">
     <Grid.ColumnDefinitions>
       <ColumnDefinition x:Name="LeftColumn" Width="*" />
@@ -42,7 +74,13 @@
           </Viewbox>
           <TextBlock x:Name="KiffHeading" FontSize="40" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center"
                      Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
-          <Button x:Name="Continue" Click="OnContinue" Style="{StaticResource GatePill}" AutomationProperties.AutomationId="signin.continue" />
+          <Button x:Name="Continue" Click="OnContinue" Style="{StaticResource GatePill}" IsEnabled="False"
+                  AutomationProperties.AutomationId="onboarding.continue">
+            <Grid>
+              <TextBlock x:Name="ContinueWords" />
+              <ProgressRing x:Name="ContinueBusy" Width="20" Height="20" IsActive="False" Visibility="Collapsed" Foreground="White" />
+            </Grid>
+          </Button>
         </StackPanel>
       </ScrollViewer>
       <!-- Continue: KIFF's code, checked in the browser, here in this half. -->
@@ -75,7 +113,7 @@
           <TextBlock x:Name="PhoneHeading" FontSize="40" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center"
                      Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
           <!-- Windows only: the code waits for this tap, and Windows Hello asks then, never on its own. -->
-          <Button x:Name="ShowCode" Click="OnShowCode" Style="{StaticResource GatePill}" AutomationProperties.AutomationId="signin.show_code" />
+          <Button x:Name="ShowCode" Click="OnShowCode" Style="{StaticResource GatePill}" IsEnabled="False" AutomationProperties.AutomationId="onboarding.withPhone" />
           <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
             <FontIcon Glyph="&#xE8B3;" FontSize="18" Foreground="{ThemeResource TafsSoft}" />
             <TextBlock x:Name="ScanLine" FontSize="18" Foreground="{ThemeResource TafsSoft}" />
@@ -85,5 +123,6 @@
       <!-- Show the code: Windows Hello once, then the QR and its check code, here in this half. -->
       <Frame x:Name="RightFrame" Visibility="Collapsed" />
     </Grid>
+  </Grid>
   </Grid>
 </Page>

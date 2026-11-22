@@ -46,10 +46,13 @@ public static class AccountScreen
 
     /// <summary>A legal row's label. kiff.dev has tafs's legal pages in the app's languages; in one it doesn't, the row says
     /// they open in English ("Terms (in English)").</summary>
-    public static string Legal(WordBook w, string key) =>
+    public static string Legal(WordBook w, string key) => LegalTitle(w, w.Get(key));
+
+    /// <summary>A legal row's title as given (How tafs works' <c>onboarding.row_*</c>), saying it opens in English where kiff.dev lacks the language.</summary>
+    public static string LegalTitle(WordBook w, string title) =>
         w.Language == "en" || SignInScreen.LegalCode(w.Language) is not null
-            ? w.Get(key)
-            : w.Get("settings.legal_in_english", ("label", w.Get(key)));
+            ? title
+            : w.Get("settings.legal_in_english", ("label", title));
 
     /// <summary>How it works, for this Windows PC.</summary>
     public static string HowItWorks(WordBook w) => w.Get("sign_in.every_action_taf_takes_goes", ("device", w.Get("device.windows")));

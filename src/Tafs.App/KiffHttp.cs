@@ -114,6 +114,14 @@ static class KiffHttp
         return await SendAsync(request, cancel);
     }
 
+    /// <summary>A read of one of KIFF's public routes (the terms version in force), with no session: nothing to sign in as yet.</summary>
+    /// <exception cref="HttpRequestException">KIFF wasn't reached.</exception>
+    public static async Task<(int Status, string Body)> PublicGetAsync(string path, CancellationToken cancel = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, path);
+        return await SendAsync(request, cancel);
+    }
+
     /// <summary>
     /// A read as the session, from KIFF or another host it signs in to (tafs cloud), in the app's language: tafs cloud
     /// words its lines in it.

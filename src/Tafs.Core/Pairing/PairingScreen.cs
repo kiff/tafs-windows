@@ -112,6 +112,8 @@ public static class PairingScreen
     /// </summary>
     public static string Why(WordBook w, ClaimResult result)
     {
+        // The terms changed since the welcome's tick: the welcome unticks its box and says so.
+        if (result.Status == ClaimStatus.TermsOutdated) return w.Get("onboarding.terms_changed");
         var status = result.Status == ClaimStatus.InvalidProof
             ? "403"
             : new string((result.Detail ?? "").TakeWhile(char.IsAsciiDigit).ToArray());

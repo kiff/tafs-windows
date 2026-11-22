@@ -300,6 +300,9 @@ public sealed partial class MainWindow : Window
         {
             HideGate();
             Nav.SelectedItem = BrandItem;
+            // Then the three cards on how tafs works, the first time on this PC (the iPad's `celebrated()`).
+            if (screenshot is null && OnboardingCards.ShowAfterSignIn())
+                _ = OnboardingCards.ShowAsync(Root.XamlRoot, Root.ActualTheme, afterSignIn: true);
         };
         this.screenshot = screenshot;
 
@@ -367,6 +370,14 @@ public sealed partial class MainWindow : Window
             standInSeesEveryTaf = true;
         }
 
+        // The three cards on how tafs works, over the app, for a screenshot.
+        if (page is "cards-1" or "cards-2" or "cards-3")
+        {
+            var preview = OnboardingCards.Preview((Tafs.Core.SignIn.Onboarding.Card)(page[^1] - '1'), Root.RequestedTheme == ElementTheme.Default ? Root.ActualTheme : Root.RequestedTheme);
+            Grid.SetRowSpan((FrameworkElement)preview, 99);
+            Grid.SetColumnSpan((FrameworkElement)preview, 99);
+            Root.Children.Add(preview);
+        }
         if (page == "pair") OpenPairing();
         else if (page == "pair-why") OpenBeside(typeof(PairingPage), "why");
         else if (page == "account") OnAccount(this, new RoutedEventArgs());

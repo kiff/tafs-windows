@@ -1344,7 +1344,11 @@ public sealed partial class TafPage : Page
     /// A Card's face: its name and environment pill, its figure and the words under it, its facts, who issued it and until
     /// when, in white on the taf's colour (a Card scoped to a test environment in grey), with the iPad's ring at its corner.
     /// </summary>
-    Border Face(TafCard card, int depth)
+    Border Face(TafCard card, int depth) =>
+        CardFace(card, depth, opening?.IssuedBy ?? "", opening?.Head.Colour ?? 0, revoked, ThemeColour("TafsDim"));
+
+    /// <summary>The face itself, for any Card: who issued it, its taf's colour, whether it's revoked, and the theme's dim for a test Card. The onboarding cards draw it too.</summary>
+    internal static Border CardFace(TafCard card, int depth, string issuedBy, int colour, bool revoked, Windows.UI.Color dim)
     {
         var w = App.Words;
         var white = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
@@ -1405,7 +1409,7 @@ public sealed partial class TafPage : Page
         bottom.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var issued = new StackPanel { Spacing = 1 };
         issued.Children.Add(Text(w.Get("card.issued_by"), 10, 0.75));
-        issued.Children.Add(Text(opening?.IssuedBy ?? "", 12, bold: true));
+        issued.Children.Add(Text(issuedBy, 12, bold: true));
         var ends = new StackPanel { Spacing = 1, HorizontalAlignment = HorizontalAlignment.Right };
         // A Card with no end says so, never a far-off date.
         var endWord = revoked ? "card.revoked" : !card.Active ? "card.ended" : card.Expires is null ? "card.ends" : "card.until";
@@ -1429,7 +1433,7 @@ public sealed partial class TafPage : Page
         if (shade > 0) layers.Children.Add(new Border { Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.ColorHelper.FromArgb((byte)(shade * 255), 0, 0, 0)) });
 
         // A Card scoped to another environment in the theme's dim, as the iPad's Theme.dim.
-        var fill = card.Live ? RecordLineView.Colour(opening!.Head.Colour) : new Microsoft.UI.Xaml.Media.SolidColorBrush(ThemeColour("TafsDim"));
+        var fill = card.Live ? RecordLineView.Colour(colour) : new Microsoft.UI.Xaml.Media.SolidColorBrush(dim);
         if (revoked || !card.Active) fill.Opacity = 0.4;
         return new Border { Width = CardWidth, Height = Math.Round(CardWidth * 54 / 85.6), CornerRadius = new CornerRadius(18), Background = fill, Child = layers };
     }
