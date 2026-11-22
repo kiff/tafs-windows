@@ -86,16 +86,26 @@ public static class YourSteps
         var steps = new List<YourStep>();
         foreach (var s in list.EnumerateArray())
         {
-            if (s.ValueKind != JsonValueKind.Object || Text(s, "handoff") is not { } handoff) return null;
-            string? tafId = null, tafName = null;
-            if (Field(s, "taf") is { ValueKind: JsonValueKind.Object } t && Text(t, "id") is { } id) (tafId, tafName) = (id, Text(t, "name") ?? "");
-            var words = Field(s, "words") is { ValueKind: JsonValueKind.Object } w
-                ? new StepWords(Text(w, "title") ?? "", Text(w, "done") ?? "", Text(w, "skip") ?? "", Text(w, "open"), Text(w, "line") ?? "")
-                : new StepWords();
-            steps.Add(new(handoff, Text(s, "run") ?? "", tafId, tafName, Text(s, "what") ?? "", Text(s, "why") ?? "",
-                Text(s, "link"), Text(s, "link_host"), Text(s, "since") ?? "", Text(s, "expires") ?? "", words));
+            if (ReadOne(s) is not { } step) return null;
+            steps.Add(step);
         }
         return steps;
+    }
+
+    /// <summary>
+    /// One step, as Home's <c>your_steps[]</c> and a work request's <c>your_step</c> carry it (the iPad's <c>YourStep</c>); null
+    /// for one with no hand-off id.
+    /// </summary>
+    public static YourStep? ReadOne(JsonElement s)
+    {
+        if (s.ValueKind != JsonValueKind.Object || Text(s, "handoff") is not { } handoff) return null;
+        string? tafId = null, tafName = null;
+        if (Field(s, "taf") is { ValueKind: JsonValueKind.Object } t && Text(t, "id") is { } id) (tafId, tafName) = (id, Text(t, "name") ?? "");
+        var words = Field(s, "words") is { ValueKind: JsonValueKind.Object } w
+            ? new StepWords(Text(w, "title") ?? "", Text(w, "done") ?? "", Text(w, "skip") ?? "", Text(w, "open"), Text(w, "line") ?? "")
+            : new StepWords();
+        return new(handoff, Text(s, "run") ?? "", tafId, tafName, Text(s, "what") ?? "", Text(s, "why") ?? "",
+            Text(s, "link"), Text(s, "link_host"), Text(s, "since") ?? "", Text(s, "expires") ?? "", words);
     }
 
     /// <summary>
