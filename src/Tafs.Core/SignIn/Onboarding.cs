@@ -29,6 +29,48 @@ public static class Onboarding
     /// <summary>Whether the three cards follow the celebration: once on this PC, until Get started or Skip.</summary>
     public static bool ShowsCards(bool seen) => !seen;
 
+    /// <summary>A card's title.</summary>
+    public static string Title(WordBook w, Card card) => w.Get(card switch
+    {
+        Card.Tafs => "onboarding.tafs_title",
+        Card.Card => "onboarding.card_title",
+        _ => "onboarding.control_title",
+    });
+
+    /// <summary>A card's lead; the last names how this PC approves (<see cref="ControlLead"/>).</summary>
+    public static string Lead(WordBook w, Card card) => card switch
+    {
+        Card.Tafs => w.Get("onboarding.tafs_lead"),
+        Card.Card => w.Get("onboarding.card_lead"),
+        _ => ControlLead(w),
+    };
+
+    /// <summary>The card after this one; none after the last.</summary>
+    public static Card? Next(Card card) => card == Card.Control ? null : card + 1;
+
+    /// <summary>The button under a card: Next, or Get started on the last.</summary>
+    public static string Button(WordBook w, Card card) => w.Get(Next(card) is null ? "onboarding.get_started" : "common.next");
+
+    /// <summary>
+    /// The first card's picture, Home's taf rows: the sample's three tafs that never move money (Support replies, Late
+    /// parcels, Lead follow-up), each with its name, job and colour.
+    /// </summary>
+    public static IReadOnlyList<(string Name, string Job, int Colour)> SampleTafRows(WordBook w)
+    {
+        var colours = Tafs.Core.Taf.SampleTafs.All(w).ToDictionary(t => t.Key, t => t.Colour);
+        return new[] { "support", "parcels", "leads" }
+            .Select(k => (w.Get($"sample.{k}.name"), w.Get($"sample.{k}.job"), colours.TryGetValue(k, out var c) ? c : 0)).ToList();
+    }
+
+    /// <summary>How tafs works (Account): the four legal pages as rows, each titled as its page is (<c>onboarding.row_*</c>).</summary>
+    public static IReadOnlyList<(string Title, Uri Link)> LegalRows(WordBook w) =>
+    [
+        (w.Get("onboarding.row_kiff_privacy"), KiffPage(w.Language, "privacy")),
+        (w.Get("onboarding.row_tafs_privacy"), SignInScreen.Privacy(w.Language)),
+        (w.Get("onboarding.row_kiff_terms"), KiffPage(w.Language, "terms")),
+        (w.Get("onboarding.row_tafs_terms"), SignInScreen.Terms(w.Language)),
+    ];
+
     /// <summary>
     /// The one tick: "I agree to KIFF's Terms of Service and the tafs Terms", in pieces, each name linked wherever the
     /// language puts it (KIFF's Terms, then tafs's).

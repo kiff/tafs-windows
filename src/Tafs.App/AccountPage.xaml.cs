@@ -208,11 +208,13 @@ public sealed partial class AccountPage : Page
             Footer(w.Get("export.own_chats_each_taf_coach"));
         }
         Section(w.Get("sign_in.how_works"), [Words(AccountScreen.HowItWorks(w), "TafsSoftText", 15)]);
-        Section(w.Get("settings.legal"),
-        [
-            Action(AccountScreen.Legal(w, "settings.terms"), "TafsAccentText", () => _ = Windows.System.Launcher.LaunchUriAsync(SignInScreen.Terms(w.Language))),
-            Action(AccountScreen.Legal(w, "settings.privacy_policy"), "TafsAccentText", () => _ = Windows.System.Launcher.LaunchUriAsync(SignInScreen.Privacy(w.Language))),
-        ]);
+        // How tafs works, any time (the iPad's HowTafsWorksView): the three cards again, each opening where it's tapped.
+        Section(w.Get("onboarding.how_it_works"), Enum.GetValues<Onboarding.Card>().Select(card =>
+            (UIElement)Opens(Row(Onboarding.Title(w, card), "", chevron: true), Onboarding.Title(w, card),
+                () => _ = OnboardingCards.ShowAsync(XamlRoot, ActualTheme, card))).ToList());
+        // The four legal pages, KIFF's and tafs's, each titled as its page is; one kiff.dev lacks in this language says so.
+        Section(w.Get("settings.legal"), Onboarding.LegalRows(w).Select(row => Action(
+            AccountScreen.LegalTitle(w, row.Title), "TafsAccentText", () => _ = Windows.System.Launcher.LaunchUriAsync(row.Link))).ToList());
         Section(w.Get("settings.about"),
         [
             Row(w.Get("settings.version"), AccountScreen.VersionLabel(typeof(App).Assembly.GetName().Version)),

@@ -60,3 +60,36 @@ public class OnboardingTests
         Assert.False(Onboarding.ShowsCards(seen: true));
     }
 }
+
+[Part("pairing")]
+public class OnboardingCardsTests
+{
+    public static IEnumerable<object[]> Shipped() => WordBook.Shipped(SharedFiles.Strings).Select(l => new object[] { l });
+
+    [Theory, MemberData(nameof(Shipped))]
+    public void Every_card_reads_in_every_shipped_language(string language)
+    {
+        var w = WordBook.Load(SharedFiles.Strings, language);
+        foreach (var card in Enum.GetValues<Onboarding.Card>())
+        {
+            Assert.NotEmpty(Onboarding.Title(w, card));
+            Assert.NotEmpty(Onboarding.Lead(w, card));
+            Assert.NotEmpty(Onboarding.Button(w, card));
+        }
+        Assert.Equal(3, Onboarding.SampleTafRows(w).Count);
+        Assert.Equal(4, Onboarding.LegalRows(w).Count);
+    }
+
+    [Fact]
+    public void The_cards_go_in_order_and_the_last_says_Get_started()
+    {
+        var w = WordBook.Load(SharedFiles.Strings, "en");
+        Assert.Equal(Onboarding.Card.Card, Onboarding.Next(Onboarding.Card.Tafs));
+        Assert.Equal(Onboarding.Card.Control, Onboarding.Next(Onboarding.Card.Card));
+        Assert.Null(Onboarding.Next(Onboarding.Card.Control));
+        Assert.Equal(w.Get("common.next"), Onboarding.Button(w, Onboarding.Card.Tafs));
+        Assert.Equal(w.Get("onboarding.get_started"), Onboarding.Button(w, Onboarding.Card.Control));
+        Assert.Equal(w.Get("onboarding.control_lead_desktop"), Onboarding.Lead(w, Onboarding.Card.Control));
+        Assert.Equal(["Support replies", "Late parcels", "Lead follow-up"], Onboarding.SampleTafRows(w).Select(r => r.Name));
+    }
+}
