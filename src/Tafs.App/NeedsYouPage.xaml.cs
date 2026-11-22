@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
@@ -230,7 +231,12 @@ public sealed partial class NeedsYouPage : Page
             var gate = NeedsYouScreen.Gate(w);
             var add = Button(gate.Add, "TafsOutlineButton", sending: false);
             add.Click += (_, _) => AddThisDeviceChosen?.Invoke();
-            return new StackPanel { Spacing = 8, Children = { Line(gate.Lead, 13, "TafsSoftText"), add } };
+            // "Approve on your phone instead": the gate goes, nothing is handed over; the call is answered on the phone.
+            var onPhone = Button(gate.OnPhone, "TafsOutlineButton", sending: false);
+            AutomationProperties.SetAutomationId(onPhone, "approval.on-phone");
+            var panel = new StackPanel { Spacing = 8, Children = { Line(gate.Lead, 13, "TafsSoftText"), add, onPhone } };
+            onPhone.Click += (_, _) => panel.Visibility = Visibility.Collapsed;
+            return panel;
         }
         var b = Button(w.Get(key, ("biometry", "Windows Hello")), "TafsPrimary", sending);
         b.Click += (_, _) => HeldAnswerChosen?.Invoke(call, answer);
