@@ -528,8 +528,8 @@ public sealed partial class CoachPanel : UserControl
                 if (m.Kickoff) said.Children.Add(Kickoff(m));
                 else
                 {
-                    var text = Words(m.Text, 16, "TafsInkText");
-                    text.IsTextSelectionEnabled = true;
+                    // Coach's words as Markdown, as the iPad's MarkdownText: no symbol shows as written.
+                    var text = MarkdownView.Build(m.Text, 16, Brush);
                     said.Children.Add(text);
                     // The answer's menu, Report this answer, on an answer the person can report (the iPad's reportable).
                     if (AnswerReport.Can(m, kiff: report is not null)) text.ContextFlyout = said.ContextFlyout = ReportMenu(m);
