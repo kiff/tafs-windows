@@ -165,6 +165,12 @@ public sealed partial class TafPage
         }
         if (door.Words?.Settings is { } settings) SetupPane.Children.Add(Words(settings, 12, "TafsDimText"));
         if (doorsWhy is { } why) SetupPane.Children.Add(Words(why, 13, "TafsNoText"));
+        // A door "From another application": its keys and signed changes, never the paired senders' panel or an unsigned removal.
+        if (door.IsApi)
+        {
+            ShowApiDoor(door, id);
+            return;
+        }
 
         var state = new Grid { ColumnSpacing = 12 };
         state.ColumnDefinitions.Add(new ColumnDefinition());
@@ -176,7 +182,7 @@ public sealed partial class TafPage
         {
             if (open.IsOn == door.Open) return;
             var on = open.IsOn;
-            _ = DoorChangeAsync(new HttpMethod("PATCH"), TafDoors.DoorPath(id, door.Id), TafDoors.OpenBody(on),
+            _ = DoorChangeAsync(HttpMethod.Patch, TafDoors.DoorPath(id, door.Id), TafDoors.OpenBody(on),
                 why => w.Get(on ? "door.not_opened" : "door.not_closed", ("why", why)));
         };
         Grid.SetColumn(open, 1);
