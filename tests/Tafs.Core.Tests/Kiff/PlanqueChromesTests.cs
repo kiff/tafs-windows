@@ -37,4 +37,23 @@ public class PlanqueChromesTests
         Assert.Equal("/v1/accounts/t_1/chromes", PlanqueChromes.ListPath("t_1"));
         Assert.Equal("/v1/accounts/t_1/chromes/chr%2F1", PlanqueChromes.ChromePath("t_1", "chr/1"));
     }
+
+    /// <summary>"Your Chrome" 3 and 4: a Chrome's connections are the account's live browser grants on it, each by name and sites; unpairing ends exactly these.</summary>
+    [Fact]
+    public void A_chrome_lists_the_live_connections_that_run_in_it()
+    {
+        static string Grant(string id, string status, string title, string browser) =>
+            "{\"id\": \"" + id + "\", \"status\": \"" + status + "\", \"text\": \"t\", \"digest\": \"d\", \"title\": \"" + title
+            + "\", \"events\": [], \"request\": {\"server\": \"https://planque.kiff.dev/browser\", \"agent\": \"a\", \"tools\": [], \"browser\": " + browser + "}}";
+        var json = "{\"grants\": [" + string.Join(",",
+            Grant("g1", "connected", "Wiki lookup", """{"driver": "extension", "chrome": "chr_1", "chrome_name": "Work laptop", "sites": ["wikipedia.org"]}"""),
+            Grant("g2", "disconnected", "Old", """{"driver": "extension", "chrome": "chr_1", "sites": ["old.example"]}"""),
+            Grant("g3", "connected", "Elsewhere", """{"driver": "extension", "chrome": "chr_2", "sites": ["shop.example"]}"""),
+            Grant("g4", "connected", "Hosted", """{"sites": ["news.example"]}""")) + "]}";
+        var grants = PlanqueGrants.Read(System.Text.Encoding.UTF8.GetBytes(json))!;
+        Assert.Equal(new[] { "Wiki lookup · wikipedia.org" }, PlanqueChromes.ConnectionsOn(grants, "chr_1"));
+        Assert.Equal("Work laptop", grants[0].Chrome!.ChromeName);
+        Assert.Null(grants[3].Chrome);
+        Assert.Empty(PlanqueChromes.ConnectionsOn(grants, "chr_9"));
+    }
 }

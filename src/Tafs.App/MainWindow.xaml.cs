@@ -2252,7 +2252,12 @@ public sealed partial class MainWindow : Window
                 {
                     return w.Get("common.didnt_go_through", ("what", w.Get("chrome.remove_named", ("name", chrome.Name))), ("why", w.Get("error.offline")));
                 }
-            });
+            },
+            // The account's connections, read on planque as this device as the approval cards read them.
+            () => GrantsAsync(session));
+    }
+
+    /// <summary>
     /// A door "From another application"'s signed changes (the iPad's <c>signDoorRequest</c>), for whoever manages the taf on a PC
     /// that approves with its passkey, as <see cref="RemoveFor"/>: Windows Hello names the act, the passkey asserts over the
     /// method, path and exact body, and the change goes to tafs cloud with <c>KIFF-Passkey-Assertion</c>. None for anyone else.

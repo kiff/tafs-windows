@@ -36,4 +36,13 @@ public static class PlanqueChromes
     /// <summary>"Chrome on Windows", when the Chrome says both.</summary>
     public static string? Says(WordBook w, PairedChrome c) =>
         c.Browser is { Length: > 0 } b && c.Os is { Length: > 0 } o ? w.Get("chrome.browser_on", ("browser", b), ("system", o)) : null;
+
+    /// <summary>
+    /// The connections on a Chrome (docs/chrome.md, "Your Chrome" 3 and 4): the account's live browser connections that run in it,
+    /// each as "Wiki lookup · wikipedia.org" (the connection's name, then its sites). Unpairing the Chrome ends exactly these.
+    /// </summary>
+    public static IReadOnlyList<string> ConnectionsOn(IEnumerable<PlanqueGrant> grants, string chromeId) =>
+        grants.Where(g => g.Chrome?.ChromeId == chromeId && g.Status != "disconnected")
+            .Select(g => string.Join(" · ", new[] { g.Title ?? g.AgentName ?? g.Request.Agent, string.Join(", ", g.Chrome!.Sites) }.Where(x => x.Length > 0)))
+            .ToList();
 }
