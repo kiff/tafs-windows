@@ -172,6 +172,8 @@ public sealed partial class TafPage
             var step = steps.Listed(own.Handoff) ?? own;
             row.Children.Add(StepCard.Build(step, onTaf: true, steps.CanAnswer(), steps.Answering(step.Handoff), steps.Hello(),
                 why => StepCard.NotReady(why, steps.CheckHello), done => steps.Answer(step, done)));
+            // Why the last answer to this step didn't go through, in red under it, as Needs you says it at its top.
+            if (steps.Why(step.Handoff) is { } refused) row.Children.Add(Words(refused, 13, "TafsNoText"));
         }
         else row.Children.Add(Words(r.Line, 14, r.State == "needs_you" ? "TafsAmberWords" : r.State == "failed" ? "TafsNoText" : "TafsSoftText"));
         if (r.CreditsLine is { } used) row.Children.Add(Words(used, 12, "TafsDimText"));
