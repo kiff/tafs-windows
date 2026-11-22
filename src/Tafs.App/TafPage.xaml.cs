@@ -107,6 +107,9 @@ public sealed record TafLineView(string Title, string Time, string Detail, strin
 public sealed partial class TafPage : Page
 {
     TafOpening? opening;
+
+    /// <summary>The taf on screen, for Coach's start switch: its tafs cloud id and name; none for a sample taf or a trial.</summary>
+    internal (string Id, string Name)? OnScreen => opening is { CloudId: { } id, InTrial: null } o ? (id, o.Head.Name) : null;
     string filter = "all";
     /// <summary>tafs cloud's Activity, one set of pages a filter, as the iPad keeps them by taf and filter.</summary>
     readonly Dictionary<string, ActivityPages> cloudPages = [];
