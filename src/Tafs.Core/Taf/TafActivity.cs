@@ -5,8 +5,13 @@ using Tafs.Core.Words;
 
 namespace Tafs.Core.Taf;
 
-/// <summary>One line of a taf's Activity: what became of a call (its dot), what it was, the words under it, and its time.</summary>
-public sealed record ActivityLine(string Id, EntryKind Kind, string Title, string Detail, string Time, string? Amount = null);
+/// <summary>
+/// One line of a taf's Activity: what became of a call (its dot), what it was, the words under it, and its time. tafs cloud's
+/// carry KIFF's call (<paramref name="Call"/>), which opens its receipt, and on a payment this reader may report, the offer
+/// (<paramref name="Report"/>), or when it was reported (<paramref name="ReportedAt"/>).
+/// </summary>
+public sealed record ActivityLine(string Id, EntryKind Kind, string Title, string Detail, string Time, string? Amount = null,
+    ActivityCall? Call = null, ReportOffer? Report = null, DateTimeOffset? ReportedAt = null);
 
 /// <summary>One day of a taf's Activity: its eyebrow and its lines, newest first.</summary>
 public sealed record ActivityGroup(string Title, IReadOnlyList<ActivityLine> Lines);
@@ -46,7 +51,9 @@ public static class TafActivity
     /// <summary>One of tafs cloud's Activity entries, as drawn: none without an id or a title. The Record's search reads its hits with it.</summary>
     public static ActivityLine? Line(JsonElement e) =>
         Lenient.Text(e, "id") is { } id && Lenient.Text(e, "title") is { } title
-            ? new ActivityLine(id, EntryKinds.Parse(Lenient.Text(e, "kind")), title, Lenient.Text(e, "detail") ?? "", Lenient.Text(e, "time") ?? "", Lenient.Text(e, "amount_text"))
+            ? new ActivityLine(id, EntryKinds.Parse(Lenient.Text(e, "kind")), title, Lenient.Text(e, "detail") ?? "", Lenient.Text(e, "time") ?? "", Lenient.Text(e, "amount_text"),
+                Lenient.Field(e, "call") is { ValueKind: JsonValueKind.Object } c ? KiffActivity.ReadCall(c) : null,
+                ReportPayment.Offer(e), ReportPayment.ReportedAt(e))
             : null;
 
     /// <summary>The iPad's filters of a taf's Activity (its ActivityFilter): All, Done (its own word, not the Record's), Held, Refused.</summary>

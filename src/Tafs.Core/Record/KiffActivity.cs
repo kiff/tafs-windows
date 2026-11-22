@@ -51,6 +51,9 @@ public static class KiffActivity
         return calls;
     }
 
+    /// <summary>One of KIFF's calls, read as strictly as each in <see cref="Read"/>; none when it isn't one. tafs cloud's entries carry it as <c>call</c>.</summary>
+    public static ActivityCall? ReadCall(JsonElement c) => Call(c);
+
     static ActivityCall? Call(JsonElement c)
     {
         string[] required = ["proposal_id", "action_name", "outcome"];

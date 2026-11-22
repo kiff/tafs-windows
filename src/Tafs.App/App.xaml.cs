@@ -144,6 +144,12 @@ public partial class App : Application
     public static event Action<Tafs.Core.Kiff.PlanqueSignedIn>? SignedInReturned;
 
     /// <summary>
+    /// WhatsApp's sign-up page's return (<c>tafs://doors/whatsapp?…</c>), for the sign-up waiting on it, which takes it only
+    /// with its own state. Raised on the window's thread.
+    /// </summary>
+    public static event Action<Tafs.Core.Taf.WhatsAppSignedUp>? WhatsAppReturned;
+
+    /// <summary>
     /// The window as the one tafs: Windows hands it the <c>tafs:</c> scheme (registered for this user, as Windows App SDK
     /// does for an app that isn't packaged), and every later start's activation, brought to the front. A start that was
     /// itself a return passes it on.
@@ -187,5 +193,7 @@ public partial class App : Application
         }
         if (Tafs.Core.Kiff.PlanqueSignIn.Read(protocol.Uri) is { } signedIn)
             SignedInReturned?.Invoke(signedIn);
+        else if (Tafs.Core.Taf.WhatsAppDoor.Read(protocol.Uri) is { } signedUp)
+            WhatsAppReturned?.Invoke(signedUp);
     }
 }
