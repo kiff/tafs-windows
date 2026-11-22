@@ -528,7 +528,7 @@ public sealed partial class CoachPanel : UserControl
                 else
                 {
                     // Coach's words as Markdown, as the iPad's MarkdownText: no symbol shows as written.
-                    var text = MarkdownView.Build(m.Text, 16, Brush);
+                    var text = Revealing(m);
                     said.Children.Add(text);
                     // The answer's menu, Report this answer, on an answer the person can report (the iPad's reportable).
                     if (AnswerReport.Can(m, kiff: report is not null)) text.ContextFlyout = said.ContextFlyout = ReportMenu(m);
