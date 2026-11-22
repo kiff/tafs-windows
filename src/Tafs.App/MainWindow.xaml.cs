@@ -138,6 +138,22 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         // Right to left for Arabic and Hebrew: every panel, list and row mirrors, as SwiftUI does on the iPad.
         Root.FlowDirection = App.Direction;
+        // What this PC's passkey approves, said over the whole window while Windows Hello is up (NamedHello).
+        var approving = new InfoBar
+        {
+            Severity = InfoBarSeverity.Informational, IsClosable = false, IsOpen = false, Margin = new Thickness(24, 16, 24, 0),
+            VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Center, MaxWidth = 640,
+        };
+        AutomationProperties.SetLiveSetting(approving, Microsoft.UI.Xaml.Automation.Peers.AutomationLiveSetting.Assertive);
+        Grid.SetRowSpan(approving, 99);
+        Grid.SetColumnSpan(approving, 99);
+        Canvas.SetZIndex(approving, 100);
+        Root.Children.Add(approving);
+        NamedHello.Saying += line => DispatcherQueue.TryEnqueue(() =>
+        {
+            approving.Message = line ?? "";
+            approving.IsOpen = line is not null;
+        });
         // The mascot in the title bar and the taskbar, as the exe's own icon.
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "tafs.ico"));
         // Back at the front: Your tafs' order settles again, as the iPad's when the app comes back.
@@ -692,9 +708,13 @@ public sealed partial class MainWindow : Window
             async (sheet, body) =>
             {
                 var confirmed = await HoldAllow.ConfirmAsync(w, sheet.Draft!.Id, body,
-                    (path, signed) => HoldAllow.SignConfirmAsync(session,
-                        session.PasskeyId is { } id ? new PasskeyApprover(new WindowsHello(() => App.WindowHandle), KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals) : null,
-                        path, signed, SigningTime.Next(DateTimeOffset.UtcNow)),
+                    (path, signed) =>
+                    {
+                        using var _ = HelloAct.Naming(w.Get("needs_you.allow_title"));
+                        return HoldAllow.SignConfirmAsync(session,
+                            session.PasskeyId is { } id ? new PasskeyApprover(new NamedHello(), KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals) : null,
+                            path, signed, SigningTime.Next(DateTimeOffset.UtcNow));
+                    },
                     (path, signed, signature) => KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), signed, bearer, w.Language, signature: signature),
                     () => reading == sessions, SessionStore.Why);
                 // The Card changed, and with the switch on the call went: Needs you and Home read again.
@@ -728,8 +748,10 @@ public sealed partial class MainWindow : Window
         needsYouError = null;
         ShowHeld(held);
         ShowSteps();
-        var hello = new WindowsHello(() => App.WindowHandle);
+        var hello = new NamedHello();
         var credential = session.PasskeyId is { } passkeyId ? KiffSigning.FromBase64Url(passkeyId) : null;
+        // Windows Hello names the call: its taf and what it asks, as Needs you shows it.
+        using var named = HelloAct.Naming(call.Taf + " · " + call.Summary);
         var answered = await HeldAnswers.AnswerAsync(w, call, answer, session.Tenant, session.Mode, session.PasskeyId,
             // The device key's answer asks for the person first, as the iPad's signer.sign(message, reason:).
             ConfirmStepAsync,
@@ -1187,7 +1209,7 @@ public sealed partial class MainWindow : Window
     {
         var w = App.Words;
         using var key = TpmKey.Open(session.KeyName);
-        var hello = new WindowsHello(() => App.WindowHandle);
+        var hello = new NamedHello();
         var passkey = session.PasskeyId is { } id ? new PasskeyApprover(hello, KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals) : null;
         var kiff = Tafs.Core.SignIn.DeviceSignIn.Api;
         var calls = new Tafs.Core.Coach.StartCalls(
@@ -1357,10 +1379,15 @@ public sealed partial class MainWindow : Window
         var agent = taf is null ? null : home?.Tafs.FirstOrDefault(t => t.Id == taf)?.Agent;
         return () =>
         {
-            var hello = new WindowsHello(() => App.WindowHandle);
+            var hello = new NamedHello();
             var passkey = new PasskeyApprover(hello, KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);
             return HaltResume.ResumeAsync(App.Words, taf, agent, taf is null ? null : name,
-                path => HaltResume.SignAsync(session, passkey, path, SigningTime.Next(DateTimeOffset.UtcNow)),
+                path =>
+                {
+                    // Windows Hello names the act: "Resume {taf}", or every taf.
+                    using var _ = HelloAct.Naming(taf is null ? App.Words.Get("taf.halt.resume_all_prompt") : App.Words.Get("taf.halt.resume_prompt", ("taf", name)));
+                    return HaltResume.SignAsync(session, passkey, path, SigningTime.Next(DateTimeOffset.UtcNow));
+                },
                 async (path, signature) => (await KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), HaltResume.Body(), bearer,
                     App.Words.Language, signature: signature)).Status,
                 async path =>
@@ -1612,7 +1639,7 @@ public sealed partial class MainWindow : Window
             },
             async (path, body) =>
             {
-                var passkey = new PasskeyApprover(new WindowsHello(() => App.WindowHandle), KiffSigning.FromBase64Url(passkeyId), Features.WindowsPasskeyApprovals);
+                var passkey = new PasskeyApprover(new NamedHello(), KiffSigning.FromBase64Url(passkeyId), Features.WindowsPasskeyApprovals);
                 return (PasskeyApprover.HeaderName, await passkey.ApproveAsync(session.Tenant, "POST", path, body, SigningTime.Next(DateTimeOffset.UtcNow)));
             },
             (path, body, signature) => KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), body, bearer, w.Language, signature: signature),
@@ -1634,6 +1661,8 @@ public sealed partial class MainWindow : Window
             () => SigningTime.Next(DateTimeOffset.UtcNow), () => gen == sessions, SessionStore.Why,
             // Connecting the app the card asks for (P9): in KIFF's window, opened with this PC's passkey.
             (planque, body) => Tafs.Core.Connections.ConnectFlow.AskedAsync(w, session.Tenant, planque, body, ConnectCallsFor(session, passkeyId)));
+        // Windows Hello names the act: the card's own title, as Coach shows it.
+        using var named = HelloAct.Naming(card.Title is { Length: > 0 } title ? title : w.Get("coach.title"));
         try { return await Tafs.Core.Coach.CoachApproval.ApproveAsync(w, coach, card, session.Tenant, conversation, shownDigest, shownDraft, calls, shownWords); }
         // A kept passkey id that can't be read, or anything else unforeseen: the card says why, and never stays waiting.
         catch (Exception e) when (e is FormatException or System.Security.Cryptography.CryptographicException)
@@ -2011,6 +2040,8 @@ public sealed partial class MainWindow : Window
             var key = (taf.Id, item.Id);
             var calls = new Tafs.Core.Taf.KnobEventCalls(() => read(Tafs.Core.Taf.TafKnob.Path(taf.Id)), ConnectCallsFor(session, id),
                 body => change(HttpMethod.Post, Tafs.Core.Taf.KnobEvent.RecordPath(taf.Id), body));
+            // Windows Hello names the act: the event's own label, as its sheet shows it.
+            using var named = HelloAct.Naming(item.Label);
             var result = await Tafs.Core.Taf.KnobEvent.ApproveAsync(App.Words, session.Tenant, agent, version, item, calls,
                 eventReceipts.GetValueOrDefault(key));
             if (result.Approved || result.Kept is null) eventReceipts.Remove(key);
@@ -2036,7 +2067,7 @@ public sealed partial class MainWindow : Window
         return new(
             async path =>
             {
-                var windowsHello = new WindowsHello(() => App.WindowHandle);
+                var windowsHello = new NamedHello();
                 var passkey = new PasskeyApprover(windowsHello, KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);
                 return (PasskeyApprover.HeaderName, await passkey.ApproveAsync(session.Tenant, "DELETE", path, [], SigningTime.Next(DateTimeOffset.UtcNow)));
             },
@@ -2093,11 +2124,15 @@ public sealed partial class MainWindow : Window
             async () => (await read(TafRemoval.PreviewPath(taf.Id))).Answer is { } a ? TafRemoval.PreviewWords(a) : null,
             () =>
             {
-                var windowsHello = new WindowsHello(() => App.WindowHandle);
+                var windowsHello = new NamedHello();
                 var passkey = new PasskeyApprover(windowsHello, KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);
                 return TafRemoval.RemoveAsync(App.Words, taf.Id, taf.Name, taf.CardIds, taf.Revoked,
-                    async path => (PasskeyApprover.HeaderName,
-                        await passkey.ApproveAsync(session.Tenant, "DELETE", path, TafRemoval.Body(), SigningTime.Next(DateTimeOffset.UtcNow))),
+                    async path =>
+                    {
+                        using var _ = HelloAct.Naming(App.Words.Get("taf.remove.prompt", ("taf", taf.Name)));
+                        return (PasskeyApprover.HeaderName,
+                            await passkey.ApproveAsync(session.Tenant, "DELETE", path, TafRemoval.Body(), SigningTime.Next(DateTimeOffset.UtcNow)));
+                    },
                     async path => (await KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), TafRemoval.RevokeBody(), bearer,
                         App.Words.Language)).Status is >= 200 and <= 299,
                     async (path, signature) =>
@@ -2132,7 +2167,8 @@ public sealed partial class MainWindow : Window
         return new(agent, read, email, (add, remove) => Tafs.Core.Account.Shares.ApplyAsync(App.Words, session.Tenant, taf.Name, agent, add, remove,
             async (path, body) =>
             {
-                var passkey = new PasskeyApprover(new WindowsHello(() => App.WindowHandle), KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);
+                using var _ = HelloAct.Naming(App.Words.Get("people.share.title", ("taf", taf.Name)));
+                var passkey = new PasskeyApprover(new NamedHello(), KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);
                 return (PasskeyApprover.HeaderName, await passkey.ApproveAsync(session.Tenant, "POST", path, body, SigningTime.Next(DateTimeOffset.UtcNow)));
             },
             ConfirmStepAsync,

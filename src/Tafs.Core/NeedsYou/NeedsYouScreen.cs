@@ -127,7 +127,11 @@ public static class NeedsYouScreen
     /// Where the answers go, until this PC approves with Windows Hello (its own change): why it can't, and Add
     /// this Windows PC. Words, as the iPad's ApprovalNotReady, never buttons that can't work.
     /// </summary>
-    public static ViewOnlyLines Gate(WordBook w) => PairingScreen.ViewOnly(w);
+    public static GateLines Gate(WordBook w)
+    {
+        var v = PairingScreen.ViewOnly(w);
+        return new GateLines(v.Title, v.Lead, v.Add, w.Get("approval.security_key.on_phone"));
+    }
 
     /// <summary>
     /// Where the answers go, as the iPad's <c>answers(refuseOnly:)</c>: someone without <c>holds.answer</c> reads who answers,
@@ -189,3 +193,9 @@ public static class TafColors
     /// <summary>The colour for a taf's index, wrapping around, as RGB.</summary>
     public static uint Of(int index) => Colors[((index % Colors.Length) + Colors.Length) % Colors.Length];
 }
+
+/// <summary>
+/// The gate where this PC can't approve (the iPad's <c>ApprovalGate</c>): why, Add this Windows PC, and "Approve on your phone
+/// instead" (the PM, kiff/work#20, 20:12), which puts the gate away: nothing is handed over, the call is answered on the phone.
+/// </summary>
+public sealed record GateLines(string Title, string Lead, string Add, string OnPhone);

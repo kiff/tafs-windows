@@ -311,3 +311,16 @@ public class PairingClaimTermsTests
         Assert.Equal(w.Get("onboarding.terms_changed"), PairingScreen.Why(w, result));
     }
 }
+
+[Part("pairing")]
+public class GateOnPhoneTests
+{
+    [Fact]
+    public void The_gate_offers_the_phone_instead_in_the_shared_words()
+    {
+        var w = Tafs.Core.Words.WordBook.Load(Tafs.Core.Tests.Strings.SharedFiles.Strings, "en");
+        var gate = Tafs.Core.NeedsYou.NeedsYouScreen.Gate(w);
+        Assert.Equal(w.Get("approval.security_key.on_phone"), gate.OnPhone);
+        Assert.Equal(PairingScreen.ViewOnly(w).Add, gate.Add);
+    }
+}

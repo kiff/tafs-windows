@@ -1,11 +1,11 @@
 # The port checklist
 
-Each iPad view file (kiff/tafs `ios/Tafs/Views`, at the pin, 43da43e: 57 files) against its Windows status. A file is
+Each iPad view file (kiff/tafs `ios/Tafs/Views`, at the pin, 9843655: 57 files) against its Windows status. A file is
 **ported** when every branch it draws is on Windows, **partial** when part of it is (what's missing is named), **not
 started**, or **not for Windows** (and why). The tables describe main; what an open pull request brings is marked with
 its number, "(#65, open)". The PR that ports a file updates its line here.
 
-**Re-anchored at 43da43e (22 Nov).** The seven files added since d14217f are listed under Not started. The rows' words
+**Re-anchored at 43da43e (22 Nov), pin 9843655 since.** The seven files added since d14217f are listed under Not started. The rows' words
 are still d14217f's: 30 files have grown since (most: SignInView, OnboardingView, SetupChatView, ConnectAppsView), and
 each row is read again, against the pin's file, by the batch PR that ports it. Items marked "(#NN, merged)" are on main
 (they merged on 16 Nov) but still sit in the row's Missing column until that batch moves them.
@@ -21,6 +21,9 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | DiscardSettingUp.swift | 35 | Discard a taf being set up | | Discard beside Finish setting up, every word tafs cloud's; the confirmation; one Windows Hello; Loading while it goes; Home read again (`MainWindow.Discard.cs`, `Tafs.Core/Home/SetupDiscard.cs`) |
 | HomeRecipes.swift | 242 | Home with no taf: the recipes | | In the empty table's place on the Overview, tafs cloud's line, "Say it in your own words", a chip per category, each recipe with its headline, line and app marks, a tap to its sheet (`OverviewPage.ShowRecipes`, `GalleryPage`, `Tafs.Core/Home/Gallery.ReadForHome`) |
 | RecipeGallery.swift | 135 | The jobs' gallery | | Explore jobs and the strip with See all jobs in the sidebar; the gallery's chips and categories, `RecipeRow`, `AppMarks` with tafs cloud's logos, `RecipeSheet` with Try it with Coach; + New's create mode with "Say it in your own words" (`GalleryPage.xaml.cs`, `MainWindow.Gallery.cs`, `Tafs.Core/Home/Gallery.cs`) |
+| ApprovalSetupView.swift | 102 | This device's approval readiness, and the gate in place of an approval's button | | In place of an approval's buttons, why this PC can't approve, Add this Windows PC and Approve on your phone instead (`approval.security_key.on_phone`, the gate going with nothing handed over) (`NeedsYouScreen.Gate`, `NeedsYouPage.xaml.cs`); Coach's Start off for a session that can't approve (`CoachStart.MayStart`); Windows Hello's readiness for every approval (`HelloState`, `HelloGate`, `ApprovalGate`) with its words, the settings path for Windows, Open Settings and Check again; and the act named while Windows Hello is up (`approval.hello.before`, `NamedHello`) |
+| AllowSheetView.swift | 96 | "Allow this from now on" | | The change before and after in tafs cloud's words, KIFF's lines for each Card that changes, what it would have done, the held call's switch, not offered, round up, and one Windows Hello naming the act (`AllowDialog.cs`, `Tafs.Core/NeedsYou/HoldAllow.cs`) |
+| AppEventApprovalSheet.swift | 54 | An app event's filters before signing a subscription | | The stop's label and words, every filter in full, then Approve with Windows Hello (naming the event) or Cancel, why it didn't go in the sheet (`TafPage.Event.cs`, `Tafs.Core/Taf/KnobEvent.cs`) |
 | HaltScreen.swift | 176 | A halt of one taf or every taf | | A taf's halt row and the sidebar's Halt all, each opening the Halt screen with its state and words (`HaltPage`, `Tafs.Core/Taf/Halt.cs`, #70) |
 | NotificationSettingsView.swift | 138 | Account › Alerts | | Alerts on this PC per account, Sound, the two sample alerts (`AlertsPage`, `AlertPrefs`, #72). Not for Windows: "even with tafs closed", What alerts you (a phone's push token) and Haptics |
 | TrialViews.swift | 214 | Trials of a new version | | Try it with its Card, Start trying, the trial's row and chat with its bar and guide, Resume, Go back, Install (`TafPage.Trial.cs`, `MainWindow.Trials.cs`, `Tafs.Core/Taf/TafTrials.cs`) |
@@ -29,6 +32,7 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 | iPad file | Lines | What | Windows has | Missing |
 | :- | -: | :- | :- | :- |
+| YourStepCard.swift | 46 | A step a taf hands the person | On Needs you: tafs cloud's words, the vouched link and its host, Done and Skip signed with this PC's device key (`NeedsYouPage.xaml.cs`, `Tafs.Core/NeedsYou/YourStep.cs`, #77) | On a taf's own page (`onTaf`: no taf name, its work read again once answered): with the "a taf" batch |
 | BriefView.swift | 448 | "Your brief": decisions first with Coach's recommendation, the next move, what got done | The brief's decisions with Coach's recommendation and what happens meanwhile, the next move, what got done, the label chips, Later as tafs cloud's unsigned post, Coach's waiting chats in one line (`BriefPage.xaml.cs`, `MainWindow.Brief.cs`, `Tafs.Core/Missions`) | Read again, branch by branch, against the pin's file (it's new since d14217f): the mission log, the two columns on a wide window |
 | OnboardingView.swift | 188 | The welcome: what tafs is, the tick for both Terms with the privacy links and the age line, Continue (KIFF in the browser) and Sign in with your phone, both waiting on the tick, Try it with sample data | The signed-out window's two halves (the owner's mockup) with the consent under them: the tick, both Terms linked, privacy as two links, the age line by this PC's region, "The Terms changed", Continue through KIFF in the browser (K5: PKCE, `dev.kiff.tafs:/oauth`, the ticked terms) and Show the code, each waiting on the tick (`SignedOutPage`, `AppSignInFlow`, `Tafs.Core/SignIn/AppSignIn.cs`, `Onboarding.cs`) | Try it with sample data: the sample opens only with `--sample`, for screenshots |
 | SignInView.swift | 333 | `SignInView`: Sign in with KIFF. Also `SettingsView`, `PlanRow`, `AccountView`, `AccountLines` (Account) | `SignInView`: the code, Open KIFF, the link for another browser, the wait, why it failed and Sign in with KIFF again, adding this PC from the phone instead, the terms line (`SignInPage.xaml.cs`, `Tafs.Core/SignIn`). `SettingsView` as Account: Mode, View only, the Alerts row, the theme, the language and Change language, How it works, Legal, About, sign out with its question, Clear the sample, People & apps with its Devices row (`AccountPage.xaml.cs`, `Tafs.Core/Account/AccountScreen.cs`) | `SignInView`'s Copy. The KIFF account's rows from `GET /v1/me` (KIFF account, Signed in as, `AccountLines`); People & groups under People & apps (#73, merged); the Plan section (`PlanRow`); Coach's suggestions; the AI-data consent; the time zone; Your chats; `AccountView` (its lines, using this computer's zone, Export my chats (#74, merged), Delete account). The Alerts row opens a placeholder |
@@ -50,7 +54,6 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | CoachToolsStep.swift | 255 | Coach's tools still to give, and what's given as Start's screen draws it | `CoachToolsGiven(start: true)`: Coach's Cards in KIFF's words, then each group and tool under the step's details, folded, or the batch's lines (`CoachPanel.xaml.cs`, #65, open) + the row and the step for a Coach that exists, given under one Windows Hello, and `taken` (`CoachPanel.Tools.cs`, `CoachTools.cs`) | `CoachToolsStep` for a first start without tafs cloud's words |
 | DevicesView.swift | 69 | Account › Devices | The title, each device's name or "A device", Last used or Not used yet, This device, the footer, and a failed read in plain words (`DevicesPage.xaml.cs`, `Tafs.Core/Account/Devices.cs`) + Sign out for another device and the passkeys with Remove, each approved by this PC's passkey (`AccountRemoval`, `Passkeys.cs`); read again when the window comes back | Pairing a computer and adding a passkey from here are the phone's (`PairComputerView`) |
 | ReportAnswerSheet.swift | 124 | Report an answer | The reasons, the note and its limit, Send, the thanks or already reported, and not sent with why, from Coach's answers (`ReportAnswerDialog.cs`, `Tafs.Core/Coach/AnswerReport.cs`, `CoachPanel.xaml.cs`), and from a taf's and a trial's answers in their chat (`TafPage.xaml.cs`) | |
-| ApprovalSetupView.swift | 102 | This device's approval readiness, and the gate in place of an approval's button | In place of an approval's buttons, why this PC can't approve and Add this Windows PC (`NeedsYouScreen.Gate`, `NeedsYouPage.xaml.cs`); Coach's Start off for a session that can't approve (`CoachStart.MayStart`) + Windows Hello's readiness for every approval (`HelloState`, `HelloGate`, `ApprovalGate`): its words, Open Settings and Check again, in a button's place and as a dialog's notice | The settings path in the shared words for Windows (`approval.settings_path.windows`) |
 | PeopleViews.swift | 291 | People & groups, naming a group, adding someone | Groups and people, every 20 s while open (`PeoplePage`, `People`, #73); the changes, each behind Windows Hello and signed by this PC's key (`PeopleChanges`) | |
 | TafChatView.swift | 826 | A taf's chat | Reading and showing a taf's thread (`TafChat`, the Chat tab, #83) | Sending, attachments, the mic, and the rest of the thread's actions (part 2) |
 
@@ -58,8 +61,6 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 | iPad file | Lines | What | Models |
 | :- | -: | :- | :- |
-| AllowSheetView.swift | 96 | "Allow this from now on" (#80, merged, with `HoldAllow.swift` and `TafsCloud+Allow.swift`) | |
-| AppEventApprovalSheet.swift | 54 | An app event's filters before signing a subscription | The sheet, the dial read again, planque's subscription in a window opened with Windows Hello, tafs cloud's record, a kept subscription recorded again (`TafPage.Event.cs`, `KnobEvent.cs`) | |
 | AttachViews.swift | 267 | Attaching photos and files in a chat | Attachment |
 | DeleteAccountView.swift | 60 | Deleting the account | |
 | DoorsView.swift | 923 | A taf's Doors tab | DoorsModel, PlanqueClient |
@@ -72,7 +73,6 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | TafKnobRemote.swift | 64 | The remote's buttons: back, lower, pause, raise, next | KnobNavigation |
 | TafKnobView.swift | 377 | The taf's remote | KnobNavigation |
 | TafSetupViews.swift | 512 | A taf's Setup: Starts when, Results go to, the pending dial | DoorsModel |
-| YourStepCard.swift | 46 | A step a taf hands the person (#77, merged) | |
 | APIDoorViews.swift | 406 | A door "From another application": its count and cap, last request, keys, New key, Revoke, the instructions (new since d14217f; batch: a taf) | DoorsModel |
 | ChromeViews.swift | 178 | Account › Chrome: paired Chromes, Pair a Chrome, Unpair, once planque offers it (new since d14217f; batch: Account) | |
 | FilesViews.swift | 453 | Files: the account's or a taf's, newest first, the list beside the open file (new since d14217f; batch: a taf) | |
@@ -113,4 +113,4 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 ## Coverage
 
-Ported 10, partial 24, not started 20, not for Windows 3: the 57 view files at 43da43e (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial).
+Ported 13, partial 24, not started 17, not for Windows 3: the 57 view files at the pin (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial, approvals' ApprovalSetupView, AllowSheetView and AppEventApprovalSheet, with YourStepCard partial).

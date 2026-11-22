@@ -136,6 +136,9 @@ public sealed partial class TafPage
             try
             {
                 // Exactly the draft read, by its id and version: never drafted again.
+                // Windows Hello names the act: "Try version {n} of {taf}, with its own Card".
+                using var named = HelloAct.Naming(App.Words.Get("version.trial.prompt",
+                    ("n", v.N.ToString(Tafs.Core.Words.Locale.Culture(App.Words.Language))), ("taf", opening?.Head.Name ?? "")));
                 var started = await trying.Start(v.N, read);
                 if (opening != mine) { dialog.Hide(); return; }
                 if (started.Open is { } open)

@@ -126,7 +126,7 @@ public sealed partial class MainWindow
                 string header;
                 try
                 {
-                    var passkey = new PasskeyApprover(new WindowsHello(() => App.WindowHandle), KiffSigning.FromBase64Url(passkeyId), Features.WindowsPasskeyApprovals);
+                    var passkey = new PasskeyApprover(new NamedHello(), KiffSigning.FromBase64Url(passkeyId), Features.WindowsPasskeyApprovals);
                     header = await passkey.ApproveAsync(session.Tenant, "POST", ApprovalWindow.Path, body, SigningTime.Next(DateTimeOffset.UtcNow));
                 }
                 catch (Exception e) when (e is PasskeyRefusedException or InvalidDataException or FormatException or System.Runtime.InteropServices.COMException
