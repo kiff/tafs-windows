@@ -29,9 +29,17 @@ public sealed record GrantAction(string Id, string Words, string How, string? St
 /// person reads before approving, and its digest. <see cref="DigestMatches"/> is set by the read, never read from planque: the
 /// digest is the hash of what it covers as received, and only then may it be approved.
 /// </summary>
+/// <summary>A browser connection's Chrome: planque's id for it, its name as paired, and the sites the connection opens.</summary>
+public sealed record ChromeConnection(string ChromeId, string? ChromeName, IReadOnlyList<string> Sites);
+
 public sealed record PlanqueGrant(string Id, string Status, string Text, string Digest, GrantRequest Request, IReadOnlyList<(string At, string What)> Events)
 {
     public string? StatusWords { get; init; }
+    /// <summary>
+    /// A browser connection on the owner's own Chrome (<c>request.browser</c>, <c>driver: extension</c>): the Chrome it runs in,
+    /// that Chrome's name as paired, and its sites. None for any other connection (docs/chrome.md, "Your Chrome" 4).
+    /// </summary>
+    public ChromeConnection? Chrome { get; init; }
     public IReadOnlyList<string>? Terms { get; init; }
     public string? Account { get; init; }
     public string? Title { get; init; }
@@ -143,7 +151,11 @@ public static class PlanqueGrants
         return new PlanqueGrant(T(g, "id")!, T(g, "status")!, T(g, "text")!, T(g, "digest")!, request,
             g.GetProperty("events").EnumerateArray().Select(e => (T(e, "at")!, T(e, "what")!)).ToList())
         {
-            StatusWords = T(g, "status_words"), Terms = Words("terms"), Account = T(g, "account"), Title = T(g, "title"), UsedBy = Words("used_by"),
+            StatusWords = T(g, "status_words"),
+            Chrome = Lenient.Field(r, "browser") is { ValueKind: JsonValueKind.Object } b && T(b, "driver") == "extension" && T(b, "chrome") is { Length: > 0 } chromeId
+                ? new ChromeConnection(chromeId, T(b, "chrome_name"),
+                    Lenient.Array(b, "sites").Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()!).ToList())
+                : null, Terms = Words("terms"), Account = T(g, "account"), Title = T(g, "title"), UsedBy = Words("used_by"),
             Health = Lenient.Field(g, "health") is { ValueKind: not JsonValueKind.Null } h ? Health(h) : null,
             Actions = Lenient.Field(g, "actions") is { ValueKind: JsonValueKind.Array } a ? a.EnumerateArray().Select(Action).ToList() : null,
             Tools = Words("tools"), Reason = T(g, "reason"), SignedIn = Flag(g, "signed_in"), HeldUntil = T(g, "held_until"), Entry = T(g, "entry"),
