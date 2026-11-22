@@ -116,8 +116,9 @@ public class NeedsYouScreenTests
     }
 
     [Fact]
-    public void Portuguese_money_is_written_as_in_Portugal() =>
-        Assert.EndsWith("€", NeedsYouScreen.Euros(WordBook.Load(SharedFiles.Strings, "pt"), 8_400));
+    // CLDR's pt, as the iPad formats it: the symbol first, as in Brazil.
+    public void Portuguese_money_is_written_as_CLDR_s_pt() =>
+        Assert.StartsWith("€", NeedsYouScreen.Euros(WordBook.Load(SharedFiles.Strings, "pt"), 8_400));
 
     [Fact]
     public void A_taf_s_initial_and_colour()

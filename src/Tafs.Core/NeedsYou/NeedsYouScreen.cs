@@ -150,8 +150,8 @@ public static class NeedsYouScreen
         name.Length == 0 ? "?" : StringInfo.GetNextTextElement(name).ToUpper(CultureInfo.InvariantCulture);
 
     /// <summary>
-    /// Euros in the language's own way: "€8,400" in English, "8 400 €" in French. tafs' Portuguese is
-    /// Portugal's (telemóvel, registo), so its money is written as in Portugal, not Brazil.
+    /// Euros in the language's own way: "€8,400" in English, "8 400 €" in French, each by `Locale.Culture` (pt as CLDR's
+    /// pt, as on the iPad).
     /// </summary>
     public static string Euros(WordBook w, decimal amount)
     {

@@ -45,7 +45,7 @@ public sealed partial class CalendarPage : Page
         NavTitle.Text = CalendarScreen.Heading(w);
         // The date in the person's language, "November 15, 2026" or "15 novembre 2026": the full month, so juin and juillet never read alike.
         // A template, not a pattern: Windows' formatter for the language decides the order, the particles and the case.
-        Picker.Language = w.Language == "pt" ? "pt-PT" : w.Language;
+        Picker.Language = w.Language;
         // As the iPad's compact DatePicker: the month short ("Nov 15, 2026"), in the language's own order.
         Picker.DateFormat = "day month.abbreviated year.full";
         AutomationProperties.SetName(Modes, w.Get("calendar.view_picker"));

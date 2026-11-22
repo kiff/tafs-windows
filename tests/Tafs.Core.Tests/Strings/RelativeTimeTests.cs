@@ -29,7 +29,7 @@ public class RelativeTimeTests
 public class LocaleTests
 {
     [Fact]
-    public void Portuguese_is_Portugal_s() => Assert.Equal("pt-PT", Locale.Culture("pt").Name);
+    public void Portuguese_formats_as_CLDR_s_pt_as_on_the_iPad() => Assert.Equal("pt", Locale.Culture("pt").Name);
 
     [Fact]
     public void Arabic_dates_are_Gregorian_with_Latin_digits()
@@ -58,4 +58,12 @@ public class IsolatedValuesTests
         Assert.Contains("⁨5⁩", WordBook.Load(SharedFiles.Strings, "he").Get("needs_you.tab_label", ("n", "5")), StringComparison.Ordinal);
         Assert.DoesNotContain("⁨", WordBook.Load(SharedFiles.Strings, "fr").Get("needs_you.tab_label", ("n", "5")), StringComparison.Ordinal);
     }
+}
+
+[Part("strings")]
+public class WithoutDirectionTests
+{
+    [Fact]
+    public void A_value_can_t_close_its_isolate_or_turn_the_line() =>
+        Assert.Equal("⁨ab⁩", Locale.Isolated("a⁩‮b‏"), StringComparer.Ordinal);
 }

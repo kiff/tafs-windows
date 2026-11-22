@@ -26,7 +26,7 @@ public class WordBookTests
     }
 
     [Theory]
-    [InlineData("pt", 0, "other")]
+    [InlineData("pt", 0, "one")]
     [InlineData("pt-BR", 0, "one")]
     [InlineData("pt-BR", 1, "one")]
     [InlineData("pt-BR", 2, "other")]

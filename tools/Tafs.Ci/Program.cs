@@ -53,7 +53,7 @@ async Task<int> Cldr()
     // tafs's languages (languages.json's "all", pt-BR, and batch 5's), each with the CLDR locale that speaks it as the iPad does.
     var languages = new (string Code, string Locale)[]
     {
-        ("en", "en"), ("de", "de"), ("fr", "fr"), ("es", "es"), ("it", "it"), ("pt", "pt-PT"), ("pt-BR", "pt"), ("nl", "nl"),
+        ("en", "en"), ("de", "de"), ("fr", "fr"), ("es", "es"), ("it", "it"), ("pt", "pt"), ("pt-BR", "pt"), ("nl", "nl"),
         ("pl", "pl"), ("ja", "ja"), ("ko", "ko"), ("et", "et"), ("el", "el"), ("lt", "lt"), ("lv", "lv"), ("cs", "cs"),
         ("sk", "sk"), ("sl", "sl"), ("hu", "hu"), ("ro", "ro"), ("bg", "bg"), ("hr", "hr"), ("tr", "tr"), ("id", "id"),
         ("vi", "vi"), ("th", "th"), ("zh-Hant", "zh-Hant"), ("ar", "ar"), ("sr-Latn", "sr-Latn"), ("sq", "sq"), ("ka", "ka"),

@@ -15,12 +15,11 @@ public static class PluralRules
         var n100 = n % 100;
         switch (language)
         {
-            // pt is European Portuguese (pt-PT), where only 1 is "one"; Brazil's rule would make 0 "one" too.
-            case "en": case "de": case "es": case "it": case "nl": case "pt": case "ca": case "et":
+            case "en": case "de": case "es": case "it": case "nl": case "ca": case "et":
             case "el": case "hu": case "bg": case "tr": case "az": case "sq": case "ka": case "mn": case "ne":
                 return n == 1 ? "one" : "other";
-            // 0 and 1 are "one": Brazilian Portuguese (CLDR pt), French, Armenian, Bengali.
-            case "pt-BR": case "fr": case "hy": case "bn":
+            // 0 and 1 are "one": Portuguese (CLDR pt, as the iPad and Linux format it, pt-BR too), French, Armenian, Bengali.
+            case "pt": case "pt-BR": case "fr": case "hy": case "bn":
                 return n <= 1 ? "one" : "other";
             // One form for every number.
             case "ko": case "ja": case "id": case "vi": case "th": case "zh-Hant": case "km": case "lo":
