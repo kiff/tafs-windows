@@ -55,7 +55,9 @@ public sealed record WorkDelivery(string Place, string? Key, string State, strin
 }
 
 /// <summary>One request: done, working, retrying, needs_you, waiting, stopped or failed, in tafs cloud's words, and where it went.</summary>
-public sealed record WorkRequest(string Id, DateTimeOffset At, string State, string Line, IReadOnlyList<WorkDelivery> Deliveries, string? CreditsLine);
+/// <param name="Step">A step the taf handed its owner for this request (<c>your_step</c>), answered on the taf's page in place of the line.</param>
+public sealed record WorkRequest(string Id, DateTimeOffset At, string State, string Line, IReadOnlyList<WorkDelivery> Deliveries, string? CreditsLine,
+    Tafs.Core.NeedsYou.YourStep? Step = null);
 
 /// <summary>A scheduled run that was skipped: not a failure, nothing ran.</summary>
 public sealed record WorkSkipped(DateTimeOffset Due, string Why, string Words);
@@ -130,6 +132,7 @@ public sealed record TafWork(string Line, TafHealth? Health, OldestWaiting? Olde
         if (r.ValueKind != JsonValueKind.Object || Lenient.Text(r, "id") is not { } id || Lenient.At(r, "at") is not { } at) return null;
         var deliveries = Lenient.Array(r, "deliveries").Where(d => d.ValueKind == JsonValueKind.Object).Select(Delivery).ToList();
         var credits = Lenient.Field(r, "credits") is { ValueKind: JsonValueKind.Object } c && Lenient.Text(c, "words")?.Trim() is { Length: > 0 } used ? used : null;
-        return new(id, at, Lenient.Text(r, "state") ?? "", Lenient.Text(r, "line") ?? "", deliveries, credits);
+        var step = Lenient.Field(r, "your_step") is { ValueKind: JsonValueKind.Object } s ? Tafs.Core.NeedsYou.YourSteps.ReadOne(s) : null;
+        return new(id, at, Lenient.Text(r, "state") ?? "", Lenient.Text(r, "line") ?? "", deliveries, credits, step);
     }
 }
