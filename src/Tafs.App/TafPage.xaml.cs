@@ -46,8 +46,10 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
 /// <param name="Answering">An answer going for this hand-off: Done and Skip off.</param>
 /// <param name="Answer">Done (true) or Skip (false), through Needs you's own answering.</param>
 /// <param name="CheckHello">Check again, when Windows Hello wasn't ready.</param>
+/// <param name="Why">Why the last answer didn't go through (Needs you's own line), drawn under the step it was for.</param>
 public sealed record TafSteps(Func<string, Tafs.Core.NeedsYou.YourStep?> Listed, Func<string, bool> Answered, Func<bool> CanAnswer,
-    Func<string, bool> Answering, Func<Tafs.Core.NeedsYou.HelloReadiness> Hello, Action<Tafs.Core.NeedsYou.YourStep, bool> Answer, Action CheckHello);
+    Func<string, bool> Answering, Func<Tafs.Core.NeedsYou.HelloReadiness> Hello, Action<Tafs.Core.NeedsYou.YourStep, bool> Answer, Action CheckHello,
+    Func<string, string?> Why);
 
 /// <summary>
 /// A taf's files, as the iPad's <c>TafFilesEntry</c>: the account's list read for its count (none while it's read or when the
