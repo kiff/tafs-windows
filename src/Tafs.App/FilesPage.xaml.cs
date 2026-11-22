@@ -167,7 +167,7 @@ public sealed partial class FilesPage : Page
     {
         var lines = new StackPanel { Spacing = 2 };
         lines.Children.Add(Text(file.Name, 15, "TafsInkText", semibold: true));
-        lines.Children.Add(Text(string.Join(" · ", new[] { file.TafName, DeliveredFiles.Size(file.Bytes, Culture) }.Where(s => s.Length > 0)), 13, "TafsDimText"));
+        lines.Children.Add(Text(string.Join(" · ", new[] { file.TafName, FileSizes.Words(W.Language, file.Bytes) }.Where(s => s.Length > 0)), 13, "TafsDimText"));
         lines.Children.Add(Text(DeliveredFiles.Goes(W, DeliveredFiles.DaysLeft(file, now)), 12, "TafsAmberWords"));
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, Children = { Badge(file.Type, 40), lines } };
         var button = new Button
@@ -308,7 +308,7 @@ public sealed partial class FilesPage : Page
         if (file.TafName.Length > 0) facts.Children.Add(Fact(W.Get("files.made_by"), file.TafName));
         facts.Children.Add(Fact(W.Get("files.in_run"), TimeZoneInfo.ConvertTime(file.RunAt, Zone).ToString("d MMM yyyy, HH:mm", Culture)));
         facts.Children.Add(Fact(W.Get("files.type"), file.Type));
-        facts.Children.Add(Fact(W.Get("files.size"), DeliveredFiles.Size(file.Bytes, Culture)));
+        facts.Children.Add(Fact(W.Get("files.size"), FileSizes.Words(W.Language, file.Bytes)));
         facts.Children.Add(Fact(W.Get("files.who_sees"), W.Get("files.everyone")));
         facts.Children.Add(Fact(W.Get("files.goes_away"), W.Get("files.goes_on", ("date", TimeZoneInfo.ConvertTime(file.GoesAt, Zone).ToString("d MMM yyyy", Culture)))));
         Detail.Children.Add(new Border { Child = facts, Padding = new Thickness(16), CornerRadius = new CornerRadius(14), Background = Brush("TafsPanel") });
