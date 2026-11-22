@@ -27,6 +27,8 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | HaltScreen.swift | 176 | A halt of one taf or every taf | | A taf's halt row and the sidebar's Halt all, each opening the Halt screen with its state and words (`HaltPage`, `Tafs.Core/Taf/Halt.cs`, #70) |
 | NotificationSettingsView.swift | 138 | Account › Alerts | | Alerts on this PC per account, Sound, the two sample alerts (`AlertsPage`, `AlertPrefs`, #72). Not for Windows: "even with tafs closed", What alerts you (a phone's push token) and Haptics |
 | TrialViews.swift | 214 | Trials of a new version | | Try it with its Card, Start trying, the trial's row and chat with its bar and guide, Resume, Go back, Install (`TafPage.Trial.cs`, `MainWindow.Trials.cs`, `Tafs.Core/Taf/TafTrials.cs`) |
+| SetupShapePanel.swift | 130 | What Coach has made so far | SetupShape | "Taking shape" beside Coach's conversation on a wide panel: the taf's name, the plan, the tools it connects and the Card KIFF drafted, from what this PC holds (`CoachPanel.Shape.cs`, `Tafs.Core/Coach/CoachShape.cs`, the `coach-wide` screenshot) |
+| TafSetupViews.swift | 512 | A taf's Setup: Starts when, Results go to, the pending dial | DoorsModel | Setup › Starts when (its schedule with − and +, If busy, the app events, the doors with Edit and Add a door, the follow-ups with Remove, Pause every start) and Results go to (tafs' own places at once, the connected apps' through the next version, the last place kept on), and the dial's next version waiting with Make it live (`TafPage.Starts.cs`, `TafPage.Doors.cs`, `Tafs.Core/Taf/TafKnob.cs`, the `taf-starts` and `taf-results` screenshots) |
 
 ## Partial
 
@@ -56,6 +58,7 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | ReportAnswerSheet.swift | 124 | Report an answer | The reasons, the note and its limit, Send, the thanks or already reported, and not sent with why, from Coach's answers (`ReportAnswerDialog.cs`, `Tafs.Core/Coach/AnswerReport.cs`, `CoachPanel.xaml.cs`), and from a taf's and a trial's answers in their chat (`TafPage.xaml.cs`) | |
 | PeopleViews.swift | 291 | People & groups, naming a group, adding someone | Groups and people, every 20 s while open (`PeoplePage`, `People`, #73); the changes, each behind Windows Hello and signed by this PC's key (`PeopleChanges`) | |
 | TafChatView.swift | 826 | A taf's chat | Reading and showing a taf's thread (`TafChat`, the Chat tab, #83) | Sending, attachments, the mic, and the rest of the thread's actions (part 2) |
+| DoorsView.swift | 923 | A taf's Doors tab | A door's own screen from Setup › Starts when (`DoorsView.only`): open or close, its address with Copy, who may give it work, pair and unpair, its day, Remove; strangers' knocks with Do it, Pair and Ignore; an email door added at once; `DoorStamp` in the chat (`TafPage.Doors.cs`, `Tafs.Core/Taf/TafDoors.cs`, `ChatViews.cs`) | `DoorDial` (the doors' own dial when the taf's can't be read), `DoorRim`, `AddDoorSheet`'s WhatsApp and Slack, the Slack sheet (planque's subscription), and the API door (`APIDoorViews`) |
 
 ## Not started
 
@@ -63,16 +66,13 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | :- | -: | :- | :- |
 | AttachViews.swift | 267 | Attaching photos and files in a chat | Attachment |
 | DeleteAccountView.swift | 60 | Deleting the account | |
-| DoorsView.swift | 923 | A taf's Doors tab | DoorsModel, PlanqueClient |
 | DriveViews.swift | 73 | Coach asks to drive the app, and what it did | DriveSession |
 | MicButton.swift | 122 | The mic in a chat's message bar | Dictation |
 | PlanViews.swift | 268 | Buying credits and Solo, asking an admin, declining a request. `BuyCreditsView` and `SoloView` buy through the App Store, so Windows needs its own store or KIFF's web flow; `AskAdminView` and `DeclineRequestView` are plain tafs cloud calls | Purchases |
 | RecordSearchViews.swift | 192 | The Record's search | |
-| SetupShapePanel.swift | 130 | What Coach has made so far | SetupShape |
 | TafDialPanel.swift | 228 | The dial's requests and confirmation | KnobNavigation, DoorsModel |
 | TafKnobRemote.swift | 64 | The remote's buttons: back, lower, pause, raise, next | KnobNavigation |
 | TafKnobView.swift | 377 | The taf's remote | KnobNavigation |
-| TafSetupViews.swift | 512 | A taf's Setup: Starts when, Results go to, the pending dial | DoorsModel |
 | APIDoorViews.swift | 406 | A door "From another application": its count and cap, last request, keys, New key, Revoke, the instructions (new since d14217f; batch: a taf) | DoorsModel |
 | ChromeViews.swift | 178 | Account › Chrome: paired Chromes, Pair a Chrome, Unpair, once planque offers it (new since d14217f; batch: Account) | |
 | FilesViews.swift | 453 | Files: the account's or a taf's, newest first, the list beside the open file (new since d14217f; batch: a taf) | |
@@ -113,4 +113,4 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 ## Coverage
 
-Ported 13, partial 24, not started 17, not for Windows 3: the 57 view files at the pin (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial, approvals' ApprovalSetupView, AllowSheetView and AppEventApprovalSheet, with YourStepCard partial).
+Ported 15, partial 25, not started 14, not for Windows 3: the 57 view files at the pin (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial, approvals' ApprovalSetupView, AllowSheetView and AppEventApprovalSheet, with YourStepCard partial; recounted with a taf's batch: SetupShapePanel and TafSetupViews ported, DoorsView partial).
