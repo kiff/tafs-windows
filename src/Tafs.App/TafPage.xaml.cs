@@ -25,7 +25,7 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     CardScreen CardOn = CardScreen.Main, bool CreditsPrevious = false, TafTrying? Trying = null, TafInTrial? InTrial = null,
     TafInstalling? Installing = null, Func<int, KnobItem, Task<KnobEventResult>>? ApproveEvent = null, TafSharing? Share = null,
     Action<string>? AskCoachAbout = null, Func<Task<string?>>? Revoke = null, bool RevokeNeedsApprover = false, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null,
-    Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafSteps? Steps = null)
+    Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafSteps? Steps = null, TafFiles? Files = null)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
@@ -47,6 +47,12 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
 /// <param name="CheckHello">Check again, when Windows Hello wasn't ready.</param>
 public sealed record TafSteps(Func<string, Tafs.Core.NeedsYou.YourStep?> Listed, Func<string, bool> Answered, Func<bool> CanAnswer,
     Func<string, bool> Answering, Func<Tafs.Core.NeedsYou.HelloReadiness> Hello, Action<Tafs.Core.NeedsYou.YourStep, bool> Answer, Action CheckHello);
+
+/// <summary>
+/// A taf's files, as the iPad's <c>TafFilesEntry</c>: the account's list read for its count (none while it's read or when the
+/// read fails), and Files opened on this taf.
+/// </summary>
+public sealed record TafFiles(Func<Task<IReadOnlyList<Tafs.Core.Files.DeliveredFile>?>> Load, Action Open);
 
 /// <summary>
 /// Remove for good, for whoever manages the taf on a PC that signs with its passkey: what goes with it, in tafs cloud's words,
@@ -141,6 +147,7 @@ public sealed partial class TafPage : Page
         ShowShare();
         // Its live version in the head, for whoever manages it, read now.
         ShowVersionLine();
+        _ = ShowFilesLinkAsync();
         if (opening is { CloudId: not null, Manages: true, InTrial: null }) _ = LoadVersionsAsync();
         StateText.Text = head.State;
         WaitingText.Text = head.State;

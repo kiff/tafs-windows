@@ -347,6 +347,8 @@ public sealed partial class MainWindow : Window
         };
         AccountPage.CloseChosen += CloseAccount;
         AccountPage.UsageChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
+        // Files from Account, as the iPad's People & apps row: every file the account's tafs delivered.
+        AccountPage.FilesChosen += () => { if (FilesOpeningFor(null) is { } files) OpenBeside(typeof(FilesPage), files); };
         AccountPage.PeopleChosen += () => OpenBeside(typeof(PeoplePage), new PeopleOpening(kiffRead,
             agent => home?.Tafs.FirstOrDefault(t => t.Agent == agent)?.Name, PeopleChangeFor(),
             Tafs.Core.Account.PeopleChanges.MayManagePeople(kiffAccount?.Capabilities)));
@@ -458,6 +460,10 @@ public sealed partial class MainWindow : Window
                     // Its composer as a session draws it; a send says it didn't reach, as offline.
                     Send = (_, _) => Task.FromResult(CloudRead.Unreached(w)),
                 });
+            // Files, the account's, from files-list.json and files-file.json beside the Home file: the list beside its first file.
+            if (page == "files")
+                OpenBeside(typeof(FilesPage), new FilesOpening(null, path => Task.FromResult(ContractRead(w, homeFile, path)), null, null,
+                    _ => Task.FromResult<byte[]?>(null)));
             // Setup › Starts when or Results go to, its dial from taf-knob.json beside the Home file, as whoever manages the taf.
             // The Card tab's versions or usage, from taf-versions.json or taf-credits.json beside the Home file, as whoever manages the taf.
             if (page is "taf-versions" or "taf-usage" && home?.Tafs.FirstOrDefault() is { } carded)
@@ -789,6 +795,31 @@ public sealed partial class MainWindow : Window
         YourSteps.CanAnswer(session is not null && !sampleHeld, mayAnswerHolds, session?.Tenant, session is not null && TpmKey.Exists(session.KeyName));
 
     /// <summary>
+    /// Files on tafs cloud as this session (docs/files.md), the account's or one taf's, in KIFF mode only: none signed out or
+    /// over the sample. Delete now is tafs cloud's change as this session.
+    /// </summary>
+    FilesOpening? FilesOpeningFor(string? taf) =>
+        sample || cloudRead is not { } read ? null : new(taf, read, cloudChange, kiffAccount?.TimeZone, FetchFileAsync);
+
+    /// <summary>
+    /// A file's bytes from the URL tafs cloud gives for a minute, as the iPad's ephemeral session: nothing cached on disk, no
+    /// bearer sent (the URL carries its own signature); none on any failure.
+    /// </summary>
+    static async Task<byte[]?> FetchFileAsync(Uri url)
+    {
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoStore = true, NoCache = true };
+            using var answer = await FileFetch.SendAsync(request);
+            return answer.IsSuccessStatusCode ? await answer.Content.ReadAsByteArrayAsync() : null;
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { return null; }
+    }
+
+    static readonly HttpClient FileFetch = new(new SocketsHttpHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(60) };
+
+    /// <summary>
     /// Your step on a taf's page, as the iPad's <c>canAnswer(step:)</c> and <c>yourStep(_:)</c>: Home's step when listed, answered
     /// through <see cref="AnswerStepAsync"/>; Windows Hello asked about once a step shows, as on Needs you.
     /// </summary>
@@ -1082,6 +1113,8 @@ public sealed partial class MainWindow : Window
         // The files opened again from a chat: a person's own, never left on this PC after them.
         ChatsExport.Remove(AttachTray.Folder);
         ChatsExport.Remove(Tafs.Core.Record.ReceiptsExport.Folder);
+        // A file opened from Files, as the iPad's FileCopy: never kept on this PC past its screen or its account.
+        FileCopies.RemoveAll();
         cloudRead = null;
         cloudReadWithProof = null;
         setupProof = null;
@@ -1721,6 +1754,8 @@ public sealed partial class MainWindow : Window
             : path.EndsWith("/conversation", StringComparison.Ordinal) && File.Exists(tafThread) ? tafThread
             : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(homeFile))!,
                 path.StartsWith(ConnectAppsScreen.ListPath, StringComparison.Ordinal) ? "connect-apps.json"
+                : path.StartsWith(Tafs.Core.Files.DeliveredFiles.ListPath + "?", StringComparison.Ordinal) || path == Tafs.Core.Files.DeliveredFiles.ListPath ? "files-list.json"
+                : path.StartsWith(Tafs.Core.Files.DeliveredFiles.ListPath + "/", StringComparison.Ordinal) ? (path.EndsWith("/download") ? "files-download.json" : "files-file.json")
                 : path == Gallery.Path ? "gallery.json" : path == Gallery.HomePath ? "recipes-home.json"
                 : path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "setup-coach.json"
                 : path.StartsWith("/v1/record/cases/", StringComparison.Ordinal) ? "record-case.json"
@@ -2023,6 +2058,11 @@ public sealed partial class MainWindow : Window
                 Held: () => held.Where(h => h.Taf == taf.Name).ToList(),
                 // Your step on its requests, answered as on Needs you.
                 Steps: TafStepsFor(),
+                // Its files, first on its header's line, as the iPad's TafFilesEntry.
+                Files: cloudRead is { } filesRead && FilesOpeningFor(taf.Id) is not null
+                    ? new TafFiles(async () => (await Tafs.Core.Files.DeliveredFiles.LoadAsync(filesRead)).Files,
+                        () => { if (FilesOpeningFor(taf.Id) is { } files) OpenBeside(typeof(FilesPage), files); })
+                    : null,
                 AskCoachAbout: words =>
                 {
                     if (!mayUseCoach) return;

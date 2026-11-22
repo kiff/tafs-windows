@@ -31,6 +31,7 @@ public sealed partial class AccountPage : Page
     public static event Action? DevicesChosen;
     public static event Action? PeopleChosen;
     public static event Action? ConnectAppsChosen;
+    public static event Action? FilesChosen;
 
     /// <summary>Close: Account goes, and what was open before it shows again.</summary>
     public static event Action? CloseChosen;
@@ -157,6 +158,8 @@ public sealed partial class AccountPage : Page
                 Opens(Row(w.Get("people.title"), "", chevron: true), w.Get("people.title"), () => PeopleChosen?.Invoke()),
                 Opens(Row(w.Get("settings.devices.title"), "", chevron: true), w.Get("settings.devices.title"), () => DevicesChosen?.Invoke()),
                 Opens(Row(w.Get("connect.apps.title"), "", chevron: true), w.Get("connect.apps.title"), () => ConnectAppsChosen?.Invoke()),
+                // Files (docs/files.md): every file the account's tafs delivered.
+                Opens(Row(w.Get("files.title"), "", chevron: true), w.Get("files.title"), () => FilesChosen?.Invoke()),
             ]);
         // What a new Coach conversation offers, as tafs cloud keeps it: its words say what the switch does now. Only someone who
         // manages the account's tafs changes it, as the iPad's.
