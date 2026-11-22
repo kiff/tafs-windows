@@ -64,7 +64,7 @@ public sealed partial class TafPage
         ShowSetup();
         if (screen is not (SetupScreen.Main or SetupScreen.Memory)) _ = LoadKnobAsync();
         // Its doors, on Starts when, for whoever manages the taf.
-        if (screen == SetupScreen.StartsWhen) _ = LoadDoorsAsync();
+        if (screen is SetupScreen.StartsWhen or SetupScreen.Door) _ = LoadDoorsAsync();
         // Every note, on What it remembers' See all.
         if (screen == SetupScreen.Memory) _ = LoadMemoryAsync();
     }
