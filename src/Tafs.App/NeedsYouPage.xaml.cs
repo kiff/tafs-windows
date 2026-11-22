@@ -352,49 +352,8 @@ public sealed partial class NeedsYouPage : Page
         steps = listed;
         Steps.Children.Clear();
         foreach (var step in listed)
-        {
-            var lines = new StackPanel { Spacing = 10 };
-            if (step.Said.Title.Length > 0) lines.Children.Add(new TextBlock { Text = step.Said.Title, Style = (Style)Application.Current.Resources["TafsEyebrow"] });
-            if (step.TafName is { Length: > 0 } name) lines.Children.Add(Line(name, 14, "TafsInkText", semibold: true));
-            lines.Children.Add(Line(step.What, 16, "TafsInkText", semibold: true));
-            if (step.Why.Length > 0) lines.Children.Add(Line(step.Why, 14, "TafsSoftText"));
-            if (YourSteps.OpenLink(step) is { } link)
-            {
-                var open = new Button
-                {
-                    Style = (Style)Application.Current.Resources["TafsOutlineButton"],
-                    Content = new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal, Spacing = 6,
-                        Children = { new FontIcon { Glyph = "\uE8A7", FontSize = 14 }, new TextBlock { Text = link.Words } },
-                    },
-                };
-                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(open, link.Words);
-                open.Click += (_, _) => _ = Windows.System.Launcher.LaunchUriAsync(link.Url);
-                // Where it really goes, as tafs cloud read the link.
-                var host = new TextBlock { Text = link.Host, FontSize = 12, FontFamily = new FontFamily("Cascadia Mono, Consolas"), Style = (Style)Application.Current.Resources["TafsDimText"] };
-                lines.Children.Add(new StackPanel { Spacing = 4, Children = { open, host } });
-            }
-            // Answering confirms with Windows Hello: until it's ready, why, in place of Done and Skip, as the iPad's ApprovalNotReady.
-            if (canAnswer && YourSteps.NotReady(App.Words, hello) is { } notReady) lines.Children.Add(HelloNotReadyView(notReady));
-            else if (canAnswer)
-            {
-                var busy = answering.Contains(step.Handoff);
-                // The iPad's PrimaryButtonStyle, and its look while off, as Coach's Send answers.
-                var done = new Button { Content = step.Said.Done, Style = (Style)Application.Current.Resources[busy ? "TafsPrimaryOff" : "TafsPrimary"], IsEnabled = !busy };
-                var skip = new Button { Content = step.Said.Skip, Style = (Style)Application.Current.Resources["TafsOutlineButton"], IsEnabled = !busy };
-                done.Click += (_, _) => StepAnswerChosen?.Invoke(step, true);
-                skip.Click += (_, _) => StepAnswerChosen?.Invoke(step, false);
-                lines.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { done, skip } });
-            }
-            var card = new Border
-            {
-                Background = ThemeBrush("TafsPanel"), BorderBrush = ChatViews.Themed("TafsAmberEdge"),
-                BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(18), Padding = new Thickness(16), Child = lines,
-            };
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(card, "yourStep." + step.Handoff);
-            Steps.Children.Add(card);
-        }
+            Steps.Children.Add(StepCard.Build(step, onTaf: false, canAnswer, answering.Contains(step.Handoff), hello, HelloNotReadyView,
+                done => StepAnswerChosen?.Invoke(step, done)));
         ShowEmpty();
     }
 
@@ -402,29 +361,7 @@ public sealed partial class NeedsYouPage : Page
     /// Hello not ready, as the iPad's <c>ApprovalNotReady</c>: the line, then Open Settings (Windows' sign-in options) where
     /// setting Hello up is the way, and Check again.
     /// </summary>
-    UIElement HelloNotReadyView(HelloNotReady notReady)
-    {
-        var w = App.Words;
-        var box = new StackPanel { Spacing = 8 };
-        var line = Line(notReady.Line, 14, "TafsInkText");
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(line, "approvalNotReady");
-        box.Children.Add(line);
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-        if (notReady.OpensSettings)
-        {
-            var open = new Button { Content = w.Get("voice.open_settings"), Style = (Style)Application.Current.Resources["TafsPrimary"] };
-            open.Click += (_, _) => _ = Windows.System.Launcher.LaunchUriAsync(YourSteps.HelloSettings);
-            buttons.Children.Add(open);
-        }
-        if (notReady.ChecksAgain)
-        {
-            var again = new Button { Content = w.Get("approval.check_again"), Style = (Style)Application.Current.Resources["TafsOutlineButton"] };
-            again.Click += (_, _) => HelloCheckChosen?.Invoke();
-            buttons.Children.Add(again);
-        }
-        if (buttons.Children.Count > 0) box.Children.Add(buttons);
-        return box;
-    }
+    UIElement HelloNotReadyView(HelloNotReady notReady) => StepCard.NotReady(notReady, () => HelloCheckChosen?.Invoke());
 
     /// <summary>
     /// "Did this happen?", each call on its card, as the iPad's <c>DidThisHappenCard</c>: on the panel with the amber edge, its

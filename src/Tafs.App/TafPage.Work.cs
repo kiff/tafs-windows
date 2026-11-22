@@ -31,6 +31,12 @@ public sealed partial class TafPage
         ShowWork();
     }
 
+    /// <summary>A step answered, or answering, or Windows Hello's state changed: its work drawn again, as it was read.</summary>
+    internal void StepsChanged() => ShowWork();
+
+    /// <summary>A step answered or ended from its page: its work read again, as the iPad's <c>YourStepCard(onTaf:)</c>.</summary>
+    internal void StepAnswered() => _ = LoadWorkAsync();
+
     /// <summary>The work and the runs, drawn into the top of the Activity, for a taf tafs cloud runs; or a run's own page.</summary>
     void ShowWork()
     {
@@ -159,7 +165,15 @@ public sealed partial class TafPage
     StackPanel RequestRow(Tafs.Core.Words.WordBook w, WorkRequest r)
     {
         var row = new StackPanel { Spacing = 2 };
-        row.Children.Add(Words(r.Line, 14, r.State == "needs_you" ? "TafsAmberWords" : r.State == "failed" ? "TafsNoText" : "TafsSoftText"));
+        // A step the taf handed its owner, answered here too, in place of its line: Home's, which carries the vendor's link
+        // when tafs cloud vouched for it, else the request's own. Answered on this PC, the line again.
+        if (r.Step is { } own && opening?.Steps is { } steps && !steps.Answered(own.Handoff))
+        {
+            var step = steps.Listed(own.Handoff) ?? own;
+            row.Children.Add(StepCard.Build(step, onTaf: true, steps.CanAnswer(), steps.Answering(step.Handoff), steps.Hello(),
+                why => StepCard.NotReady(why, steps.CheckHello), done => steps.Answer(step, done)));
+        }
+        else row.Children.Add(Words(r.Line, 14, r.State == "needs_you" ? "TafsAmberWords" : r.State == "failed" ? "TafsNoText" : "TafsSoftText"));
         if (r.CreditsLine is { } used) row.Children.Add(Words(used, 12, "TafsDimText"));
         foreach (var d in r.Deliveries)
         {
