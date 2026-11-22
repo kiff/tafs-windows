@@ -18,6 +18,9 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | ExportChatsView.swift | 82 | Export my chats | | Account › Export my chats: tafs cloud's export as the JSON and text files, Windows' share sheet, removed at every session change (`ChatsExport`, `ShareFiles`, #74) |
 | AIConsentView.swift | 74 | The AI-data consent screen, and Account's row for it | | tafs cloud's title and lines, Allow (its version) and Not now, put off for the session, back on any turn refused for want of it, an older screen's yes answered with the new words; Account's row: the given words and Withdraw, or the title opening the screen (`ConsentDialog`, `MainWindow.Consent.cs`, `AccountPage`, `Tafs.Core/Coach/AiConsent`). Not drawn: the sparkle above the title |
 | OnboardingCards.swift | 234 | The three cards on how tafs works, after sign-in and from How tafs works | | After the celebration, once on this PC: the sample's taf rows, the Card tab's own face, Needs you's held call (shown, not live); Skip, Next, Get started, the desktop's control lead; Account › How tafs works reopens each, with the four legal pages, KIFF's and tafs's (`OnboardingCards`, `AccountPage`, `Tafs.Core/SignIn/Onboarding.cs`) |
+| DiscardSettingUp.swift | 35 | Discard a taf being set up | | Discard beside Finish setting up, every word tafs cloud's; the confirmation; one Windows Hello; Loading while it goes; Home read again (`MainWindow.Discard.cs`, `Tafs.Core/Home/SetupDiscard.cs`) |
+| HomeRecipes.swift | 242 | Home with no taf: the recipes | | In the empty table's place on the Overview, tafs cloud's line, "Say it in your own words", a chip per category, each recipe with its headline, line and app marks, a tap to its sheet (`OverviewPage.ShowRecipes`, `GalleryPage`, `Tafs.Core/Home/Gallery.ReadForHome`) |
+| RecipeGallery.swift | 135 | The jobs' gallery | | Explore jobs and the strip with See all jobs in the sidebar; the gallery's chips and categories, `RecipeRow`, `AppMarks` with tafs cloud's logos, `RecipeSheet` with Try it with Coach; + New's create mode with "Say it in your own words" (`GalleryPage.xaml.cs`, `MainWindow.Gallery.cs`, `Tafs.Core/Home/Gallery.cs`) |
 | HaltScreen.swift | 176 | A halt of one taf or every taf | | A taf's halt row and the sidebar's Halt all, each opening the Halt screen with its state and words (`HaltPage`, `Tafs.Core/Taf/Halt.cs`, #70) |
 | NotificationSettingsView.swift | 138 | Account › Alerts | | Alerts on this PC per account, Sound, the two sample alerts (`AlertsPage`, `AlertPrefs`, #72). Not for Windows: "even with tafs closed", What alerts you (a phone's push token) and Haptics |
 | TrialViews.swift | 214 | Trials of a new version | | Try it with its Card, Start trying, the trial's row and chat with its bar and guide, Resume, Go back, Install (`TafPage.Trial.cs`, `MainWindow.Trials.cs`, `Tafs.Core/Taf/TafTrials.cs`) |
@@ -26,6 +29,7 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 | iPad file | Lines | What | Windows has | Missing |
 | :- | -: | :- | :- | :- |
+| BriefView.swift | 448 | "Your brief": decisions first with Coach's recommendation, the next move, what got done | The brief's decisions with Coach's recommendation and what happens meanwhile, the next move, what got done, the label chips, Later as tafs cloud's unsigned post, Coach's waiting chats in one line (`BriefPage.xaml.cs`, `MainWindow.Brief.cs`, `Tafs.Core/Missions`) | Read again, branch by branch, against the pin's file (it's new since d14217f): the mission log, the two columns on a wide window |
 | OnboardingView.swift | 188 | The welcome: what tafs is, the tick for both Terms with the privacy links and the age line, Continue (KIFF in the browser) and Sign in with your phone, both waiting on the tick, Try it with sample data | The signed-out window's two halves (the owner's mockup) with the consent under them: the tick, both Terms linked, privacy as two links, the age line by this PC's region, "The Terms changed", Continue through KIFF in the browser (K5: PKCE, `dev.kiff.tafs:/oauth`, the ticked terms) and Show the code, each waiting on the tick (`SignedOutPage`, `AppSignInFlow`, `Tafs.Core/SignIn/AppSignIn.cs`, `Onboarding.cs`) | Try it with sample data: the sample opens only with `--sample`, for screenshots |
 | SignInView.swift | 333 | `SignInView`: Sign in with KIFF. Also `SettingsView`, `PlanRow`, `AccountView`, `AccountLines` (Account) | `SignInView`: the code, Open KIFF, the link for another browser, the wait, why it failed and Sign in with KIFF again, adding this PC from the phone instead, the terms line (`SignInPage.xaml.cs`, `Tafs.Core/SignIn`). `SettingsView` as Account: Mode, View only, the Alerts row, the theme, the language and Change language, How it works, Legal, About, sign out with its question, Clear the sample, People & apps with its Devices row (`AccountPage.xaml.cs`, `Tafs.Core/Account/AccountScreen.cs`) | `SignInView`'s Copy. The KIFF account's rows from `GET /v1/me` (KIFF account, Signed in as, `AccountLines`); People & groups under People & apps (#73, merged); the Plan section (`PlanRow`); Coach's suggestions; the AI-data consent; the time zone; Your chats; `AccountView` (its lines, using this computer's zone, Export my chats (#74, merged), Delete account). The Alerts row opens a placeholder |
 | ShareViews.swift | 405 | Sharing a taf (`ShareLine`, `ShareTafSheet`), and the Overview (`OverviewView`) | `OverviewView`: the title and subtitle, NEEDS YOU's held calls, the grid with each taf's NOW, CARD and LAST RESULT (`lastResult`, each taf's report read), "Each line opens the taf.", Home from tafs cloud (`OverviewPage.xaml.cs`, `Tafs.Core/Home/Sidebar.cs`, `HomeList.cs`, `Tafs.Core/Taf/TafRuns.cs`); the label chips filtering the grid and each taf's labels (`HomeLabels.cs`, from BriefView.swift's `LabelChips` and `TafLabels`) | What else waits, in tafs cloud's words; a held call opening its taf's page (it opens Needs you). Sharing itself: `ShareTafSheet`'s two steps and Share, new shares approved by this PC's passkey, and `ShareLine` under the name (`TafPage.Share.cs`, `Shares.cs`) |
@@ -58,13 +62,10 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | AppEventApprovalSheet.swift | 54 | An app event's filters before signing a subscription | The sheet, the dial read again, planque's subscription in a window opened with Windows Hello, tafs cloud's record, a kept subscription recorded again (`TafPage.Event.cs`, `KnobEvent.cs`) | |
 | AttachViews.swift | 267 | Attaching photos and files in a chat | Attachment |
 | DeleteAccountView.swift | 60 | Deleting the account | |
-| DiscardSettingUp.swift | 35 | Discard a taf being set up | |
 | DoorsView.swift | 923 | A taf's Doors tab | DoorsModel, PlanqueClient |
 | DriveViews.swift | 73 | Coach asks to drive the app, and what it did | DriveSession |
-| HomeRecipes.swift | 242 | Home with no taf: the recipes | |
 | MicButton.swift | 122 | The mic in a chat's message bar | Dictation |
 | PlanViews.swift | 268 | Buying credits and Solo, asking an admin, declining a request. `BuyCreditsView` and `SoloView` buy through the App Store, so Windows needs its own store or KIFF's web flow; `AskAdminView` and `DeclineRequestView` are plain tafs cloud calls | Purchases |
-| RecipeGallery.swift | 135 | The jobs' gallery | Browsing: Explore jobs and the strip with See all jobs in the sidebar, the gallery with its chips and categories, `RecipeRow`, `AppMarks` with tafs cloud's logos, `RecipeSheet` with Try it with Coach, a new conversation with the job's words in the box (`GalleryPage.xaml.cs`, `MainWindow.Gallery.cs`, `Tafs.Core/Home/Gallery.cs`) + New's create mode with "Say it in your own words", for someone who may use Coach (`MainWindow.Gallery.cs`, `GalleryPage`) | |
 | RecordSearchViews.swift | 192 | The Record's search | |
 | SetupShapePanel.swift | 130 | What Coach has made so far | SetupShape |
 | TafDialPanel.swift | 228 | The dial's requests and confirmation | KnobNavigation, DoorsModel |
@@ -73,7 +74,6 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | TafSetupViews.swift | 512 | A taf's Setup: Starts when, Results go to, the pending dial | DoorsModel |
 | YourStepCard.swift | 46 | A step a taf hands the person (#77, merged) | |
 | APIDoorViews.swift | 406 | A door "From another application": its count and cap, last request, keys, New key, Revoke, the instructions (new since d14217f; batch: a taf) | DoorsModel |
-| BriefView.swift | 448 | "Your brief": decisions first with Coach's recommendation, the next move, what got done (new since d14217f; Windows has a `BriefPage`, read against this file in the Home batch) | |
 | ChromeViews.swift | 178 | Account › Chrome: paired Chromes, Pair a Chrome, Unpair, once planque offers it (new since d14217f; batch: Account) | |
 | FilesViews.swift | 453 | Files: the account's or a taf's, newest first, the list beside the open file (new since d14217f; batch: a taf) | |
 | ReportPaymentSheet.swift | 64 | "Report this payment" from a receipt: KIFF marks it and the taf is halted (new since d14217f; batch: Record) | |
@@ -83,7 +83,7 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 | iPad file | Lines | Why |
 | :- | -: | :- |
-| HomeView.swift | 403 | The phone's Home. A wide window uses HomeSplitView. |
+| HomeView.swift | 403 | The phone's Home. A wide window uses HomeSplitView. Its first Home (lines 137–152: Ask Coach and How tafs works over an empty Home) is every desktop's, and is on Windows (`OverviewPage`, `Onboarding.FirstHomeLines`). |
 | TafsBar.swift | 121 | The phone's bar along the foot. A wide window has the sidebar. |
 | PairComputerView.swift | 222 | The phone's side of pairing: the camera reads a computer's code. |
 
@@ -113,4 +113,4 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 ## Coverage
 
-Ported 7, partial 23, not started 24, not for Windows 3: the 57 view files at 43da43e (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported).
+Ported 10, partial 24, not started 20, not for Windows 3: the 57 view files at 43da43e (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial).

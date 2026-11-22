@@ -111,6 +111,23 @@ public sealed partial class MainWindow
     /// <summary>Home's recipes, as tafs cloud listed them for no taf; none when it doesn't (a taf, suggestions off, or no read).</summary>
     Gallery? homeRecipes;
 
+    /// <summary>tafs cloud's line for a Home with no taf (<c>home.words</c>); none until read, or when it sent none.</summary>
+    string? homeWords;
+
+    /// <summary>A screenshot of the first Home (<c>--page first-home</c>): its lines whatever the account holds.</summary>
+    bool firstHomeShot;
+
+    /// <summary>
+    /// The first Home (the iPad's HomeView, docs/onboarding.md): with no taf and no recipes listed, for someone who may use
+    /// Coach, tafs cloud's line (else the app's), Ask Coach and How tafs works. Never over the sample.
+    /// </summary>
+    (string Title, string? Lead)? FirstHomeLines() =>
+        firstHomeShot ? Tafs.Core.SignIn.Onboarding.FirstHomeLines(App.Words, null) :
+        !sample && home is { Tafs.Count: 0 } && HomeRecipesOpening() is null
+            && Tafs.Core.SignIn.Onboarding.ShowsFirstHome(mayUseCoach: CoachMode.Answer is not null)
+            ? Tafs.Core.SignIn.Onboarding.FirstHomeLines(App.Words, homeWords)
+            : null;
+
     /// <summary>Home's recipes, read with Home's list while there's no taf, as the iPad's <c>recipes()</c>.</summary>
     async Task ReadHomeRecipesAsync(Func<string, Task<CloudRead>> read, int reading)
     {
@@ -121,8 +138,15 @@ public sealed partial class MainWindow
         }
         var answer = (await read(Gallery.HomePath)).Answer;
         if (reading != sessions) return;
-        homeRecipes = answer is { } json && Gallery.ReadForHome(json) is { Lists: true } listed ? listed.Jobs : null;
-        if (Pages.Content is OverviewPage overview) overview.ShowRecipes(HomeRecipesOpening());
+        var got = answer is { } json ? Gallery.ReadForHome(json) : null;
+        homeRecipes = got is { Lists: true } listed ? listed.Jobs : null;
+        // tafs cloud's own empty line, kept whether or not it lists recipes: the first Home says it.
+        homeWords = got?.Jobs.Words.Title is { Length: > 0 } said ? said : null;
+        if (Pages.Content is OverviewPage overview)
+        {
+            overview.ShowRecipes(HomeRecipesOpening());
+            overview.ShowFirstHome(FirstHomeLines());
+        }
     }
 
     /// <summary>
@@ -141,7 +165,11 @@ public sealed partial class MainWindow
         NewTafText.Text = App.Words.Get("home.start_new_taf");
         NewTaf.Visibility = !sample && CoachMode.Answer is not null ? Visibility.Visible : Visibility.Collapsed;
         // Home's recipes hand jobs to Coach only for someone who may use it: drawn again once that's known.
-        if (Pages.Content is OverviewPage overview) overview.ShowRecipes(HomeRecipesOpening());
+        if (Pages.Content is OverviewPage overview)
+        {
+            overview.ShowRecipes(HomeRecipesOpening());
+            overview.ShowFirstHome(FirstHomeLines());
+        }
     }
 
     /// <summary>

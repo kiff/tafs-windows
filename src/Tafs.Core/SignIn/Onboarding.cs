@@ -29,6 +29,16 @@ public static class Onboarding
     /// <summary>Whether the three cards follow the celebration: once on this PC, until Get started or Skip.</summary>
     public static bool ShowsCards(bool seen) => !seen;
 
+    /// <summary>
+    /// The first Home's lines (the iPad's <c>Onboarding.firstHomeLines</c>), for someone who may use Coach with no taf and no
+    /// recipes listed: tafs cloud's own empty line when it sent one, alone; else "No tafs yet." and what Coach does.
+    /// </summary>
+    public static (string Title, string? Lead) FirstHomeLines(WordBook w, string? cloud) =>
+        string.IsNullOrWhiteSpace(cloud) ? (w.Get("home.no_tafs"), w.Get("onboarding.home_lead")) : (cloud, null);
+
+    /// <summary>The first Home shows for someone who may use Coach (the iPad's <c>Onboarding.showsFirstHome</c>).</summary>
+    public static bool ShowsFirstHome(bool mayUseCoach) => mayUseCoach;
+
     /// <summary>A card's title.</summary>
     public static string Title(WordBook w, Card card) => w.Get(card switch
     {

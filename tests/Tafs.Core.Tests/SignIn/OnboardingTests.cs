@@ -93,3 +93,30 @@ public class OnboardingCardsTests
         Assert.Equal(["Support replies", "Late parcels", "Lead follow-up"], Onboarding.SampleTafRows(w).Select(r => r.Name));
     }
 }
+
+[Part("pairing")]
+public class FirstHomeTests
+{
+    public static IEnumerable<object[]> Shipped() => WordBook.Shipped(SharedFiles.Strings).Select(l => new object[] { l });
+
+    [Theory, MemberData(nameof(Shipped))]
+    public void The_first_Home_reads_in_every_shipped_language(string language)
+    {
+        var w = WordBook.Load(SharedFiles.Strings, language);
+        var (title, lead) = Onboarding.FirstHomeLines(w, null);
+        Assert.Equal(w.Get("home.no_tafs"), title);
+        Assert.Equal(w.Get("onboarding.home_lead"), lead);
+        Assert.NotEmpty(w.Get("coach.ask"));
+        Assert.NotEmpty(w.Get("onboarding.how_it_works"));
+    }
+
+    [Fact]
+    public void tafs_cloud_s_own_line_stands_alone_and_only_Coach_s_users_see_the_first_Home()
+    {
+        var w = WordBook.Load(SharedFiles.Strings, "en");
+        Assert.Equal(("Nothing set up yet.", (string?)null), Onboarding.FirstHomeLines(w, "Nothing set up yet."));
+        Assert.Equal(w.Get("home.no_tafs"), Onboarding.FirstHomeLines(w, "  ").Title);
+        Assert.True(Onboarding.ShowsFirstHome(mayUseCoach: true));
+        Assert.False(Onboarding.ShowsFirstHome(mayUseCoach: false));
+    }
+}

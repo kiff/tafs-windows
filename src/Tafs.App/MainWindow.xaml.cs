@@ -281,6 +281,9 @@ public sealed partial class MainWindow : Window
         // A turn refused for want of the AI-data consent, from any route: its screen, wherever the person tried.
         CloudRead.ConsentRequired += consent => DispatcherQueue.TryEnqueue(() => _ = AskConsentAsync(consent));
         OverviewPage.NeedsYouChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
+        // The first Home: Ask Coach starts a new taf (the iPad's startNewTaf), How tafs works opens the three cards.
+        OverviewPage.AskCoachChosen += () => OnNewTaf(this, new RoutedEventArgs());
+        OverviewPage.HowItWorksChosen += () => _ = OnboardingCards.ShowAsync(Root.XamlRoot, Root.ActualTheme);
         SignInPage.SignedIn += session =>
         {
             ViewOnly.IsOpen = session.Mode == ApprovalMode.View;
@@ -378,6 +381,10 @@ public sealed partial class MainWindow : Window
             Grid.SetColumnSpan((FrameworkElement)preview, 99);
             Root.Children.Add(preview);
         }
+        // The first Home, for a screenshot: the Overview with no taf and no recipes, for someone who may use Coach, in the
+        // app's own lines (tafs cloud's line stands in its place when it sends one).
+        firstHomeShot = page == "first-home";
+        if (firstHomeShot && Pages.Content is OverviewPage firstHomeOverview) firstHomeOverview.ShowFirstHome(FirstHomeLines());
         if (page == "pair") OpenPairing();
         else if (page == "pair-why") OpenBeside(typeof(PairingPage), "why");
         else if (page == "account") OnAccount(this, new RoutedEventArgs());
@@ -1867,7 +1874,7 @@ public sealed partial class MainWindow : Window
         // Another screen chosen: Needs you's row opens the brief again.
         if (item != needsYouRow) needsYouUnderBrief = false;
         if (item == BrandItem)
-            Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, overviewRows, home?.Labels, HomeRecipesOpening(), NeedsYouRest()));
+            Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, overviewRows, home?.Labels, HomeRecipesOpening(), NeedsYouRest(), FirstHomeLines()));
         else if (item.Tag is Screen.NeedsYou) ShowNeedsYouOrBrief();
         else if (item.Tag is HeldCall) ShowNeedsYou();
         else if (item.Tag == HaltAll) OpenHalt(null, "");
