@@ -101,4 +101,17 @@ public class CoachShapeTests
         var empty = CoachThread.Read(JsonDocument.Parse("""{"messages": [], "components": [], "items": []}""").RootElement)!;
         Assert.True(CoachShape.Of(En, empty, [], new Dictionary<string, AgentDraft>()).IsEmpty);
     }
+
+    /// <summary>The pinned bar for the card that needs the person, as the iPad's NeedsYouBar: approve or sign in at its vendor, drive, or a question.</summary>
+    [Fact]
+    public void The_needs_you_bar_names_what_the_waiting_card_asks()
+    {
+        var grants = new[] { Grant("grt_1", "pending") };
+        Assert.Equal("Needs you · approve Stripe", CoachShape.NeedsYouBar(En, new CoachCard("approval", "c1") { Grant = "grt_1" }, grants));
+        Assert.Equal("Needs you · approve Shopify", CoachShape.NeedsYouBar(En, new CoachCard("approval", "c1") { Service = "Shopify" }, []));
+        Assert.Equal("Needs you · approve", CoachShape.NeedsYouBar(En, new CoachCard("approval", "c1"), []));
+        Assert.Equal("Needs you · sign in · Stripe", CoachShape.NeedsYouBar(En, new CoachCard("sign_in", "c2") { Grant = "grt_1" }, grants));
+        Assert.Equal("Needs you · let Coach drive", CoachShape.NeedsYouBar(En, new CoachCard("drive", "c3"), []));
+        Assert.Equal("Needs you · a question", CoachShape.NeedsYouBar(En, new CoachCard("questions", "c4"), []));
+    }
 }
