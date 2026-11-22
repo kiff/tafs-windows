@@ -59,6 +59,7 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | PeopleViews.swift | 291 | People & groups, naming a group, adding someone | Groups and people, every 20 s while open (`PeoplePage`, `People`, #73); the changes, each behind Windows Hello and signed by this PC's key (`PeopleChanges`) | |
 | TafChatView.swift | 826 | A taf's chat | Reading and showing a taf's thread (`TafChat`, the Chat tab, #83) | Sending, attachments, the mic, and the rest of the thread's actions (part 2) |
 | DoorsView.swift | 923 | A taf's Doors tab | A door's own screen from Setup › Starts when (`DoorsView.only`): open or close, its address with Copy, who may give it work, pair and unpair, its day, Remove; strangers' knocks with Do it, Pair and Ignore; an email door added at once; `DoorStamp` in the chat (`TafPage.Doors.cs`, `Tafs.Core/Taf/TafDoors.cs`, `ChatViews.cs`) | `DoorDial` (the doors' own dial when the taf's can't be read), `DoorRim`, `AddDoorSheet`'s WhatsApp and Slack, the Slack sheet (planque's subscription), and the API door (`APIDoorViews`) |
+| FilesViews.swift | 453 | Files: the account's or a taf's, newest first, the list beside the open file | Account › Files and a taf's Files on its header's line with its count (`TafFilesEntry`); the list beside the open file at full width, one at a time when narrow; All, By taf and By run with a chip per taf, a taf's by run; `FileRow`, `FileBadge`, the days left, the kept line; a file's start as plain text (left to right, its lines' direction from their letters), a picture drawn from its bytes, Download (Windows' save picker) and Share (the file itself), its facts, Delete now behind its confirm; tafs#1728's lines; its copy only while open, removed on sign-out (`FilesPage.xaml.cs`, `Tafs.Core/Files/Files.cs`) | `ChatFileChips` (waits on tafs cloud naming a message's run); a preview of a PDF or other type with no text start (the iPad's QuickLook); sizes' units in each language (`ByteCountFormatter`: "8 o" in French) |
 
 ## Not started
 
@@ -75,7 +76,6 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | TafKnobView.swift | 377 | The taf's remote | KnobNavigation |
 | APIDoorViews.swift | 406 | A door "From another application": its count and cap, last request, keys, New key, Revoke, the instructions (new since d14217f; batch: a taf) | DoorsModel |
 | ChromeViews.swift | 178 | Account › Chrome: paired Chromes, Pair a Chrome, Unpair, once planque offers it (new since d14217f; batch: Account) | |
-| FilesViews.swift | 453 | Files: the account's or a taf's, newest first, the list beside the open file (new since d14217f; batch: a taf) | |
 | ReportPaymentSheet.swift | 64 | "Report this payment" from a receipt: KIFF marks it and the taf is halted (new since d14217f; batch: Record) | |
 | WatchDaysViews.swift | 93 | "From your watch" in Coach's Previous conversations, one a day (new since d14217f; batch: Coach, as on Linux) | |
 
@@ -113,4 +113,4 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 ## Coverage
 
-Ported 15, partial 25, not started 14, not for Windows 3: the 57 view files at the pin (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial, approvals' ApprovalSetupView, AllowSheetView and AppEventApprovalSheet, with YourStepCard partial; recounted with a taf's batch: SetupShapePanel and TafSetupViews ported, DoorsView partial).
+Ported 15, partial 26, not started 13, not for Windows 3: the 57 view files at the pin (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial, approvals' ApprovalSetupView, AllowSheetView and AppEventApprovalSheet, with YourStepCard partial; a taf's batch moved FilesViews to partial, and recounted SetupShapePanel and TafSetupViews to ported, DoorsView to partial).
