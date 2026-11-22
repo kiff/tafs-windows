@@ -21,6 +21,12 @@ public sealed partial class MainWindow
             ? [r, new OverviewRow(TrialRowPrefix + r.Key, open.ChatName(w, r.Taf), r.Colour, open.Line(w, TimeZoneInfo.Local), "", "")]
             : new[] { r }).ToList();
 
+    /// <summary>A trial's row's badge, as the iPad's <c>taf.badge</c>: the trial's label, else "Trial"; none for any other row.</summary>
+    string? TrialBadge(string key) =>
+        key.StartsWith(TrialRowPrefix, StringComparison.Ordinal) && home?.Tafs.FirstOrDefault(t => t.Id == key[TrialRowPrefix.Length..])?.Trial is { } open
+            ? open.Label?.Trim() is { Length: > 0 } label ? label : App.Words.Get("version.trial.badge")
+            : null;
+
     /// <summary>A trial's row chosen: its taf's page on the trial's chat; none for a row that isn't one, or a trial since ended.</summary>
     TafOpening? TrialFromRow(string key) =>
         key.StartsWith(TrialRowPrefix, StringComparison.Ordinal) && home?.Tafs.FirstOrDefault(t => t.Id == key[TrialRowPrefix.Length..]) is { Trial: { } open } taf
