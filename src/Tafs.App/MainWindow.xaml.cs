@@ -255,6 +255,8 @@ public sealed partial class MainWindow : Window
         // Focus goes back to the sidebar's Coach when Coach mode has gone.
         CoachMode.Closed += () => CoachButton.Focus(FocusState.Programmatic);
         // The chat open in Coach isn't listed as waiting; closed, it is again.
+        // Coach's dial card offers Versions only to whoever installs there: manages the taf, on a PC that approves.
+        CoachMode.CanInstall = id => home?.Tafs.FirstOrDefault(t => t.Id == id) is { } knobTaf && InstallingFor(knobTaf) is not null;
         CoachMode.Closed += ShowCoachWaiting;
         NeedsYouPage.CoachWaitingOpenChosen += OpenCoachWaiting;
         NeedsYouPage.SetAsideChosen += session => _ = SetAsideAsync(session);

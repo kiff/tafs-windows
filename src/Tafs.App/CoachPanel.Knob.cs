@@ -16,6 +16,9 @@ public sealed partial class CoachPanel
 {
     /// <summary>Each dial card's read, by the taf: the dial, or none while it's read or when it couldn't be.</summary>
     readonly Dictionary<string, TafKnob?> knobCards = [];
+
+    /// <summary>Whether this person installs a version of the taf (tafs cloud's id) from this PC: manages it, on a PC that approves.</summary>
+    public Func<string, bool>? CanInstall { get; set; }
     readonly HashSet<string> knobReading = [];
     readonly Dictionary<string, string> knobFailed = [];
 
@@ -31,17 +34,24 @@ public sealed partial class CoachPanel
             lines.Children.Add(Words(w.Get("common.could_not_read_why", ("what", w.Get("setup.starts_when")), ("why", why)), 13, "TafsNoText"));
         else if (knob is null)
             lines.Children.Add(new ProgressRing { IsActive = true, Width = 20, Height = 20, HorizontalAlignment = HorizontalAlignment.Left });
-        else if (c.Version is { } version && knob.Version is { } live && live >= version)
+        else if (knob.IsLive(c.Version))
             lines.Children.Add(Words(w.Get("knob.live"), 14, "TafsOkText"));
-        else if (knob.DraftVersion is { } drafted && drafted == c.Version || knob.Pending?.Version == c.Version)
+        else if (knob.ShowsDraft(c.Version))
         {
             foreach (var line in knob.DraftWords) lines.Children.Add(Words(line, 15, "TafsInkText"));
-            if (taf is not null && c.TafId is { } open)
+            // Only for whoever manages the taf, on a PC that installs a version (agentgabo's read): anyone else gets no button.
+            if (taf is not null && c.TafId is { } open && CanInstall?.Invoke(open) == true && c.Version is { } named)
             {
-                var confirm = new Button { Content = w.Get("knob.confirm_with", ("biometry", CoachScreen.Biometry)), Style = (Style)Application.Current.Resources["TafsPrimary"],
-                    Padding = new Thickness(18, 8, 18, 8) };
+                // It opens Versions, where the install is confirmed: its words say so, not "Confirm with Windows Hello".
+                var confirm = new Button { Content = w.Get("coach.result.see_version", ("version", named.ToString(System.Globalization.CultureInfo.InvariantCulture))),
+                    Style = (Style)Application.Current.Resources["TafsPrimary"], Padding = new Thickness(18, 8, 18, 8) };
                 AutomationProperties.SetAutomationId(confirm, "knob.confirm");
-                confirm.Click += (_, _) => VersionsChosen?.Invoke(open);
+                confirm.Click += (_, _) =>
+                {
+                    // Read again the next time the card draws, so an install made in Versions shows as live.
+                    knobCards.Remove(open);
+                    VersionsChosen?.Invoke(open);
+                };
                 var change = new Button { Content = w.Get("knob.change"), Style = (Style)Application.Current.Resources["TafsOutlineButton"], Padding = new Thickness(18, 8, 18, 8) };
                 change.Click += (_, _) => CoachDraft.Focus(FocusState.Programmatic);
                 lines.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { confirm, change } });

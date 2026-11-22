@@ -100,6 +100,15 @@ public sealed record TafKnob(bool CanPause, int? Version, KnobPending? Pending, 
     /// <summary>The same JSON, whatever its spacing or the order of its fields.</summary>
     static bool Same(JsonElement a, JsonElement b) => JsonNode.DeepEquals(JsonNode.Parse(a.GetRawText()), JsonNode.Parse(b.GetRawText()));
 
+    /// <summary>
+    /// Whether Coach's dial card for <paramref name="version"/> shows this draft (K4): only for the version the card names, as
+    /// the dial's draft or its next version. A card that names none shows no draft (agentgabo's read).
+    /// </summary>
+    public bool ShowsDraft(int? version) => version is { } v && (DraftVersion == v || Pending?.Version == v);
+
+    /// <summary>The card's version is live already.</summary>
+    public bool IsLive(int? version) => version is { } v && Version is { } live && live >= v;
+
     public static string Path(string taf) => "/v1/tafs/" + CloudRead.PathPart(taf) + "/knob";
 
     /// <summary><c>DELETE</c>: a follow-up the taf set itself, by the id its dial gives.</summary>
