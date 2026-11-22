@@ -36,6 +36,12 @@ public sealed partial class PairingPage : Page
     /// <summary>KIFF handed over this PC's session. It's kept in memory for now.</summary>
     public static event Action<PairedSession>? Paired;
 
+    /// <summary>The terms version the welcome's tick agreed to, sent with the claim (the iPad's <c>pairingTermsVersion</c>); null outside the welcome.</summary>
+    public static string? TermsVersion { get; set; }
+
+    /// <summary>KIFF said the terms changed since the tick (409 <c>terms_outdated</c>): the welcome unticks its box and says why.</summary>
+    public static event Action? TermsOutdated;
+
     public PairingPage()
     {
         InitializeComponent();
@@ -148,7 +154,8 @@ public sealed partial class PairingPage : Page
             await ShowQrAsync();
 
             var result = await PairingClaim.PollAsync(offer, deviceKey,
-                (body, c) => KiffHttp.PostAsync(PairingClaim.Path, body, c), () => DateTimeOffset.UtcNow, Task.Delay, token);
+                (body, c) => KiffHttp.PostAsync(PairingClaim.Path, body, c), () => DateTimeOffset.UtcNow, Task.Delay, token, TermsVersion);
+            if (result.Status == ClaimStatus.TermsOutdated) TermsOutdated?.Invoke();
             if (result.Session is { } session)
             {
                 // Claimed before anything is awaited: a code expiring, or the page closing, while it's kept removes nothing.

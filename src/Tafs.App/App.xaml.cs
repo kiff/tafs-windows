@@ -158,6 +158,15 @@ public partial class App : Application
         }
         // A packaged build declares its scheme in its manifest instead; registering again is refused there.
         catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException or UnauthorizedAccessException) { }
+        try
+        {
+            // KIFF's way back after its sign-in page (K5): dev.kiff.tafs:/oauth?…, to the attempt the welcome waits on.
+            // Another app could register the same scheme; PKCE makes its code useless to it.
+            Microsoft.Windows.AppLifecycle.ActivationRegistrationManager.RegisterForProtocolActivation(
+                Tafs.Core.SignIn.AppSignIn.Scheme, "", "tafs", Environment.ProcessPath ?? "");
+        }
+        // A packaged build declares its scheme in its manifest instead; registering again is refused there.
+        catch (Exception e) when (e is System.Runtime.InteropServices.COMException or InvalidOperationException or UnauthorizedAccessException) { }
         me.Activated += (_, activation) => window?.DispatcherQueue.TryEnqueue(() =>
         {
             window.Activate();
@@ -168,9 +177,15 @@ public partial class App : Application
 
     static void Returned(Microsoft.Windows.AppLifecycle.AppActivationArguments activation)
     {
-        if (activation.Kind == Microsoft.Windows.AppLifecycle.ExtendedActivationKind.Protocol
-            && activation.Data is Windows.ApplicationModel.Activation.IProtocolActivatedEventArgs protocol
-            && Tafs.Core.Kiff.PlanqueSignIn.Read(protocol.Uri) is { } signedIn)
+        if (activation.Kind != Microsoft.Windows.AppLifecycle.ExtendedActivationKind.Protocol
+            || activation.Data is not Windows.ApplicationModel.Activation.IProtocolActivatedEventArgs protocol) return;
+        if (protocol.Uri.Scheme == Tafs.Core.SignIn.AppSignIn.Scheme)
+        {
+            // Only the waiting attempt's link is taken; any other is dropped.
+            AppSignInFlow.Link(protocol.Uri.OriginalString);
+            return;
+        }
+        if (Tafs.Core.Kiff.PlanqueSignIn.Read(protocol.Uri) is { } signedIn)
             SignedInReturned?.Invoke(signedIn);
     }
 }
