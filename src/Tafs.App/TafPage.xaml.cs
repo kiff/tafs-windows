@@ -25,7 +25,8 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     CardScreen CardOn = CardScreen.Main, bool CreditsPrevious = false, TafTrying? Trying = null, TafInTrial? InTrial = null,
     TafInstalling? Installing = null, Func<int, KnobItem, Task<KnobEventResult>>? ApproveEvent = null, TafSharing? Share = null,
     Action<string>? AskCoachAbout = null, Func<Task<string?>>? Revoke = null, bool RevokeNeedsApprover = false, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null,
-    Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafSteps? Steps = null, TafFiles? Files = null)
+    Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafSteps? Steps = null, TafFiles? Files = null, TafDoorSigning? DoorSigning = null,
+    string? DoorOn = null)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
@@ -55,6 +56,14 @@ public sealed record TafSteps(Func<string, Tafs.Core.NeedsYou.YourStep?> Listed,
 /// read fails), and Files opened on this taf.
 /// </summary>
 public sealed record TafFiles(Func<Task<IReadOnlyList<Tafs.Core.Files.DeliveredFile>?>> Load, Action Open);
+
+/// <summary>
+/// A door "From another application"'s signed changes (docs/doors.md), for whoever manages the taf on a PC that approves with its
+/// passkey, as Remove for good: one Windows Hello naming the act, its assertion over the method, path and these exact bytes,
+/// then the change sent with it. <c>Send</c> answers null when Windows Hello was closed (nothing sent); <c>Cloud</c> is tafs
+/// cloud's address, for the door's endpoint.
+/// </summary>
+public sealed record TafDoorSigning(Func<HttpMethod, string, byte[], string, Task<CloudRead?>> Send, Uri Cloud);
 
 /// <summary>
 /// Remove for good, for whoever manages the taf on a PC that signs with its passkey: what goes with it, in tafs cloud's words,
@@ -192,6 +201,8 @@ public sealed partial class TafPage : Page
         ShowWork();
         _ = LoadWorkAsync();
         if (tab == TafTab.Chat) _ = LoadChatAsync();
+        // A door's own screen, opened on that door (a screenshot of it).
+        if (opening.DoorOn is { } doorOn) doorShown = doorOn;
         if (opening.SetupOn != SetupScreen.Main) OpenSetupScreen(opening.SetupOn);
         if (opening.CardOn != CardScreen.Main) OpenCardScreen(opening.CardOn);
     }
