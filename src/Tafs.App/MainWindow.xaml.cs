@@ -52,6 +52,11 @@ public sealed partial class MainWindow : Window
     IReadOnlyList<YourStep> steps = [];
     readonly HashSet<string> answeredSteps = [];
     readonly HashSet<string> answeringSteps = [];
+    /// <summary>
+    /// Why the last answer to a step didn't go through, with the step it was for, so a taf's page draws it under that step only.
+    /// Its own, never Needs you's shared line, which a held call's refusal also sets (agentgabo's read).
+    /// </summary>
+    (string Handoff, string Why)? stepRefusal;
     string? needsYouError;
 
     /// <summary>A screenshot's samples: they stay, and KIFF isn't read for them.</summary>
@@ -836,7 +841,8 @@ public sealed partial class MainWindow : Window
         answeringSteps.Contains,
         () => HelloState.Readiness,
         (step, done) => _ = AnswerStepAsync(step, done),
-        () => _ = CheckHelloAsync());
+        () => _ = CheckHelloAsync(),
+        handoff => stepRefusal is { } refused && refused.Handoff == handoff ? refused.Why : null);
 
     /// <summary>The steps drawn again on Needs you when open, or on a taf's page, as the iPad's <c>showSteps</c>.</summary>
     void ShowSteps()
@@ -877,6 +883,7 @@ public sealed partial class MainWindow : Window
         if (!CanAnswerSteps(session))
         {
             needsYouError = w.Get(TpmKey.Exists(session.KeyName) ? "needs_you.answer_in_kiff" : "needs_you.sign_in_again_to_answer");
+            stepRefusal = (step.Handoff, needsYouError);
             ShowSteps();
             return;
         }
@@ -906,6 +913,7 @@ public sealed partial class MainWindow : Window
         if (outcome == StepAnswered.Stopped || reading != sessions) return;
         answeringSteps.Remove(step.Handoff);
         needsYouError = why;
+        stepRefusal = why is null ? null : (step.Handoff, why);
         if (outcome is StepAnswered.Answered or StepAnswered.Ended) answeredSteps.Add(step.Handoff);
         ShowSteps();
         // On a taf's page, its work read again, as the iPad's onTaf: the request's line comes back as tafs cloud now says it.
