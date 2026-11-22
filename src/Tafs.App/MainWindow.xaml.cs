@@ -2082,6 +2082,8 @@ public sealed partial class MainWindow : Window
                 Halt: HaltFor(taf), Send: cloudSend, Stream: cloudStream, ResumeStream: cloudResume, Remove: RemoveFor(taf), ApproveEvent: EventFor(taf), Share: ShareFor(taf),
                 // A door "From another application": its keys, reopening and removal signed, as Remove for good.
                 DoorSigning: DoorSigningFor(taf),
+                // A Slack door: planque subscribes its channel behind Windows Hello, then tafs cloud makes it; removing stops it first.
+                SlackDoor: SlackDoorFor(taf),
                 Revoke: RevokeFor(taf), RevokeNeedsApprover: Manages(taf) && App.Sessions.Kept()?.Mode == ApprovalMode.View,
                 // Setup › Starts when and Results go to: when it starts and where results go, as Home says, and the changes made at once.
                 Change: cloudChange, Starts: taf.Starts, Paused: taf.State == "paused", Email: kiffAccount?.Email, TimeZone: kiffAccount?.TimeZone,
@@ -2214,6 +2216,64 @@ public sealed partial class MainWindow : Window
     /// removal is the approval key's act, never the device key's. None for anyone else, and no button.
     /// </summary>
     /// <summary>
+    /// One of planque's <c>signedSafe</c> calls as this device: signed by the TPM key the session is bound to, which asks no one,
+    /// with this device's id in KIFF (read once from <c>GET /v1/me/devices</c>). <c>(0, "")</c> when it couldn't be signed.
+    /// </summary>
+    async Task<(int Status, string Body)> PlanqueDeviceSendAsync(KeptSession session, HttpMethod method, string path)
+    {
+        using var key = TpmKey.Open(session.KeyName);
+        var gen = sessions;
+        var signature = await PlanqueProof.SignAsync(session.Tenant, deviceId, async () =>
+        {
+            var devices = await ReadAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, PlanqueProof.DevicesPath), session.AccessToken);
+            var device = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
+            if (gen == sessions) deviceId = device;
+            return device;
+        }, key, () => SigningTime.Next(DateTimeOffset.UtcNow), method.Method, path, []);
+        if (signature is null) return (0, "");
+        return await KiffHttp.PlanqueSendAsync(method, new Uri(PlanqueProof.Api, path), signature, App.Words.Language);
+    }
+
+    /// <summary>
+    /// A Slack door's calls (<see cref="TafSlackDoor"/>), for whoever manages the taf on a PC that approves with its passkey, as
+    /// approving an app event: the taf's own Slack bot connections; a connection's channels and stopping a subscription, as this
+    /// device (planque's <c>signedSafe</c> routes); adding the door, planque set up first, then its subscription behind Windows
+    /// Hello and tafs cloud's door (<see cref="SlackDoor.AddAsync"/>). None for anyone else: Add a door says where it's added.
+    /// </summary>
+    TafSlackDoor? SlackDoorFor(HomeTaf taf)
+    {
+        if (sample || taf.Agent is not { } agent || manage?.GetValueOrDefault(agent) != true || cloudChange is not { } change) return null;
+        if (App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session) || session.PasskeyId is not { } id) return null;
+        var w = App.Words;
+        async Task<(int Status, string Body)> Device(HttpMethod method, string path)
+        {
+            try { return await PlanqueDeviceSendAsync(session, method, path); }
+            catch (Exception e) when (e is System.Net.Http.HttpRequestException or System.Security.Cryptography.CryptographicException
+                or System.Runtime.InteropServices.COMException or InvalidOperationException or TaskCanceledException)
+            {
+                return (0, "");
+            }
+        }
+        return new(
+            async () => SlackDoor.Bots(await GrantsAsync(session) ?? [], agent),
+            async grant =>
+            {
+                var (status, body) = await Device(HttpMethod.Get, SlackDoor.ChannelsPath(session.Tenant, grant));
+                if (status is < 200 or > 299) return (null, status == 0 ? w.Get("error.offline") : CloudRead.Refused(w, status, body).Why);
+                try { return (SlackDoor.Channels(System.Text.Json.JsonDocument.Parse(body).RootElement), null); }
+                catch (System.Text.Json.JsonException) { return (null, w.Get("error.ours")); }
+            },
+            async (app, grant, channel) =>
+            {
+                if (await PlanqueFirstAsync(session) is { } notReady) return new(false, notReady);
+                var calls = new SlackDoorCalls(ConnectCallsFor(session, id), path => Device(HttpMethod.Delete, path),
+                    body => change(HttpMethod.Post, TafDoors.Path(taf.Id), body));
+                return await SlackDoor.AddAsync(w, session.Tenant, agent, app, grant, channel, calls);
+            },
+            door => SlackDoor.StopAsync(w, session.Tenant, door, path => Device(HttpMethod.Delete, path)));
+    }
+
+    /// <summary>
     /// Account › Chrome's calls as this device (planque's <c>signedSafe</c> routes: the TPM device key, no window), as the iPad's
     /// <c>refreshChromes</c> and <c>removeChrome</c>. None over the sample or signed out.
     /// </summary>
@@ -2221,20 +2281,7 @@ public sealed partial class MainWindow : Window
     {
         if (sample || App.Sessions.Kept() is not { } session) return null;
         var w = App.Words;
-        async Task<(int Status, string Body)> Send(HttpMethod method, string path)
-        {
-            using var key = TpmKey.Open(session.KeyName);
-            var gen = sessions;
-            var signature = await PlanqueProof.SignAsync(session.Tenant, deviceId, async () =>
-            {
-                var devices = await ReadAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, PlanqueProof.DevicesPath), session.AccessToken);
-                var device = devices.Answer is { } answer ? PlanqueProof.ThisDevice(answer) : null;
-                if (gen == sessions) deviceId = device;
-                return device;
-            }, key, () => SigningTime.Next(DateTimeOffset.UtcNow), method.Method, path, []);
-            if (signature is null) return (0, "");
-            return await KiffHttp.PlanqueSendAsync(method, new Uri(PlanqueProof.Api, path), signature, w.Language);
-        }
+        Task<(int Status, string Body)> Send(HttpMethod method, string path) => PlanqueDeviceSendAsync(session, method, path);
         return new(
             async () =>
             {
