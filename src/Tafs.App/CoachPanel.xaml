@@ -120,6 +120,22 @@
           <ScrollViewer x:Name="ThreadScroll" Grid.Row="1" Padding="0,0,16,16">
             <StackPanel x:Name="ThreadItems" Spacing="12" />
           </ScrollViewer>
+          <!-- The card that needs the person, when it's out of view, as the iPad's NeedsYouBar: a pinned pill that shows it. -->
+          <Button x:Name="NeedsYouPill" Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Margin="16,0,32,12" Padding="14,10"
+                  CornerRadius="20" BorderThickness="1" Visibility="Collapsed" Click="OnNeedsYouPill" AutomationProperties.AutomationId="coach.needs-you"
+                  Background="{ThemeResource TafsPanel}" BorderBrush="{StaticResource TafsAmber}" HorizontalContentAlignment="Stretch">
+            <Grid ColumnSpacing="10">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <Ellipse Width="8" Height="8" Fill="{StaticResource TafsAmber}" VerticalAlignment="Center" />
+              <TextBlock x:Name="NeedsYouPillText" Grid.Column="1" FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                         Foreground="{ThemeResource TafsInk}" VerticalAlignment="Center" />
+              <FontIcon Grid.Column="2" Glyph="&#xE70E;" FontSize="12" Foreground="{ThemeResource TafsDim}" />
+            </Grid>
+          </Button>
           <!-- Why the last message didn't go, or the conversation couldn't be read, as the iPad's setupError over the box. -->
           <StackPanel Grid.Row="2" Margin="0,0,16,4" Spacing="4">
             <!-- Coach's tools still to give, as the iPad's CoachToolsRow: one line in tafs cloud's words, opening the step. -->

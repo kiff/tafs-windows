@@ -487,6 +487,7 @@ public sealed partial class CoachPanel : UserControl
         // Beside the thread when the panel is wide: what it has made so far, read again with it.
         ShowShape(thread);
         drawnOrder = items.Select(i => i.Id).ToList();
+        (waitingCard, waitingElement) = (CoachShape.Waiting(thread), null);
         for (var i = 0; i < items.Count; i++)
         {
             if (CoachChat.GapTime(w, items, i, DateTimeOffset.Now, TimeZoneInfo.Local) is { } gap)
@@ -494,12 +495,15 @@ public sealed partial class CoachPanel : UserControl
             // A card, as the iPad's SetupComponentView: the questions card in this change; the other kinds come in their own.
             if (items[i].Card is { } shown)
             {
+                var before = ThreadItems.Children.Count;
                 if (shown.Card.Kind == "questions") ThreadItems.Children.Add(QuestionsCard(thread, shown));
                 else if (shown.Card.Kind == "notice") ThreadItems.Children.Add(Notice(shown.Card));
                 else if (shown.Card.Kind == "result") ThreadItems.Children.Add(Result(thread, shown));
                 else if (shown.Card.Kind == "confirm") ThreadItems.Children.Add(Confirm(thread, shown.Card));
                 else if (shown.Card.Kind == "approval") ThreadItems.Children.Add(Approval(thread, shown.Card));
                 else if (shown.Card.Kind == "sign_in") ThreadItems.Children.Add(SignIn(thread, shown.Card));
+                else if (shown.Card.Kind == "knob") ThreadItems.Children.Add(KnobCard(shown.Card));
+                if (shown == waitingCard && ThreadItems.Children.Count > before) waitingElement = ThreadItems.Children[^1] as FrameworkElement;
                 continue;
             }
             var m = items[i].Message!;
@@ -527,8 +531,8 @@ public sealed partial class CoachPanel : UserControl
                 if (m.Kickoff) said.Children.Add(Kickoff(m));
                 else
                 {
-                    var text = Words(m.Text, 16, "TafsInkText");
-                    text.IsTextSelectionEnabled = true;
+                    // Coach's words as Markdown, as the iPad's MarkdownText: no symbol shows as written.
+                    var text = MarkdownView.Build(m.Text, 16, Brush);
                     said.Children.Add(text);
                     // The answer's menu, Report this answer, on an answer the person can report (the iPad's reportable).
                     if (AnswerReport.Can(m, kiff: report is not null)) text.ContextFlyout = said.ContextFlyout = ReportMenu(m);
@@ -536,6 +540,8 @@ public sealed partial class CoachPanel : UserControl
                 ThreadItems.Children.Add(said);
             }
         }
+        // The waiting card's pill, once the thread is laid out.
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, ShowNeedsYouPill);
         var away = thread.Lines.Where(l => l.Away).ToList();
         if (away.Count > 0)
         {

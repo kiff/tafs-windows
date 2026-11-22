@@ -36,6 +36,10 @@ public sealed record CoachCard(string Kind, string Id, string? Title = null, str
     /// planque couldn't narrow it (<c>usual_access</c>), so it asks for more access than the taf uses. None when it didn't say.
     /// </summary>
     public string? Wider { get; init; }
+
+    /// <summary>A dial card's taf (tafs cloud's id) and the version Coach drafted for it (K4).</summary>
+    public string? TafId { get; init; }
+    public int? Version { get; init; }
 }
 
 /// <summary>
@@ -173,6 +177,7 @@ public sealed record ShownCard(DateTimeOffset FirstAt, string Session, string Ru
             Lenient.Text(c, "yes"))
         {
             Grant = Lenient.Text(c, "grant"), Draft = Lenient.Text(c, "draft"), Service = Lenient.Text(c, "service"),
+            TafId = Lenient.Text(c, "taf_id"), Version = Lenient.Field(c, "version") is { } version && Shape.Int(version) ? (int)version.GetDouble() : null,
             ConnectionDone = Lenient.Field(c, "connection") is { } done && Lenient.Bool(done, "done") && Lenient.Text(done, "words") is { } line
                 && line.Trim().Length > 0 ? line : null,
             Signs = Lenient.Field(c, "signs") is { ValueKind: JsonValueKind.Object } s

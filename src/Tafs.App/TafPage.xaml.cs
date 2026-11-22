@@ -25,7 +25,8 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     CardScreen CardOn = CardScreen.Main, bool CreditsPrevious = false, TafTrying? Trying = null, TafInTrial? InTrial = null,
     TafInstalling? Installing = null, Func<int, KnobItem, Task<KnobEventResult>>? ApproveEvent = null, TafSharing? Share = null,
     Action<string>? AskCoachAbout = null, Func<Task<string?>>? Revoke = null, bool RevokeNeedsApprover = false, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null,
-    Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafSteps? Steps = null, TafFiles? Files = null)
+    Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafSteps? Steps = null, TafFiles? Files = null, TafDoorSigning? DoorSigning = null,
+    string? DoorOn = null)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
@@ -45,14 +46,24 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
 /// <param name="Answering">An answer going for this hand-off: Done and Skip off.</param>
 /// <param name="Answer">Done (true) or Skip (false), through Needs you's own answering.</param>
 /// <param name="CheckHello">Check again, when Windows Hello wasn't ready.</param>
+/// <param name="Why">Why the last answer didn't go through (Needs you's own line), drawn under the step it was for.</param>
 public sealed record TafSteps(Func<string, Tafs.Core.NeedsYou.YourStep?> Listed, Func<string, bool> Answered, Func<bool> CanAnswer,
-    Func<string, bool> Answering, Func<Tafs.Core.NeedsYou.HelloReadiness> Hello, Action<Tafs.Core.NeedsYou.YourStep, bool> Answer, Action CheckHello);
+    Func<string, bool> Answering, Func<Tafs.Core.NeedsYou.HelloReadiness> Hello, Action<Tafs.Core.NeedsYou.YourStep, bool> Answer, Action CheckHello,
+    Func<string, string?> Why);
 
 /// <summary>
 /// A taf's files, as the iPad's <c>TafFilesEntry</c>: the account's list read for its count (none while it's read or when the
 /// read fails), and Files opened on this taf.
 /// </summary>
 public sealed record TafFiles(Func<Task<IReadOnlyList<Tafs.Core.Files.DeliveredFile>?>> Load, Action Open);
+
+/// <summary>
+/// A door "From another application"'s signed changes (docs/doors.md), for whoever manages the taf on a PC that approves with its
+/// passkey, as Remove for good: one Windows Hello naming the act, its assertion over the method, path and these exact bytes,
+/// then the change sent with it. <c>Send</c> answers null when Windows Hello was closed (nothing sent); <c>Cloud</c> is tafs
+/// cloud's address, for the door's endpoint.
+/// </summary>
+public sealed record TafDoorSigning(Func<HttpMethod, string, byte[], string, Task<CloudRead?>> Send, Uri Cloud);
 
 /// <summary>
 /// Remove for good, for whoever manages the taf on a PC that signs with its passkey: what goes with it, in tafs cloud's words,
@@ -190,6 +201,8 @@ public sealed partial class TafPage : Page
         ShowWork();
         _ = LoadWorkAsync();
         if (tab == TafTab.Chat) _ = LoadChatAsync();
+        // A door's own screen, opened on that door (a screenshot of it).
+        if (opening.DoorOn is { } doorOn) doorShown = doorOn;
         if (opening.SetupOn != SetupScreen.Main) OpenSetupScreen(opening.SetupOn);
         if (opening.CardOn != CardScreen.Main) OpenCardScreen(opening.CardOn);
     }
@@ -284,6 +297,37 @@ public sealed partial class TafPage : Page
     /// Send, as the iPad's <c>sendChat</c>: checked first (nothing to send says nothing; too long says so), shown at once,
     /// then sent. Not taken, it stays in the thread as not sent, with why, Edit and Retry (<see cref="Unsent"/>).
     /// </summary>
+    /// <summary>
+    /// A message's menu, as the iPad's <c>askAgain</c>: Send again (its words only; files picked for the next message stay in
+    /// the tray, so with files there its words wait in the box), Edit and send (its words in the box), and Copy.
+    /// </summary>
+    MenuFlyout AskAgain(string text)
+    {
+        var w = App.Words;
+        var again = new MenuFlyoutItem { Text = w.Get("chat.send_again"), Icon = new SymbolIcon(Symbol.Refresh) };
+        again.Click += (_, _) =>
+        {
+            Draft.Text = text;
+            if (ReadyFiles().Count == 0 && !FilesUploading) OnSend(again, new RoutedEventArgs());
+            else Draft.Focus(FocusState.Programmatic);
+        };
+        var edit = new MenuFlyoutItem { Text = w.Get("chat.edit_and_send"), Icon = new SymbolIcon(Symbol.Edit) };
+        edit.Click += (_, _) =>
+        {
+            Draft.Text = text;
+            Draft.SelectionStart = text.Length;
+            Draft.Focus(FocusState.Programmatic);
+        };
+        var copy = new MenuFlyoutItem { Text = w.Get("common.copy"), Icon = new SymbolIcon(Symbol.Copy) };
+        copy.Click += (_, _) =>
+        {
+            var data = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            data.SetText(text);
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(data);
+        };
+        return new MenuFlyout { Items = { again, edit, copy } };
+    }
+
     async void OnSend(object sender, RoutedEventArgs e)
     {
         // Send waits while a file is going up; a message may be words, files, or both.
@@ -622,6 +666,8 @@ public sealed partial class TafPage : Page
                 if (m.Text.Length > 0) said.Children.Add(ChatViews.OwnerBubble(m.Text, Brush));
                 // Written while a card waited: these words were its answer. Not a door's.
                 if (m is { Answers: not null, Door: null }) said.Children.Add(ChatViews.AnsweredCardLine());
+                // The person's own words, again, as the iPad's askAgain: Send again, Edit and send, Copy. Not someone else's (a door's).
+                if (m.Door is null && m.Text.Length > 0 && opening?.Send is not null) said.ContextFlyout = AskAgain(m.Text);
                 if (said.Children.Count > 0) ChatPane.Children.Add(Own(said, m.Text));
                 continue;
             }
@@ -634,8 +680,8 @@ public sealed partial class TafPage : Page
             if (m.Kickoff) lines.Children.Add(ChatViews.Kickoff(m));
             else
             {
-                var text = CoachPanel.Words(m.Text, 16, "TafsInkText");
-                text.IsTextSelectionEnabled = true;
+                // The taf's words as Markdown, as the iPad's MarkdownText: no symbol shows as written.
+                var text = MarkdownView.Build(m.Text, 16, Brush);
                 // Its answers can be reported, as Coach's (the iPad's reportable, for a taf's chat and a trial's).
                 if (Tafs.Core.Coach.AnswerReport.Can(m, kiff: opening?.Send is not null && opening.CloudId is not null)) text.ContextFlyout = ReportMenu(m);
                 lines.Children.Add(text);
