@@ -99,6 +99,10 @@ public sealed partial class CoachPanel
         AutomationProperties.SetName(CoachDraft, CoachDraft.PlaceholderText);
         CoachSendButton.Content = w.Get(coachSending ? "common.sending" : "common.send");
         CoachSendButton.IsEnabled = !coachSending;
+        // Stop while Coach works, as the iPad's: its current run is cancelled.
+        CoachStopButton.Content = w.Get("chat.stop");
+        CoachStopButton.Visibility = thread?.Working is not null && answer is not null ? Visibility.Visible : Visibility.Collapsed;
+        CoachStopButton.IsEnabled = !coachStopping;
         ChatError.Text = chatError ?? "";
         ChatError.Visibility = chatError is null ? Visibility.Collapsed : Visibility.Visible;
     }
@@ -144,6 +148,9 @@ public sealed partial class CoachPanel
                 HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0),
                 Children = { ChatViews.OwnerBubble(m.Text, Brush) },
             }, m.Text));
+        // How the last run ended, when the person stopped it, as the iPad's ended: "Stopped", until the next message.
+        if (coachStopped && thread?.Working is null)
+            ThreadItems.Children.Add(Words(App.Words.Get("taf.state.stopped"), 13, "TafsDimText"));
         // What tafs cloud didn't take, after it, where it was written.
         foreach (var m in coachUnsent)
             ThreadItems.Children.Add(ChatPinner.Own(ChatViews.UnsentBubble(App.Words, m, Brush, coachSending,
@@ -312,7 +319,7 @@ public sealed partial class CoachPanel
         var pending = TafChatSend.Pending(text, thread?.Messages ?? [], DateTimeOffset.UtcNow);
         coachSent.Add(pending);
         // The box is the Send button's to clear: Retry leaves what's being typed there alone, as the iPad's submitSetup.
-        (coachSending, chatError) = (true, null);
+        (coachSending, chatError, coachStopped) = (true, null, false);
         ShowConversation();
         var files = CoachTray.Ready;
         // Improving a taf: its first message goes to that taf's improve route, as the iPad's; then Coach's as usual.
@@ -353,6 +360,25 @@ public sealed partial class CoachPanel
         }
         await LoadThreadAsync();
         return true;
+    }
+
+    bool coachStopping;
+    /// <summary>The person stopped Coach's last run: "Stopped" under the thread until the next message goes.</summary>
+    bool coachStopped;
+
+    /// <summary>Stop, as the iPad's <c>stopSetup</c>: the run at work in Coach's conversation is cancelled; not taken, why.</summary>
+    async void OnCoachStop(object sender, RoutedEventArgs e)
+    {
+        if (coachStopping || coach is not { } id || answer is not { } send || thread?.Working is not { } working) return;
+        coachStopping = true;
+        ShowChatTools();
+        var gen = generation;
+        var why = await TafChatSend.StopAsync(App.Words, id, working, send);
+        if (gen != generation) return;
+        coachStopping = false;
+        (coachStopped, chatError) = (why is null, why);
+        await LoadThreadAsync();
+        ShowConversation();
     }
 
     AttachTray? coachTray;

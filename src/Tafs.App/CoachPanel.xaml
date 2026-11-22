@@ -137,13 +137,14 @@
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
               <RowDefinition Height="Auto" />
               <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <!-- The files picked for the next message, as in a taf's chat. -->
-            <StackPanel x:Name="CoachFileTray" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="8" Visibility="Collapsed" />
+            <StackPanel x:Name="CoachFileTray" Grid.ColumnSpan="4" Orientation="Horizontal" Spacing="8" Visibility="Collapsed" />
             <Button x:Name="CoachAttach" Grid.Row="1" Style="{StaticResource TafsArrow}" Width="40" VerticalAlignment="Bottom" Click="OnCoachAttach"
                     AutomationProperties.AutomationId="coach.attach">
               <FontIcon Glyph="&#xE723;" FontSize="17" Foreground="{ThemeResource TafsCoach}" />
@@ -152,6 +153,9 @@
                      AutomationProperties.AutomationId="coach.draft" />
             <Button x:Name="CoachSendButton" Grid.Row="1" Grid.Column="2" Style="{StaticResource TafsPrimary}" VerticalAlignment="Bottom" Padding="18,0"
                     Click="OnCoachSend" AutomationProperties.AutomationId="coach.send" />
+            <!-- Stop, while Coach works, as the iPad's composer and plan: its current run is cancelled. -->
+            <Button x:Name="CoachStopButton" Grid.Row="1" Grid.Column="3" Style="{StaticResource TafsOutlineNo}" VerticalAlignment="Bottom" Padding="14,0"
+                    Visibility="Collapsed" Click="OnCoachStop" AutomationProperties.AutomationId="coach.stop" />
           </Grid>
         </Grid>
         <!-- What the conversation has made so far, as the iPad's SetupShapePanel: drawn in code, on Coach's deeper blue. -->
