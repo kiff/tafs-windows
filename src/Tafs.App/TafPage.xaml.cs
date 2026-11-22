@@ -25,7 +25,7 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     CardScreen CardOn = CardScreen.Main, bool CreditsPrevious = false, TafTrying? Trying = null, TafInTrial? InTrial = null,
     TafInstalling? Installing = null, Func<int, KnobItem, Task<KnobEventResult>>? ApproveEvent = null, TafSharing? Share = null,
     Action<string>? AskCoachAbout = null, Func<Task<string?>>? Revoke = null, bool RevokeNeedsApprover = false, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null,
-    Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafDoorSigning? DoorSigning = null, string? DoorOn = null)
+    Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafFiles? Files = null, TafDoorSigning? DoorSigning = null, string? DoorOn = null)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
@@ -33,6 +33,12 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     /// </summary>
     public Action? Improve => MayUseCoach?.Invoke() == true ? AskCoach : null;
 }
+
+/// <summary>
+/// A taf's files, as the iPad's <c>TafFilesEntry</c>: the account's list read for its count (none while it's read or when the
+/// read fails), and Files opened on this taf.
+/// </summary>
+public sealed record TafFiles(Func<Task<IReadOnlyList<Tafs.Core.Files.DeliveredFile>?>> Load, Action Open);
 
 /// <summary>
 /// A door "From another application"'s signed changes (docs/doors.md), for whoever manages the taf on a PC that approves with its
@@ -135,6 +141,7 @@ public sealed partial class TafPage : Page
         ShowShare();
         // Its live version in the head, for whoever manages it, read now.
         ShowVersionLine();
+        _ = ShowFilesLinkAsync();
         if (opening is { CloudId: not null, Manages: true, InTrial: null }) _ = LoadVersionsAsync();
         StateText.Text = head.State;
         WaitingText.Text = head.State;

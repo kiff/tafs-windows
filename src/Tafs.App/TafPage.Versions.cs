@@ -96,6 +96,30 @@ public sealed partial class TafPage
         AutomationProperties.SetName(VersionLine, VersionLineText.Text);
     }
 
+    /// <summary>
+    /// Its files, first on the header's line, as the iPad's <c>TafFilesEntry</c>: shown with none yet too, so a taf's files are
+    /// always found in the same place; a count once the account's list says it has some kept now.
+    /// </summary>
+    async Task ShowFilesLinkAsync()
+    {
+        var w = App.Words;
+        FilesLink.Visibility = opening?.Files is null || opening.CloudId is null ? Visibility.Collapsed : Visibility.Visible;
+        FilesLinkText.Text = w.Get("files.title");
+        FilesCount.Visibility = Visibility.Collapsed;
+        AutomationProperties.SetName(FilesLink, w.Get("files.title"));
+        if (opening is not { Files: { } files, CloudId: { } id } o) return;
+        var all = await files.Load();
+        if (opening != o || all is null) return;
+        var count = Tafs.Core.Files.DeliveredFiles.Of(all, taf: id).Count;
+        if (count == 0) return;
+        FilesCountText.Text = count.ToString(Tafs.Core.Words.Locale.Culture(w.Language));
+        FilesCount.Visibility = Visibility.Visible;
+        // "Files, 3 files from its runs", as the iPad's label.
+        AutomationProperties.SetName(FilesLink, w.Get("files.title") + ", " + w.Count("files.taf_row", count));
+    }
+
+    void OnFilesLink(object sender, RoutedEventArgs e) => opening?.Files?.Open();
+
     void OnVersionLine(object sender, RoutedEventArgs e)
     {
         if (!Built(TafTab.Card)) return;

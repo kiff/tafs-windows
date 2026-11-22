@@ -16,7 +16,7 @@
       "src/*/Coach/FirstStart*", "tests/*/Coach/PasskeyPair*"],
     "home": ["src/*/Home/**", "tests/*/Home/**", "src/*/Missions/**", "tests/*/Missions/**"],
     "coach": ["src/*/Coach/**", "tests/*/Coach/**"],
-    "record": ["src/*/Record/**", "tests/*/Record/**", "src/*/Taf/**", "tests/*/Taf/**"],
+    "record": ["src/*/Record/**", "tests/*/Record/**", "src/*/Taf/**", "tests/*/Taf/**", "src/*/Files/**", "tests/*/Files/**"],
     "connections": ["src/*/Connections/**", "tests/*/Connections/**"],
     "calendar": ["src/*/Calendar/**", "tests/*/Calendar/**", "src/*/Usage/**", "tests/*/Usage/**"],
     "account": ["src/*/Account/**", "tests/*/Account/**"],
