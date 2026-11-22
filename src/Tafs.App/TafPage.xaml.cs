@@ -620,8 +620,8 @@ public sealed partial class TafPage : Page
             if (m.Kickoff) lines.Children.Add(ChatViews.Kickoff(m));
             else
             {
-                var text = CoachPanel.Words(m.Text, 16, "TafsInkText");
-                text.IsTextSelectionEnabled = true;
+                // The taf's words as Markdown, as the iPad's MarkdownText: no symbol shows as written.
+                var text = MarkdownView.Build(m.Text, 16, Brush);
                 // Its answers can be reported, as Coach's (the iPad's reportable, for a taf's chat and a trial's).
                 if (Tafs.Core.Coach.AnswerReport.Can(m, kiff: opening?.Send is not null && opening.CloudId is not null)) text.ContextFlyout = ReportMenu(m);
                 lines.Children.Add(text);
