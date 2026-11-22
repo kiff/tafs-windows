@@ -75,8 +75,6 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 | TafDialPanel.swift | 228 | The dial's requests and confirmation | KnobNavigation, DoorsModel |
 | TafKnobRemote.swift | 64 | The remote's buttons: back, lower, pause, raise, next | KnobNavigation |
 | TafKnobView.swift | 377 | The taf's remote | KnobNavigation |
-| TafSetupViews.swift | 512 | A taf's Setup: Starts when, Results go to, the pending dial | DoorsModel |
-| APIDoorViews.swift | 406 | A door "From another application": its count and cap, last request, keys, New key, Revoke, the instructions (new since d14217f; batch: a taf) | DoorsModel |
 | ChromeViews.swift | 178 | Account › Chrome: paired Chromes, Pair a Chrome, Unpair, once planque offers it (new since d14217f; batch: Account) | |
 | ReportPaymentSheet.swift | 64 | "Report this payment" from a receipt: KIFF marks it and the taf is halted (new since d14217f; batch: Record) | |
 | WatchDaysViews.swift | 93 | "From your watch" in Coach's Previous conversations, one a day (new since d14217f; batch: Coach, as on Linux) | |
@@ -115,4 +113,4 @@ each row is read again, against the pin's file, by the batch PR that ports it. I
 
 ## Coverage
 
-Ported 16, partial 26, not started 14, not for Windows 3: the 57 view files at the pin (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial, approvals' ApprovalSetupView, AllowSheetView and AppEventApprovalSheet, with YourStepCard partial; a taf's batch moved FilesViews and APIDoorViews to partial; a taf's batch moved FilesViews to partial and YourStepCard to ported; a taf's batch moved FilesViews to partial, and recounted SetupShapePanel and TafSetupViews to ported, DoorsView to partial).
+Ported 16, partial 26, not started 12, not for Windows 3: the 57 view files at the pin (rows are recounted batch by batch, as above; sign-in's batch moved AIConsentView and OnboardingCards to ported, Home's DiscardSettingUp, HomeRecipes and RecipeGallery, with BriefView partial, approvals' ApprovalSetupView, AllowSheetView and AppEventApprovalSheet, with YourStepCard partial; a taf's batch moved FilesViews and APIDoorViews to partial; a taf's batch moved FilesViews to partial and YourStepCard to ported; a taf's batch moved FilesViews to partial, and recounted SetupShapePanel and TafSetupViews to ported, DoorsView to partial).
