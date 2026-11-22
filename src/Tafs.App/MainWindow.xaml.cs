@@ -222,7 +222,7 @@ public sealed partial class MainWindow : Window
         NeedsYouPage.StepAnswerChosen += (step, done) => _ = AnswerStepAsync(step, done);
         NeedsYouPage.HelloCheckChosen += () => _ = CheckHelloAsync();
         // Your step draws again with each answer from Windows, as every approval's gate does.
-        HelloState.Changed += () => DispatcherQueue.TryEnqueue(() => { if (Pages.Content is NeedsYouPage) ShowSteps(); });
+        HelloState.Changed += () => DispatcherQueue.TryEnqueue(() => { if (Pages.Content is NeedsYouPage or TafPage) ShowSteps(); });
         NeedsYouPage.HeldAnswerChosen += (call, answer) => _ = AnswerHeldAsync(call, answer);
         NeedsYouPage.AllowChosen += call => _ = OpenAllowAsync(call);
         Toasts.HoldChosen += hold => DispatcherQueue.TryEnqueue(() => OpenHold(hold));
@@ -788,9 +788,27 @@ public sealed partial class MainWindow : Window
     bool CanAnswerSteps(KeptSession? session) =>
         YourSteps.CanAnswer(session is not null && !sampleHeld, mayAnswerHolds, session?.Tenant, session is not null && TpmKey.Exists(session.KeyName));
 
-    /// <summary>The steps drawn again on Needs you when open, as the iPad's <c>showSteps</c>.</summary>
+    /// <summary>
+    /// Your step on a taf's page, as the iPad's <c>canAnswer(step:)</c> and <c>yourStep(_:)</c>: Home's step when listed, answered
+    /// through <see cref="AnswerStepAsync"/>; Windows Hello asked about once a step shows, as on Needs you.
+    /// </summary>
+    TafSteps TafStepsFor() => new(
+        handoff => listedSteps.FirstOrDefault(s => s.Handoff == handoff),
+        answeredSteps.Contains,
+        () =>
+        {
+            if (!helloChecked) _ = CheckHelloAsync();
+            return CanAnswerSteps(App.Sessions.Kept());
+        },
+        answeringSteps.Contains,
+        () => HelloState.Readiness,
+        (step, done) => _ = AnswerStepAsync(step, done),
+        () => _ = CheckHelloAsync());
+
+    /// <summary>The steps drawn again on Needs you when open, or on a taf's page, as the iPad's <c>showSteps</c>.</summary>
     void ShowSteps()
     {
+        if (Pages.Content is TafPage tafPage) tafPage.StepsChanged();
         steps = YourSteps.Shown(listedSteps, answeredSteps);
         if (Pages.Content is NeedsYouPage page)
         {
@@ -857,6 +875,8 @@ public sealed partial class MainWindow : Window
         needsYouError = why;
         if (outcome is StepAnswered.Answered or StepAnswered.Ended) answeredSteps.Add(step.Handoff);
         ShowSteps();
+        // On a taf's page, its work read again, as the iPad's onTaf: the request's line comes back as tafs cloud now says it.
+        if (outcome is StepAnswered.Answered or StepAnswered.Ended && Pages.Content is TafPage tafPage) tafPage.StepAnswered();
         // The lists read again, as the iPad's refresh once KIFF took the answer.
         if (outcome == StepAnswered.Answered && cloudRead is { } read) await ReadHomeAsync(read);
     }
@@ -2001,6 +2021,8 @@ public sealed partial class MainWindow : Window
                 // A taf's card for Coach: Coach improving this taf, its words in the box, nothing sent, as the iPad's askCoachAbout.
                 // Its held calls beside its chat at a wide width, as the window holds them when it's drawn.
                 Held: () => held.Where(h => h.Taf == taf.Name).ToList(),
+                // Your step on its requests, answered as on Needs you.
+                Steps: TafStepsFor(),
                 AskCoachAbout: words =>
                 {
                     if (!mayUseCoach) return;

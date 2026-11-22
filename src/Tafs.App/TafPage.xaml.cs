@@ -25,7 +25,7 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     CardScreen CardOn = CardScreen.Main, bool CreditsPrevious = false, TafTrying? Trying = null, TafInTrial? InTrial = null,
     TafInstalling? Installing = null, Func<int, KnobItem, Task<KnobEventResult>>? ApproveEvent = null, TafSharing? Share = null,
     Action<string>? AskCoachAbout = null, Func<Task<string?>>? Revoke = null, bool RevokeNeedsApprover = false, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null,
-    Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null)
+    Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafSteps? Steps = null)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
@@ -33,6 +33,20 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     /// </summary>
     public Action? Improve => MayUseCoach?.Invoke() == true ? AskCoach : null;
 }
+
+/// <summary>
+/// Your step on a taf's page, as the iPad's <c>request(_:)</c>: a request's step answered there too, in place of its line,
+/// with Home's step when listed (it carries the vendor's link tafs cloud vouched for), else the request's own. Read as it's
+/// drawn, so an answer elsewhere, Windows Hello's state and an answer going show at once.
+/// </summary>
+/// <param name="Listed">Home's step for a hand-off, if listed.</param>
+/// <param name="Answered">Answered or ended on this PC: the request's line again.</param>
+/// <param name="CanAnswer">Whether this PC answers steps (the device key, and someone who answers the account's holds).</param>
+/// <param name="Answering">An answer going for this hand-off: Done and Skip off.</param>
+/// <param name="Answer">Done (true) or Skip (false), through Needs you's own answering.</param>
+/// <param name="CheckHello">Check again, when Windows Hello wasn't ready.</param>
+public sealed record TafSteps(Func<string, Tafs.Core.NeedsYou.YourStep?> Listed, Func<string, bool> Answered, Func<bool> CanAnswer,
+    Func<string, bool> Answering, Func<Tafs.Core.NeedsYou.HelloReadiness> Hello, Action<Tafs.Core.NeedsYou.YourStep, bool> Answer, Action CheckHello);
 
 /// <summary>
 /// Remove for good, for whoever manages the taf on a PC that signs with its passkey: what goes with it, in tafs cloud's words,
