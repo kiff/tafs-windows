@@ -20,13 +20,23 @@ sealed class ReceiptSheet
     readonly StackPanel body = new() { Spacing = 16 };
     readonly StackPanel happened = new() { Spacing = 0 };
     readonly Border receipt;
+    readonly ScrollViewer scroller = new() { MaxHeight = 640 };
+    /// <summary>"Report this payment", while tafs cloud offers it; gone once it's reported from here.</summary>
+    readonly Button report = new();
     byte[]? raw;
+    bool sending;
 
     /// <summary>This PC's check of the receipt; none while it's read.</summary>
     ReceiptCheck? check;
 
     /// <summary>How the sheet reads KIFF's receipt as it wrote it: its bytes, or why not. None signed out.</summary>
     public static Func<string, Task<(byte[]? Raw, string? Why)>>? Read { get; set; }
+
+    /// <summary>How the sheet reports a payment to tafs cloud (<c>POST /v1/record/{trace_id}/report</c>): whether it took it. None signed out.</summary>
+    public static Func<string, Task<bool>>? SendReport { get; set; }
+
+    /// <summary>A payment was reported from a receipt: its taf is halted, so Home is read again.</summary>
+    public static event Action? Reported;
 
     ReceiptSheet(RecordEntry entry, ElementTheme theme)
     {
@@ -41,8 +51,9 @@ sealed class ReceiptSheet
         var dialog = new ContentDialog
         {
             XamlRoot = root, RequestedTheme = theme, CloseButtonText = App.Words.Get("record.filter.done"),
-            Content = new ScrollViewer { Content = sheet.Draw(App.Words), MaxHeight = 640 },
+            Content = sheet.scroller,
         };
+        sheet.scroller.Content = sheet.Draw(App.Words);
         _ = sheet.LoadAsync();
         await dialog.ShowAsync();
     }
@@ -68,7 +79,70 @@ sealed class ReceiptSheet
         body.Children.Add(facts);
         body.Children.Add(happened);
         if (entry.Call?.Receipt is not null) body.Children.Add(receipt);
+        // Where tafs cloud offers it, until it's reported: outlined in red, as the iPad's.
+        if (ReportPayment.Offers(entry) && SendReport is not null)
+        {
+            report.Content = w.Get("record.report.button");
+            report.Style = (Style)Application.Current.Resources["TafsOutlineButton"];
+            report.Foreground = Brush("TafsNo");
+            report.BorderBrush = Brush("TafsNo");
+            report.HorizontalAlignment = HorizontalAlignment.Stretch;
+            report.Click += (_, _) => ShowReport(w, ReportPhase.Asking);
+            body.Children.Add(report);
+        }
         return body;
+    }
+
+    enum ReportPhase { Asking, Sending, Done, Failed }
+
+    /// <summary>
+    /// "Report this payment", as the iPad's <c>ReportPaymentSheet</c>, in this sheet's place (Windows shows one dialog at a time):
+    /// the title; what it reports and that the taf halts, with Report and halt {taf} and Cancel; once tafs cloud takes it,
+    /// Reported, with Done back to the receipt, its button gone. If it doesn't go through, it says so and the button stays:
+    /// sending again is safe. No payee, no note and no reason: tafs keeps none.
+    /// </summary>
+    void ShowReport(WordBook w, ReportPhase phase)
+    {
+        var view = new StackPanel { Spacing = 16 };
+        view.Children.Add(Words(w.Get("record.report.title"), 30, "TafsInk", FontWeights.Bold));
+        if (phase == ReportPhase.Done)
+        {
+            view.Children.Add(Words(w.Get("record.report.done", ("taf", entry.Taf)), 16, "TafsInk"));
+            view.Children.Add(Wide(w.Get("common.done"), "TafsPrimary", () => scroller.Content = body));
+        }
+        else
+        {
+            view.Children.Add(Words(ReportPayment.Intro(w, entry, TimeZoneInfo.Local), 16, "TafsInk"));
+            if (phase == ReportPhase.Failed) view.Children.Add(Words(w.Get("record.report.failed"), 14, "TafsNo", FontWeights.SemiBold));
+            var send = Wide(w.Get("record.report.submit", ("taf", entry.Taf)), "TafsPrimary", () => _ = SendAsync(w));
+            send.IsEnabled = phase != ReportPhase.Sending;
+            view.Children.Add(send);
+            view.Children.Add(Wide(w.Get("common.cancel"), "TafsOutlineButton", () => scroller.Content = body));
+        }
+        scroller.Content = view;
+    }
+
+    /// <summary>Sends the report, one at a time: tafs cloud took it, or it didn't go through and nothing changed.</summary>
+    async Task SendAsync(WordBook w)
+    {
+        if (sending || entry.Report is not { } offer || SendReport is not { } send) return;
+        sending = true;
+        ShowReport(w, ReportPhase.Sending);
+        var took = await send(ReportPayment.Path(offer.TraceId));
+        sending = false;
+        if (took)
+        {
+            body.Children.Remove(report);
+            Reported?.Invoke();
+        }
+        ShowReport(w, took ? ReportPhase.Done : ReportPhase.Failed);
+    }
+
+    static Button Wide(string text, string style, Action clicked)
+    {
+        var button = new Button { Content = text, Style = (Style)Application.Current.Resources[style], HorizontalAlignment = HorizontalAlignment.Stretch };
+        button.Click += (_, _) => clicked();
+        return button;
     }
 
     /// <summary>KIFF's receipt, as the iPad's <c>loadReceipt</c>: read when the sheet opens; Try again when it couldn't be.</summary>

@@ -345,11 +345,24 @@ public sealed partial class RecordPage : Page
         if (hit.Line.Time.Length > 0) words.Children.Add(Text(hit.Line.Time, 12, "TafsDim"));
         Grid.SetColumn(words, 1);
         line.Children.Add(words);
-        row.Children.Add(new Border
+        var card = new Border
         {
             Child = line, Padding = new Thickness(14, 12, 14, 12), CornerRadius = new CornerRadius(14), Background = Look("TafsPanel"),
             BorderBrush = Look("TafsLine"), BorderThickness = new Thickness(1),
-        });
+        };
+        // With tafs cloud's call, a click opens its receipt, as the iPad's SourceActivityRow (where Report this payment is).
+        if (ReportPayment.Evidence(hit.Line, hit.TafName, 0) is { } evidence)
+        {
+            var open = new Button
+            {
+                Content = card, Tag = evidence, Style = (Style)Application.Current.Resources["TafsRow"], Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                Padding = new Thickness(0), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            };
+            AutomationProperties.SetName(open, hit.Line.Title);
+            open.Click += OnLine;
+            row.Children.Add(open);
+        }
+        else row.Children.Add(card);
         if (opensCase && hit.About is { } about)
         {
             var open = new HyperlinkButton { Content = about + " ›", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = Look("TafsAmberText"), Padding = new Thickness(0) };
