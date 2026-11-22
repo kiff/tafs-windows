@@ -30,11 +30,16 @@ public sealed partial class MainWindow
         var reading = sessions;
         return () =>
         {
-            var windowsHello = new WindowsHello(() => App.WindowHandle);
+            var windowsHello = new NamedHello();
             var passkey = new PasskeyApprover(windowsHello, KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);
             return SetupDiscard.DiscardAsync(App.Words, taf, discardLeft.GetValueOrDefault(agent) ?? [],
-                async path => (PasskeyApprover.HeaderName,
-                    await passkey.ApproveAsync(session.Tenant, "POST", path, SetupDiscard.Body(), SigningTime.Next(DateTimeOffset.UtcNow))),
+                async path =>
+                {
+                    // Windows Hello names the act in tafs cloud's own words for it (its title, else its button).
+                    using var _ = HelloAct.Naming(taf.Discard is { Title.Length: > 0 } d ? d.Title : taf.Discard?.Button ?? taf.Name);
+                    return (PasskeyApprover.HeaderName,
+                        await passkey.ApproveAsync(session.Tenant, "POST", path, SetupDiscard.Body(), SigningTime.Next(DateTimeOffset.UtcNow)));
+                },
                 async path => (await KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), SetupDiscard.RevokeBody(), bearer,
                     App.Words.Language)).Status is >= 200 and <= 299,
                 async (path, signature) =>

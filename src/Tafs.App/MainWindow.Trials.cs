@@ -122,7 +122,7 @@ public sealed partial class MainWindow
                 catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException) { return CloudRead.Unreached(w); }
             },
             (path, body) => Tafs.Core.NeedsYou.HoldAllow.SignConfirmAsync(session,
-                session.PasskeyId is { } id ? new PasskeyApprover(new WindowsHello(() => App.WindowHandle), KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals) : null,
+                session.PasskeyId is { } id ? new PasskeyApprover(new NamedHello(), KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals) : null,
                 path, body, SigningTime.Next(DateTimeOffset.UtcNow)),
             (path, body, signature) => KiffHttp.PostAsync(new Uri(kiff, path), body, bearer, w.Language, signature: signature),
             async path =>

@@ -212,6 +212,8 @@ public sealed partial class DevicesPage : Page
         removing = true;
         (Error.Visibility, PasskeysError.Visibility) = (Visibility.Collapsed, Visibility.Collapsed);
         string? said;
+        // Windows Hello names the act: "Sign {device} out of your account", or "Remove the passkey {name}".
+        using var named = HelloAct.Naming(what);
         try { (_, said) = await AccountRemoval.RemoveAsync(App.Words, path, what, signing.Sign, signing.Delete, signing.Current); }
         finally { removing = false; }
         await LoadAsync();
