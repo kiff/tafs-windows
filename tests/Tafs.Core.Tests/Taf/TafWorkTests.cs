@@ -79,4 +79,29 @@ public class TafWorkTests
         Assert.Equal(("Not set", "1 day", "7 days", "8 hours"), (TafWork.PromiseWords(En, null), TafWork.PromiseWords(En, 24), TafWork.PromiseWords(En, 168), TafWork.PromiseWords(En, 8)));
         Assert.Null(TafWork.Read(JsonDocument.Parse("[]").RootElement));
     }
+
+    /// <summary>
+    /// A request's step (<c>your_step</c>), as the iPad's <c>TafWork.Request.yourStep</c>: read as Home's steps are, so the taf's
+    /// page answers it in place of the line; one without a hand-off, or not an object, is no step, and the request still reads.
+    /// </summary>
+    [Fact]
+    public void A_request_s_step_is_read_as_Home_s_and_a_broken_one_is_none()
+    {
+        static WorkRequest Request(string step) => TafWork.Read(JsonDocument.Parse(
+            ("{'requests':[{'id':'r9','at':'2026-11-16T12:00:00Z','state':'needs_you','line':'Your step: approve the transfer'" + step + "}]}")
+                .Replace('\'', '"')).RootElement)!.Rows.Single().Request!;
+
+        var r = Request(",'your_step':{'handoff':'ho_9','run':'run_9','what':'Approve the transfer','why':'Only you may.'," +
+            "'link':'https://app.qonto.com/t/1','link_host':'app.qonto.com','words':{'title':'Your step','done':'Done','skip':'Skip it','open':'Open in Qonto'}}");
+        Assert.Equal("Your step: approve the transfer", r.Line);
+        var step = r.Step!;
+        Assert.Equal(("ho_9", "run_9", "Approve the transfer", "Only you may."), (step.Handoff, step.Run, step.What, step.Why));
+        Assert.Equal(("Your step", "Done", "Skip it"), (step.Said.Title, step.Said.Done, step.Said.Skip));
+        Assert.Equal("app.qonto.com", Tafs.Core.NeedsYou.YourSteps.OpenLink(step)!.Value.Host);
+
+        Assert.Null(Request("").Step);
+        Assert.Null(Request(",'your_step':{'what':'No hand-off'}").Step);
+        Assert.Null(Request(",'your_step':'ho_9'").Step);
+        Assert.Null(Request(",'your_step':null").Step);
+    }
 }
