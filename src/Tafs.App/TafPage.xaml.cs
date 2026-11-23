@@ -26,7 +26,7 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     TafInstalling? Installing = null, Func<int, KnobItem, Task<KnobEventResult>>? ApproveEvent = null, TafSharing? Share = null,
     Action<string>? AskCoachAbout = null, Func<Task<string?>>? Revoke = null, bool RevokeNeedsApprover = false, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null,
     Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafSteps? Steps = null, TafFiles? Files = null, TafDoorSigning? DoorSigning = null,
-    string? DoorOn = null, TafSlackDoor? SlackDoor = null)
+    string? DoorOn = null, TafSlackDoor? SlackDoor = null, ConnectAppsConnecting? Connecting = null)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
@@ -1060,6 +1060,8 @@ public sealed partial class TafPage : Page
             title.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
             SetupPane.Children.Add(Panel(title, Words(ask.Words, 14, "TafsSoftText"), Words(ask.History, 12, "TafsDimText")));
         }
+        // Its own Connect again, first after the asks: that same connection signed in again here.
+        AddConnectAgain(page);
         // Its job, and Improve in Coach for whoever manages it, as the iPad's: Coach starts on improving this taf.
         var job = Panel(Eyebrow("setup.job"), Words(setup.Job, 15, "TafsInkText"));
         if (opening?.Manages == true && opening.Improve is { } improve)
