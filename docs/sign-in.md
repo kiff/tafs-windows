@@ -69,7 +69,7 @@ Mac's `SignInView`, on tafs's shared words.
   - it asks for a passkey-only session, because on Windows the approval key is a Windows Hello passkey (`Features.WindowsPasskeyApprovals`). The button shows only with that flag on.
 - **A refused start** shows KIFF's status and error code only (`KIFF answered 400 invalid_device_name`), never free text from the answer.
 - **The code:** the browser opens on the link, the code is shown to check, and Open KIFF to approve opens it again.
-- **The terms line** links tafs's Terms and Privacy policy in the app's language where kiff.dev has it, under KIFF's code (`kiff.dev/<code>/tafs/terms`; zh-Hant is `zh`, sr-Latn `sr`, pt-BR `pt`; 39 codes, `SignInScreen.LegalCode`), and in English otherwise (`kiff.dev/tafs/terms`).
+- **The terms line** links tafs's Terms and Privacy policy in the app's language where kiff.dev has it, under KIFF's code (`kiff.dev/<code>/tafs/terms`; zh-Hant is `zh`, sr-Latn `sr`; pt-BR has its own lower-case `pt-br` pages, plain pt stays on `pt`; 40 codes, `SignInScreen.LegalCode`), and in English otherwise (`kiff.dev/tafs/terms`).
 - **Signed in:**
   - the window opens the Overview, with the view-only notice when `approval_mode` says view (or says nothing it knows);
   - **the session is kept** across launches, sealed for this Windows user ([the session](session.md)). A session it replaces is signed out at KIFF.
