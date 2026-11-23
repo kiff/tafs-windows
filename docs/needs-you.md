@@ -57,6 +57,9 @@ As the iPad's `HeldCallCard.answers`, for how Windows signs (`HeldAnswers`, belo
   a PC can't make one. So Windows offers no Approve once, no Extra room and no Allow this from now on for it, only
   "Approve on your phone instead", with no gate. `HeldAnswers.AnswerAsync` refuses an allowing answer on it too, behind
   the card, asking and sending nothing. Refuse and the next steps still go.
+- **Change the limit in Coach mode** (the iPad's `changeLimit`), outlined: on a call over a total, after Extra room, and
+  on one KIFF takes only this person's refusal for and approving once can't pass. Only for someone who may improve the
+  call's taf in Coach (they manage it and may use Coach). Coach opens improving that taf: a lasting change is Coach's.
 - **The Card's next steps and Refuse**, in a row, outlined, Refuse in red. Windows Hello asks for the person first (the
   iPad's Face ID or passcode for the device key), then the device key signs.
 - **A PC that doesn't approve** keeps the gate where Approve would be: why it can't, and **Add this Windows PC**. Only a

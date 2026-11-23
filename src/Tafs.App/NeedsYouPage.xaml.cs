@@ -83,6 +83,21 @@ public sealed partial class NeedsYouPage : Page
     /// <summary>"Allow this from now on" chosen on a held call.</summary>
     public static event Action<HeldCall>? AllowChosen;
 
+    /// <summary>"Change the limit in Coach mode" on a held call: Coach opens improving its taf, as the iPad's.</summary>
+    public static event Action<HeldCall>? ChangeLimitChosen;
+
+    /// <summary>
+    /// "Change the limit in Coach mode" (the iPad's <c>Words.NeedsYou.changeLimit</c>), outlined, for someone who may improve the
+    /// call's taf in Coach: a lasting change to a limit approving once can't pass is Coach's.
+    /// </summary>
+    static Button ChangeLimit(WordBook w, HeldCall call, bool sending)
+    {
+        var change = Button(w.Get("needs_you.change_limit"), "TafsOutlineButton", sending);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(change, "needsYou.changeLimit");
+        change.Click += (_, _) => ChangeLimitChosen?.Invoke(call);
+        return change;
+    }
+
     /// <summary>Who's answering and how this PC answers, for the held calls' answers; set by the window before it draws them.</summary>
     internal static HeldAnswering Answering { get; set; } = HeldAnswering.None;
 
@@ -162,6 +177,9 @@ public sealed partial class NeedsYouPage : Page
         }
         var refuseOnly = code is not null;
         if (refuseOnly) panel.Children.Add(Line(YourSteps.RefusalWords(w, code!) ?? "", 14, "TafsSoftText"));
+        // KIFF takes only this person's refusal: over a total, the lasting change is still theirs to make in Coach.
+        if (refuseOnly && a.MayAnswerHolds && a.CanAnswer(call) && !call.ApprovableOnce && a.MayImprove?.Invoke(call) == true)
+            panel.Children.Add(ChangeLimit(w, call, call.KiffId is { } held && a.Sending.Contains(held)));
         var sending = call.KiffId is { } sent && a.Sending.Contains(sent);
         if (!a.MayAnswerHolds)
         {
@@ -190,6 +208,8 @@ public sealed partial class NeedsYouPage : Page
                 // Over a total the Card keeps across calls: approving once can't pass it; extra room can, for this call.
                 panel.Children.Add(Line(w.Get(a.ManagesCards ? "needs_you.over_total_manager" : "needs_you.over_total"), 13, "TafsSoftText"));
                 if (a.ManagesCards) panel.Children.Add(Approve(w, call, new HeldAnswer.ExtraRoom(), "needs_you.extra_room_with", sending));
+                // A lasting change is Coach's.
+                if (a.MayImprove?.Invoke(call) == true) panel.Children.Add(ChangeLimit(w, call, sending));
             }
             // A third answer, for someone who manages Cards: change the Card so calls like this go on their own. Shown from
             // the held call itself, as the iPad's offersAllow.
