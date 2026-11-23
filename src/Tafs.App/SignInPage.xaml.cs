@@ -85,7 +85,9 @@ public sealed partial class SignInPage : Page
         // Signing in sends the device key and asks for a passkey-only session: only with Windows passkeys on.
         Primary.Visibility = Seen(lines.Button is not null && Features.WindowsPasskeyApprovals);
         OtherBrowser.Text = lines.OtherBrowser ?? "";
+        if (Link.Text != (lines.Link ?? "")) copied = false;
         Link.Text = lines.Link ?? "";
+        ShowCopy();
         Other.Visibility = Seen(lines.Link is not null);
         PairInstead.Content = lines.PairInstead;
         PairInstead.Visibility = Seen(lines.PairInstead is not null && !inHalf);
@@ -167,5 +169,31 @@ public sealed partial class SignInPage : Page
         {
             Primary.IsEnabled = true;
         }
+    }
+
+    /// <summary>Whether the link shown was copied: "Copied" with a check until another link is shown.</summary>
+    bool copied;
+
+    void ShowCopy()
+    {
+        var w = App.Words;
+        var word = w.Get(copied ? "common.copied" : "common.copy");
+        CopyLink.Content = new StackPanel
+        {
+            Orientation = Orientation.Horizontal, Spacing = 6,
+            Children = { new FontIcon { Glyph = copied ? "" : "", FontSize = 13 }, new TextBlock { Text = word } },
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CopyLink, word);
+    }
+
+    /// <summary>Copy, as the iPad's: the link on the clipboard, to open it in another browser where the person is signed in to KIFF.</summary>
+    void OnCopyLink(object sender, RoutedEventArgs e)
+    {
+        if (Link.Text.Length == 0) return;
+        var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+        package.SetText(Link.Text);
+        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+        copied = true;
+        ShowCopy();
     }
 }
