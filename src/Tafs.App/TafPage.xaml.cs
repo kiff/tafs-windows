@@ -243,7 +243,7 @@ public sealed partial class TafPage : Page
     /// The answer at work, as the iPad's <c>LiveWork</c>: the live line on top with its spinner, the steps under it (a failed
     /// one in red with why), and the words as they come.
     /// </summary>
-    static StackPanel LiveBlock(LiveAnswer answer, Func<string, Microsoft.UI.Xaml.Media.Brush> brush)
+    StackPanel LiveBlock(LiveAnswer answer, Func<string, Microsoft.UI.Xaml.Media.Brush> brush)
     {
         var w = App.Words;
         var block = new StackPanel { Spacing = 6 };
@@ -257,8 +257,61 @@ public sealed partial class TafPage : Page
         }
         // The steps done so far, as the iPad's LiveWork: tries of one step as one row, failures left out while it works.
         if (answer.DoneRows() is { Count: > 0 } rows) block.Children.Add(ChatViews.StepList(rows, brush));
-        if (answer.Text.Length > 0) block.Children.Add(CoachPanel.Words(answer.Text, 16, "TafsInkText"));
+        if (answer.Text.Length > 0) block.Children.Add(Steady(answer.Text));
         return block;
+    }
+
+    /// <summary>How much of the answer being written shows (-1: none yet), its text, and the host that draws it now.</summary>
+    int steadyShown = -1;
+    string steadyText = "";
+    Border? steadyHost;
+    DispatcherTimer? steadyClock;
+
+    /// <summary>
+    /// The answer streaming in, as the iPad's <c>SteadyMarkdown</c>: Markdown, with what it's in the middle of closed so no symbol
+    /// shows on the way (<see cref="Tafs.Core.Words.Markdown.Healed"/>), at an even pace rather than in the bursts it arrives in. The first words
+    /// show at once; each new piece goes on from where the last stopped, catching up within a few frames (every 16 ms, at least two
+    /// characters, else a sixth of what's left). With Windows' animations off, all of it at once.
+    /// </summary>
+    Border Steady(string text)
+    {
+        // Another answer (shorter than what showed): it starts again.
+        if (text.Length < steadyShown) steadyShown = -1;
+        steadyText = text;
+        if (steadyShown < 0 || !new Windows.UI.ViewManagement.UISettings().AnimationsEnabled) steadyShown = text.Length;
+        steadyHost = new Border { Child = MarkdownView.Build(Tafs.Core.Words.Markdown.Healed(text[..steadyShown]), 16, SteadyBrush) };
+        if (steadyShown < text.Length)
+        {
+            if (steadyClock is null)
+            {
+                steadyClock = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+                steadyClock.Tick += (_, _) => SteadyStep();
+            }
+            steadyClock.Start();
+        }
+        return steadyHost;
+    }
+
+    void SteadyStep()
+    {
+        var left = steadyText.Length - steadyShown;
+        if (left <= 0 || steadyHost is null)
+        {
+            steadyClock?.Stop();
+            return;
+        }
+        steadyShown += Math.Max(2, (left + 5) / 6);
+        steadyShown = Math.Min(steadyShown, steadyText.Length);
+        steadyHost.Child = MarkdownView.Build(Tafs.Core.Words.Markdown.Healed(steadyText[..steadyShown]), 16, SteadyBrush);
+    }
+
+    Microsoft.UI.Xaml.Media.Brush SteadyBrush(string key) => ChatViews.ThemeBrush(ActualTheme, key);
+
+    /// <summary>The answer ended, or another run began: the next one's first words show at once.</summary>
+    void SteadyDone()
+    {
+        steadyClock?.Stop();
+        (steadyShown, steadyText, steadyHost) = (-1, "", null);
     }
 
     /// <summary>Messages sent here that the thread doesn't have yet, shown after it.</summary>
@@ -721,6 +774,7 @@ public sealed partial class TafPage : Page
             ChatPane.Children.Add(error);
         }
         if (live is { } answer && !answer.Ended) ChatPane.Children.Add(LiveBlock(answer, Brush));
+        else SteadyDone();
         if (chatNote is { } note)
         {
             var line = CoachPanel.Words(note, 13, "TafsSoftText");
