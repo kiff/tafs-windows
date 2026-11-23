@@ -47,7 +47,18 @@
 
       <StackPanel x:Name="Other" Spacing="2">
         <TextBlock x:Name="OtherBrowser" FontSize="13" Foreground="{ThemeResource TafsDim}" />
-        <TextBlock x:Name="Link" FontSize="13" IsTextSelectionEnabled="True" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
+        <!-- The link, and Copy beside it (the iPad's Clipboard.copy), "Copied" with a check once copied. -->
+        <Grid ColumnSpacing="8">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <TextBlock x:Name="Link" FontSize="13" FontFamily="Cascadia Mono, Consolas" IsTextSelectionEnabled="True" TextWrapping="Wrap"
+                     VerticalAlignment="Center" Foreground="{ThemeResource TafsSoft}" />
+          <Button x:Name="CopyLink" Grid.Column="1" Click="OnCopyLink" Padding="8,4" VerticalAlignment="Center"
+                  Background="Transparent" BorderThickness="0" Foreground="{ThemeResource TafsAmberText}" FontSize="13" FontWeight="SemiBold"
+                  AutomationProperties.AutomationId="signIn.copyLink" />
+        </Grid>
       </StackPanel>
 
       <HyperlinkButton x:Name="PairInstead" Click="OnPairInstead" Padding="0" Foreground="{ThemeResource TafsAmberText}" />
