@@ -80,6 +80,17 @@ public sealed partial class BriefPage : Page
             art.HorizontalAlignment = HorizontalAlignment.Left;
             Decisions.Children.Add(art);
         }
+        // Coach's chats waiting on their person, under the decisions as the iPad's coachWaiting: tafs cloud's words, opening Needs you.
+        if (b.CoachWaiting is { } waiting)
+        {
+            var row = new Button { Style = Look("TafsBox"), HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Content = new Grid { ColumnDefinitions = { new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto } },
+                    Children = { Line(waiting.Words, 14, "TafsInkText", semibold: true), Arrow() } } };
+            AutomationProperties.SetAutomationId(row, "brief.coach_waiting");
+            AutomationProperties.SetName(row, waiting.Words);
+            row.Click += (_, _) => o.OpenNeedsYou();
+            Decisions.Children.Add(row);
+        }
 
         Side.Children.Clear();
         if (b.Done.Count > 0)

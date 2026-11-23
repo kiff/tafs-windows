@@ -99,4 +99,21 @@ public class ReceiptTests
         var raw = Bytes($$$"""{"causal_chain": [{"kind": "decision", "data": {"amount": {{{signedAmount}}}}}, {"kind": "hold_settled", "data": {"answer": "{{{settled}}}"}}]}""");
         Assert.Equal(why, Receipt.Mismatch(En, Entry(EntryKind.Approved, call), Receipt.Steps(raw)));
     }
+
+    /// <summary>A named line's payment is held to the value KIFF hashed, before its amount: one that differs doesn't check out.</summary>
+    [Fact]
+    public void A_named_lines_payment_must_be_what_KIFF_hashed()
+    {
+        static string Hash(string v) => "sha256:" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(v))).ToLowerInvariant();
+        var raw = Bytes("{\"causal_chain\": [{\"kind\": \"decision\", \"data\": {\"on_hash\": \"" + Hash("pi_3QbstR")
+            + "\", \"amount\": {\"value\": \"950.00\", \"unit\": \"EUR\"}}}]}");
+        var line = Entry(EntryKind.Approved, """, "amount": {"value": "150.00", "unit": "EUR"}""");
+        var steps = Receipt.Steps(raw);
+        // Named with another payment: the payment is said first, even though the amount differs too.
+        Assert.Equal("The payment on this line doesn't match KIFF's receipt.", Receipt.Mismatch(En, line with { OnValue = "pi_other" }, steps));
+        // Named with KIFF's own payment: on to the amount.
+        Assert.Equal("The amount on this line doesn't match KIFF's receipt.", Receipt.Mismatch(En, line with { OnValue = "pi_3QbstR" }, steps));
+        // Not named: the payment isn't compared.
+        Assert.Equal("The amount on this line doesn't match KIFF's receipt.", Receipt.Mismatch(En, line, steps));
+    }
 }
