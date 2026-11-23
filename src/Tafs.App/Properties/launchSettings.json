@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Tafs.App (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Tafs.App (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
