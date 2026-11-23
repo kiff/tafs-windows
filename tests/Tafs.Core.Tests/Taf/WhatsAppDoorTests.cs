@@ -5,7 +5,7 @@ namespace Tafs.Core.Tests.Taf;
 
 /// <summary>
 /// Adding a WhatsApp door on Windows: the sign-up page with a one-use state, and only the return carrying it, for that taf,
-/// within 15 minutes (the PM's (a), kiff/work#20).
+/// within 15 minutes.
 /// </summary>
 [Part("record")]
 public class WhatsAppDoorTests

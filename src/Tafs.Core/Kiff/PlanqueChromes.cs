@@ -16,8 +16,8 @@ public sealed record ChromeUse(string Grant, string Name, IReadOnlyList<string> 
 /// <summary>
 /// Account › Chrome (docs/chrome.md), as the iPad's <c>ChromesView</c> and <c>PlanqueClient</c>'s Chrome routes: the Chromes
 /// paired to the account, read and unpaired as this device (planque's <c>signedSafe</c> routes: the device key is enough, with
-/// no approval window). Pairing binds the approval key the extension later trusts, so it stays on the phone (agentgabo's
-/// read of planque, kiff/work#20, 20:00). planque's own switch decides whether Chrome shows at all.
+/// no approval window). Pairing binds the approval key the extension later trusts, so it stays on the phone (as planque's
+/// own code decides it). planque's own switch decides whether Chrome shows at all.
 /// </summary>
 public static class PlanqueChromes
 {

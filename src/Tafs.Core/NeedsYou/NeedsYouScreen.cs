@@ -207,6 +207,6 @@ public static class TafColors
 
 /// <summary>
 /// The gate where this PC can't approve (the iPad's <c>ApprovalGate</c>): why, Add this Windows PC, and "Approve on your phone
-/// instead" (the PM, kiff/work#20, 20:12), which puts the gate away: nothing is handed over, the call is answered on the phone.
+/// instead", which puts the gate away: nothing is handed over, the call is answered on the phone.
 /// </summary>
 public sealed record GateLines(string Title, string Lead, string Add, string OnPhone);
