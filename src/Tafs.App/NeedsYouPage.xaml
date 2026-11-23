@@ -62,6 +62,9 @@
             <ItemsPanelTemplate><StackPanel Spacing="14" /></ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
         </ItemsControl>
+
+        <!-- The tafs with a knock at their doors, after the held calls, as the iPad's: each opens its Activity. Drawn in code. -->
+        <StackPanel x:Name="KnockedTafs" Spacing="14" />
       </StackPanel>
     </Grid>
   </ScrollViewer>

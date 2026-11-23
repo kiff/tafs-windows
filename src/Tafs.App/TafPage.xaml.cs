@@ -255,6 +255,8 @@ public sealed partial class TafPage : Page
         // Its work and its runs, above its record, for a taf tafs cloud runs.
         ShowWork();
         _ = LoadWorkAsync();
+        // Its doors, for the knocks on Activity (for whoever manages it).
+        _ = LoadDoorsAsync();
         if (tab == TafTab.Chat) _ = LoadChatAsync();
         // A door's own screen, opened on that door (a screenshot of it).
         if (opening.DoorOn is { } doorOn) doorShown = doorOn;
@@ -966,7 +968,7 @@ public sealed partial class TafPage : Page
         {
             await (tab switch
             {
-                TafTab.Activity => Task.WhenAll(LoadActivityAsync(), LoadWorkAsync()),
+                TafTab.Activity => Task.WhenAll(LoadActivityAsync(), LoadWorkAsync(), LoadDoorsAsync()),
                 TafTab.Chat => LoadChatAsync(),
                 TafTab.Setup => LoadSetupAsync(),
                 _ => Task.CompletedTask,

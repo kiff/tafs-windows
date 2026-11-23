@@ -82,6 +82,19 @@ public sealed record TafDoors(IReadOnlyList<Door> Doors, IReadOnlyList<DoorApp> 
     /// <summary>The knocks still waiting on the person.</summary>
     public IEnumerable<Knock> OpenKnocks => Knocks.Where(k => k.State == "open");
 
+    /// <summary>
+    /// What waits at the taf's doors on its Activity, as the iPad's <c>TafKnocksPanel</c>: strangers' knocks, then a paired
+    /// sender's message kept from its knock, apart. A day's line isn't on Activity (it's on Starts when).
+    /// </summary>
+    public (IReadOnlyList<Knock> Waiting, IReadOnlyList<Knock> Paired) ActivityKnocks
+    {
+        get
+        {
+            var open = OpenKnocks.Where(k => !k.IsLine).ToList();
+            return (open.Where(k => !k.Paired).ToList(), open.Where(k => k.Paired).ToList());
+        }
+    }
+
     /// <summary>The apps a door can still be added on: one door of each kind a taf.</summary>
     public IEnumerable<DoorApp> Addable => Apps.Where(a => !Doors.Any(d => d.Kind == a.Kind));
 

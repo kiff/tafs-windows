@@ -52,6 +52,7 @@ public sealed partial class MainWindow
         ShowSteps();
         ShowCoachWaiting();
         ShowCardUnits();
+        ShowKnocked();
         ShowAlertsCard();
         _ = ReadUnprovenAsync(sessions);
         ShowRequestedHold();

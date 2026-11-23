@@ -610,6 +610,8 @@ public sealed partial class MainWindow : Window
         ShowSteps();
         // A Card unit's requests, on Needs you and on their taf's Setup.
         TakeCardUnits(answer);
+        // The tafs with a knock at their doors, on Needs you.
+        ShowKnocked();
         // Coach's chats waiting on the person, with Home's count of all that waits.
         homeNeedsYou = NeedsYouTotal.Read(answer);
         ReadCoachWaiting(answer);

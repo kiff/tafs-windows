@@ -29,6 +29,8 @@ public sealed partial class TafPage
         if (answer.Answer is { } a && TafDoors.Read(a) is { } d) (doors, doorsWhy) = (d, null);
         else if (doors is null) doorsWhy = App.Words.Get("door.not_read");
         if (tab == TafTab.Setup && setupScreen is SetupScreen.StartsWhen or SetupScreen.Door) ShowSetup();
+        // Its knocks on Activity too.
+        ShowWork();
     }
 
     /// <summary>A change to a door, one at a time; the door it answers with replaces the one shown, else the doors are read again.</summary>
@@ -36,7 +38,7 @@ public sealed partial class TafPage
     {
         if (doorsBusy || opening?.Change is not { } change) return false;
         doorsBusy = true;
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, ShowSetup);
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () => { ShowSetup(); ShowWork(); });
         var sent = await change(method, path, body);
         doorsBusy = false;
         if (sent.Answer is null)
@@ -44,6 +46,7 @@ public sealed partial class TafPage
             var why = sent.Status == 429 && sent.Words is null ? App.Words.Get("door.knock.too_many") : sent.Why ?? App.Words.Get("error.ours");
             doorsWhy = failed is null ? why : failed(why);
             ShowSetup();
+            ShowWork();
             return false;
         }
         doorsWhy = null;
