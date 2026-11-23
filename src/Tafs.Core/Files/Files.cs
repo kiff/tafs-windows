@@ -59,6 +59,24 @@ public static class DeliveredFiles
     /// <summary>At most this many of a PDF's pages are drawn in its preview; Download has the whole file.</summary>
     public const int PdfPages = 10;
 
+    /// <summary>The width a PDF page is drawn at: twice the 560 it's shown at, for a sharp picture on a high-density screen.</summary>
+    public const uint PdfPageWidth = 1120;
+
+    /// <summary>The tallest a PDF page is drawn: four times its width, so a page that declares itself very tall and thin can't ask for a huge picture.</summary>
+    public const uint PdfPageHeight = 4 * PdfPageWidth;
+
+    /// <summary>
+    /// The size a PDF page of <paramref name="width"/> by <paramref name="height"/> points is drawn at: <see cref="PdfPageWidth"/>
+    /// wide, its proportions kept, unless that would be taller than <see cref="PdfPageHeight"/>; then that tall, narrower in
+    /// proportion (at least 1). A page with no size (or a size that isn't a number) is drawn as a square.
+    /// </summary>
+    public static (uint Width, uint Height) PdfDrawSize(double width, double height)
+    {
+        var ratio = width > 0 && height > 0 && double.IsFinite(width) && double.IsFinite(height) ? height / width : 1;
+        if (PdfPageWidth * ratio <= PdfPageHeight) return (PdfPageWidth, Math.Max(1, (uint)Math.Round(PdfPageWidth * ratio)));
+        return ((uint)Math.Clamp(Math.Round(PdfPageHeight / ratio), 1, PdfPageWidth), PdfPageHeight);
+    }
+
     public static string PagePath(string? after) => after is null ? ListPath : $"{ListPath}?after={Uri.EscapeDataString(after)}";
     public static string FilePath(string id) => $"{ListPath}/{Uri.EscapeDataString(id)}";
     public static string DownloadPath(string id) => FilePath(id) + "/download";
