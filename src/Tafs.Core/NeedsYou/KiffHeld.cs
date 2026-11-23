@@ -281,11 +281,12 @@ public static class KiffHeld
 
     /// <summary>
     /// Whether the hold's <c>browser</c> block asks for a fill (<c>sealed_fill</c>, or <c>fill</c>): read as anything there but null,
-    /// so a fill in a shape this app doesn't know still counts as one, never as a plain step to allow.
+    /// so a fill in a shape this app doesn't know still counts as one, never as a plain step to allow. A <c>browser</c> block
+    /// that isn't an object (it can't be read) counts too, as on Linux and the Mac: never allowed here on a guess.
     /// </summary>
     static bool Fill(JsonElement e) =>
-        e.TryGetProperty("browser", out var b) && b.ValueKind == JsonValueKind.Object
-        && new[] { "sealed_fill", "fill" }.Any(k => b.TryGetProperty(k, out var f) && f.ValueKind != JsonValueKind.Null);
+        e.TryGetProperty("browser", out var b) && b.ValueKind != JsonValueKind.Null
+        && (b.ValueKind != JsonValueKind.Object || new[] { "sealed_fill", "fill" }.Any(k => b.TryGetProperty(k, out var f) && f.ValueKind != JsonValueKind.Null));
 
     public static HeldCall ToHeldCall(WordBook w, KiffHold e, string taf, int tafColor)
     {

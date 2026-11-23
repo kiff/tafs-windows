@@ -154,6 +154,9 @@ public class HeldAnswerTests
     [InlineData(""","browser":{"site":"shop.example","action_words":"Fill","sealed_fill":"odd"}""", true)]
     [InlineData(""","browser":{"site":"shop.example","action_words":"Click","sealed_fill":null}""", false)]
     [InlineData(""","browser":{"site":"shop.example","action_words":"Click"}""", false)]
+    [InlineData(""","browser":"unreadable","can_approve_once":true""", true)]
+    [InlineData(""","browser":[1]""", true)]
+    [InlineData(""","browser":null""", false)]
     [InlineData("", false)]
     public void A_hold_that_fills_needs_the_phone_s_release(string browser, bool needs)
     {
