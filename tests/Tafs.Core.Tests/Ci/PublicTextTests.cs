@@ -45,7 +45,8 @@ public partial class PublicTextTests
     static string? Problem(string line, bool names = true)
     {
         if (Said().IsMatch(line)) return "a thread, a manager's credit or a dated rule";
-        if (names && Word().Matches(line).Any(m => Names.Contains(Hash(m.Value)))) return "a team's name for one of its lanes";
+        // Lowercased first, so a name that starts a sentence, or is written with capitals, is still a name.
+        if (names && Word().Matches(line.ToLowerInvariant()).Any(m => Names.Contains(Hash(m.Value)))) return "a team's name for one of its lanes";
         return null;
     }
 
@@ -81,6 +82,9 @@ public partial class PublicTextTests
         try
         {
             Assert.NotNull(Problem($"as {made}'s table has it"));
+            // At the start of a sentence, or in capitals: still the name.
+            Assert.NotNull(Problem($"{char.ToUpperInvariant(made[0])}{made[1..]}'s table has it."));
+            Assert.NotNull(Problem($"as {made.ToUpperInvariant()} wrote"));
             Assert.Null(Problem($"as {made}-plus has it"));
             Assert.Null(Problem($"@{made}"));
         }
