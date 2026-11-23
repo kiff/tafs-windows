@@ -26,7 +26,9 @@ public partial class PublicTextTests
     [
         "3c32e58c6fc3cf62", "20cca48ece26c362", "f5068c4b858ead38", "fe9c6bd7a66301f4", "50077b782480811e",
         "be896ac583d76627", "afb42e3f1a4bce7e", "d419916f176e52d3", "bd184cdc7aea9ef8", "ab63a9b276c86bec",
-        "2ad06b22b301f873", "3c00d0a9d4c2eb08", "018a7f9527b114ab", "94c6cdf43ac3f929",
+        "2ad06b22b301f873", "3c00d0a9d4c2eb08", "018a7f9527b114ab", "94c6cdf43ac3f929", "4a25962615e31ac6",
+        // The reviewers' own logins: GitHub reads them in CODEOWNERS, which isn't checked for names; nowhere else names them.
+        "53dd1be914bd441c", "f66e74c6b8883a1f", "3726111e555e250c",
     ];
 
     /// <summary>What a line may never say, names aside: the private issues, a manager's credit, a rule dated by its day.</summary>
