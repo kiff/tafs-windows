@@ -175,11 +175,16 @@ public class KiffHeldTests
     [InlineData("en", 11, "11th")] [InlineData("en", 12, "12th")] [InlineData("en", 13, "13th")] [InlineData("en", 21, "21st")] [InlineData("en", 112, "112th")]
     [InlineData("fr", 1, "1er")] [InlineData("fr", 2, "2e")] [InlineData("de", 2, "2.")] [InlineData("pl", 2, "2.")]
     [InlineData("es", 2, "2.º")] [InlineData("it", 2, "2º")] [InlineData("pt", 2, "2º")] [InlineData("nl", 2, "2e")]
-    // ICU's, read from its ordinal formatter with English as the fallback, as an English iPad's.
-    [InlineData("tk", 1, "1th")] [InlineData("tk", 6, "6rd")] [InlineData("tk", 9, "9rd")] [InlineData("tk", 10, "10rd")]
-    [InlineData("tk", 20, "20th")] [InlineData("tk", 26, "26rd")] [InlineData("tk", 110, "110th")]
-    [InlineData("hi", 1, "1ला")] [InlineData("hi", 2, "2रा")] [InlineData("hi", 3, "3रा")] [InlineData("hi", 4, "4था")]
-    [InlineData("hi", 5, "5वाँ")] [InlineData("hi", 6, "6ठा")] [InlineData("hi", 21, "21वाँ")] [InlineData("hi", 0, "0")]
-    [InlineData("ur", 1, "1th")] [InlineData("ur", 2, "2th")] [InlineData("ur", 21, "21th")]
+    // Each language's own written ordinal where ICU falls back to English, in the Card's lines' form (about a call).
+    [InlineData("tk", 1, "1-nji")] [InlineData("tk", 2, "2-nji")] [InlineData("tk", 3, "3-nji")] [InlineData("tk", 4, "4-nji")] [InlineData("tk", 6, "6-njy")]
+    [InlineData("tk", 9, "9-njy")] [InlineData("tk", 10, "10-njy")] [InlineData("tk", 21, "21-nji")] [InlineData("tk", 26, "26-njy")] [InlineData("tk", 110, "110-nji")]
+    [InlineData("hi", 1, "1ली")] [InlineData("hi", 2, "2री")] [InlineData("hi", 3, "3री")] [InlineData("hi", 4, "4थी")] [InlineData("hi", 5, "5वीं")]
+    [InlineData("hi", 6, "6ठी")] [InlineData("hi", 9, "9वीं")] [InlineData("hi", 10, "10वीं")] [InlineData("hi", 21, "21वीं")] [InlineData("hi", 0, "0")]
+    [InlineData("ur", 1, "1ویں")] [InlineData("ur", 2, "2ویں")] [InlineData("ur", 3, "3ویں")] [InlineData("ur", 4, "4ویں")] [InlineData("ur", 6, "6ویں")]
+    [InlineData("ur", 9, "9ویں")] [InlineData("ur", 10, "10ویں")] [InlineData("ur", 21, "21ویں")]
+    [InlineData("bn", 1, "1ম")] [InlineData("bn", 2, "2য়")] [InlineData("bn", 3, "3য়")] [InlineData("bn", 4, "4র্থ")] [InlineData("bn", 6, "6ষ্ঠ")]
+    [InlineData("bn", 9, "9ম")] [InlineData("bn", 10, "10ম")] [InlineData("bn", 11, "11তম")] [InlineData("bn", 21, "21তম")]
+    [InlineData("mn", 1, "1-р")] [InlineData("mn", 2, "2-р")] [InlineData("mn", 3, "3-р")] [InlineData("mn", 4, "4-р")] [InlineData("mn", 6, "6-р")]
+    [InlineData("mn", 9, "9-р")] [InlineData("mn", 10, "10-р")] [InlineData("mn", 21, "21-р")]
     public void Ordinals(string language, long n, string written) => Assert.Equal(written, KiffHeld.Ordinal(language, n));
 }
