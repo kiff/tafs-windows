@@ -11,7 +11,7 @@ namespace Tafs.Core.Taf;
 /// (<paramref name="Report"/>), or when it was reported (<paramref name="ReportedAt"/>).
 /// </summary>
 public sealed record ActivityLine(string Id, EntryKind Kind, string Title, string Detail, string Time, string? Amount = null,
-    ActivityCall? Call = null, ReportOffer? Report = null, DateTimeOffset? ReportedAt = null);
+    ActivityCall? Call = null, ReportOffer? Report = null, DateTimeOffset? ReportedAt = null, NextStep? Next = null);
 
 /// <summary>One day of a taf's Activity: its eyebrow and its lines, newest first.</summary>
 public sealed record ActivityGroup(string Title, IReadOnlyList<ActivityLine> Lines);
@@ -53,7 +53,7 @@ public static class TafActivity
         Lenient.Text(e, "id") is { } id && Lenient.Text(e, "title") is { } title
             ? new ActivityLine(id, EntryKinds.Parse(Lenient.Text(e, "kind")), title, Lenient.Text(e, "detail") ?? "", Lenient.Text(e, "time") ?? "", Lenient.Text(e, "amount_text"),
                 Lenient.Field(e, "call") is { ValueKind: JsonValueKind.Object } c ? KiffActivity.ReadCall(c) : null,
-                ReportPayment.Offer(e), ReportPayment.ReportedAt(e))
+                ReportPayment.Offer(e), ReportPayment.ReportedAt(e), NextSteps.Read(e))
             : null;
 
     /// <summary>The iPad's filters of a taf's Activity (its ActivityFilter): All, Done (its own word, not the Record's), Held, Refused.</summary>
