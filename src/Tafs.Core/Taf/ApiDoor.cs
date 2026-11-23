@@ -17,7 +17,7 @@ public sealed record IssuedKey(string Id, string Key, string Last4, DateTimeOffs
 /// removed, only signed by this PC's approval (as a taf's removal is) over the method, path and these exact bytes; pausing
 /// isn't signed: stopping is always safe. Drawn wherever tafs cloud sends one (<c>TAFS_API_DOORS</c> alone decides).
 /// </summary>
-public static class ApiDoor
+public static partial class ApiDoor
 {
     /// <summary>A door holds at most two live keys, so one can be replaced without stopping the other.</summary>
     public const int MaxKeys = 2;
@@ -79,28 +79,47 @@ public static class ApiDoor
         TimeZoneInfo.ConvertTime(at, zone).ToString("d MMM yyyy, HH:mm", Locale.Culture(w.Language));
 
     /// <summary>
-    /// Where the door's caller sends work: its address on tafs cloud, whole, and only ever on tafs cloud's own host, over https
-    /// (agentgabo's note on tafs-linux#88; parity-steward's on #90). The example request carries the developer's key, so an
-    /// address elsewhere becomes its path on tafs cloud: another host, http, a port, a user or password, or a scheme with no host
-    /// (<c>mailto:a@evil.example</c>, whose path has no leading <c>/</c> and would otherwise run on into the host).
+    /// Where the door's caller sends work, as kiff/tafs <c>vectors/api-door-endpoint.json</c> rules it for every app: only ever
+    /// tafs cloud's own host, over https, with a path of unreserved characters (letters, digits, <c>/ _ . ~ -</c>), and no query or
+    /// fragment; any other path gives tafs cloud's address alone. The example is a shell line a developer pastes with their key,
+    /// so nothing in the address may reach the host, a port, a user, or the shell: another host, http, a port or a user keeps only
+    /// its path; a scheme with no host (<c>mailto:</c>, <c>javascript:</c>), whitespace or a backslash gives the address alone.
     /// </summary>
     public static string Endpoint(Door door, Uri cloud)
     {
-        var address = door.Address.Trim();
-        if (Uri.TryCreate(address, UriKind.Absolute, out var whole) && !address.StartsWith('/'))
-        {
-            if (whole.Scheme == Uri.UriSchemeHttps && string.Equals(whole.Host, cloud.Host, StringComparison.OrdinalIgnoreCase)
-                && whole.IsDefaultPort && whole.UserInfo.Length == 0)
-                return whole.AbsoluteUri;
-            address = whole.IsAbsoluteUri && whole.HostNameType != UriHostNameType.Unknown ? whole.PathAndQuery : whole.AbsolutePath;
-        }
-        // On tafs cloud: one leading "/", whatever came before it, so nothing can run on into the host.
-        var path = "/" + address.TrimStart('/', '\\');
-        return Uri.TryCreate(cloud, path, out var on) && on.Host == cloud.Host && on.Scheme == Uri.UriSchemeHttps ? on.AbsoluteUri : cloud.AbsoluteUri;
+        var origin = cloud.GetLeftPart(UriPartial.Authority);
+        var alone = origin + "/";
+        if (PathOf(door.Address.Trim()) is not { } path) return alone;
+        var rooted = path.StartsWith('/') ? path : "/" + path;
+        return PlainPath().IsMatch(rooted) ? origin + rooted : alone;
     }
 
-    /// <summary>An example request. It reads the key from the caller's own secret, <c>$TAFS_API_KEY</c>: the key is never written in it.</summary>
+    /// <summary>
+    /// The address's path as written, its query and fragment cut, as the vector's reference reading
+    /// (<c>scripts/test_api_door_vector.py</c>); null for whitespace or a backslash inside it, or a scheme with no host.
+    /// </summary>
+    static string? PathOf(string address)
+    {
+        if (address.Any(c => char.IsWhiteSpace(c) || c == '\\')) return null;
+        var cut = address.IndexOfAny(['?', '#']);
+        var s = cut < 0 ? address : address[..cut];
+        string After(string rest) => rest.IndexOf('/') is var at and >= 0 ? rest[at..] : "";
+        if (s.IndexOf("://", StringComparison.Ordinal) is var scheme and >= 0) return After(s[(scheme + 3)..]);
+        if (s.StartsWith("//", StringComparison.Ordinal)) return After(s[2..]);
+        var colon = s.IndexOf(':');
+        var slash = s.IndexOf('/');
+        if (colon >= 0 && (slash < 0 || colon < slash)) return null;
+        return s;
+    }
+
+    [System.Text.RegularExpressions.GeneratedRegex("^/[A-Za-z0-9/_.~-]*$")]
+    private static partial System.Text.RegularExpressions.Regex PlainPath();
+
+    /// <summary>
+    /// An example request. It reads the key from the caller's own secret, <c>$TAFS_API_KEY</c>: the key is never written in it.
+    /// The endpoint is single-quoted, and <see cref="Endpoint"/> never holds a quote, so the pasted line stays inert.
+    /// </summary>
     public static string Example(string endpoint) =>
-        "curl -X POST " + endpoint + " \\\n  -H \"Authorization: Bearer $TAFS_API_KEY\" \\\n  -H \"Idempotency-Key: <your request id>\" \\\n"
+        "curl -X POST '" + endpoint + "' \\\n  -H \"Authorization: Bearer $TAFS_API_KEY\" \\\n  -H \"Idempotency-Key: <your request id>\" \\\n"
         + "  -H \"Content-Type: application/json\" \\\n  -d '{\"input\": {}}'";
 }
