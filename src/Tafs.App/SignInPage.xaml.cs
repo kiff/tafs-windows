@@ -186,13 +186,19 @@ public sealed partial class SignInPage : Page
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CopyLink, word);
     }
 
-    /// <summary>Copy, as the iPad's: the link on the clipboard, to open it in another browser where the person is signed in to KIFF.</summary>
+    /// <summary>
+    /// Copy, as the iPad's: the link on the clipboard, to open it in another browser where the person is signed in to KIFF.
+    /// It's a sign-in's link, so it's kept out of Windows' clipboard history and never synced to the person's other devices:
+    /// it's on this clipboard only, until something else is copied.
+    /// </summary>
     void OnCopyLink(object sender, RoutedEventArgs e)
     {
         if (Link.Text.Length == 0) return;
         var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
         package.SetText(Link.Text);
-        Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+        var options = new Windows.ApplicationModel.DataTransfer.ClipboardContentOptions { IsAllowedInHistory = false, IsRoamable = false };
+        // Never a plain copy in its place: if Windows can't keep it private, nothing is copied and it stays "Copy".
+        if (!Windows.ApplicationModel.DataTransfer.Clipboard.SetContentWithOptions(package, options)) return;
         copied = true;
         ShowCopy();
     }

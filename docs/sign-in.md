@@ -33,7 +33,7 @@ that can already approve.
 | Step | Shows |
 | :- | :- |
 | Welcome | what tafs is, Sign in with KIFF, or "Already use tafs on your phone? Add this Windows PC with it." |
-| Waiting | the code to check, Open KIFF to approve, and the link for another browser, in mono, with Copy beside it ("Copied" with a check once copied) |
+| Waiting | the code to check, Open KIFF to approve, and the link for another browser, in mono, with Copy beside it ("Copied" with a check once copied; kept out of clipboard history and never synced to other devices) |
 | Couldn't start / Couldn't finish | why, as KIFF's status only, and Sign in with KIFF again |
 | Expired | the code expired, and Sign in with KIFF again |
 
