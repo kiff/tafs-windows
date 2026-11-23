@@ -906,6 +906,8 @@ public sealed partial class TafPage : Page
     /// </summary>
     void ShowAppWeek(string query)
     {
+        // Never a selection the read wouldn't send: All apps then stands only over one app's week.
+        if (!ActivityPages.Plain(query)) return;
         selection = query;
         tab = TafTab.Activity;
         ShowTab();
