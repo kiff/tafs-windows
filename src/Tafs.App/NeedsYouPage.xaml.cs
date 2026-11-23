@@ -380,6 +380,41 @@ public sealed partial class NeedsYouPage : Page
         ShowEmpty();
     }
 
+    /// <summary>The account Turn on alerts turns them on for; none hides the card.</summary>
+    string? alertsTenant;
+
+    /// <summary>
+    /// The alerts card, while this account's alerts are off here (<see cref="AlertsScreen.Offers"/>): "Know the moment a taf
+    /// needs you", "Get an alert when a taf needs you", and Turn on alerts, which turns on Account › Alerts' switch for it.
+    /// </summary>
+    internal void ShowAlertsCard(string? tenant)
+    {
+        var w = App.Words;
+        alertsTenant = tenant;
+        AlertsLead.Text = w.Get("needs_you.know_moment_taf_needs_you");
+        AlertsLine.Text = w.Get("alert.prompt");
+        AlertsOn.Content = w.Get("needs_you.turn_alerts");
+        AlertsBlockedText.Text = w.Get("alert.allow_notifications");
+        AlertsSettings.Content = w.Get("approval.open_settings");
+        AlertsCard.Visibility = tenant is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    /// <summary>As Account › Alerts' switch: Windows asked first; refused, it says where to allow it and stays; allowed, on, and the card goes.</summary>
+    void OnTurnOnAlerts(object sender, RoutedEventArgs e)
+    {
+        if (alertsTenant is not { } tenant) return;
+        if (!Toasts.Allowed)
+        {
+            AlertsBlocked.Visibility = Visibility.Visible;
+            return;
+        }
+        Alerts.Save(Alerts.Prefs.With(tenant, true));
+        AlertsBlocked.Visibility = Visibility.Collapsed;
+        ShowAlertsCard(null);
+    }
+
+    void OnAlertsSettings(object sender, RoutedEventArgs e) => _ = Windows.System.Launcher.LaunchUriAsync(new Uri("ms-settings:notifications"));
+
     internal void ShowUnproven(IReadOnlyList<Unproven> calls, bool mayAnswerHolds)
     {
         var w = App.Words;

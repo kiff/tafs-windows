@@ -52,4 +52,14 @@ public class AlertPrefsTests
         Assert.Equal("Silent: Support replies answered maria@…. By email", previews[1].Spoken(En));
         Assert.Equal("Alerts on this Windows PC", AlertsScreen.OnThisDevice(En));
     }
+
+    /// <summary>Needs you offers alerts while this account's are off here, to someone who answers holds on a PC with its device key.</summary>
+    [Theory]
+    [InlineData(true, true, true, false, true)]
+    [InlineData(true, true, true, true, false)]
+    [InlineData(false, true, true, false, false)]
+    [InlineData(true, false, true, false, false)]
+    [InlineData(true, true, false, false, false)]
+    public void Needs_you_offers_alerts_only_while_they_re_off(bool signedIn, bool hasKey, bool mayAnswer, bool on, bool offers) =>
+        Assert.Equal(offers, AlertsScreen.Offers(signedIn, hasKey, mayAnswer, on));
 }

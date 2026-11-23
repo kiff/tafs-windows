@@ -750,6 +750,8 @@ public sealed partial class MainWindow : Window
         if (reading == sessions) ShowSteps();
         // Dismiss follows whether this person answers the account's holds, as KIFF says once read.
         if (reading == sessions) ShowCardUnits();
+        // Whether this person answers holds is now known: the alerts card follows it.
+        if (reading == sessions) ShowAlertsCard();
     }
 
     /// <summary>How this PC answers the held calls now: none signed out or for the sample.</summary>
@@ -897,6 +899,16 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>Whether this PC can answer a step: the session's device key, and someone who answers the account's holds.</summary>
+    /// <summary>The alerts card on Needs you, for this account while its alerts are off here (<see cref="AlertsScreen.Offers"/>).</summary>
+    void ShowAlertsCard()
+    {
+        if (Pages.Content is not NeedsYouPage page) return;
+        var session = App.Sessions.Kept();
+        var offers = session is not null && AlertsScreen.Offers(!sampleHeld, TpmKey.Exists(session.KeyName), mayAnswerHolds,
+            Alerts.Prefs.IsOn(session.Tenant) && Toasts.Allowed);
+        page.ShowAlertsCard(offers ? session!.Tenant : null);
+    }
+
     bool CanAnswerSteps(KeptSession? session) =>
         YourSteps.CanAnswer(session is not null && !sampleHeld, mayAnswerHolds, session?.Tenant, session is not null && TpmKey.Exists(session.KeyName));
 
