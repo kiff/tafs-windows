@@ -34,7 +34,30 @@ public sealed partial class CalendarPage : Page
     /// <summary>The session the kept read is for: another one starts from nothing.</summary>
     Func<string, Task<CloudRead>>? readFor;
 
-    public CalendarPage() => InitializeComponent();
+    public CalendarPage()
+    {
+        InitializeComponent();
+        // Refreshing, as the iPad's pull to refresh on Calendar: F5 or Ctrl+R reads the range again, here before Home's own keys.
+        foreach (var (key, modifiers) in new[] { (Windows.System.VirtualKey.F5, Windows.System.VirtualKeyModifiers.None),
+                     (Windows.System.VirtualKey.R, Windows.System.VirtualKeyModifiers.Control) })
+        {
+            var refresh = new Microsoft.UI.Xaml.Input.KeyboardAccelerator { Key = key, Modifiers = modifiers };
+            refresh.Invoked += (accelerator, a) =>
+            {
+                a.Handled = true;
+                _ = RefreshAsync();
+            };
+            KeyboardAccelerators.Add(refresh);
+        }
+    }
+
+    /// <summary>The range read again: what was kept is dropped, unless a read is already on its way.</summary>
+    Task RefreshAsync()
+    {
+        if (reading is not null) return Task.CompletedTask;
+        read = null;
+        return LoadAsync();
+    }
 
     /// <param name="e">The view to open on (Day for the reference set's day screenshot); Week otherwise.</param>
     protected override void OnNavigatedTo(NavigationEventArgs e)
