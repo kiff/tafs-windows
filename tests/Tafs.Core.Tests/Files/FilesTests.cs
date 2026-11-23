@@ -193,4 +193,19 @@ public class FilesTests
         }
         Assert.StartsWith(Path.GetFullPath(root) + Path.DirectorySeparatorChar, FileText.CopyPath(root, "..", "x.csv")!);
     }
+
+    /// <summary>A PDF page drawn 1120 wide in its proportions, never taller than 4480, and a page with no size as a square.</summary>
+    [Theory]
+    [InlineData(612, 792, 1120u, 1449u)]
+    [InlineData(792, 612, 1120u, 865u)]
+    [InlineData(100, 400, 1120u, 4480u)]
+    [InlineData(1, 14400, 1u, 4480u)]
+    [InlineData(10, 1000, 45u, 4480u)]
+    [InlineData(14400, 1, 1120u, 1u)]
+    [InlineData(0, 0, 1120u, 1120u)]
+    [InlineData(-5, 100, 1120u, 1120u)]
+    [InlineData(double.NaN, 100, 1120u, 1120u)]
+    [InlineData(100, double.PositiveInfinity, 1120u, 1120u)]
+    public void A_pdf_page_is_drawn_at_most_1120_wide_and_4480_tall(double width, double height, uint drawnWidth, uint drawnHeight) =>
+        Assert.Equal((drawnWidth, drawnHeight), DeliveredFiles.PdfDrawSize(width, height));
 }

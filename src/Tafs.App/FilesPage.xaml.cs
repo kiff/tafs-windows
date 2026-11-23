@@ -347,8 +347,9 @@ public sealed partial class FilesPage : Page
             {
                 using var page = document.GetPage(i);
                 using var drawn = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-                // Drawn at most 1120 wide whatever the page declares, so a file can't ask for a huge picture.
-                await page.RenderToStreamAsync(drawn, new Windows.Data.Pdf.PdfPageRenderOptions { DestinationWidth = PdfPageWidth });
+                // Drawn at most 1120 wide and 4480 tall whatever the page declares, so a file can't ask for a huge picture.
+                var (width, height) = DeliveredFiles.PdfDrawSize(page.Size.Width, page.Size.Height);
+                await page.RenderToStreamAsync(drawn, new Windows.Data.Pdf.PdfPageRenderOptions { DestinationWidth = width, DestinationHeight = height });
                 drawn.Seek(0);
                 var bitmap = new BitmapImage();
                 await bitmap.SetSourceAsync(drawn);
@@ -362,9 +363,6 @@ public sealed partial class FilesPage : Page
             pages.Children.Clear();
         }
     }
-
-    /// <summary>The width each PDF page is drawn at, twice the 560 it's shown at, for a sharp picture on a high-density screen.</summary>
-    const uint PdfPageWidth = 1120;
 
     static async Task Draw(Image image, byte[] bytes)
     {
