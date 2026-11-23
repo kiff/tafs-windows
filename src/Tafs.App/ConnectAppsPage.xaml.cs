@@ -70,7 +70,8 @@ public sealed class ConnectRowView
 /// Windows Hello in the question's words, then planque's DELETE for each, signed by this device.
 /// </summary>
 public sealed record ConnectionsCalls(Func<Task<IReadOnlyList<Tafs.Core.Kiff.PlanqueGrant>?>> Grants, Func<Tafs.Core.Kiff.PlanqueGrant, string?> TafOf,
-    bool Manages, Func<IReadOnlyList<string>, string, Task<(int Left, string? Why, bool Stopped)>> End);
+    bool Manages, Func<IReadOnlyList<string>, string, Task<(int Left, string? Why, bool Stopped)>> End,
+    Func<Tafs.Core.Kiff.PlanqueGrant, IReadOnlyList<string>>? AlsoStops = null);
 
 /// <summary>
 /// How Connect apps opens: the iPad's sample list for a screenshot, or tafs cloud's read as the session with this PC's

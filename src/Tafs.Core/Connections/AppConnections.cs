@@ -113,6 +113,27 @@ public static class AppConnections
             asked.Where(g => listed[g.Id].UsedBy.Count > 0).Select(g => listed[g.Id].UsedBy).ToList());
     }
 
+    /// <summary>
+    /// The other tafs whose live Card draws on a connection's tools, as the iPad's <c>alsoStops</c> and <c>tafsUsing</c>: a Card
+    /// rule or a tool on one of the actions it connects (planque's <c>tools</c>, else the request's tafs' tools), leaving out
+    /// the taf it was made for and any revoked one. KIFF's tools are the account's, so another taf can draw on it.
+    /// </summary>
+    public static IReadOnlyList<string> AlsoStops(PlanqueGrant g, IReadOnlyList<Home.HomeTaf> tafs)
+    {
+        var actions = (g.Tools ?? g.Request.Tools.Where(t => t.Tafs).Select(t => t.Action).ToList()).ToHashSet();
+        if (actions.Count == 0) return [];
+        return tafs.Where(t => t.Agent != g.Request.Agent && t.State != "revoked" && !t.Revoked && t.CardDraws.Any(actions.Contains))
+            .Select(t => t.Name).ToList();
+    }
+
+    /// <summary>"Also on Ana's Card", or "Also on the Cards of Ana and Bo", as the iPad's <c>alsoOnCards</c>; none when no other taf.</summary>
+    public static string? AlsoOn(WordBook w, IReadOnlyList<string> names) => names.Count switch
+    {
+        0 => null,
+        1 => w.Get("connect.apps.also_on_one", ("owner", names[0])),
+        _ => w.Get("connect.apps.also_on_many", ("tafs", Lists.And(w.Language, names))),
+    };
+
     /// <summary>The question, naming the one taf it ends and the other tafs whose Card draws on its tools; Windows Hello asks the same.</summary>
     public static string DisconnectTitle(WordBook w, string vendor, string? taf, IReadOnlyList<string> alsoStops)
     {

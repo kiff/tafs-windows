@@ -20,8 +20,14 @@ public sealed record HomeTaf(string Id, string Name, int Colour, string State, s
     IReadOnlyList<TafCard> Cards, int Waiting, DateTimeOffset? LastRun, DateTimeOffset? LastChange, string Job = "", string? Agent = null,
     bool Revoked = false, IReadOnlyList<string>? LabelIds = null, IReadOnlyList<string>? CardIdList = null, TafStarts? Starts = null,
     Tafs.Core.Taf.TafHealth? Health = null, Tafs.Core.Taf.OpenTrial? Trial = null, bool? RelevantNow = null,
-    string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null)
+    string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null, IReadOnlyList<string>? Draws = null)
 {
+    /// <summary>
+    /// The actions its live Card draws on (<c>card.tools</c> and each of <c>card.rules</c>' action), as the iPad's
+    /// <c>card.rules</c> and <c>tools</c>: what a connection's tools are checked against (<c>AppConnections.AlsoStops</c>).
+    /// </summary>
+    public IReadOnlyList<string> CardDraws => Draws ?? [];
+
     /// <summary>Its Cards' ids in KIFF (<c>card.ids</c>), revoked before it's removed for good; none without.</summary>
     public IReadOnlyList<string> CardIds => CardIdList ?? [];
 
@@ -134,7 +140,13 @@ public static class HomeList
             // Whose clock its times are in ("Times in Europe/Paris"), and, only when its schedule runs on another, what to
             // do about it: tafs cloud's words, as the iPad's Card tab draws them.
             TimeZoneWords: Lenient.Text(t, "time_zone_words")?.Trim() is { Length: > 0 } zoneWords ? zoneWords : null,
-            ScheduleTimeZoneWords: Lenient.Text(t, "schedule_time_zone_words")?.Trim() is { Length: > 0 } other ? other : null);
+            ScheduleTimeZoneWords: Lenient.Text(t, "schedule_time_zone_words")?.Trim() is { Length: > 0 } other ? other : null,
+            // What its Card draws on, read leniently: its tools, and its rules' actions.
+            Draws: Lenient.Field(t, "card") is { } drawn
+                ? Lenient.Array(drawn, "tools").Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()!)
+                    .Concat(Lenient.Array(drawn, "rules").Select(r => Lenient.Text(r, "action")).OfType<string>())
+                    .Where(a => a.Length > 0).Distinct().ToList()
+                : null);
     }
 
     /// <summary>What it's doing, as the iPad says it: tafs cloud's "Next run Fri 12:30" while it works on a schedule.</summary>

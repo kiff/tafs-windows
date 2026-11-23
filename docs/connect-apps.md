@@ -55,6 +55,11 @@ The iPad's `AppConnectionsView` and its model (`refreshConnections`, `connection
   - **Other connections:** those no taf here can name, never claimed as removed;
   - for whoever manages Cards, "Removing access takes its tools from that taf only…" under them;
   - without this PC's read: "Start from Connected apps on this Windows PC first."
+- **The other tafs whose Card draws on a connection's tools** (the iPad's `alsoOnCards`, `tafsUsing`), from Home's Cards
+  (`card.tools` and each rule's action, `HomeTaf.CardDraws`): "Also on Ana's Card", or "Also on the Cards of Ana and Bo",
+  under the connection's name. Its tools are planque's `tools`, else the request's tafs' tools (not Setup's reads). The taf
+  it was made for, and a revoked one, are left out (`AppConnections.AlsoStops`). Remove access's question and its Windows
+  Hello name them too ("…It also stops Ana."), as the iPad's `DisconnectWords`.
 - **Ending one,** for whoever manages Cards (KIFF's `cards.manage`):
   - **Remove access** asks first, naming the taf it ends ("Remove access to Stripe for Rae?") and what stops and stays
     (a key's own line for a key); **Cancel** for a sign-in that waits ("Cancel the sign-in to Stripe?", Keep waiting), and
@@ -130,4 +135,4 @@ approves with its own passkey. Anyone else sees Connect dimmed.
 **Not yet:**
 - **A failed read's words** show on the page; the iPad shows them in its app-wide error line.
 
-- **On an app's connections:** a connection's last failed call, and the other tafs whose Card uses its tools ("Also on Ana's Card", and in Remove access's question).
+- **On an app's connections:** a connection's last failed call.
