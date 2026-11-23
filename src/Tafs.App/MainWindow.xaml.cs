@@ -898,7 +898,6 @@ public sealed partial class MainWindow : Window
         ShowSteps();
     }
 
-    /// <summary>Whether this PC can answer a step: the session's device key, and someone who answers the account's holds.</summary>
     /// <summary>The alerts card on Needs you, for this account while its alerts are off here (<see cref="AlertsScreen.Offers"/>).</summary>
     void ShowAlertsCard()
     {
@@ -909,6 +908,7 @@ public sealed partial class MainWindow : Window
         page.ShowAlertsCard(offers ? session!.Tenant : null);
     }
 
+    /// <summary>Whether this PC can answer a step: the session's device key, and someone who answers the account's holds.</summary>
     bool CanAnswerSteps(KeptSession? session) =>
         YourSteps.CanAnswer(session is not null && !sampleHeld, mayAnswerHolds, session?.Tenant, session is not null && TpmKey.Exists(session.KeyName));
 
