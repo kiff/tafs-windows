@@ -82,6 +82,8 @@ As the iPad's `HeldCallCard.answers`, for how Windows signs (`HeldAnswers`, belo
 As the iPad's `HoldAllow`, `AllowSheetView` and `AppModel`'s `openAllow`, `loadAllow` and `confirmAllow`:
 - **The button** ("Allow this from now on", outlined, under Approve once or Extra room) shows from the held call itself,
   with no request (`HoldAllow.Offers`). It needs all of these:
+  - not a sealed fill (`HeldCall.NeedsRelease`, in `HoldAllow.Allowable`): a Card change lifting its breach would allow
+    every later fill with no release, and "Let this one go out too" this one;
   - KIFF's `holds.allow` among the person's capabilities on `GET /v1/me`. No list means no button, so nobody taps into a
     route that isn't there yet.
   - `cards.manage`.

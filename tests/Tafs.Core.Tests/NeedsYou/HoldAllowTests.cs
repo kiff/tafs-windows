@@ -80,6 +80,8 @@ public class HoldAllowTests
         Assert.False(HoldAllow.Allowable(Held([])), "no breach");
         Assert.False(HoldAllow.Allowable(Held(null)), "a sample, or a call saved before its breaches were kept");
         Assert.False(HoldAllow.Allowable(Held(["per_action_exceeded"], kiffId: null)), "not KIFF's");
+        // A sealed fill whose breach a Card change could lift: no Allow, since only the phone's release allows a fill.
+        Assert.False(HoldAllow.Allowable(Held(["per_action_exceeded"]) with { NeedsRelease = true }), "a sealed fill");
     }
 
     /// <summary>
