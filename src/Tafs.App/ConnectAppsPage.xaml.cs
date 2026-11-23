@@ -14,6 +14,9 @@ public sealed class ConnectColumnsView : INotifyPropertyChanged
     public GridLength How { get; private set; } = new(150);
     public GridLength Whose { get; private set; } = new(130);
     public GridLength Status { get; private set; } = new(230);
+    /// <summary>The table, or, too narrow for its columns, each row as its name over one line (the iPad's compact rows).</summary>
+    public Visibility Table { get; private set; } = Visibility.Visible;
+    public Visibility Narrow { get; private set; } = Visibility.Collapsed;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -21,7 +24,9 @@ public sealed class ConnectColumnsView : INotifyPropertyChanged
     {
         var w = ConnectAppsScreen.Widths(width);
         (App, How, Whose, Status) = (new(w[0]), new(w[1]), new(w[2]), new(w[3]));
-        PropertyChanged?.Invoke(this, new(null)); // all four
+        var narrow = ConnectAppsScreen.Narrow(width);
+        (Table, Narrow) = (narrow ? Visibility.Collapsed : Visibility.Visible, narrow ? Visibility.Visible : Visibility.Collapsed);
+        PropertyChanged?.Invoke(this, new(null)); // all of them
     }
 }
 
@@ -30,6 +35,8 @@ public sealed class ConnectRowView
 {
     public required ConnectColumnsView Columns { get; init; }
     public Thickness Divider { get; init; }
+    /// <summary>The first app under the column names: its line over it only while the table shows them.</summary>
+    public Visibility UnderHeader { get; init; } = Visibility.Collapsed;
     public Visibility IsHeader { get; init; } = Visibility.Collapsed;
     public Visibility IsApp { get; init; } = Visibility.Visible;
     public string HeadApp { get; init; } = "";
@@ -43,6 +50,10 @@ public sealed class ConnectRowView
     public string Status { get; init; } = "";
     public string UsedBy { get; init; } = "";
     public string Setup { get; init; } = "";
+    /// <summary>A narrow row's one line under the name (<see cref="ConnectRow.Second"/>), amber for an app to sign in to again.</summary>
+    public string Second { get; init; } = "";
+    public Visibility SecondDim { get; init; } = Visibility.Visible;
+    public Visibility SecondAmber { get; init; } = Visibility.Collapsed;
     public string Button { get; init; } = "";
     /// <summary>An app that needs setting up has its name in the soft colour, as on the iPad.</summary>
     public Visibility NameInk { get; init; } = Visibility.Visible;
@@ -139,7 +150,7 @@ public sealed partial class ConnectAppsPage : Page
         }
         if (opening?.Read is not null)
         {
-            Search.Visibility = Visibility.Visible;
+            SearchRow.Visibility = Visibility.Visible;
             _ = ReadAsync("");
         }
     }
@@ -246,7 +257,10 @@ public sealed partial class ConnectAppsPage : Page
         var (mine, q) = (request, query);
         More.Content = App.Words.Get("common.loading");
         More.IsEnabled = false;
-        var answer = await read(ConnectAppsScreen.Path(q, before.Provider, cursor), null);
+        // A fresh signed grants read with it, as the iPad's: planque takes each once, and with it the next page's apps say
+        // which tafs need them by their Cards too, and which connections were made under a taf that doesn't.
+        var proof = opening.Proof is { } signed ? await signed() : null;
+        var answer = await read(ConnectAppsScreen.Path(q, before.Provider, cursor), proof);
         More.Content = App.Words.Get("connect.more_apps");
         More.IsEnabled = true;
         if (mine != request || q != query || shown?.NextCursor != cursor) return;
@@ -305,13 +319,15 @@ public sealed partial class ConnectAppsPage : Page
             rows.Add(new ConnectRowView
             {
                 Columns = columns,
-                Divider = new Thickness(0, rows.Count > 0 ? 1 : 0, 0, 0),
+                Divider = new Thickness(0, rows.Count > 0 && !(header && rows.Count == 1) ? 1 : 0, 0, 0),
+                UnderHeader = Seen(header && rows.Count == 1),
                 Name = app.DisplayName, Subtitle = app.Subtitle ?? "",
                 How = said.How, Whose = said.Whose ?? "",
                 Status = said.Setup is null ? said.Status ?? "" : "", Setup = said.Setup ?? "", HasSetup = Seen(!string.IsNullOrEmpty(said.Setup)),
                 NameInk = Seen(!ConnectAppsScreen.NameIsSoft(app)), NameSoft = Seen(ConnectAppsScreen.NameIsSoft(app)),
                 IsConnected = Seen(app.Connected && said.Setup is null), IsReconnect = Seen(app.NeedsReconnect && said.Setup is null),
                 UsedBy = said.Setup is null ? said.UsedBy ?? "" : "", HasUsedBy = Seen(said.Setup is null && said.UsedBy is not null),
+                Second = said.Second, SecondDim = Seen(!app.NeedsReconnect), SecondAmber = Seen(app.NeedsReconnect),
                 Button = button ?? "", HasButton = Seen(button is not null),
                 // Connecting by a key comes with its own change; by a sign-in, for a taf that needs the app.
                 CanConnect = route == ConnectRoute.AskCoach || (route == ConnectRoute.Ask && (!app.TakesKey || opening?.Connecting?.GiveKey is not null)),

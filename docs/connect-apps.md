@@ -1,6 +1,6 @@
 # Connect apps
 
-Connect apps is the iPad's `ConnectAppsView` at its full width. It lists what tafs cloud offers to connect, in its
+Connect apps is the iPad's `ConnectAppsView`, at its full width and, in a narrow window, as on a phone. It lists what tafs cloud offers to connect, in its
 order and words. The core is `ConnectAppsScreen`; the app's `ConnectAppsPage` only draws it.
 
 - **Yours, then Discover.**
@@ -9,6 +9,11 @@ order and words. The core is `ConnectAppsScreen`; the app's `ConnectAppsPage` on
     The forms match by the entry's last part without its version, and by vendor, folded.
 - **The table:** App, How it connects, Whose, Status, with the column names over the first table shown. App gets its room
   first (at least 200); the other three keep 150, 130 and 230, then give way down to 96, 84 and 180 (the iPad's `ConnectColumns`).
+- **A narrow window** (the iPad's compact width): where the four columns don't fit at their least (`ConnectAppsScreen.Narrow`),
+  each row is the logo, the name and its subtitle, then one line under them (`ConnectRow.Second`, the iPad's `second`): an
+  app to set up says tafs cloud's `words`; else tafs cloud's `line`, as sent; else how it connects, whose it is, where it
+  stands and who uses it, joined by " · ", in amber for an app to sign in to again. Then the ✓ or Connect, and the ›. No
+  column names. The search narrows with the window.
 - **The list** is drawn as the reference set's `account.png` measures it: a radius of 26, 20 in, section labels at 17 semibold.
 - **A row:**
   - **App:** the name (`name`, else `title`) on one line, soft for an app to set up, the subtitle under it.
@@ -28,8 +33,9 @@ order and words. The core is `ConnectAppsScreen`; the app's `ConnectAppsPage` on
   be read." and why, in red under the search.
   - **Search apps:** read again as the person types, 0.3 s after the last key, at once when emptied (`?q=`). Only the
     newest search replaces the list.
-  - **More apps** (`next_cursor`): the same search's next page from its catalog (`provider`, `cursor`), added under the
-    list, no app twice; "Loading…" meanwhile; "More apps couldn't be listed:" and why if it fails.
+  - **More apps** (`next_cursor`): the same search's next page from its catalog (`provider`, `cursor`), with a fresh signed
+    grants read as the iPad's `loadMoreConnectApps` sends (planque takes each once; with it, the page's apps say which tafs
+    need them by their Cards too, and which connections were made under a taf that doesn't), added under the list, no app twice; "Loading…" meanwhile; "More apps couldn't be listed:" and why if it fails.
   - **The logos,** 24 across beside the name, only from tafs cloud's own `/v1/logos/` with a 32-character hex key, fetched
     as images with no token.
   - `--home` with `--page connect-apps` reads `connect-apps.json` beside the Home file. tafs cloud has no contract for this

@@ -1,5 +1,6 @@
-<!-- Connect apps (the iPad's ConnectAppsView on its full width): Yours, then Discover, each a panel holding the table
-     App, How it connects, Whose and Status. A connected app has a ✓; the others a Connect as wide as its words. -->
+<!-- Connect apps (the iPad's ConnectAppsView): Yours, then Discover, each a panel holding the table App, How it connects,
+     Whose and Status. A connected app has a ✓; the others a Connect as wide as its words. Too narrow for the columns, each
+     row is its name over one line and its button, as on a phone. -->
 <Page x:Class="Tafs.App.ConnectAppsPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -8,7 +9,12 @@
   <Page.Resources>
     <!-- A row, and the columns' names, 14 above and below, as the iPad's inset list adds around a 52-high row. -->
     <DataTemplate x:Key="Row" x:DataType="local:ConnectRowView">
-      <Grid MinHeight="{x:Bind MinHeight}" Padding="0,14" ColumnSpacing="12" BorderBrush="{ThemeResource TafsLine}" BorderThickness="{x:Bind Divider}">
+      <Grid MinHeight="{x:Bind MinHeight}" BorderBrush="{ThemeResource TafsLine}" BorderThickness="{x:Bind Divider}">
+      <!-- Under the column names, a line; narrow, there are none, so no line. -->
+      <Border VerticalAlignment="Top" Visibility="{x:Bind UnderHeader}">
+        <Border Height="1" Background="{ThemeResource TafsLine}" Visibility="{x:Bind Columns.Table, Mode=OneWay}" />
+      </Border>
+      <Grid Padding="0,14" ColumnSpacing="12" Visibility="{x:Bind Columns.Table, Mode=OneWay}">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="{x:Bind Columns.App, Mode=OneWay}" />
           <ColumnDefinition Width="{x:Bind Columns.How, Mode=OneWay}" />
@@ -60,6 +66,37 @@
           </Button>
         </Grid>
       </Grid>
+      <!-- Narrow (the iPad's compact row): the logo and name with its subtitle, how, whose and where it stands in one line under it, then the
+           ✓ or Connect, and its connections. No column names. -->
+      <Grid Visibility="{x:Bind Columns.Narrow, Mode=OneWay}">
+        <Grid Padding="0,14" ColumnSpacing="10" Visibility="{x:Bind IsApp}">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <Image Source="{x:Bind Logo}" Width="24" Height="24" VerticalAlignment="Center" Visibility="{x:Bind HasLogo}" AutomationProperties.AccessibilityView="Raw" />
+          <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="{x:Bind Name}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                       Visibility="{x:Bind NameInk}" Foreground="{ThemeResource TafsInk}" />
+            <TextBlock Text="{x:Bind Name}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                       Visibility="{x:Bind NameSoft}" Foreground="{ThemeResource TafsSoft}" />
+            <TextBlock Text="{x:Bind Subtitle}" FontSize="13" TextWrapping="Wrap" MaxLines="2" Foreground="{ThemeResource TafsSoft}" />
+            <TextBlock Text="{x:Bind Second}" FontSize="13" TextWrapping="Wrap" Visibility="{x:Bind SecondDim}" Foreground="{ThemeResource TafsDim}" />
+            <TextBlock Text="{x:Bind Second}" FontSize="13" TextWrapping="Wrap" Visibility="{x:Bind SecondAmber}" Foreground="{ThemeResource TafsAmberText}" />
+          </StackPanel>
+          <FontIcon Grid.Column="2" Glyph="&#xE73E;" FontSize="20" VerticalAlignment="Center" Visibility="{x:Bind IsConnected}" Foreground="{ThemeResource TafsOk}"
+                    AutomationProperties.Name="{x:Bind Status}" />
+          <Button Grid.Column="2" Content="{x:Bind Button}" Visibility="{x:Bind HasButton}" IsEnabled="{x:Bind CanConnect}" Click="OnConnect" VerticalAlignment="Center"
+                  Style="{StaticResource TafsOutlineButton}" Padding="16,0" AutomationProperties.Name="{x:Bind ConnectName}" />
+          <Button Grid.Column="3" Click="OnOpenConnections" Visibility="{x:Bind Opens}" Style="{StaticResource TafsArrow}" Width="32" VerticalAlignment="Center"
+                  AutomationProperties.Name="{x:Bind OpensName}" ToolTipService.ToolTip="{x:Bind OpensName}">
+            <FontIcon Glyph="&#xE76C;" FontSize="13" Foreground="{ThemeResource TafsDim}" />
+          </Button>
+        </Grid>
+      </Grid>
+      </Grid>
     </DataTemplate>
   </Page.Resources>
 
@@ -70,7 +107,13 @@
               Padding="0" Visibility="Collapsed" AutomationProperties.AutomationId="back" />
       <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
       <!-- Searched as the person types, as the iPad's .searchable; only with tafs cloud's list. -->
-      <TextBox x:Name="Search" Visibility="Collapsed" TextChanged="OnSearch" MaxWidth="420" HorizontalAlignment="Left" Width="420" />
+      <!-- 420 across, less in a narrower window. -->
+      <Grid x:Name="SearchRow" Visibility="Collapsed">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" MaxWidth="420" />
+        </Grid.ColumnDefinitions>
+        <TextBox x:Name="Search" TextChanged="OnSearch" />
+      </Grid>
       <TextBlock x:Name="Problem" Visibility="Collapsed" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" />
       <ProgressRing x:Name="Reading" Visibility="Collapsed" IsActive="True" Width="24" Height="24" HorizontalAlignment="Center" Margin="0,24" />
 

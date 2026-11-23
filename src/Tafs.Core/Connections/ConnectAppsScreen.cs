@@ -24,6 +24,8 @@ public sealed record ConnectApp(string Entry)
     public bool ConnectedFlag { get; init; }
     public string? SetupWords { get; init; }
     public string? Whose { get; init; }
+    /// <summary>tafs cloud's second line for the row, in the person's language (<c>line</c>), as a narrow row says it.</summary>
+    public string? Line { get; init; }
     public IReadOnlyList<string>? UsedBy { get; init; }
     /// <summary>tafs cloud's logo path for it (<c>/v1/logos/…</c>), drawn only through <see cref="ConnectAppsScreen.LogoUrl"/>.</summary>
     public string? Logo { get; init; }
@@ -75,7 +77,14 @@ public sealed record RemovedGrant(string Grant, IReadOnlyList<RemovedUsedBy> Use
 public sealed record RemovedTaf(string Agent, IReadOnlyList<RemovedGrant>? Grants);
 
 /// <summary>What a row says: how it connects, whose it is, where it stands, who uses it, or tafs cloud's setup line.</summary>
-public sealed record ConnectRow(string How, string? Whose, string? Status, string? UsedBy, string? Setup);
+public sealed record ConnectRow(string How, string? Whose, string? Status, string? UsedBy, string? Setup, string? Line = null)
+{
+    /// <summary>
+    /// A narrow row's second line, as the iPad's <c>ConnectRow.second</c> on a phone: an app to set up says tafs cloud's words
+    /// for it; else tafs cloud's line, as sent; else how, whose, where it stands and who uses it, joined by " · ".
+    /// </summary>
+    public string Second => Setup ?? Line ?? string.Join(" · ", new[] { How, Whose, Status, UsedBy }.Where(p => !string.IsNullOrEmpty(p)));
+}
 
 /// <summary>Connect apps, as on the iPad (its ConnectAppsView): Yours, then Discover, in a table. Every word is tafs cloud's or the word book's.</summary>
 public static class ConnectAppsScreen
@@ -101,6 +110,7 @@ public static class ConnectAppsScreen
                         ConnectedFlag = a.TryGetProperty("connected", out var c) && c.ValueKind == JsonValueKind.True,
                         SetupWords = Text(a, "words"),
                         Whose = Text(a, "whose"),
+                        Line = Text(a, "line"),
                         UsedBy = Names(a),
                         Logo = Text(a, "logo"),
                         Grant = Text(a, "grant"),
@@ -195,7 +205,7 @@ public static class ConnectAppsScreen
         var status = app.Connected ? w.Get("connect.status.connected") : app.NeedsReconnect ? w.Get("connect.sign_in_again") : null;
         var usedBy = app.Yours && app.UsedBy is { Count: > 0 } names ? w.Get("connect.apps.used_by", ("tafs", Lists.And(w.Language, names))) : null;
         return new ConnectRow(w.Get(app.TakesKey ? "connect.how.key" : "connect.how.sign_in"), app.Whose, status, usedBy,
-            app.NeedsSetup ? app.SetupWords ?? "" : null);
+            app.NeedsSetup ? app.SetupWords ?? "" : null, app.Line);
     }
 
     /// <summary>
@@ -261,6 +271,12 @@ public static class ConnectAppsScreen
     public const double AppLeast = 200;
     static readonly double[] Wide = [150, 130, 230];
     static readonly double[] Least = [96, 84, 180];
+
+    /// <summary>
+    /// Too narrow for the table, as the iPad's compact width: the four columns at their least don't fit, so each row is its
+    /// name over one line (<see cref="ConnectRow.Second"/>) and its button, with no column names.
+    /// </summary>
+    public static bool Narrow(double total) => total - Spacing * 3 < AppLeast + Least.Sum();
 
     /// <summary>The four widths in <paramref name="total"/>, as the iPad's ConnectColumns: App's room first, then the three give way together.</summary>
     public static double[] Widths(double total)
