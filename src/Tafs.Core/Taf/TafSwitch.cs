@@ -16,7 +16,20 @@ public sealed record VersionSwitch(int N, string? Draft);
 /// What beginning a switch came to: the switch, or why not; <paramref name="Blocked"/> when a run of the taf is in the way, which
 /// "Stop it and install" clears.
 /// </summary>
-public sealed record SwitchBegun(VersionSwitch? Switch, string? Why, bool Blocked = false);
+public sealed record SwitchBegun(VersionSwitch? Switch, string? Why, bool Blocked = false)
+{
+    /// <summary>
+    /// The tasks the switch stopped because they waited on the owner's answer (tafs cloud's <c>stopped</c>, with
+    /// <c>stop_blocking</c>): their held calls withdrawn, their messages never carried out. Empty when nothing waiting was stopped.
+    /// </summary>
+    public IReadOnlyList<StoppedRun> Stopped { get; init; } = [];
+
+    /// <summary>tafs cloud's words for what it stopped, in the person's language; none when nothing waiting was stopped.</summary>
+    public string? StoppedWords { get; init; }
+}
+
+/// <summary>A run a switch stopped while it waited on the owner's answer, and the chat session it was in.</summary>
+public sealed record StoppedRun(string Run, string Session);
 
 /// <summary>
 /// What Install came to: live, or the Card that changed since it was shown (to read again), or a Card KIFF says moved on since it
@@ -53,6 +66,27 @@ public static class TafSwitch
     public static byte[] Body(bool redraft, bool stopBlocking) =>
         Encoding.UTF8.GetBytes(new JsonObject { ["redraft"] = redraft, ["stop_blocking"] = stopBlocking }.ToJsonString());
 
+    /// <summary>The answer's <c>stopped: [{run, session}]</c>, read leniently: an entry without both is left out.</summary>
+    public static IReadOnlyList<StoppedRun> ReadStopped(JsonElement a) =>
+        Lenient.Array(a, "stopped").Where(x => x.ValueKind == JsonValueKind.Object)
+            .Select(x => (Lenient.Text(x, "run"), Lenient.Text(x, "session")))
+            .Where(x => x.Item1 is { Length: > 0 } && x.Item2 is { Length: > 0 })
+            .Select(x => new StoppedRun(x.Item1!, x.Item2!)).ToList();
+
+    /// <summary>tafs cloud's words for it, only alongside what it stopped: a switch that stopped nothing waiting says nothing.</summary>
+    public static string? StoppedWordsOf(JsonElement a) =>
+        ReadStopped(a).Count > 0 && Lenient.Text(a, "words")?.Trim() is { Length: > 0 } words ? words : null;
+
+    /// <summary>
+    /// The message Retry sends again: the owner's last message in a session the switch stopped, as loaded in the thread; none
+    /// when none of them is loaded (then only the words show, so a message that already ran is never sent twice).
+    /// </summary>
+    public static string? RetryText(IReadOnlyList<Coach.ChatMessage> messages, IReadOnlyList<StoppedRun> stopped)
+    {
+        var sessions = stopped.Select(s => s.Session).ToHashSet();
+        return messages.LastOrDefault(m => m.From == Coach.ChatFrom.Owner && sessions.Contains(m.Session) && m.Text.Trim().Length > 0)?.Text;
+    }
+
     /// <summary>tafs cloud's <c>{"switching": {"n", "draft", "at"}}</c>; none it can't read.</summary>
     public static VersionSwitch? Read(JsonElement a) =>
         a.ValueKind == JsonValueKind.Object && Lenient.Field(a, "switching") is { ValueKind: JsonValueKind.Object } s && Lenient.Int(s, "n") is { } n
@@ -69,7 +103,8 @@ public static class TafSwitch
         var begun = await calls.Cloud(HttpMethod.Post, Path(taf, n), Body(redraft, stopBlocking));
         if (!calls.Current()) return new(null, null);
         if (begun.Answer is { } a)
-            return Read(a) is { } sw ? new(sw, null) : new(null, w.Get("version.cant_go_live", ("n", N(n)), ("why", w.Get("kiff.kiff_did_not_answer_expected"))));
+            return Read(a) is { } sw ? new SwitchBegun(sw, null) { Stopped = ReadStopped(a), StoppedWords = StoppedWordsOf(a) }
+                : new(null, w.Get("version.cant_go_live", ("n", N(n)), ("why", w.Get("kiff.kiff_did_not_answer_expected"))));
         if (begun.Status == 409 && begun.Words is { Length: > 0 } words) return new(null, words, Blocked: true);
         return new(null, w.Get("version.cant_go_live", ("n", N(n)), ("why", begun.Why ?? w.Get("error.offline"))), Blocked: begun.Status == 409);
     }

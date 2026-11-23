@@ -113,6 +113,44 @@ public class TafSwitchTests
         Assert.Equal(new SwitchBegun(null, "Rae is waiting on you for a refund.", Blocked: true), begun);
     }
 
+    [Fact]
+    public async Task A_switch_that_stopped_a_waiting_task_names_it_in_tafs_cloud_s_words()
+    {
+        var calls = new Calls();
+        calls.Cloud["POST /v1/tafs/t1/versions/3/switch"] = Answer("""
+            {"switching": {"n": 3, "draft": null, "at": "2026-11-23T04:20:00Z"},
+             "stopped": [{"run": "r1", "session": "s1"}, {"run": "r2"}, 7],
+             "words": " The task that was waiting on your answer was stopped, and its message didn't run. "}
+            """);
+        var begun = await TafSwitch.BeginAsync(En, "t1", 3, false, true, calls.Make().Calls);
+        Assert.Equal(3, begun.Switch!.N);
+        Assert.Equal([new StoppedRun("r1", "s1")], begun.Stopped);
+        Assert.Equal("The task that was waiting on your answer was stopped, and its message didn't run.", begun.StoppedWords);
+        // Nothing waiting stopped: no words, even if some are sent.
+        calls.Cloud["POST /v1/tafs/t1/versions/3/switch"] = Answer("""{"switching": {"n": 3}, "words": "x"}""");
+        var quiet = await TafSwitch.BeginAsync(En, "t1", 3, false, true, calls.Make().Calls);
+        Assert.Empty(quiet.Stopped);
+        Assert.Null(quiet.StoppedWords);
+    }
+
+    [Fact]
+    public void Retry_sends_the_owner_s_last_message_of_a_stopped_session_and_nothing_when_none_is_loaded()
+    {
+        var at = new DateTimeOffset(2026, 11, 23, 4, 0, 0, TimeSpan.Zero);
+        Tafs.Core.Coach.ChatMessage M(Tafs.Core.Coach.ChatFrom from, string text, string session, int s) => new(at.AddSeconds(s), from, false, text, session);
+        var messages = new[]
+        {
+            M(Tafs.Core.Coach.ChatFrom.Owner, "Refund Ana", "s1", 1),
+            M(Tafs.Core.Coach.ChatFrom.Taf, "On it", "s1", 2),
+            M(Tafs.Core.Coach.ChatFrom.Owner, "And Bo too", "s1", 3),
+            M(Tafs.Core.Coach.ChatFrom.Owner, "Something else", "s2", 4),
+        };
+        Assert.Equal("And Bo too", TafSwitch.RetryText(messages, [new StoppedRun("r1", "s1")]));
+        // None of the stopped session's messages loaded: no Retry, so nothing that ran is sent twice.
+        Assert.Null(TafSwitch.RetryText(messages, [new StoppedRun("r9", "s9")]));
+        Assert.Null(TafSwitch.RetryText([], [new StoppedRun("r1", "s1")]));
+    }
+
     const string Dial = """
         {"version": 3, "pending": {"version": 4, "changes": 1}, "shown": 4, "draft": {"version": 4, "words": ["Every 2 hours"]},
          "wakes": [{"id": "w1", "kind": "schedule", "label": "Every hour",

@@ -79,6 +79,9 @@ public sealed partial class TafPage
             stop.Click += (_, _) => _ = UseVersionAsync(waiting, stopBlocking: true);
             inside.Children.Add(stop);
         }
+        // What the last switch stopped while it waited on the owner, on a line of its own: an install or a Cancel after it
+        // doesn't wipe it, and the next switch clears it.
+        if (switchStopped is { } stopped) inside.Children.Add(Words(stopped.Words, 13, "TafsNoText"));
         if (installWhy is { } why) inside.Children.Add(Words(why, 13, "TafsNoText"));
     }
 
@@ -90,7 +93,8 @@ public sealed partial class TafPage
     {
         if (installing is not null || opening?.Installing is not { } calls) return;
         var mine = opening;
-        (installing, installWhy) = (v.N, null);
+        // Each switch starts clean: an earlier one's stop (and its Retry) never shows for this one.
+        (installing, installWhy, switchStopped) = (v.N, null, null);
         ShowVersionsAgain();
         try
         {
@@ -102,6 +106,13 @@ public sealed partial class TafPage
                 return;
             }
             (staleVersion, blockedVersion) = (null, null);
+            // What the switch stopped while it waited on the owner's answer, in tafs cloud's words: said here, and in the chat
+            // with Retry on that task's message (one click, never by itself).
+            if (begun.StoppedWords is { } stoppedWords)
+            {
+                switchStopped = (stoppedWords, begun.Stopped);
+                if (tab == TafTab.Chat) ShowChat();
+            }
             if (sw.Draft is null) Settle(await calls.Install(v.N, null), v);
             else
             {
@@ -118,6 +129,19 @@ public sealed partial class TafPage
                 if (knob is not null) await LoadKnobAsync();
             }
         }
+    }
+
+    /// <summary>What the last switch stopped (tafs cloud's words, and the tasks), for the chat's Retry; none once it's sent or gone.</summary>
+    (string Words, IReadOnlyList<StoppedRun> Runs)? switchStopped;
+
+    /// <summary>Retry, for a task the switch stopped: its message sent again as a new one, once, on the owner's click.</summary>
+    async Task RetryStoppedAsync(string text)
+    {
+        // Once: a second click, queued before the chat redrew without the button, finds it already sent.
+        if (switchStopped is null) return;
+        switchStopped = null;
+        ShowChat();
+        await SendTextAsync(text);
     }
 
     /// <summary>What an install came to: live, the Card shown again, Draft its Card again, or why.</summary>
