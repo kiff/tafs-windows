@@ -912,6 +912,10 @@ public sealed partial class TafPage : Page
                 _ => Task.CompletedTask,
             });
         }
+        // An async void handler: a read that fails unexpectedly leaves the page as it was, never the dispatcher. Each load
+        // already says why it couldn't read on the page itself.
+        catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException or InvalidOperationException
+            or System.Text.Json.JsonException) { }
         finally { refreshing = false; }
     }
 
