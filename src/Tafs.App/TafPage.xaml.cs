@@ -1159,6 +1159,9 @@ public sealed partial class TafPage : Page
     /// <summary>The iPad's side column: 360 wide, shown only while the chat keeps 430 beside it (an iPhone's width).</summary>
     const double SideWidth = 360, ChatAtLeast = 430;
 
+    /// <summary>How wide the page must be for the side column, where a taf's held calls are answered.</summary>
+    public const double SideFitsAt = SideWidth + 32 + ChatAtLeast;
+
     /// <summary>Whether the side column showed when it was last drawn, so a resize redraws it only when that changes.</summary>
     bool? sideShown;
 
