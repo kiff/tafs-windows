@@ -9,7 +9,7 @@ namespace Tafs.Core.Record;
 /// `sending`, `unknown`) and KIFF's activity (`revoked`); and a taf's start, which only All shows.
 /// Its dot: green done, approved or started; amber held, sending or unknown; red refused, not done or revoked.
 /// </summary>
-public enum EntryKind { Done, Approved, Held, Refused, NotDone, Sending, Unknown, Revoked, Started }
+public enum EntryKind { Done, Approved, Held, Refused, NotDone, Sending, Unknown, Revoked, Started, InTafs }
 
 /// <summary>
 /// One line of the Record: a taf's call, what KIFF decided and what the tool did. <paramref name="Amount"/> is
@@ -18,7 +18,7 @@ public enum EntryKind { Done, Approved, Held, Refused, NotDone, Sending, Unknown
 /// as a payment the person didn't expect, and <paramref name="ReportedAt"/> when it was reported: only tafs cloud's entries carry them.
 /// </summary>
 public sealed record RecordEntry(string Taf, int TafColor, EntryKind Kind, string Title, string Detail, DateTimeOffset At, string? Amount = null,
-    ActivityCall? Call = null, ReportOffer? Report = null, DateTimeOffset? ReportedAt = null);
+    ActivityCall? Call = null, ReportOffer? Report = null, DateTimeOffset? ReportedAt = null, string? OnValue = null);
 
 /// <summary>tafs cloud's and KIFF's words for a kind.</summary>
 public static class EntryKinds
@@ -41,7 +41,7 @@ public static class EntryKinds
 }
 
 /// <summary>A line's dot's colour: green, amber or red.</summary>
-public enum Dot { Went, Waiting, Stopped }
+public enum Dot { Went, Waiting, Stopped, Quiet }
 
 /// <summary>The Record's filters, as the iPad's.</summary>
 public enum RecordFilter { All, MoneyMoved, Stopped, Waiting }
@@ -58,8 +58,12 @@ public static class RecordScreen
 
     public static string AllTafs(WordBook w) => w.Get("record.all_tafs");
 
-    /// <summary>The tafs' chips after All tafs: each taf once, with its colour, the one started last first, as the iPad lists them.</summary>
-    public static IReadOnlyList<(string Taf, int Colour)> TafChips(IEnumerable<RecordEntry> entries) =>
+    /// <summary>
+    /// The tafs' chips after All tafs, as the iPad's <c>tafChips</c>: every taf of the account's, in Home's order (<paramref name="account"/>);
+    /// before Home is read, each taf of the lines once, with its colour, the one started last first.
+    /// </summary>
+    public static IReadOnlyList<(string Taf, int Colour)> TafChips(IEnumerable<RecordEntry> entries, IReadOnlyList<(string Taf, int Colour)>? account = null) =>
+        account is { Count: > 0 } ? account :
         entries.GroupBy(e => e.Taf).OrderByDescending(g => g.Min(e => e.At)).Select(g => (g.Key, g.First().TafColor)).ToList();
 
     public static IReadOnlyList<(RecordFilter Filter, string Title)> Filters(WordBook w) =>
@@ -87,6 +91,8 @@ public static class RecordScreen
     {
         EntryKind.Held or EntryKind.Sending or EntryKind.Unknown => Dot.Waiting,
         EntryKind.Refused or EntryKind.NotDone or EntryKind.Revoked => Dot.Stopped,
+        // Done in tafs itself, not a call (a halt, a knock): dim, as the iPad's.
+        EntryKind.InTafs => Dot.Quiet,
         _ => Dot.Went,
     };
 

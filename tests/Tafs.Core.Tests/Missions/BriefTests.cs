@@ -142,4 +142,14 @@ public class BriefTests
         Assert.True(log.Items[3].Removed);
         Assert.Equal("e0", log.Before);
     }
+
+    /// <summary>Coach's chats waiting on their person (`coach_waiting`): tafs cloud sends it only above 0, in its words.</summary>
+    [Theory]
+    [InlineData("""{"coach_waiting":{"count":2,"words":"Coach waits on you in 2 chats"}}""", "Coach waits on you in 2 chats")]
+    [InlineData("""{"coach_waiting":{"count":0,"words":"Coach waits on you in 0 chats"}}""", null)]
+    [InlineData("""{"coach_waiting":{"count":1,"words":""}}""", null)]
+    [InlineData("""{"coach_waiting":"x"}""", null)]
+    [InlineData("""{}""", null)]
+    public void Coach_waiting_is_tafs_clouds_line_only_above_zero(string json, string? words) =>
+        Assert.Equal(words, Read(json).CoachWaiting?.Words);
 }

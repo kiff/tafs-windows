@@ -9,7 +9,7 @@ using Tafs.Core.NeedsYou;
 namespace Tafs.App;
 
 /// <summary>A held call on the Overview, under NEEDS YOU.</summary>
-public sealed record HeldLine(string Title, string AnswerBy)
+public sealed record HeldLine(string Title, string AnswerBy, HeldCall? Call = null)
 {
     public string Name => $"{Title}, {AnswerBy}";
 }
@@ -63,7 +63,15 @@ public sealed partial class OverviewPage : Page
         Empty.Visibility = allRows.Count == 0 && first is null ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    void OnHeld(object sender, RoutedEventArgs e) => NeedsYouChosen?.Invoke();
+    /// <summary>A held call opens its taf's page, where it's answered, as the iPad's Overview; what else waits opens Needs you.</summary>
+    void OnHeld(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: HeldCall call }) HeldChosen?.Invoke(call);
+        else NeedsYouChosen?.Invoke();
+    }
+
+    /// <summary>A held call chosen on the Overview.</summary>
+    public static event Action<HeldCall>? HeldChosen;
 
     /// <summary>Every taf's line, before a chip filters them.</summary>
     IReadOnlyList<OverviewRow> allRows = [];
@@ -123,8 +131,8 @@ public sealed partial class OverviewPage : Page
     internal void ShowHeld(IReadOnlyList<HeldCall> held, string? rest = null)
     {
         var w = App.Words;
-        Held.ItemsSource = held.Select(c => NeedsYouScreen.OverviewRow(w, c, TimeZoneInfo.Local))
-            .Select(r => new HeldLine(r.Title, r.AnswerBy)).ToList();
+        Held.ItemsSource = held.Select(c => (Row: NeedsYouScreen.OverviewRow(w, c, TimeZoneInfo.Local), Call: c))
+            .Select(x => new HeldLine(x.Row.Title, x.Row.AnswerBy, x.Call)).ToList();
         RestWords.Text = rest ?? "";
         AutomationProperties.SetName(Rest, rest ?? "");
         Rest.Visibility = rest is null ? Visibility.Collapsed : Visibility.Visible;

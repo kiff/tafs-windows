@@ -29,8 +29,8 @@
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="local:HeldLine">
-              <!-- A row opens Needs you, as the sidebar's do (a taf's page, as on the iPad, once there is one). -->
-              <Button Click="OnHeld" Style="{StaticResource TafsRow}" AutomationProperties.Name="{x:Bind Name}">
+              <!-- A row opens its taf's page, where it's answered, as the iPad's and the sidebar's (Needs you when that can't show it). -->
+              <Button Click="OnHeld" Tag="{x:Bind Call}" Style="{StaticResource TafsRow}" AutomationProperties.Name="{x:Bind Name}">
                 <Grid ColumnSpacing="10">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />

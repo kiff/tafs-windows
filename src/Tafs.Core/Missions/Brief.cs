@@ -60,7 +60,8 @@ public sealed record BriefCounted(int Count, string Words);
 /// word, count, order and urgency is tafs cloud's: the app draws it and decides nothing.
 /// </summary>
 public sealed record Brief(string? At, string? NextAt, IReadOnlyList<BriefDecision> Decisions, BriefCounted? More,
-    IReadOnlyList<BriefDone> Done, BriefNextMove? NextMove, BriefCounted? Rest, string? Credits, HomeLabels Labels, BriefWords Words)
+    IReadOnlyList<BriefDone> Done, BriefNextMove? NextMove, BriefCounted? Rest, string? Credits, HomeLabels Labels, BriefWords Words,
+    BriefCounted? CoachWaiting = null)
 {
     public const string Route = "/v1/brief";
 
@@ -91,7 +92,9 @@ public sealed record Brief(string? At, string? NextAt, IReadOnlyList<BriefDecisi
             Obj(answer, "rest") is { } r && Count(r) is { Words.Length: > 0 } rest ? rest : null,
             Obj(answer, "credits") is { } c ? T(c, "words") : null,
             LabelChips.Read(answer),
-            Obj(answer, "words") is { } w ? WordsOf(w) : BriefWords.None);
+            Obj(answer, "words") is { } w ? WordsOf(w) : BriefWords.None,
+            // Coach's chats waiting on their person (`coach_waiting`), the iPad's coachWaiting: sent only above 0, in tafs cloud's words.
+            Obj(answer, "coach_waiting") is { } cw && Count(cw) is { Count: > 0, Words.Length: > 0 } waiting ? waiting : null);
     }
 
     /// <summary>
