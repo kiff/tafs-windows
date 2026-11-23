@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Tafs.Core.Approvals;
 using Tafs.Core.Kiff;
+using Tafs.Core.Home;
 using Tafs.Core.NeedsYou;
 using Tafs.Core.Tests.Strings;
 using Tafs.Core.Words;
@@ -126,6 +127,35 @@ public class HeldAnswerTests
             message => { Calls.Add("device key"); Signed = message; return DeviceThrows is { } e ? Task.FromException<string>(e) : Task.FromResult("MEU="); },
             (path, body) => { Calls.Add("POST " + path); Posted = Encoding.UTF8.GetString(body); return Task.FromResult(Answer); },
             () => { Calls.Add("time"); return At; }, () => Current);
+    }
+
+    /// <summary>
+    /// Coach's held install: approving it once is refused until the version is live (installed), then it goes as any
+    /// Approve once, as the iPad's useVersion(approving:).
+    /// </summary>
+    [Fact]
+    public async Task Coach_s_install_is_approved_only_once_its_version_is_live()
+    {
+        var install = Call() with { Install = new VersionInstall("taf_1", 3) };
+        var early = new Kiff();
+        Assert.Equal(new HeldAnswers.Answered(false, En.Get("needs_you.install_from_card")), await early.Answer_(new HeldAnswer.ApproveOnce(), install));
+        Assert.Empty(early.Calls);
+        var live = new Kiff();
+        var said = await HeldAnswers.AnswerAsync(En, install, new HeldAnswer.ApproveOnce(), "t_1", live.Mode, live.PasskeyId,
+            _ => Task.FromResult(StepConfirmed.Yes), _ => Task.FromResult(new JsonObject { ["credential_id"] = "Y3I" }), _ => Task.FromResult("MEU="),
+            (path, body) => Task.FromResult((200, "{}")), () => At, () => true, installed: true);
+        Assert.True(said.Taken);
+    }
+
+    /// <summary>The taf Coach's hold names: by tafs cloud's id, else by its name ignoring case; none when no taf is either.</summary>
+    [Fact]
+    public void Coach_s_install_finds_its_taf_by_id_else_by_name()
+    {
+        HomeTaf Taf(string id, string name) => new(id, name, 0, "working", "", null, [], 0, null, null);
+        var tafs = new[] { Taf("taf_1", "Refunds"), Taf("taf_2", "Support") };
+        Assert.Equal("taf_2", CoachInstalls.Find(new VersionInstall("taf_2", 1), tafs)?.Id);
+        Assert.Equal("taf_1", CoachInstalls.Find(new VersionInstall("refunds", 1), tafs)?.Id);
+        Assert.Null(CoachInstalls.Find(new VersionInstall("Billing", 1), tafs));
     }
 
     /// <summary>

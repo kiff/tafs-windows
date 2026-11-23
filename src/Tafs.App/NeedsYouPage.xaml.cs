@@ -86,6 +86,9 @@ public sealed partial class NeedsYouPage : Page
     /// <summary>"Change the limit in Coach mode" on a held call: Coach opens improving its taf, as the iPad's.</summary>
     public static event Action<HeldCall>? ChangeLimitChosen;
 
+    /// <summary>"Install with Windows Hello" on Coach's held install: the version installed on its taf's page, then the hold approved.</summary>
+    public static event Action<HeldCall>? InstallChosen;
+
     /// <summary>
     /// "Change the limit in Coach mode" (the iPad's <c>Words.NeedsYou.changeLimit</c>), outlined, for someone who may improve the
     /// call's taf in Coach: a lasting change to a limit approving once can't pass is Coach's.
@@ -260,8 +263,11 @@ public sealed partial class NeedsYouPage : Page
             onPhone.Click += (_, _) => panel.Visibility = Visibility.Collapsed;
             return panel;
         }
-        var b = Button(w.Get(key, ("biometry", "Windows Hello")), "TafsPrimary", sending);
-        b.Click += (_, _) => HeldAnswerChosen?.Invoke(call, answer);
+        // Coach's held install is installing it (the iPad's install()): "Install with Windows Hello", never Approve once.
+        var installs = answer is HeldAnswer.ApproveOnce && call.Install is not null;
+        var b = Button(w.Get(installs ? "version.install_with" : key, ("biometry", "Windows Hello")), "TafsPrimary", sending);
+        if (installs) b.Click += (_, _) => InstallChosen?.Invoke(call);
+        else b.Click += (_, _) => HeldAnswerChosen?.Invoke(call, answer);
         // Windows Hello not ready here: why and what to do, in the button's place.
         return ApprovalGate.Wrap(b);
     }

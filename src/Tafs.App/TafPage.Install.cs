@@ -122,6 +122,8 @@ public sealed partial class TafPage
         }
         finally
         {
+            // Coach's held install answers only the install it began: cancelled or refused, it isn't kept for a later one.
+            if (holdAfterLive?.N == v.N) holdAfterLive = null;
             if (opening == mine)
             {
                 installing = null;
@@ -149,6 +151,28 @@ public sealed partial class TafPage
     {
         if (result.Stale) staleVersion = v.N;
         installWhy = result.Why;
+        // Coach's held install: the hold is approved only now that its version is live, and only for that version.
+        if (result.Live && holdAfterLive is { } after && holdAfterLive.Value.N == v.N)
+        {
+            holdAfterLive = null;
+            _ = after.Then();
+        }
+    }
+
+    /// <summary>Coach's held install's answer, waiting for its version to go live.</summary>
+    (int N, Func<Task> Then)? holdAfterLive;
+    bool holdInstallStarted;
+
+    /// <summary>
+    /// Coach's held install, once the versions are read (<see cref="TafHoldInstall"/>): its version installed as Install this
+    /// version does, with what's in the way stopped (the iPad's <c>stopBlocking: approving != nil</c>), once per opening.
+    /// </summary>
+    void StartHoldInstall()
+    {
+        if (holdInstallStarted || opening?.HoldInstall is not { } hold || versions?.Versions.FirstOrDefault(x => x.N == hold.N) is not { } v) return;
+        holdInstallStarted = true;
+        holdAfterLive = (hold.N, hold.AfterLive);
+        _ = UseVersionAsync(v, stopBlocking: true);
     }
 
     /// <summary>

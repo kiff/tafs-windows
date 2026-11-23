@@ -146,11 +146,12 @@ public static class HeldAnswers
     /// twice), taken once the person confirmed.</param>
     public static async Task<Answered> AnswerAsync(WordBook w, HeldCall call, HeldAnswer answer, string tenant, ApprovalMode mode, string? passkeyId,
         Func<string, Task<StepConfirmed>> confirm, Func<byte[], Task<JsonObject>> passkey, Func<byte[], Task<string>> deviceSign,
-        Func<string, byte[], Task<(int Status, string Body)>> post, Func<string> signedAt, Func<bool> current)
+        Func<string, byte[], Task<(int Status, string Body)>> post, Func<string> signedAt, Func<bool> current, bool installed = false)
     {
         if (call.KiffId is not { } id || call.AccountingVersion is not { } version) return new(false, w.Get("needs_you.answer_in_kiff"));
-        // Coach's version goes live from its card, never by approving its hold once, as the iPad's answer refuses it.
-        if (answer is HeldAnswer.ApproveOnce && call.Install is not null) return new(false, w.Get("needs_you.install_from_card"));
+        // Coach's version goes live by installing it, never by approving its hold once, as the iPad's answer refuses it: the
+        // hold is approved once the version is live (installed), as the iPad's useVersion(approving:).
+        if (answer is HeldAnswer.ApproveOnce && call.Install is not null && !installed) return new(false, w.Get("needs_you.install_from_card"));
         // Never an allowing answer without its release (docs/chrome.md): a sealed fill is the phone's, whatever the card shows.
         if (Grants(answer) && call.NeedsRelease) return new(false, w.Get("approval.security_key.on_phone"));
         // Only a session that approves with this PC's passkey grants: any other is refused here, whatever the card shows.
