@@ -320,6 +320,8 @@ public sealed partial class MainWindow : Window
         // A turn refused for want of the AI-data consent, from any route: its screen, wherever the person tried.
         CloudRead.ConsentRequired += consent => DispatcherQueue.TryEnqueue(() => _ = AskConsentAsync(consent));
         OverviewPage.NeedsYouChosen += () => Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.NeedsYou);
+        // A held call on the Overview opens its taf, as the sidebar's does.
+        OverviewPage.HeldChosen += OpenHeld;
         // The first Home: Ask Coach starts a new taf (the iPad's startNewTaf), How tafs works opens the three cards.
         OverviewPage.AskCoachChosen += () => OnNewTaf(this, new RoutedEventArgs());
         OverviewPage.HowItWorksChosen += () => _ = OnboardingCards.ShowAsync(Root.XamlRoot, Root.ActualTheme);
@@ -2044,6 +2046,17 @@ public sealed partial class MainWindow : Window
     /// <summary>The selection going back to <see cref="screenRow"/> after the sheet opened: nothing to draw.</summary>
     bool restoringRow;
 
+    /// <summary>
+    /// A held call opens its taf's page, where its side column answers it, as the iPad's sidebar and Overview do. One whose taf
+    /// isn't on Home, or a window too narrow for that column, opens Needs you, which answers it at any width.
+    /// </summary>
+    void OpenHeld(HeldCall call)
+    {
+        if (call.Agent is { } agent && home?.Tafs.FirstOrDefault(t => t.Agent == agent) is { } heldTaf && Pages.ActualWidth >= TafPage.SideFitsAt + 64)
+            Pages.Navigate(typeof(TafPage), OpenTaf(App.Words, heldTaf.Id));
+        else ShowNeedsYou();
+    }
+
     void OnSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is not NavigationViewItem item) return;
@@ -2072,12 +2085,7 @@ public sealed partial class MainWindow : Window
         else if (item.Tag is Screen.NeedsYou) ShowNeedsYouOrBrief();
         // A held call opens its taf's page, where its side column answers it, as the iPad's sidebar does. One whose taf isn't on
         // Home, or a window too narrow for that column, opens Needs you, which answers it at any width.
-        else if (item.Tag is HeldCall call)
-        {
-            if (call.Agent is { } agent && home?.Tafs.FirstOrDefault(t => t.Agent == agent) is { } heldTaf && Pages.ActualWidth >= TafPage.SideFitsAt + 64)
-                Pages.Navigate(typeof(TafPage), OpenTaf(App.Words, heldTaf.Id));
-            else ShowNeedsYou();
-        }
+        else if (item.Tag is HeldCall call) OpenHeld(call);
         else if (item.Tag == HaltAll) OpenHalt(null, "");
         else if (item.Tag is Screen.Record)
         {
