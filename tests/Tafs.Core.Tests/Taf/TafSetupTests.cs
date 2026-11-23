@@ -100,6 +100,20 @@ public class TafSetupTests
         Assert.Equal("/v1/tafs/taf_1/setup?connected_again=grt%2F1%26x", TafSetup.Path("taf_1", "grt/1&x"));
     }
 
+    /// <summary>A connected app's sheet (the iPad's ConnectedAppSheet): each action's step words, and its own workflow steps.</summary>
+    [Fact]
+    public void A_connection_carries_its_actions_step_words_and_its_workflow_steps()
+    {
+        var gmail = Assert.Single(Json("""
+            {"connections": [{"id": "grt_g", "name": "Gmail",
+              "actions": [{"name": "send", "title": "Send an email", "limits": ["20 a day"], "step_words": "Step 2 sends the reply"}, {"name": "read"}],
+              "workflow_steps": [{"number": 2, "label": "Reply", "words": "Sends the answer", "app": "Gmail", "running": true}, {"label": "No number"}]}]}
+            """).Connections);
+        Assert.Equal(["Step 2 sends the reply", ""], gmail.Actions.Select(a => a.StepWords));
+        var step = Assert.Single(gmail.WorkflowSteps);
+        Assert.Equal(new WorkflowStep(2, "Reply", "Sends the answer", "Gmail", true), step);
+    }
+
     [Fact]
     public void What_it_can_t_read_is_left_out_never_the_page_with_it()
     {
