@@ -388,15 +388,14 @@ is the approval key's act, never the device key's); a revoked taf can still be r
   in its steps ("Asking KIFF: Create refund…", from planque's grants). The taf's words are drawn as written, not as
   Markdown, as Coach's are.
 - **What acts in Setup:** a connected app's sheet, the + to connect one, a Card-unit exception's Coach and Dismiss
-  (signed), the taf's own Connect again, Improve in Coach, Change the workflow with Coach, the memory's See all, Starts
-  when and Results go to. They need Coach, signing or sign-in, and whether the person manages the taf. The
+  (signed), the taf's own Connect again, Improve in Coach, Change the workflow with Coach, Starts when and Results go
+  to. They need Coach, signing or sign-in, and whether the person manages the taf. The
   sample's Forget and Pause change its page only.
 - **The real Revoke:** `POST /v1/me/mandates/{id}/revoke` for each of its Cards, shown only to whoever KIFF says manages
   the taf, and Stopped only once KIFF has revoked them all (`card.revoke_failed` otherwise). How it's signed, and
   whether a view-only session may send it, is settled in its own PR with the security review. Today's Revoke reaches
   nothing, so it's shown on the sample's Card tab only, never on a real taf's.
-- A Card's pending use and unit words drawn, its totals for each item, and how KIFF counts
-  each tool.
+- A Card's pending use and unit words drawn (its totals for each item and How this is counted are on Windows, #190).
 - **The rest:** the head's second line (the version); held calls, Card-unit exceptions, its work and its runs
   at the top of the Activity; a line's receipt and its next step.
 
