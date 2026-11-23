@@ -382,7 +382,7 @@ public class CoachApprovalTests
     }
 
     /// <summary>
-    /// Coach's connect step signs only the approve body this PC rebuilds from what the card showed (review on #156): tafs
+    /// Coach's connect step signs only the approve body this PC rebuilds from what the card showed: tafs
     /// cloud's body with another profile, other words, words missing, or a field more is refused, and nothing goes to planque.
     /// </summary>
     [Theory]

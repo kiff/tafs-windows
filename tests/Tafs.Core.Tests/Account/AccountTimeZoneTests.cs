@@ -66,7 +66,7 @@ public class AccountTimeZoneTests
 
     /// <summary>
     /// Offered only where KIFF takes the PUT: <c>account.settings</c>, or no list at all; never on a view-only session, which
-    /// would get Windows Hello and then KIFF's refusal (review on #97).
+    /// would get Windows Hello and then KIFF's refusal.
     /// </summary>
     [Fact]
     public void The_zone_is_offered_with_account_settings_and_never_view_only()
