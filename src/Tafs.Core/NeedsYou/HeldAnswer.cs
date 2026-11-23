@@ -151,6 +151,8 @@ public static class HeldAnswers
         if (call.KiffId is not { } id || call.AccountingVersion is not { } version) return new(false, w.Get("needs_you.answer_in_kiff"));
         // Coach's version goes live from its card, never by approving its hold once, as the iPad's answer refuses it.
         if (answer is HeldAnswer.ApproveOnce && call.Install is not null) return new(false, w.Get("needs_you.install_from_card"));
+        // Never an allowing answer without its release (docs/chrome.md): a sealed fill is the phone's, whatever the card shows.
+        if (Grants(answer) && call.NeedsRelease) return new(false, w.Get("approval.security_key.on_phone"));
         // Only a session that approves with this PC's passkey grants: any other is refused here, whatever the card shows.
         if (Grants(answer) && !Approves(mode, passkeyId)) return new(false, w.Get("needs_you.answer_in_kiff"));
         if (!Grants(answer))

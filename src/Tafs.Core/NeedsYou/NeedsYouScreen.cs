@@ -30,6 +30,12 @@ public sealed record HeldCall(
     /// </summary>
     public bool ApprovableOnce { get; init; } = true;
 
+    /// <summary>
+    /// A sealed fill (KIFF's <c>browser.sealed_fill</c> or <c>fill</c>): allowed only with the phone's release, so this PC offers
+    /// no Approve once and no Extra room on it, only "Approve on your phone instead". Refusing still goes.
+    /// </summary>
+    public bool NeedsRelease { get; init; }
+
     /// <summary>KIFF's action for the call (the iPad's <c>proposed.action</c>), when it came from KIFF.</summary>
     public string? Action { get; init; }
 
@@ -148,6 +154,8 @@ public static class NeedsYouScreen
     {
         var gate = !approves;
         return !mayAnswerHolds ? new(w.Get("needs_you.someone_answers"), false)
+            // A sealed fill: the phone's release allows it, never this PC; no gate, since nothing here would approve it.
+            : call.NeedsRelease ? new(w.Get("approval.security_key.on_phone"), false)
             : call.ApprovableOnce ? new(null, gate)
             : new(w.Get(managesCards ? "needs_you.over_total_manager" : "needs_you.over_total"), managesCards && gate);
     }

@@ -51,6 +51,11 @@ As the iPad's `HeldCallCard.answers`, for how Windows signs (`HeldAnswers`, belo
 - **Approve once with Windows Hello**, for a session that approves with this PC's passkey. Over a Card total, approving
   once can't pass it: the card says so ("Extra room lets only this call through." for someone who manages Cards, KIFF's
   `cards.manage`) and offers **Extra room with Windows Hello** to them.
+- **A sealed fill** (KIFF's hold with a `browser` block carrying `sealed_fill` or `fill`, read as anything there but null)
+  is allowed only with the paired phone's release (docs/chrome.md: "never an allowing answer without its release"), and
+  a PC can't make one. So Windows offers no Approve once, no Extra room and no Allow this from now on for it, only
+  "Approve on your phone instead", with no gate. `HeldAnswers.AnswerAsync` refuses an allowing answer on it too, behind
+  the card, asking and sending nothing. Refuse and the next steps still go.
 - **The Card's next steps and Refuse**, in a row, outlined, Refuse in red. Windows Hello asks for the person first (the
   iPad's Face ID or passcode for the device key), then the device key signs.
 - **A PC that doesn't approve** keeps the gate where Approve would be: why it can't, and **Add this Windows PC**. Only a
