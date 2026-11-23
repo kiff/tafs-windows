@@ -65,6 +65,9 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
 - A kind this app doesn't know reads as Unknown, so it waits under amber rather than passing as done. An entry with no
   id or title is left out.
 - The filters are tafs cloud's. The app sends the chosen one back.
+- **A Card unit's requests** (the iPad's `TafActivityList`): the page's `card_unit_exceptions`, else Home's for this taf,
+  drawn before the work as on Needs you (with Coach and Dismiss where this person may; one dismissed here is gone), then
+  tafs cloud's `card_unit_exceptions_notice`, 13 dim.
 - **A line's next step** (`next`, the iPad's `NextStepRow`, `NextSteps`, `TafPage.NextStep.cs`): tafs cloud's words under
   the line. Without its kind or words, there's none.
   - For whoever manages the taf it's an outlined button: a `reconnect` always, an `ask_coach` for someone who may use

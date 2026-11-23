@@ -2226,6 +2226,7 @@ public sealed partial class MainWindow : Window
                 Connecting: ConnectingFor(),
                 // A Card unit's request on its Setup: Coach about it and Dismiss, as on Needs you; none once dismissed here.
                 CardUnit: ask => dismissedCardUnits.Contains(ask.Id) ? null : CardUnitPanelFor(ask.Taf.Length > 0 ? ask : ask with { Taf = taf.Id }),
+                CardUnitsListed: () => CardUnitsShown.Where(a => a.Taf == taf.Id).ToList(),
                 // An Activity line's next step: sign in again, Connect apps, or Coach with its words, for whoever manages it.
                 Next: new TafNextStep(next => NextSteps.Offered(next, Manages(taf), mayUseCoach), (next, fallback) => DoNextStepAsync(taf, next, fallback)),
                 Revoke: RevokeFor(taf), RevokeNeedsApprover: Manages(taf) && App.Sessions.Kept()?.Mode == ApprovalMode.View,

@@ -27,7 +27,8 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     Action<string>? AskCoachAbout = null, Func<Task<string?>>? Revoke = null, bool RevokeNeedsApprover = false, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null,
     Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafSteps? Steps = null, TafFiles? Files = null, TafDoorSigning? DoorSigning = null,
     string? DoorOn = null, TafSlackDoor? SlackDoor = null, ConnectAppsConnecting? Connecting = null,
-    Func<CardUnitException, Border?>? CardUnit = null, TafNextStep? Next = null)
+    Func<CardUnitException, Border?>? CardUnit = null, TafNextStep? Next = null,
+    Func<IReadOnlyList<CardUnitException>>? CardUnitsListed = null)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
@@ -911,6 +912,8 @@ public sealed partial class TafPage : Page
         Show();
         await loading;
         Show();
+        // The page's Card-unit requests are drawn with the work, above the record.
+        if (opening?.CloudId == id) ShowWork();
     }
 
     /// <summary>
