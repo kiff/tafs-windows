@@ -33,13 +33,13 @@ public static class Locale
     }
 
     /// <summary>
-    /// Whether a language's letters join (Arabic): monospaced text in it is drawn in the plain face, since a fixed-width face
+    /// Whether a language's letters join (Arabic, Urdu): monospaced text in it is drawn in the plain face, since a fixed-width face
     /// breaks its letters apart, as the iPad's <c>ScaledFont.design</c> and Android's <c>JOINED_SCRIPTS</c>.
     /// </summary>
-    public static bool JoinedScript(string language) => language.Split('-')[0] is "ar";
+    public static bool JoinedScript(string language) => language.Split('-')[0] is "ar" or "ur";
 
-    /// <summary>Whether a language reads right to left: Arabic and Hebrew among tafs's.</summary>
-    public static bool RightToLeft(string language) => language.Split('-')[0] is "ar" or "he";
+    /// <summary>Whether a language reads right to left: Arabic, Hebrew and Urdu among tafs's.</summary>
+    public static bool RightToLeft(string language) => language.Split('-')[0] is "ar" or "he" or "ur";
 
     /// <summary>
     /// A value set apart inside a line (U+2068 … U+2069), so a name or number in another direction keeps its own: the iPad's

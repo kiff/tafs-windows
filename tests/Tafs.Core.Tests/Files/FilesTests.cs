@@ -114,6 +114,7 @@ public class FilesTests
     [InlineData("tk", 5, "5 B")]
     [InlineData("hi", 5, "5 बाइट")]
     [InlineData("hi", 1500, "2 kB")]
+    [InlineData("ur", 5, "5 byte")]
     [InlineData("xx", 5, "5 byte")]
     public void A_size_is_written_as_the_language_writes_it(string language, long bytes, string words) =>
         Assert.Equal(words, FileSizes.Words(language, bytes));

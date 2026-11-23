@@ -82,6 +82,7 @@ public class SignInScreenTests
     [InlineData("pt")]
     [InlineData("tk")]
     [InlineData("hi")]
+    [InlineData("ur")]
     public void The_legal_pages_open_in_the_app_s_language(string language)
     {
         Assert.Equal($"https://kiff.dev/{language}/tafs/terms", SignInScreen.Terms(language).AbsoluteUri);

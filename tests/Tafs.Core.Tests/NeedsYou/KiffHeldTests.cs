@@ -180,5 +180,6 @@ public class KiffHeldTests
     [InlineData("tk", 20, "20th")] [InlineData("tk", 26, "26rd")] [InlineData("tk", 110, "110th")]
     [InlineData("hi", 1, "1ला")] [InlineData("hi", 2, "2रा")] [InlineData("hi", 3, "3रा")] [InlineData("hi", 4, "4था")]
     [InlineData("hi", 5, "5वाँ")] [InlineData("hi", 6, "6ठा")] [InlineData("hi", 21, "21वाँ")] [InlineData("hi", 0, "0")]
+    [InlineData("ur", 1, "1th")] [InlineData("ur", 2, "2th")] [InlineData("ur", 21, "21th")]
     public void Ordinals(string language, long n, string written) => Assert.Equal(written, KiffHeld.Ordinal(language, n));
 }
