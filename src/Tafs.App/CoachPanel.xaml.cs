@@ -1039,7 +1039,7 @@ public sealed partial class CoachPanel : UserControl
 
     TextBlock Mono(string text, double size, string colour) => new()
     {
-        Text = text, FontSize = size, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas"), Foreground = Brush(colour),
+        Text = text, FontSize = size, FontFamily = Monospace.Face, Foreground = Brush(colour),
         TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
     };
 

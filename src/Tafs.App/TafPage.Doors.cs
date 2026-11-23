@@ -203,7 +203,7 @@ public sealed partial class TafPage
         Grid.SetColumn(open, 1);
         state.Children.Add(open);
         var address = Words(door.Address, 15, "TafsInkText");
-        address.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas");
+        address.FontFamily = Monospace.Face;
         address.IsTextSelectionEnabled = true;
         var top = new List<UIElement> { state, address };
         if (door.Kind == "email")
@@ -342,7 +342,7 @@ public sealed partial class TafPage
         var by = w.Get(knock.Paired ? "door.knock.paired_by" : "door.knock.by", ("app", knock.App.ToUpper(CultureInfo.InvariantCulture)))
             + (knock.Proof == "fail" ? " · " + w.Get("door.knock.didnt_check_out") : "");
         var stamp = Words(by, 10, knock.Paired ? "TafsSoftText" : "TafsAmberWords");
-        stamp.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas");
+        stamp.FontFamily = Monospace.Face;
         card.Children.Add(stamp);
         var lines = TafDoors.KnockLines(w, knock);
         var first = Words(lines[0], 14, "TafsInkText");

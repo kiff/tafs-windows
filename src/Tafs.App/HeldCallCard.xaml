@@ -21,7 +21,7 @@
           </Border>
           <TextBlock Grid.Column="1" Text="{x:Bind Lines.Holder}" FontSize="14" FontWeight="SemiBold"
                      VerticalAlignment="Center" Foreground="{ThemeResource TafsInk}" />
-          <TextBlock Grid.Column="2" Text="{x:Bind Lines.Left, Mode=OneWay}" FontSize="12" FontFamily="Cascadia Mono, Consolas"
+          <TextBlock Grid.Column="2" Text="{x:Bind Lines.Left, Mode=OneWay}" FontSize="12" FontFamily="{StaticResource TafsMono}"
                      VerticalAlignment="Center" Foreground="{ThemeResource TafsAmberText}" />
         </Grid>
         <TextBlock Text="{x:Bind Lines.Amount}" Visibility="{x:Bind local:HeldCallView.Seen(Lines.Amount)}"
@@ -51,7 +51,7 @@
           <Expander.Header>
             <TextBlock Text="{x:Bind DetailsHeading}" FontSize="13" FontWeight="SemiBold" Foreground="{ThemeResource TafsCoach}" />
           </Expander.Header>
-          <TextBlock Text="{x:Bind DetailsText}" FontSize="12" FontFamily="Cascadia Mono, Consolas" TextWrapping="Wrap"
+          <TextBlock Text="{x:Bind DetailsText}" FontSize="12" FontFamily="{StaticResource TafsMono}" TextWrapping="Wrap"
                      IsTextSelectionEnabled="True" Foreground="{ThemeResource TafsSoft}" />
         </Expander>
 

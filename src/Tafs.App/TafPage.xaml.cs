@@ -1493,7 +1493,7 @@ public sealed partial class TafPage : Page
             name.Children.Add(new TextBlock { Text = rule.Label, FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Style = Look("TafsInkText") });
             name.Children.Add(Words(rule.OutsideWords(w), 12, "TafsDimText"));
             var limits = Words(rule.Summary(w), 13, rule.Never ? "TafsNoText" : "TafsInkText");
-            limits.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas");
+            limits.FontFamily = Monospace.Face;
             limits.TextAlignment = TextAlignment.Right;
             Grid.SetColumn(limits, 1);
             line.Children.Add(name);
@@ -1662,7 +1662,7 @@ public sealed partial class TafPage : Page
         {
             var t = new TextBlock { Text = text, FontSize = size, Opacity = opacity, Foreground = white, TextTrimming = TextTrimming.CharacterEllipsis,
                 FontWeight = bold ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal };
-            if (mono) t.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas");
+            if (mono) t.FontFamily = Monospace.Face;
             return t;
         }
         var inside = new Grid { Padding = new Thickness(16), RowSpacing = 6 };

@@ -32,6 +32,12 @@ public static class Locale
         return CultureInfo.ReadOnly(culture);
     }
 
+    /// <summary>
+    /// Whether a language's letters join (Arabic): monospaced text in it is drawn in the plain face, since a fixed-width face
+    /// breaks its letters apart, as the iPad's <c>ScaledFont.design</c> and Android's <c>JOINED_SCRIPTS</c>.
+    /// </summary>
+    public static bool JoinedScript(string language) => language.Split('-')[0] is "ar";
+
     /// <summary>Whether a language reads right to left: Arabic and Hebrew among tafs's.</summary>
     public static bool RightToLeft(string language) => language.Split('-')[0] is "ar" or "he";
 

@@ -272,7 +272,7 @@ public sealed partial class FilesPage : Page
                 break;
             case { Kind: PreviewKind.Text, Start: { } start }:
                 // tafs cloud's cleaned start, drawn as plain text: never Markdown, HTML or a viewer of the bytes.
-                var text = new TextBlock { Text = start.Text, FontFamily = new FontFamily("Cascadia Mono, Consolas"), FontSize = 13, IsTextSelectionEnabled = true,
+                var text = new TextBlock { Text = start.Text, FontFamily = Monospace.Face, FontSize = 13, IsTextSelectionEnabled = true,
                     TextWrapping = TextWrapping.Wrap, Style = Look("TafsInkText"),
                     // The file's own start, as written: each line's direction from its own letters, not the app's language.
                     FlowDirection = FlowDirection.LeftToRight, TextReadingOrder = TextReadingOrder.DetectFromContent };

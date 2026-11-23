@@ -16,7 +16,7 @@ namespace Tafs.App;
 static class MarkdownView
 {
     static Style Look(string key) => (Style)Application.Current.Resources[key];
-    static readonly FontFamily Mono = new("Cascadia Mono, Consolas");
+    static FontFamily Code => Monospace.Face;
 
     /// <summary>The message's blocks, each its own line of text, a code block or a table.</summary>
     public static StackPanel Build(string markdown, double size, Func<string, Brush> brush)
@@ -27,7 +27,7 @@ static class MarkdownView
             switch (block.Kind)
             {
                 case MarkdownKind.Code:
-                    var code = new TextBlock { Text = block.Plain, FontFamily = Mono, FontSize = size - 2, IsTextSelectionEnabled = true,
+                    var code = new TextBlock { Text = block.Plain, FontFamily = Code, FontSize = size - 2, IsTextSelectionEnabled = true,
                         TextWrapping = TextWrapping.NoWrap, Style = Look("TafsInkText"), FlowDirection = FlowDirection.LeftToRight };
                     panel.Children.Add(new Border
                     {
@@ -68,7 +68,7 @@ static class MarkdownView
         if (s.Note) { run.Foreground = brush("TafsDim"); run.FontSize = size - 2; return run; }
         if (s.Bold || heading) run.FontWeight = FontWeights.SemiBold;
         if (s.Italic) run.FontStyle = Windows.UI.Text.FontStyle.Italic;
-        if (s.Code) { run.FontFamily = Mono; run.FontSize = size - 1; }
+        if (s.Code) { run.FontFamily = Code; run.FontSize = size - 1; }
         if (s.Link is { } link && Uri.TryCreate(link, UriKind.Absolute, out var uri))
         {
             var a = new Hyperlink { NavigateUri = uri, Foreground = brush("TafsCoach") };

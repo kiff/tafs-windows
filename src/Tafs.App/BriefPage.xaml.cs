@@ -181,7 +181,7 @@ public sealed partial class BriefPage : Page
             AutomationProperties.SetAutomationId(side, "brief.urgent");
         }
         else if (d.Deadline is { } deadline)
-            side = new TextBlock { Text = deadline, FontSize = 12, FontFamily = new FontFamily("Cascadia Mono, Consolas"), Foreground = ThemeBrush("TafsAmberText") };
+            side = new TextBlock { Text = deadline, FontSize = 12, FontFamily = Monospace.Face, Foreground = ThemeBrush("TafsAmberText") };
         if (side is not null) { Grid.SetColumn(side, 1); side.VerticalAlignment = VerticalAlignment.Center; head.Children.Add(side); }
         if (head.Children.Count > 0) lines.Children.Add(head);
         lines.Children.Add(Line(d.Question, 17, "TafsInkText", semibold: true));
@@ -302,7 +302,7 @@ public sealed partial class BriefPage : Page
     {
         var lines = new StackPanel { Spacing = 10 };
         lines.Children.Add(new TextBlock { Text = words.NextMove.ToUpper(CultureInfo.CurrentCulture), FontSize = 12,
-            FontFamily = new FontFamily("Cascadia Mono, Consolas"), Foreground = ThemeBrush("TafsAmberText") });
+            FontFamily = Monospace.Face, Foreground = ThemeBrush("TafsAmberText") });
         lines.Children.Add(Line(move.Words, 15, "TafsInkText", semibold: true));
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
         if (o.StartMove is { } start)
@@ -371,7 +371,7 @@ public sealed partial class BriefPage : Page
         head.Children.Add(who);
         if (at is { } a)
         {
-            var time = new TextBlock { Text = a.ToString("HH:mm", CultureInfo.InvariantCulture), FontSize = 12, FontFamily = new FontFamily("Cascadia Mono, Consolas"), Style = Look("TafsDimText") };
+            var time = new TextBlock { Text = a.ToString("HH:mm", CultureInfo.InvariantCulture), FontSize = 12, FontFamily = Monospace.Face, Style = Look("TafsDimText") };
             Grid.SetColumn(time, 1);
             head.Children.Add(time);
         }
@@ -382,7 +382,7 @@ public sealed partial class BriefPage : Page
             var foot = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
             foreach (var e in item.Evidence)
                 foot.Children.Add(new Border { CornerRadius = new CornerRadius(8), Padding = new Thickness(6, 2, 6, 2), Background = ThemeBrush("TafsCoachWash"),
-                    Child = new TextBlock { Text = e.Words, FontSize = 11, FontFamily = new FontFamily("Cascadia Mono, Consolas"), Foreground = ChatViews.Themed("TafsCoach") } });
+                    Child = new TextBlock { Text = e.Words, FontSize = 11, FontFamily = Monospace.Face, Foreground = ChatViews.Themed("TafsCoach") } });
             if (item.Value is { } value) foot.Children.Add(Line(value, 12, "TafsInkText", semibold: true));
             lines.Children.Add(foot);
         }

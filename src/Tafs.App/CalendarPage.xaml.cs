@@ -244,7 +244,7 @@ public sealed partial class CalendarPage : Page
             var label = Text($"{hour:00}:00", 11, Microsoft.UI.Text.FontWeights.Normal, "TafsDimText");
             label.HorizontalAlignment = HorizontalAlignment.Left;
             label.VerticalAlignment = VerticalAlignment.Top;
-            label.FontFamily = new FontFamily("Cascadia Mono, Consolas");
+            label.FontFamily = Monospace.Face;
             label.Margin = new Thickness(0, 3, 0, 0);
             row.Children.Add(label);
             for (var i = 0; i < days.Count; i++)
@@ -318,7 +318,7 @@ public sealed partial class CalendarPage : Page
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.ColumnDefinitions.Add(new ColumnDefinition());
-        row.Children.Add(new TextBlock { Text = e.Time, FontSize = 13, FontFamily = new FontFamily("Cascadia Mono, Consolas"), VerticalAlignment = VerticalAlignment.Center,
+        row.Children.Add(new TextBlock { Text = e.Time, FontSize = 13, FontFamily = Monospace.Face, VerticalAlignment = VerticalAlignment.Center,
             Style = (Style)Application.Current.Resources["TafsSoftText"] });
         var dot = new Microsoft.UI.Xaml.Shapes.Ellipse { Width = 9, Height = 9, Fill = RecordLineView.Colour(e.Color), VerticalAlignment = VerticalAlignment.Center };
         Grid.SetColumn(dot, 1);

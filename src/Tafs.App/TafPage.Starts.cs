@@ -136,7 +136,7 @@ public sealed partial class TafPage
         inside.Children.Add(new TextBlock
         {
             Text = App.Words.Get("knob.not_live", ("version", pending.Version.ToString(CultureInfo.InvariantCulture))), FontSize = 10,
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas"),
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = Monospace.Face,
             Style = Look("TafsAmberWords"),
         });
         foreach (var line in k.DraftWords) inside.Children.Add(Words(line, 13, "TafsSoftText"));

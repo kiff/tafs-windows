@@ -53,7 +53,7 @@
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
-          <TextBlock x:Name="Link" FontSize="13" FontFamily="Cascadia Mono, Consolas" IsTextSelectionEnabled="True" TextWrapping="Wrap"
+          <TextBlock x:Name="Link" FontSize="13" FontFamily="{StaticResource TafsMono}" IsTextSelectionEnabled="True" TextWrapping="Wrap"
                      VerticalAlignment="Center" Foreground="{ThemeResource TafsSoft}" />
           <Button x:Name="CopyLink" Grid.Column="1" Click="OnCopyLink" Padding="8,4" VerticalAlignment="Center"
                   Background="Transparent" BorderThickness="0" Foreground="{ThemeResource TafsAmberText}" FontSize="13" FontWeight="SemiBold"

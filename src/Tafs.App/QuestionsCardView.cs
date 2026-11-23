@@ -76,7 +76,7 @@ sealed class QuestionsCardView : StackPanel
         head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         head.Children.Add(new TextBlock { Text = (shown.Card.Title ?? w.Get("coach.setup_needs")).ToUpper(new System.Globalization.CultureInfo(w.Language)),
             Style = Look("TafsEyebrow"), TextWrapping = TextWrapping.Wrap });
-        var count = new TextBlock { FontSize = 12, FontFamily = new FontFamily("Cascadia Mono, Consolas"), Style = Look("TafsDimText") };
+        var count = new TextBlock { FontSize = 12, FontFamily = Monospace.Face, Style = Look("TafsDimText") };
         Grid.SetColumn(count, 1);
         head.Children.Add(count);
         refresh.Add(() => count.Text = w.Get("coach.questions.answered_of", ("answered", Answered.ToString()), ("total", Questions.Count.ToString())));
@@ -210,7 +210,7 @@ sealed class QuestionsCardView : StackPanel
         if (detailTitle is { Length: > 0 } title) signed.Children.Add(new TextBlock { Text = title, Style = (Style)Application.Current.Resources["TafsEyebrow"] });
         foreach (var each in detail ?? [])
             signed.Children.Add(new TextBlock { Text = each, FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = brush("TafsInk"),
-                FontFamily = new FontFamily("Cascadia Mono, Consolas, Courier New") });
+                FontFamily = Monospace.Face });
         var full = new Border { Child = signed, Padding = new Thickness(12), CornerRadius = new CornerRadius(12), Background = brush("TafsRaised"),
             Visibility = Visibility.Collapsed };
         AutomationProperties.SetAutomationId(full, "approval.signed-card");

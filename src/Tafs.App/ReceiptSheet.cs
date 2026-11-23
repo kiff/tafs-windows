@@ -437,7 +437,7 @@ sealed class ReceiptSheet
 
     TextBlock Mono(string text, double size) => new()
     {
-        Text = text, FontSize = size, FontFamily = new FontFamily("Cascadia Mono, Consolas"), Foreground = Brush("TafsDim"),
+        Text = text, FontSize = size, FontFamily = Monospace.Face, Foreground = Brush("TafsDim"),
         TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
     };
 

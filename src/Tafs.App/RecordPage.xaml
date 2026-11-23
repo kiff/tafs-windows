@@ -35,7 +35,7 @@
               <Ellipse Width="8" Height="8" Fill="{x:Bind TafColour}" VerticalAlignment="Center" />
               <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"
                          Foreground="{ThemeResource TafsInk}" />
-              <TextBlock Grid.Column="2" Text="{x:Bind Time}" FontSize="12" FontFamily="Cascadia Mono, Consolas"
+              <TextBlock Grid.Column="2" Text="{x:Bind Time}" FontSize="12" FontFamily="{StaticResource TafsMono}"
                          Foreground="{ThemeResource TafsDim}" Margin="12,0,0,0" />
             </Grid>
             <TextBlock Text="{x:Bind Detail}" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
@@ -69,7 +69,7 @@
               <Ellipse Width="8" Height="8" Fill="{x:Bind TafColour}" VerticalAlignment="Center" />
               <TextBlock Grid.Column="1" Text="{x:Bind Title}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"
                          Foreground="{ThemeResource TafsInk}" />
-              <TextBlock Grid.Column="2" Text="{x:Bind Time}" FontSize="12" FontFamily="Cascadia Mono, Consolas"
+              <TextBlock Grid.Column="2" Text="{x:Bind Time}" FontSize="12" FontFamily="{StaticResource TafsMono}"
                          Foreground="{ThemeResource TafsDim}" Margin="12,0,0,0" />
             </Grid>
             <TextBlock Text="{x:Bind Detail}" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsSoft}" />
@@ -108,7 +108,7 @@
           <DataTemplate x:DataType="local:RecordDayView">
             <StackPanel Spacing="10">
               <!-- "TODAY · NOV 15": 11 medium, monospaced, in capitals, dim. -->
-              <TextBlock Text="{x:Bind Title}" FontSize="11" FontWeight="Medium" FontFamily="Cascadia Mono, Consolas"
+              <TextBlock Text="{x:Bind Title}" FontSize="11" FontWeight="Medium" FontFamily="{StaticResource TafsMono}"
                          Foreground="{ThemeResource TafsDim}" Margin="0,6,0,0" />
               <ItemsControl ItemsSource="{x:Bind Entries}" ItemTemplateSelector="{StaticResource RecordRows}">
                 <ItemsControl.ItemsPanel>
