@@ -79,19 +79,22 @@ public class KiffUsageTests
     }
 
     /// <summary>
-    /// Where to buy on a PC (no store here): the phone's app for Solo and credits, and kiff.dev for Team unless it's Team
-    /// already, for whoever manages billing; neither for a member (who asks an admin) or under a company's agreement.
+    /// Where to buy on a PC (no store here): where tafs cloud's balance sells packs or Solo (`buy`, as the iPad's BalancePanel),
+    /// the phone's app, and Team on kiff.dev unless the plan is Team; nothing where it sells nothing (a Company admin raises
+    /// the limit). An offer is `true` or an object; `false`, `null` or none isn't one.
     /// </summary>
     [Theory]
-    [InlineData("solo", "apple", true, true, true)]
-    [InlineData("free", null, true, true, true)]
-    [InlineData("team", "stripe", true, true, false)]
-    [InlineData("team", "contract", true, false, false)]
-    [InlineData("solo", "apple", false, false, false)]
-    public void A_pc_says_where_to_buy(string plan, string? source, bool manages, bool onPhone, bool teamOnWeb)
+    [InlineData("""{"packs": true, "solo": true}""", "solo", true, true)]
+    [InlineData("""{"packs": false, "solo": {"first_month": {"ready": true}}}""", "free", true, true)]
+    [InlineData("""{"packs": true}""", "team", true, false)]
+    [InlineData("""{"packs": false, "solo": null}""", "solo", false, false)]
+    [InlineData("null", "team", false, false)]
+    [InlineData("", "solo", false, false)]
+    public void A_pc_says_where_to_buy_where_tafs_cloud_sells(string buy, string plan, bool onPhone, bool teamOnWeb)
     {
-        var u = new KiffUsage(plan, source, null, [], []);
-        Assert.Equal((onPhone, teamOnWeb), u.WhereToBuy(manages));
-        Assert.Equal("https://kiff.dev/dashboard/checkout", KiffUsage.TeamCheckout.AbsoluteUri);
+        var json = "{\"balance\": {\"words\": \"120 credits left\"" + (buy.Length > 0 ? ", \"buy\": " + buy : "") + "}}";
+        var b = Tafs.Core.Usage.UsageScreen.ReadBalance(json)!;
+        Assert.Equal((onPhone, teamOnWeb), b.WhereToBuy(plan));
+        Assert.Equal("https://kiff.dev/dashboard/checkout", Tafs.Core.Usage.Balance.TeamCheckout.AbsoluteUri);
     }
 }

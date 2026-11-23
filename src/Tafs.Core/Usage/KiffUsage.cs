@@ -66,18 +66,6 @@ public sealed record KiffUsage(string? Plan, string? BillingSource, DateTimeOffs
         _ => null,
     };
 
-    /// <summary>
-    /// Where to buy, for someone who manages billing: a PC has no store of its own, so "Buy Solo or credits in the tafs app on
-    /// your phone." (<c>billing.buy_on_phone</c>), and, unless the plan is Team already, a link to get Team on kiff.dev
-    /// (<c>billing.team_on_web</c>, <see cref="TeamCheckout"/>). Neither under a company's agreement, which nobody buys into
-    /// here; neither for a member, who asks an admin instead.
-    /// </summary>
-    public (bool OnPhone, bool TeamOnWeb) WhereToBuy(bool managesBilling) =>
-        !managesBilling || BillingSource == "contract" ? (false, false) : (true, Plan != "team");
-
-    /// <summary>Where Team is bought on the web: kiff.dev's checkout, which signs the person in first.</summary>
-    public static readonly Uri TeamCheckout = new("https://kiff.dev/dashboard/checkout");
-
     /// <summary>The packs a member may ask for: those that can be bought again.</summary>
     public IReadOnlyList<UsagePack> Askable => Packs.Where(p => !p.Once).ToList();
 
