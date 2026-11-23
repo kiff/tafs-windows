@@ -275,6 +275,8 @@ public sealed partial class MainWindow : Window
         CoachMode.Closed += ShowCoachWaiting;
         NeedsYouPage.CoachWaitingOpenChosen += OpenCoachWaiting;
         NeedsYouPage.SetAsideChosen += session => _ = SetAsideAsync(session);
+        // F5 or Ctrl+R reads Home again, as the iPad's pull to refresh.
+        ListenForRefresh();
         // A payment reported from a receipt halts its taf: Home is read again to show it.
         ReceiptSheet.Reported += () => { if (cloudRead is { } read) _ = ReadHomeAsync(read); };
         OverviewPage.TafChosen += key => OpenBeside(typeof(TafPage), OpenTaf(w, key));
@@ -572,9 +574,18 @@ public sealed partial class MainWindow : Window
             await SessionRefusedAsync();
             return;
         }
-        if (homeRead.Answer is not { } answer) return;
+        if (homeRead.Answer is not { } answer)
+        {
+            // Said quietly at the sidebar's foot, and read again a moment later (the iPad's refreshFailed).
+            HomeReadFailed(read, homeRead);
+            return;
+        }
+        HomeReadWent();
         cloudRead = read;
         ShowHome(HomeList.Read(w, answer, TimeZoneInfo.Local));
+        // The plan at the sidebar's foot, only when it needs the person; and which tafs' connections were signed out.
+        _ = ReadFootBalanceAsync(read, reading);
+        _ = ReadSignedOutAsync(reading);
         // Home's steps; a list that can't be read leaves them as they were.
         if (YourSteps.Read(answer) is { } listedNow) listedSteps = listedNow;
         ShowSteps();
@@ -1189,6 +1200,7 @@ public sealed partial class MainWindow : Window
         ReceiptSheet.SendReport = null;
         RecordPage.Read = null;
         UsagePage.Calls = null;
+        ForgetFoot();
         CalendarPage.Read = null;
         RecordPage.ReadBytes = null;
         RecordPage.Held = null;
@@ -1924,16 +1936,35 @@ public sealed partial class MainWindow : Window
                     HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
             });
             var lines = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
-            lines.Children.Add(new TextBlock { Text = taf.Taf, FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
-            lines.Children.Add(new TextBlock { Text = taf.Now, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Normal, TextTrimming = TextTrimming.CharacterEllipsis,
-                Style = (Style)Application.Current.Resources["TafsSoftText"] });
+            var nameLine = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+            nameLine.Children.Add(new TextBlock { Text = taf.Taf, FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
+            // An open trial's row: its badge beside its name, in amber, as the iPad's (the trial's label, else "Trial").
+            if (TrialBadge(taf.Key) is { } badge)
+                nameLine.Children.Add(new Border
+                {
+                    Background = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TafsAmber"], CornerRadius = new CornerRadius(9),
+                    Padding = new Thickness(7, 1, 7, 2), VerticalAlignment = VerticalAlignment.Center,
+                    Child = new TextBlock { Text = badge, FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+                        Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White) },
+                });
+            lines.Children.Add(nameLine);
+            // A connection its vendor signed out: the taf waits on the person, so its line says so in amber, in planque's words.
+            var signedOutLine = SignedOutLine(taf.Key);
+            var rowLine = signedOutLine ?? taf.Now;
+            // tafs cloud's health line, where it says why an idle taf isn't healthy: red when failing, else amber, as the iPad's.
+            var homeTaf = home?.Tafs.FirstOrDefault(t => t.Id == taf.Key);
+            var lineStyle = signedOutLine is not null ? "TafsAmberWords"
+                : homeTaf?.Attention is { } attention && attention == rowLine ? homeTaf.Health?.Failing == true ? "TafsNoText" : "TafsAmberWords"
+                : "TafsSoftText";
+            lines.Children.Add(new TextBlock { Text = rowLine, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Normal, TextTrimming = TextTrimming.CharacterEllipsis,
+                Style = (Style)Application.Current.Resources[lineStyle] });
             Grid.SetColumn(lines, 1);
             content.Children.Add(lines);
             if (kept.TryGetValue(taf.Key, out var same))
             {
                 // The same row, its lines new, moved to Home's order.
                 same.Content = content;
-                AutomationProperties.SetName(same, $"{taf.Taf}. {taf.Now}");
+                AutomationProperties.SetName(same, $"{taf.Taf}. {rowLine}");
                 var now = Nav.MenuItems.IndexOf(same);
                 if (now != at) { Nav.MenuItems.RemoveAt(now); Nav.MenuItems.Insert(now < at ? --at : at, same); }
                 at++;
@@ -1944,7 +1975,7 @@ public sealed partial class MainWindow : Window
                 Content = content, Tag = new TafRow(taf.Key), Style = (Style)Application.Current.Resources["TafsSidebarItem"],
                 HorizontalContentAlignment = HorizontalAlignment.Stretch, MinHeight = 56,
             };
-            AutomationProperties.SetName(row, $"{taf.Taf}. {taf.Now}");
+            AutomationProperties.SetName(row, $"{taf.Taf}. {rowLine}");
             Nav.MenuItems.Insert(at++, row);
         }
         if (mine >= rows.Count) PlaceSharedHeader(at, false);
@@ -1952,7 +1983,7 @@ public sealed partial class MainWindow : Window
 
     /// <summary>
     /// NEEDS YOU above YOUR TAFS, as on the iPad: each held call on one row, an amber dot, "Taf: what it asks", and
-    /// "reason · answer by 00:27" under it. A row opens Needs you. With none, the section isn't there.
+    /// "reason · answer by 00:27" under it. A row opens its taf's page, where it's answered (Needs you when its taf isn't on Home). With none, the section isn't there.
     /// </summary>
     void AddHeldCalls(Tafs.Core.Words.WordBook w)
     {
@@ -2031,7 +2062,14 @@ public sealed partial class MainWindow : Window
         if (item == BrandItem)
             Pages.Navigate(typeof(OverviewPage), new OverviewOpening(held, overviewRows, home?.Labels, HomeRecipesOpening(), NeedsYouRest(), FirstHomeLines()));
         else if (item.Tag is Screen.NeedsYou) ShowNeedsYouOrBrief();
-        else if (item.Tag is HeldCall) ShowNeedsYou();
+        // A held call opens its taf's page, where its side column answers it, as the iPad's sidebar does. One whose taf isn't on
+        // Home, or a window too narrow for that column, opens Needs you, which answers it at any width.
+        else if (item.Tag is HeldCall call)
+        {
+            if (call.Agent is { } agent && home?.Tafs.FirstOrDefault(t => t.Agent == agent) is { } heldTaf && Pages.ActualWidth >= TafPage.SideFitsAt + 64)
+                Pages.Navigate(typeof(TafPage), OpenTaf(App.Words, heldTaf.Id));
+            else ShowNeedsYou();
+        }
         else if (item.Tag == HaltAll) OpenHalt(null, "");
         else if (item.Tag is Screen.Record)
         {

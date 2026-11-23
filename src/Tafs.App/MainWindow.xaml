@@ -51,6 +51,34 @@
               <TextBlock x:Name="NewTafText" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
+          <!-- KIFF can't be reached just now, as the iPad's UnreachableLine: one quiet line with the status page beside it; nothing when all is well. -->
+          <Grid x:Name="UnreachableLine" ColumnSpacing="6" Visibility="Collapsed" AutomationProperties.AutomationId="unreachable">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Ellipse Width="7" Height="7" Fill="{StaticResource TafsAmber}" VerticalAlignment="Center" />
+            <TextBlock x:Name="UnreachableText" Grid.Column="1" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
+                       Style="{StaticResource TafsDimText}" />
+            <HyperlinkButton x:Name="StatusLink" Grid.Column="2" FontSize="12" FontWeight="SemiBold" Padding="0" VerticalAlignment="Center"
+                             NavigateUri="https://status.kiff.dev" />
+          </Grid>
+          <!-- The plan, only when it needs the person, as the iPad's PlanLine: tafs cloud's home_line, in its tone; it opens Plan & usage. -->
+          <Button x:Name="PlanLine" Click="OnPlanLine" Visibility="Collapsed" Padding="4,2" Background="Transparent" BorderThickness="0"
+                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" AutomationProperties.AutomationId="plan-line">
+            <Grid ColumnSpacing="6">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <Ellipse x:Name="PlanDot" Width="7" Height="7" VerticalAlignment="Center" />
+              <TextBlock x:Name="PlanText" Grid.Column="1" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" />
+              <TextBlock x:Name="PlanOpens" Grid.Column="2" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"
+                         Style="{StaticResource TafsAmberWords}" />
+            </Grid>
+          </Button>
           <Button x:Name="CoachButton" Click="OnCoach" HorizontalAlignment="Stretch" MinHeight="44" CornerRadius="14"
                   BorderThickness="0" Background="{ThemeResource TafsInk}" Foreground="{ThemeResource TafsOnFill}">
             <Button.Resources>
