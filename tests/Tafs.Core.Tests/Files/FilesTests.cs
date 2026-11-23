@@ -96,7 +96,7 @@ public class FilesTests
         Assert.Equal("goes in 12 days", DeliveredFiles.Goes(En, 12));
     }
 
-    /// <summary>Sizes as each language writes them, the iPad's ByteCountFormatter and desktop-linux's table: units, plural bytes, decimals only when not whole.</summary>
+    /// <summary>Sizes as each language writes them, the iPad's ByteCountFormatter and tafs-linux's table: units, plural bytes, decimals only when not whole.</summary>
     [Theory]
     [InlineData("en", 1, "1 byte")]
     [InlineData("en", 22, "22 byte")]
@@ -173,7 +173,7 @@ public class FilesTests
         Assert.Equal(before, bytesRead);
     }
 
-    /// <summary>A copy's name on this PC's disk never leaves its folder (agentgabo's read): no drive, no stream, no device name.</summary>
+    /// <summary>A copy's name on this PC's disk never leaves its folder: no drive, no stream, no device name.</summary>
     [Theory]
     [InlineData("C:evil.exe", "C_evil.exe")]
     [InlineData("a:b", "a_b")]

@@ -82,7 +82,7 @@ As the iPad's `OnboardingView` (kiff/tafs `docs/onboarding.md`), under both halv
 
 - **One tick:** "I agree to KIFF's Terms of Service and the tafs Terms", each name a link to its page in the app's language (`Onboarding.ConsentTick`; KIFF's own pages are `kiff.dev/<code>/terms` and `/privacy`). The box is its own control, so a link never ticks it.
 - **Privacy as two links,** KIFF's and tafs's, never ticked.
-- **The age line:** legal-i18n's `ages.json` at the pin, by this PC's region (`GlobalizationPreferences.HomeGeographicRegion`): the country's own age where the law asks more than 16, else the line every country reads.
+- **The age line:** the shared `ages.json` at the pin, by this PC's region (`GlobalizationPreferences.HomeGeographicRegion`): the country's own age where the law asks more than 16, else the line every country reads.
 - **Continue and Show the code wait on the tick.** The terms version in force (`GET /v1/auth/app/terms`) is read as the welcome shows; nothing is sent without one, and it goes with whichever way the person signs in.
 - **The terms changed** (KIFF's 409 `terms_outdated`, on the token or the pairing claim): the box unticks, "The Terms changed…" shows, and the new version is read for the new tick.
 

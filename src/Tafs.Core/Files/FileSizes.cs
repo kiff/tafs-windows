@@ -5,7 +5,7 @@ namespace Tafs.Core.Files;
 
 /// <summary>
 /// A file's size as each language writes it, as the iPad's <c>ByteCountFormatter</c> (file style, 1000 to a kilobyte): CLDR's
-/// short byte units (from ICU 74's <c>MeasureUnit</c>, the same table as desktop-linux's <c>files::size</c>), bytes by plural
+/// short byte units (from ICU 74's <c>MeasureUnit</c>, the same table as tafs-linux's <c>files::size</c>), bytes by plural
 /// form, then kB, MB and GB. Bytes below a kilobyte; whole kilobytes; megabytes with one decimal and gigabytes with two, each
 /// only when it isn't whole.
 /// </summary>
