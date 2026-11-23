@@ -202,6 +202,47 @@ public class HeldAnswerTests
         if (needs) Assert.Equal(new HeldAnswerLines("Approve on your phone instead", false), NeedsYouScreen.Answers(En, KiffHeld.ToHeldCall(En, hold, "Shop", 0), true, true, true));
     }
 
+    static KiffHold Held(string browser) => KiffHeld.Hold(JsonDocument.Parse("{\"id\":\"ce_1\",\"subject\":\"a-1\",\"action\":\"browser_act\",\"entity_id\":\"op_1\",\"status\":\"held\",\"breaches\":[],\"created_at\":\"2026-11-23T06:00:00Z\",\"accounting_version\":1" + browser + "}").RootElement)!;
+
+    /// <summary>
+    /// A held browser step's place on the card, as the iPad's <c>browserStep</c>: the site, its origin, the act, the page's title
+    /// and text, the basket's lines ("2 × Mug · 12.50", at most 20) and the Chrome's name, each one plain line; it goes on to
+    /// the held call.
+    /// </summary>
+    [Fact]
+    public void A_held_browser_step_reads_as_planque_words_it()
+    {
+        var lines = string.Join(",", Enumerable.Range(1, 25).Select(i => $$"""{"item":"Item {{i}}","quantity":1}"""));
+        var hold = Held($$$"""
+            ,"browser":{"site":"shop.example","origin":"https://checkout.shop.example","action_words":"Click “Place order”",
+             "context":{"title":"Checkout","text":"Total\n24.99‮"},"chrome":{"id":"c1","name":"Work laptop"},
+             "checkout":{"lines":[{"item":"Mug","quantity":2,"price":"12.50"},{"item":"Pen","quantity":1,"price":3},{"quantity":4},{{{lines}}}]}}
+            """);
+        var step = hold.Browser!;
+        Assert.Equal(("shop.example", "https://checkout.shop.example", "Click “Place order”", "Checkout", "Total 24.99", "Work laptop"),
+            (step.Site, step.Origin, step.ActionWords, step.PageTitle, step.PageText, step.ChromeName));
+        Assert.Equal(20, step.Basket.Count);
+        Assert.Equal(["2 × Mug · 12.50", "Pen · 3", "Item 1"], step.Basket.Take(3));
+        Assert.Same(step, KiffHeld.ToHeldCall(En, hold, "Rae", 1).Browser);
+    }
+
+    /// <summary>No site or no act is no step (the hold stays, with no browser block shown); the rest is left out on its own.</summary>
+    [Theory]
+    [InlineData(""","browser":{"action_words":"Click"}""")]
+    [InlineData(""","browser":{"site":"shop.example"}""")]
+    [InlineData(""","browser":{"site":"  ","action_words":"Click"}""")]
+    [InlineData(""","browser":"unreadable" """)]
+    [InlineData("")]
+    public void Without_its_site_or_act_there_s_no_step(string browser) => Assert.Null(Held(browser).Browser);
+
+    [Fact]
+    public void A_step_with_only_its_site_and_act_has_nothing_else()
+    {
+        var step = Held(""","browser":{"site":"shop.example","action_words":"Click","context":"x","checkout":{"lines":"x"},"chrome":[]}""").Browser!;
+        Assert.Equal(((string?)null, (string?)null, (string?)null, (string?)null), (step.Origin, step.PageTitle, step.PageText, step.ChromeName));
+        Assert.Empty(step.Basket);
+    }
+
     /// <summary>
     /// A key that fails in any of the ways Windows fails it, the passkey's or the device key's, says nothing was sent and
     /// posts nothing: authenticator data too short to read, Windows Hello's own failure, a refused passkey, a key that can't sign.

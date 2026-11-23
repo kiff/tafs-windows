@@ -36,6 +36,9 @@ public sealed record KiffHold(
     /// with the paired phone's release (docs/chrome.md, "never an allowing answer without its release"), which a PC can't make.
     /// </summary>
     public bool NeedsRelease { get; init; }
+
+    /// <summary>The held browser step it is, when it's one (<see cref="BrowserStep"/>).</summary>
+    public BrowserStep? Browser { get; init; }
 }
 
 /// <summary>
@@ -92,8 +95,43 @@ public static class KiffHeld
         {
             Title = S("title"), Arguments = arguments, ProposalId = S("proposal_id"), ReasonText = S("reason_text"),
             CanApproveOnce = Flag(e, "can_approve_once"), TafAbout = S("taf_about"), TafReason = S("taf_reason"), Kind = S("kind"),
-            NeedsRelease = Fill(e),
+            NeedsRelease = Fill(e), Browser = BrowserOf(e),
         };
+    }
+
+    /// <summary>
+    /// A held browser step, as the iPad's <c>KIFFMapping.browserStep</c>: the site and the act are needed, else there's none
+    /// (never the hold). Every line is planque's or the page's, made one plain line and cut as the iPad cuts it
+    /// (<see cref="TafWords"/>): the site at 253, its origin 300, the act 200, the page's title 200 and text 600, the
+    /// Chrome's name 80, and at most 20 basket lines ("2 × Mug · 12.50", the item at 160 and its price at 30).
+    /// </summary>
+    static BrowserStep? BrowserOf(JsonElement e)
+    {
+        if (!e.TryGetProperty("browser", out var b) || b.ValueKind != JsonValueKind.Object) return null;
+        string? Text(JsonElement o, string name, int max) =>
+            o.ValueKind == JsonValueKind.Object && o.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? TafWords(v.GetString(), max) : null;
+        JsonElement Part(string name) => b.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.Object ? v : default;
+        if (Text(b, "site", 253) is not { } site || Text(b, "action_words", 200) is not { } act) return null;
+        var context = Part("context");
+        var checkout = Part("checkout");
+        var basket = checkout.ValueKind == JsonValueKind.Object && checkout.TryGetProperty("lines", out var lines) && lines.ValueKind == JsonValueKind.Array
+            ? lines.EnumerateArray().Select(BasketLine).OfType<string>().Take(20).ToList()
+            : [];
+        return new BrowserStep(site, Text(b, "origin", 300), act, Text(context, "title", 200), Text(context, "text", 600), basket,
+            Text(Part("chrome"), "name", 80));
+    }
+
+    /// <summary>One basket line, as the iPad's <c>basketLine</c>: the item, "2 × " before it when more than one, " · " and its price.</summary>
+    static string? BasketLine(JsonElement line)
+    {
+        if (line.ValueKind != JsonValueKind.Object || !line.TryGetProperty("item", out var i) || i.ValueKind != JsonValueKind.String
+            || TafWords(i.GetString(), 160) is not { } item) return null;
+        var text = item;
+        if (line.TryGetProperty("quantity", out var q) && q.ValueKind == JsonValueKind.Number && q.TryGetInt64(out var n) && n > 1)
+            text = n.ToString(System.Globalization.CultureInfo.InvariantCulture) + " × " + text;
+        if (line.TryGetProperty("price", out var p) && p.ValueKind is JsonValueKind.String or JsonValueKind.Number && TafWords(ArgumentText(p), 30) is { } price)
+            text += " · " + price;
+        return text;
     }
 
     /// <summary>
@@ -297,7 +335,7 @@ public static class KiffHeld
         {
             Details = Details(e), KiffId = e.Id, ProposalId = e.ProposalId, AccountingVersion = e.AccountingVersion, ApprovableOnce = e.CanApproveOnce ?? true,
             Action = e.Action, Agent = e.Subject, BreachOutcomes = e.Breaches.Select(b => b.Outcome).ToList(),
-            Install = InstallOf(e), NeedsRelease = e.NeedsRelease,
+            Install = InstallOf(e), NeedsRelease = e.NeedsRelease, Browser = e.Browser,
         };
     }
 
