@@ -232,10 +232,10 @@ public sealed partial class ConnectAppsPage : Page
         if (shown is { } list)
             Frame.Navigate(typeof(AppConnectionsPage), new AppConnectionsOpening(app, list.RemovedTafs, grants, grantsRead, calls, async () =>
             {
-                // Ended: the connections and the list are read again, as the iPad's disconnect does.
+                // Ended or signed in again: the connections and the list are read again, as the iPad's disconnect does.
                 await ReadAsync(query);
                 return (grants, shown?.RemovedTafs ?? []);
-            }));
+            }, opening?.Connecting));
     }
 
     /// <summary>More apps, as the iPad's <c>loadMoreConnectApps</c>: the same search's next page, added only if nothing changed meanwhile.</summary>

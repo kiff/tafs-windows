@@ -63,6 +63,18 @@ The iPad's `AppConnectionsView` and its model (`refreshConnections`, `connection
     device (`AppConnections.EndAsync`). Closed: "Not done: it wasn't confirmed.", and nothing is sent. Refused: "Access not
     removed." and why. A sign-out meanwhile sends nothing more;
   - then the connections and the list are read again.
+- **Fixing one,** for whoever manages Cards, under its lines (not while its sign-in waits or its request is unanswered):
+  - **Sign in again** reads the grant and KIFF's words for its profile now, then the same approval as connecting: Windows
+    Hello, planque's approve in KIFF's window, the vendor's own page, planque's confirm (`ConnectFlow.ApproveAsync`, `again`).
+    A connected one is signed in again in place: planque keeps the sign-in in use until this PC confirms the new one. Where
+    planque says `reconnect: fresh`, it's a new sign-in instead (`…/grants/{id}/connect-fresh`, the same body). Closed or
+    left, nothing is said; otherwise why stays under the connection;
+  - **Replace the key,** for a key-based connection, opens the key sheet over it, as connecting does;
+  - a provider's connection, connected, says "{vendor} signs in through its connection provider. To sign in again, remove
+    access and connect it again." in place of Sign in again (planque can't tell which account a new sign-in there is);
+  - connected again, the connections and the list are read again.
+- **A connection made under a taf that doesn't need the app** (tafs cloud's `misplaced` on the app, read with this PC's
+  grants) says so in amber: "Made for Bookings, which doesn't use Stripe.", so it can be removed.
 - **Clear these connections,** under From removed tafs, for whoever manages Cards: only those tafs cloud lists with no live
   Card using them (`AppConnections.ClearPlan`). Asked first ("Clear 2 connections from removed tafs?"), then one Windows Hello
   for all of them, then each one's DELETE. Then how it went: "Cleared 2. Kept 1 for Chargebacks, whose Card uses it.", and
@@ -109,6 +121,5 @@ approves with its own passkey. Anyone else sees Connect dimmed.
 **Not yet:**
 - **A failed read's words** show on the page; the iPad shows them in its app-wide error line.
 
-- **On an app's connections:** Sign in again and Replace the key, a connection's own detail page (planque's `row`), a
-  connection made under a taf that doesn't need it (`misplaced`), its last failed call, and the other tafs whose Card uses
-  its tools ("Also on Ana's Card", and in Remove access's question).
+- **On an app's connections:** a connection's own detail page (planque's `row`), its last failed call, and the other tafs
+  whose Card uses its tools ("Also on Ana's Card", and in Remove access's question).

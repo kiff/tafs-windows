@@ -79,6 +79,12 @@ public static class ApprovalWindow
     /// <summary>planque's approve of a grant: <c>POST /v1/accounts/{tenant}/grants/{id}/approve</c>.</summary>
     public static string ApprovePath(string tenant, string grant) => PlanqueProof.GrantsPath(tenant) + "/" + CloudRead.PathPart(grant) + "/approve";
 
+    /// <summary>
+    /// Sign in again as a new sign-in, for a grant planque marks <c>reconnect: fresh</c> (the iPad's <c>connectFresh</c>):
+    /// <c>…/grants/{id}/connect-fresh</c>, with the same body as approve.
+    /// </summary>
+    public static string ConnectFreshPath(string tenant, string grant) => PlanqueProof.GrantsPath(tenant) + "/" + CloudRead.PathPart(grant) + "/connect-fresh";
+
     /// <summary>planque's confirm of a vendor sign-in with the code it handed back: <c>…/grants/{id}/confirm</c>.</summary>
     public static string ConfirmPath(string tenant, string grant) => PlanqueProof.GrantsPath(tenant) + "/" + CloudRead.PathPart(grant) + "/confirm";
 

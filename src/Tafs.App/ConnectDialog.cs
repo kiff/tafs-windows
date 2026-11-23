@@ -11,7 +11,7 @@ namespace Tafs.App;
 /// its profile, and approving it (<see cref="ConnectFlow.ApproveAsync"/>).
 /// </summary>
 public sealed record ConnectAppsConnecting(IReadOnlyList<(string Id, string Name)> Tafs, Func<ConnectApp, string, Task<((string Grant, bool NeedsKey)? Started, string? Why)>> Start,
-    Func<string, Task<(PlanqueGrant? Grant, ProfileWords? Words, string? Why)>> Read, Func<string, string, ProfileWords?, Task<ConnectResult>> Approve,
+    Func<string, Task<(PlanqueGrant? Grant, ProfileWords? Words, string? Why)>> Read, Func<string, string, ProfileWords?, bool, Task<ConnectResult>> Approve,
     Func<string, Task<KeySheet?>>? Sheet = null, Func<string, string, ProfileWords?, string, Task<ConnectResult>>? GiveKey = null);
 
 /// <summary>
@@ -62,7 +62,7 @@ public static class ConnectDialog
             Draw();
             try
             {
-                var result = await connecting.Approve(grant.Id, grant.Digest, words);
+                var result = await connecting.Approve(grant.Id, grant.Digest, words, false);
                 if (result.Connected)
                 {
                     connected = true;

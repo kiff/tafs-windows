@@ -94,6 +94,25 @@ public class PlanqueGrantsTests
         Assert.Empty(PlanqueGrants.Read(Bytes("""{"grants":[]}"""))!);
     }
 
+    /// <summary>How planque signs a connection in again (the iPad's <c>reconnect</c>), and a provider's connection, which it can't in place.</summary>
+    [Fact]
+    public void Reconnect_fresh_and_a_provider_s_connection_are_read_as_the_iPad_reads_them()
+    {
+        var fresh = Listed(Grant(more: "\"reconnect\":\"fresh\","))[0];
+        Assert.Equal("fresh", fresh.Reconnect);
+        Assert.True(fresh.ReconnectsFresh);
+        Assert.False(Listed(Grant(more: "\"reconnect\":\"same\","))[0].ReconnectsFresh);
+        Assert.False(Listed(Grant())[0].ReconnectsFresh);
+        // Not words: the grant isn't read, as any optional field.
+        Assert.Null(PlanqueGrants.Read(Bytes($$"""{"grants":[{{Grant(more: "\"reconnect\":1,")}}]}""")));
+        var request = new GrantRequest("gmail", "rae", [], "composio", "gmail", HasConnector: true);
+        PlanqueGrant With(string status, GrantRequest r) => new("g", status, "t", "d", r, []);
+        Assert.True(With("connected", request).SignsInThroughProvider);
+        Assert.False(With("needs_reconnect", request).SignsInThroughProvider);
+        Assert.False(With("connected", request with { Kind = "api_key" }).SignsInThroughProvider);
+        Assert.False(With("connected", request with { HasConnector = false }).SignsInThroughProvider);
+    }
+
     /// <summary>planque's calls go to planque's exact host only, and KIFF's token never goes there.</summary>
     [Theory]
     [InlineData("https://planque.kiff.dev/v1/accounts/t/grants", true)]

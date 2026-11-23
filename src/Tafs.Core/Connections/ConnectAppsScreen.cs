@@ -34,6 +34,11 @@ public sealed record ConnectApp(string Entry)
     /// cloud before it: every taf the person manages.
     /// </summary>
     public IReadOnlyList<(string Taf, string Name)>? NeededBy { get; init; }
+    /// <summary>
+    /// Its live connections made under a taf that doesn't need it (tafs cloud's <c>misplaced</c>, sent only with this PC's
+    /// signed grants read): said on the connection, so it can be removed.
+    /// </summary>
+    public IReadOnlyList<MisplacedGrant> Misplaced { get; init; } = [];
 
     public string DisplayName => Name ?? Title;
     public bool Connected => State == "connected" || ConnectedFlag;
@@ -43,6 +48,9 @@ public sealed record ConnectApp(string Entry)
     /// <summary>Connected, signed in, or to sign in again: the person's own, under Yours.</summary>
     public bool Yours => Connected || NeedsReconnect || State == "signed_in";
 }
+
+/// <summary>A live connection of an app made under a taf that doesn't need it: the grant, and that taf by id and name.</summary>
+public sealed record MisplacedGrant(string Grant, string Taf, string Name);
 
 /// <summary>
 /// tafs cloud's Connect apps list: the apps in its order, whether Coach connects others, and for More apps the cursor of the
@@ -99,6 +107,10 @@ public static class ConnectAppsScreen
                         NeededBy = a.TryGetProperty("needed_by", out var n) && n.ValueKind == JsonValueKind.Array
                             ? n.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Object && Text(x, "taf") is not null)
                                 .Select(x => (Text(x, "taf")!, Text(x, "name") ?? "")).ToList() : null,
+                        // Read leniently, as the iPad's: an entry without its grant is left out, never the app.
+                        Misplaced = a.TryGetProperty("misplaced", out var m) && m.ValueKind == JsonValueKind.Array
+                            ? m.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Object && Text(x, "grant") is not null)
+                                .Select(x => new MisplacedGrant(Text(x, "grant")!, Text(x, "taf") ?? "", Text(x, "name") ?? "")).ToList() : [],
                     });
         var byKey = root.TryGetProperty("by_key", out var k) && k.ValueKind == JsonValueKind.True;
         return new ConnectAppsList(apps, byKey, Text(root, "next_cursor"), Text(root, "provider")) { RemovedTafs = Removed(root) };

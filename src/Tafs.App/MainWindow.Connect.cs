@@ -75,7 +75,7 @@ public sealed partial class MainWindow
         }
 
         return new ConnectAppsConnecting(tafs, Start, Read,
-            (grantId, digest, words) => ConnectFlow.ApproveAsync(w, session.Tenant, grantId, digest, words, calls),
+            (grantId, digest, words, again) => ConnectFlow.ApproveAsync(w, session.Tenant, grantId, digest, words, calls, again),
             Sheet, (grantId, digest, words, key) => ConnectFlow.GiveKeyAsync(w, session.Tenant, grantId, digest, words, key, calls));
     }
 
