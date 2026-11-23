@@ -77,4 +77,24 @@ public class KiffUsageTests
         Assert.Null(await KiffUsage.DeclineAsync(En, "t1", request, "", _ => Task.FromResult(StepConfirmed.Cancelled), m => key.SignDerAsync(m), Post, () => "1", () => true));
         Assert.Empty(sent);
     }
+
+    /// <summary>
+    /// Where to buy on a PC (no store here): where tafs cloud's balance sells packs or Solo (`buy`, as the iPad's BalancePanel),
+    /// the phone's app, and Team on kiff.dev unless the plan is Team; nothing where it sells nothing (a Company admin raises
+    /// the limit). An offer is `true` or an object; `false`, `null` or none isn't one.
+    /// </summary>
+    [Theory]
+    [InlineData("""{"packs": true, "solo": true}""", "solo", true, true)]
+    [InlineData("""{"packs": false, "solo": {"first_month": {"ready": true}}}""", "free", true, true)]
+    [InlineData("""{"packs": true}""", "team", true, false)]
+    [InlineData("""{"packs": false, "solo": null}""", "solo", false, false)]
+    [InlineData("null", "team", false, false)]
+    [InlineData("", "solo", false, false)]
+    public void A_pc_says_where_to_buy_where_tafs_cloud_sells(string buy, string plan, bool onPhone, bool teamOnWeb)
+    {
+        var json = "{\"balance\": {\"words\": \"120 credits left\"" + (buy.Length > 0 ? ", \"buy\": " + buy : "") + "}}";
+        var b = Tafs.Core.Usage.UsageScreen.ReadBalance(json)!;
+        Assert.Equal((onPhone, teamOnWeb), b.WhereToBuy(plan));
+        Assert.Equal("https://kiff.dev/dashboard/checkout", Tafs.Core.Usage.Balance.TeamCheckout.AbsoluteUri);
+    }
 }

@@ -11,7 +11,26 @@ public enum Tone { Ok, Warning, Waiting }
 /// <see cref="Raise"/> is Raise the limit's words, set only for someone who may raise it.
 /// </summary>
 public sealed record Balance(Tone State, string Words, int? MeterPct, string? Detail, string? Warning, string? Raise,
-    bool CreditsPanel, string? PlanLine, Tone PlanTone, string? HomeLine);
+    bool CreditsPanel, string? PlanLine, Tone PlanTone, string? HomeLine)
+{
+    /// <summary>tafs cloud sells packs of credits here (its <c>buy.packs</c>, as the iPad's <c>Buy</c>): where the iPad offers Buy credits.</summary>
+    public bool SellsPacks { get; init; }
+
+    /// <summary>tafs cloud sells Solo here (its <c>buy.solo</c>): where the iPad offers the plan.</summary>
+    public bool SellsSolo { get; init; }
+
+    /// <summary>
+    /// Where to buy on a PC, which has no store: where tafs cloud sells packs or Solo (the iPad's <c>BalancePanel</c> with
+    /// <c>buy</c>), "Buy Solo or credits in the tafs app on your phone." (<c>billing.buy_on_phone</c>), and with it, unless the
+    /// plan is Team already, "Get Team on kiff.dev" (<c>billing.team_on_web</c>). Nothing where tafs cloud sells nothing:
+    /// a Company admin raises the limit instead, and a member asks an admin.
+    /// </summary>
+    public (bool OnPhone, bool TeamOnWeb) WhereToBuy(string? plan) =>
+        SellsPacks || SellsSolo ? (true, plan != "team") : (false, false);
+
+    /// <summary>Where Team is bought on the web: kiff.dev's checkout, which signs the person in first.</summary>
+    public static readonly Uri TeamCheckout = new("https://kiff.dev/dashboard/checkout");
+}
 
 /// <summary>One taf's part of a period. A row with no <see cref="Taf"/> is the tafs removed since.</summary>
 public sealed record CreditsTaf(string? Taf, int Credits, int Runs, string Words);
@@ -29,6 +48,13 @@ public sealed record Credits(int Total, int Runs, string Words, IReadOnlyList<Cr
 /// <summary>Plan &amp; usage, as on the iPad (its UsageView): the balance, then the Credits panel. The app adds nothing to tafs cloud's words but their order.</summary>
 public static class UsageScreen
 {
+    /// <summary>
+    /// Whether <c>buy</c> offers <paramref name="name"/>, as the iPad's <c>Buy.offered</c>: <c>true</c>, or anything there but
+    /// <c>false</c> and <c>null</c> (an offer's object); absent, <c>false</c> or <c>null</c> isn't offered.
+    /// </summary>
+    static bool Offered(JsonElement buy, string name) =>
+        buy.ValueKind == JsonValueKind.Object && buy.TryGetProperty(name, out var v) && v.ValueKind is not (JsonValueKind.False or JsonValueKind.Null);
+
     public static Tone ToneOf(string? word) => word switch { "warning" => Tone.Warning, "waiting" => Tone.Waiting, _ => Tone.Ok };
 
     /// <summary>The balance, leniently: a field it can't read is left out, never the read; no words, no balance.</summary>
@@ -39,8 +65,10 @@ public static class UsageScreen
         int? pct = b.TryGetProperty("meter_pct", out var m) && m.ValueKind == JsonValueKind.Number && m.TryGetInt32(out var n) ? Math.Clamp(n, 0, 100) : null;
         var raise = b.TryGetProperty("raise", out var r) && r.ValueKind == JsonValueKind.Object ? Text(r, "words") : null;
         var panel = !(b.TryGetProperty("credits_panel", out var p) && p.ValueKind == JsonValueKind.False);
+        var buy = b.TryGetProperty("buy", out var y) && y.ValueKind == JsonValueKind.Object ? y : default;
         return new Balance(ToneOf(Text(b, "state")), words, pct, Text(b, "detail"), Text(b, "warning"), raise, panel,
-            Text(root, "plan_line"), ToneOf(Text(root, "plan_tone")), Text(root, "home_line"));
+            Text(root, "plan_line"), ToneOf(Text(root, "plan_tone")), Text(root, "home_line"))
+        { SellsPacks = Offered(buy, "packs"), SellsSolo = Offered(buy, "solo") };
     }
 
     /// <summary>A period's credits, leniently: a line it can't read is left out, not the read.</summary>

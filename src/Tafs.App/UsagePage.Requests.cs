@@ -78,6 +78,19 @@ public sealed partial class UsagePage
             return;
         }
         if (u.BillingLine(w) is { } billing) KiffPanels.Children.Add(Card(Line(billing, 15)));
+        // Where to buy: a PC has no store, so the phone's app for Solo and credits, and kiff.dev for Team.
+        if (reads.Balance?.WhereToBuy(u.Plan) is (true, var team))
+        {
+            var buy = new StackPanel { Spacing = 8 };
+            buy.Children.Add(Line(w.Get("billing.buy_on_phone"), 14, soft: true));
+            if (team)
+            {
+                var link = new HyperlinkButton { Content = w.Get("billing.team_on_web"), NavigateUri = Balance.TeamCheckout, Padding = new Thickness(0) };
+                AutomationProperties.SetAutomationId(link, "usage.team-on-web");
+                buy.Children.Add(link);
+            }
+            KiffPanels.Children.Add(Card(buy));
+        }
         if (!managesBilling) AskPanel(w, u);
         else RequestsPanel(w, u);
     }
@@ -143,8 +156,9 @@ public sealed partial class UsagePage
             var item = new StackPanel { Spacing = 8 };
             item.Children.Add(Line(u.RequestLine(w, r), 15));
             if (r.Reason.Length > 0) item.Children.Add(Line(r.Reason, 14, soft: true));
-            // Approving moves money (a raise, or buying the pack): on Windows, the shared line where its button would be.
-            item.Children.Add(Line(w.Get("approval.device_can_not_approve_approve"), 13, soft: true));
+            // Approving moves money (a raise, or buying the pack): on Windows, the shared line where its button would be; a pack,
+            // while tafs cloud sells packs, is bought in the phone's app (the iPad's Approve buys it in the store).
+            item.Children.Add(Line(w.Get(r.Kind == "pack" && reads.Balance?.SellsPacks == true ? "billing.buy_on_phone" : "approval.device_can_not_approve_approve"), 13, soft: true));
             var decline = new Button { Content = w.Get(busy ? "usage.requests.declining" : "usage.requests.decline"), Style = Look("TafsOutlineButton"), IsEnabled = !busy,
                 HorizontalAlignment = HorizontalAlignment.Left };
             AutomationProperties.SetAutomationId(decline, "usage.decline");
