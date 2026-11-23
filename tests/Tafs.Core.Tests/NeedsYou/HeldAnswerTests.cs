@@ -129,6 +129,46 @@ public class HeldAnswerTests
     }
 
     /// <summary>
+    /// Never an allowing answer without its release (docs/chrome.md): a sealed fill can't be approved once or given extra room
+    /// on this PC, whatever the session; nothing is asked or sent. Refusing it still goes.
+    /// </summary>
+    [Fact]
+    public async Task A_sealed_fill_is_never_allowed_here_and_still_refused()
+    {
+        var fill = Call() with { NeedsRelease = true };
+        foreach (HeldAnswer allow in new HeldAnswer[] { new HeldAnswer.ApproveOnce(), new HeldAnswer.ExtraRoom() })
+        {
+            var k = new Kiff();
+            var said = await k.Answer_(allow, fill);
+            Assert.Equal(new HeldAnswers.Answered(false, "Approve on your phone instead"), said);
+            Assert.Empty(k.Calls);
+        }
+        var refuse = new Kiff();
+        Assert.True((await refuse.Answer_(new HeldAnswer.Refuse(), fill)).Taken);
+    }
+
+    /// <summary>KIFF's hold with a browser block that fills reads as needing the phone's release; any other step doesn't.</summary>
+    [Theory]
+    [InlineData(""","browser":{"site":"shop.example","action_words":"Fill","sealed_fill":{"handle":"sec_1:password"}}""", true)]
+    [InlineData(""","browser":{"site":"shop.example","action_words":"Fill","fill":{"field":"password"}}""", true)]
+    [InlineData(""","browser":{"site":"shop.example","action_words":"Fill","sealed_fill":"odd"}""", true)]
+    [InlineData(""","browser":{"site":"shop.example","action_words":"Click","sealed_fill":null}""", false)]
+    [InlineData(""","browser":{"site":"shop.example","action_words":"Click"}""", false)]
+    [InlineData(""","browser":"unreadable","can_approve_once":true""", true)]
+    [InlineData(""","browser":[1]""", true)]
+    [InlineData(""","browser":null""", false)]
+    [InlineData("", false)]
+    public void A_hold_that_fills_needs_the_phone_s_release(string browser, bool needs)
+    {
+        var json = "{\"id\":\"ce_1\",\"subject\":\"a-1\",\"action\":\"browser_act\",\"entity_id\":\"op_1\",\"status\":\"held\",\"breaches\":[],\"created_at\":\"2026-11-23T06:00:00Z\",\"accounting_version\":1" + browser + "}";
+        var hold = KiffHeld.Hold(JsonDocument.Parse(json).RootElement)!;
+        Assert.Equal(needs, hold.NeedsRelease);
+        Assert.Equal(needs, KiffHeld.ToHeldCall(En, hold, "Shop", 0).NeedsRelease);
+        // Needs you says where it's answered, and has no gate where Approve once would be.
+        if (needs) Assert.Equal(new HeldAnswerLines("Approve on your phone instead", false), NeedsYouScreen.Answers(En, KiffHeld.ToHeldCall(En, hold, "Shop", 0), true, true, true));
+    }
+
+    /// <summary>
     /// A key that fails in any of the ways Windows fails it, the passkey's or the device key's, says nothing was sent and
     /// posts nothing: authenticator data too short to read, Windows Hello's own failure, a refused passkey, a key that can't sign.
     /// </summary>

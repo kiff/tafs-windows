@@ -25,9 +25,11 @@ public static class HoldAllow
     /// A hold from KIFF whose every breach a Card change can lift, as the iPad's <c>allowable</c>. A currency mismatch is
     /// never listed as one. The iPad also leaves out Coach's install hold: no held call marks it here, and
     /// <see cref="Offers"/> already keeps it out, since its taf is found by agent and Coach's agent is no listed taf's.
+    /// Never a sealed fill (<see cref="HeldCall.NeedsRelease"/>): a Card change that lifts its breach would allow every later
+    /// fill, and "Let this one go out too" this one, with no release; only the phone's release may (docs/chrome.md).
     /// </summary>
     public static bool Allowable(HeldCall call) =>
-        call.KiffId is not null && call.BreachOutcomes is { Count: > 0 } outcomes && outcomes.All(Liftable.Contains);
+        call.KiffId is not null && !call.NeedsRelease && call.BreachOutcomes is { Count: > 0 } outcomes && outcomes.All(Liftable.Contains);
 
     /// <summary>
     /// Whether "Allow this from now on" is live, as the iPad's <c>AppModel.allowIsLive</c>: the account's capabilities name

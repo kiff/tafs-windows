@@ -180,7 +180,9 @@ public sealed partial class NeedsYouPage : Page
             }
             return panel;
         }
-        if (!refuseOnly)
+        // A sealed fill: only the paired phone's release allows it, so no Approve once or Extra room here; Refuse stays.
+        if (!refuseOnly && call.NeedsRelease) panel.Children.Add(Line(w.Get("approval.security_key.on_phone"), 13, "TafsSoftText"));
+        else if (!refuseOnly)
         {
             if (call.ApprovableOnce) panel.Children.Add(Approve(w, call, new HeldAnswer.ApproveOnce(), "needs_you.approve_once_with", sending));
             else

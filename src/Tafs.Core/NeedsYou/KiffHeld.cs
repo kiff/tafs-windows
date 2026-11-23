@@ -31,6 +31,11 @@ public sealed record KiffHold(
     public string? Kind { get; init; }
     public string? TafAbout { get; init; }
     public string? TafReason { get; init; }
+    /// <summary>
+    /// A browser step that fills a sealed value (its <c>browser</c> block carries <c>sealed_fill</c> or <c>fill</c>): allowed only
+    /// with the paired phone's release (docs/chrome.md, "never an allowing answer without its release"), which a PC can't make.
+    /// </summary>
+    public bool NeedsRelease { get; init; }
 }
 
 /// <summary>
@@ -87,6 +92,7 @@ public static class KiffHeld
         {
             Title = S("title"), Arguments = arguments, ProposalId = S("proposal_id"), ReasonText = S("reason_text"),
             CanApproveOnce = Flag(e, "can_approve_once"), TafAbout = S("taf_about"), TafReason = S("taf_reason"), Kind = S("kind"),
+            NeedsRelease = Fill(e),
         };
     }
 
@@ -273,6 +279,15 @@ public static class KiffHeld
         && args.TryGetValue("n", out var n) && int.TryParse(n, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var number) && number > 0
             ? new VersionInstall(taf, number) : null;
 
+    /// <summary>
+    /// Whether the hold's <c>browser</c> block asks for a fill (<c>sealed_fill</c>, or <c>fill</c>): read as anything there but null,
+    /// so a fill in a shape this app doesn't know still counts as one, never as a plain step to allow. A <c>browser</c> block
+    /// that isn't an object (it can't be read) counts too, as on Linux and the Mac: never allowed here on a guess.
+    /// </summary>
+    static bool Fill(JsonElement e) =>
+        e.TryGetProperty("browser", out var b) && b.ValueKind != JsonValueKind.Null
+        && (b.ValueKind != JsonValueKind.Object || new[] { "sealed_fill", "fill" }.Any(k => b.TryGetProperty(k, out var f) && f.ValueKind != JsonValueKind.Null));
+
     public static HeldCall ToHeldCall(WordBook w, KiffHold e, string taf, int tafColor)
     {
         var name = Says(e.Action, e.Title);
@@ -282,7 +297,7 @@ public static class KiffHeld
         {
             Details = Details(e), KiffId = e.Id, ProposalId = e.ProposalId, AccountingVersion = e.AccountingVersion, ApprovableOnce = e.CanApproveOnce ?? true,
             Action = e.Action, Agent = e.Subject, BreachOutcomes = e.Breaches.Select(b => b.Outcome).ToList(),
-            Install = InstallOf(e),
+            Install = InstallOf(e), NeedsRelease = e.NeedsRelease,
         };
     }
 
