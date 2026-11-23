@@ -29,7 +29,8 @@ public sealed record ConnectResult(bool Connected, PlanqueGrant? Changed = null,
 /// read as it is now and approved only as shown (its digest, and KIFF's words for exactly its profile); one Windows Hello opens
 /// KIFF's approval window with this PC's passkey; inside it, planque's <c>approve</c> as a tap; then the vendor's own sign-in
 /// in the browser, and planque's <c>confirm</c> with the code it brought back, as a tap again. Connected only once planque says
-/// so. A window that ended meanwhile is opened once more.
+/// so. A window that ended meanwhile is opened once more. Sign in again on a connection is the same approval (<c>again</c>),
+/// for a grant its vendor signed out or a connected one, and planque's <c>connect-fresh</c> where it asks for a new sign-in.
 /// </summary>
 public static class ConnectFlow
 {
@@ -37,7 +38,7 @@ public static class ConnectFlow
     public static bool Approvable(PlanqueGrant g) => g.Status is "pending" or "approved" or "signed_in" or "needs_reconnect";
 
     public static async Task<ConnectResult> ApproveAsync(WordBook w, string tenant, string grantId, string? shownDigest, ProfileWords? shownWords,
-        ConnectCalls calls)
+        ConnectCalls calls, bool again = false)
     {
         var none = new ConnectResult(false);
         var grants = await calls.Grants();
@@ -45,7 +46,9 @@ public static class ConnectFlow
         if (grants is null) return new(false, Why: w.Get("connect.approve_not_read", ("why", w.Get("kiff.kiff_did_not_answer_expected"))));
         if (grants.FirstOrDefault(g => g.Id == grantId) is not { } grant) return new(false, Why: w.Get("connect.no_such_connection"));
         string Vendor() => grant.VendorName ?? grant.Request.Server;
-        if (!Approvable(grant))
+        // Sign in again (again) also takes a connected grant, signed in again in place: planque keeps the sign-in in use until
+        // this PC confirms the new one, as the iPad's connect(again:).
+        if (!Approvable(grant) && !(again && grant.Connected))
         {
             var status = grant.Status.Replace('_', ' ');
             return new(false, Why: grant.Reason is { } reason ? w.Get("connect.connection_is_because", ("status", status), ("reason", reason))
@@ -65,7 +68,9 @@ public static class ConnectFlow
 
         var body = ApprovalWindow.ApproveBody(grant.Digest, shownWords?.ProfileSha256, shownWords?.WordsSha256);
         (int Status, string Body, OpenWindow? Window) approved;
-        try { approved = await TapAsync(calls, window, ApprovalWindow.ApprovePath(tenant, grant.Id), body); }
+        // A connection planque can't sign in again on its old account starts a new sign-in instead (connect-fresh), as the iPad's.
+        var approvePath = grant.ReconnectsFresh ? ApprovalWindow.ConnectFreshPath(tenant, grant.Id) : ApprovalWindow.ApprovePath(tenant, grant.Id);
+        try { approved = await TapAsync(calls, window, approvePath, body); }
         catch (OperationCanceledException) { return none; }
         catch (WindowRefused refused) { return calls.Current() ? new(false, Why: refused.Message) : none; }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { return calls.Current() ? Failed(w, Vendor(), w.Get("error.offline")) : none; }

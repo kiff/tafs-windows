@@ -60,6 +60,37 @@ public class ConnectFlowTests
     }
 
     [Fact]
+    public async Task Sign_in_again_takes_a_connected_grant_in_place_and_connecting_does_not()
+    {
+        // Sign in again (again): a connected grant is approved again, and planque keeps its sign-in until the new one's confirmed.
+        var again = new Calls { Now = [Grant("connected")] };
+        again.Taps.Enqueue((200, """{"status": "approved", "sign_in_url": "https://accounts.google.com/o"}"""));
+        again.Taps.Enqueue((200, """{"status": "connected"}"""));
+        Assert.Equal(new ConnectResult(true), await ConnectFlow.ApproveAsync(En, "t_1", "grt_1", "d1", null, again.Make(), again: true));
+        Assert.Contains("""tap win_az /v1/accounts/t_1/grants/grt_1/approve {"digest":"d1"}""", again.Said);
+        // Connecting, not signing in again: a connected grant isn't approved again, and nothing is asked.
+        var connecting = new Calls { Now = [Grant("connected")] };
+        var result = await ConnectFlow.ApproveAsync(En, "t_1", "grt_1", "d1", null, connecting.Make());
+        Assert.True(result.NotApprovable);
+        Assert.DoesNotContain("hello", connecting.Said);
+        // A failed one isn't signed in again either.
+        var failed = new Calls { Now = [Grant("failed")] };
+        Assert.True((await ConnectFlow.ApproveAsync(En, "t_1", "grt_1", "d1", null, failed.Make(), again: true)).NotApprovable);
+        Assert.Empty(failed.Said);
+    }
+
+    [Fact]
+    public async Task A_grant_planque_signs_in_again_fresh_goes_to_connect_fresh()
+    {
+        var calls = new Calls { Now = [Grant("needs_reconnect") with { Reconnect = "fresh" }] };
+        calls.Taps.Enqueue((200, """{"status": "approved", "sign_in_url": "https://accounts.google.com/o"}"""));
+        calls.Taps.Enqueue((200, """{"status": "connected"}"""));
+        Assert.True((await ConnectFlow.ApproveAsync(En, "t_1", "grt_1", "d1", null, calls.Make(), again: true)).Connected);
+        Assert.Contains("""tap win_az /v1/accounts/t_1/grants/grt_1/connect-fresh {"digest":"d1"}""", calls.Said);
+        Assert.DoesNotContain(calls.Said, x => x.Contains("/approve", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task An_open_window_is_used_with_no_Windows_Hello_and_one_that_ended_is_opened_again_once()
     {
         var calls = new Calls { Read = new OpenWindow(Win, DateTimeOffset.UtcNow.AddMinutes(4), true, "device", null) };

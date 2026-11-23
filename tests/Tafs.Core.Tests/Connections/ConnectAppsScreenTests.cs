@@ -48,6 +48,18 @@ public class ConnectAppsScreenTests
     }
 
     [Fact]
+    public void A_connection_made_under_a_taf_that_does_not_need_the_app_is_read_leniently()
+    {
+        var app = ConnectAppsScreen.Read("""
+            {"apps":[{"entry":"stripe","misplaced":[{"grant":"g1","taf":"t2","name":"Bookings"},{"taf":"t3"},7,{"grant":"g4"}]}]}
+            """).Apps[0];
+        Assert.Equal([new MisplacedGrant("g1", "t2", "Bookings"), new MisplacedGrant("g4", "", "")], app.Misplaced);
+        Assert.Empty(ConnectAppsScreen.Read("""{"apps":[{"entry":"a"}]}""").Apps[0].Misplaced);
+        Assert.Empty(ConnectAppsScreen.Read("""{"apps":[{"entry":"a","misplaced":{}}]}""").Apps[0].Misplaced);
+        Assert.Equal("Made for Bookings, which doesn't use Stripe.", En.Get("connect.misplaced", ("taf", "Bookings"), ("app", "Stripe")));
+    }
+
+    [Fact]
     public void Reconnect_setup_and_signed_in()
     {
         var list = ConnectAppsScreen.Read("""

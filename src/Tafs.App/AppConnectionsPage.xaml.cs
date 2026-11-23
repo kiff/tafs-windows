@@ -10,7 +10,8 @@ namespace Tafs.App;
 
 /// <summary>What an app's connections open with: the app, tafs cloud's removed tafs, this PC's read of the grants, and how to read again.</summary>
 public sealed record AppConnectionsOpening(ConnectApp App, IReadOnlyList<RemovedTaf> Removed, IReadOnlyList<PlanqueGrant> Grants, bool Reads,
-    ConnectionsCalls Calls, Func<Task<(IReadOnlyList<PlanqueGrant> Grants, IReadOnlyList<RemovedTaf> Removed)>> ReadAgain);
+    ConnectionsCalls Calls, Func<Task<(IReadOnlyList<PlanqueGrant> Grants, IReadOnlyList<RemovedTaf> Removed)>> ReadAgain,
+    ConnectAppsConnecting? Connecting = null);
 
 /// <summary>
 /// An app's connections, as the iPad's <c>AppConnectionsView</c>: a section per taf it was made for (those needing attention
@@ -99,20 +100,49 @@ public sealed partial class AppConnectionsPage : Page
         Body.Children.Add(new Border { Child = panel, CornerRadius = new CornerRadius(18), Background = Look("TafsPanel"), BorderBrush = Look("TafsLine"), BorderThickness = new Thickness(1) });
     }
 
-    /// <summary>A connection: its name, its status in planque's words (or waiting on its sign-in), and Remove access or Cancel.</summary>
+    /// <summary>
+    /// A connection, as the iPad's <c>row</c>: its name, its status in planque's words (or waiting on its sign-in), a word when
+    /// it was made under a taf that doesn't need the app, how to fix it (Sign in again, or Replace the key; for a provider's
+    /// connection, why it can't be signed in again in place), and Remove access or Cancel.
+    /// </summary>
     UIElement Row(PlanqueGrant g, string? taf)
     {
         var w = App.Words;
+        var opening = this.opening!;
         var lines = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
-        lines.Children.Add(Words(g.Title ?? opening!.App.DisplayName, 16, "TafsInk", semibold: true));
+        lines.Children.Add(Words(g.Title ?? opening.App.DisplayName, 16, "TafsInk", semibold: true));
         if (g.StatusWords is { Length: > 0 } status) lines.Children.Add(Words(status, 13, "TafsDim"));
         else if (AppConnections.WaitingSignIn(g)) lines.Children.Add(Words(w.Get("connect.status.waiting_sign_in", ("vendor", g.Vendor)), 13, "TafsDim"));
+        // Made under a taf that doesn't need the app (tafs cloud's misplaced): said, so it can be removed.
+        if (opening.App.Misplaced.FirstOrDefault(m => m.Grant == g.Id) is { } wrong)
+        {
+            var said = Words(w.Get("connect.misplaced", ("taf", wrong.Name), ("app", opening.App.DisplayName)), 13, "TafsAmberText");
+            AutomationProperties.SetAutomationId(said, "connect.misplaced." + g.Id);
+            lines.Children.Add(said);
+        }
+        if (opening.Calls.Manages && g.SignsInThroughProvider)
+            // A provider's connection isn't signed in again in place: said before any Windows Hello.
+            lines.Children.Add(Words(w.Get("connect.through_provider", ("vendor", g.Vendor)), 13, "TafsSoft"));
+        else if (opening.Calls.Manages && !AppConnections.Cancellable(g) && opening.Connecting is not null)
+        {
+            var word = w.Get(g.TakesKey ? "connect.replace_key" : "connect.sign_in_again");
+            var fix = new Button
+            {
+                Content = word, IsEnabled = busy is null, Padding = new Thickness(0, 2, 0, 2), Margin = new Thickness(0, 2, 0, 0),
+                Style = (Style)Application.Current.Resources["TafsQuietButton"], Foreground = Look("TafsAmberText"),
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            };
+            AutomationProperties.SetAutomationId(fix, "connect.fix." + g.Id);
+            AutomationProperties.SetName(fix, $"{word}: {g.Title ?? opening.App.DisplayName}");
+            fix.Click += (_, _) => _ = FixAsync(g);
+            lines.Children.Add(fix);
+        }
         var row = new Grid { ColumnSpacing = 12, MinHeight = 44 };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         row.Children.Add(lines);
         // Only someone who manages Cards ends a connection, as the iPad's canManageCards.
-        if (opening!.Calls.Manages)
+        if (opening.Calls.Manages)
         {
             var end = new Button
             {
@@ -167,6 +197,27 @@ public sealed partial class AppConnectionsPage : Page
         var (left, why, stopped) = await o.Calls.End([g.Id], title);
         if (stopped) return;
         await AfterAsync(left == 0 ? null : why, isError: true);
+    }
+
+    /// <summary>
+    /// Sign in again: the connecting sheet over this connection, showing what's approved (its words and KIFF's for its profile)
+    /// before Windows Hello, so nothing planque added since is approved unseen; then the same approval as connecting (a
+    /// connected one signed in again in place; planque's <c>connect-fresh</c> where it asks for a new sign-in) and the vendor's
+    /// page. Replace the key: the key sheet over this connection. Connected, the connections and the list are read again;
+    /// otherwise the sheet said why.
+    /// </summary>
+    async Task FixAsync(PlanqueGrant g)
+    {
+        if (opening is not { Connecting: { } connecting } o || busy is not null) return;
+        var connected = g.TakesKey
+            ? connecting.GiveKey is not null && await KeyDialog.ShowAsync(XamlRoot, ActualTheme, o.App, g.Id, connecting)
+            : await ConnectDialog.ShowAsync(XamlRoot, ActualTheme, o.App, g.Id, connecting, again: true);
+        if (connected)
+        {
+            (busy, note) = (g.Id, null);
+            Show();
+            await AfterAsync(null, isError: false);
+        }
     }
 
     /// <summary>Clear, as the iPad's: asked first, then one Windows Hello for all of them; one a live Card uses was kept by tafs cloud's word.</summary>

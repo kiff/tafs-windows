@@ -54,6 +54,11 @@ public sealed record PlanqueGrant(string Id, string Status, string Text, string 
     public string? Provider { get; init; }
     public string? AgentName { get; init; }
     public string? VendorName { get; init; }
+    /// <summary>
+    /// How planque signs it in again once signed out (the iPad's <c>reconnect</c>): <c>fresh</c>, a new sign-in that can't be
+    /// compared with the old account (<c>connect-fresh</c>); else, or absent, on the same account.
+    /// </summary>
+    public string? Reconnect { get; init; }
     public bool DigestMatches { get; init; }
     /// <summary>The connection's <c>kiff.profile.v1</c> in the request, as planque sent it: its digest covers it.</summary>
     public JcsValue? Profile { get; init; }
@@ -64,6 +69,13 @@ public sealed record PlanqueGrant(string Id, string Status, string Text, string 
     public bool Listed => Status == "listed";
     public bool NeedsReconnect => Status == "needs_reconnect";
     public bool TakesKey => Request.Kind == "api_key";
+    /// <summary>Sign in again is a new sign-in (<c>connect-fresh</c>), never a reconnect planque would refuse.</summary>
+    public bool ReconnectsFresh => Reconnect == "fresh";
+    /// <summary>
+    /// A managed provider's connection, connected (the iPad's <c>signsInThroughProvider</c>): planque can't sign it in again in
+    /// place, since it can't tell which account a new sign-in at the provider is, so it's removed and connected again instead.
+    /// </summary>
+    public bool SignsInThroughProvider => Request.HasConnector && Connected && !TakesKey;
     public bool HoldsSignIn => Listed || (Status == "pending" && SignedIn == true);
 }
 
@@ -134,7 +146,7 @@ public static class PlanqueGrants
     static PlanqueGrant? Grant(JsonElement g)
     {
         string[] required = ["id", "status", "text", "digest"];
-        string[] optional = ["status_words", "account", "title", "reason", "held_until", "entry", "provider", "agent_name", "vendor"];
+        string[] optional = ["status_words", "account", "title", "reason", "held_until", "entry", "provider", "agent_name", "vendor", "reconnect"];
         if (!required.All(n => Shape.Required(g, n, Shape.Text)) || !optional.All(n => Shape.Optional(g, n, Shape.Text))
             || !Shape.Optional(g, "signed_in", Shape.Bool)
             || !new[] { "terms", "used_by", "tools" }.All(n => Shape.Optional(g, n, v => Shape.List(v, Shape.Text)))
@@ -159,7 +171,7 @@ public static class PlanqueGrants
             Health = Lenient.Field(g, "health") is { ValueKind: not JsonValueKind.Null } h ? Health(h) : null,
             Actions = Lenient.Field(g, "actions") is { ValueKind: JsonValueKind.Array } a ? a.EnumerateArray().Select(Action).ToList() : null,
             Tools = Words("tools"), Reason = T(g, "reason"), SignedIn = Flag(g, "signed_in"), HeldUntil = T(g, "held_until"), Entry = T(g, "entry"),
-            Provider = T(g, "provider"), AgentName = T(g, "agent_name"), VendorName = T(g, "vendor"),
+            Provider = T(g, "provider"), AgentName = T(g, "agent_name"), VendorName = T(g, "vendor"), Reconnect = T(g, "reconnect"),
         };
     }
 
