@@ -27,8 +27,6 @@ public sealed partial class AppConnectionsPage : Page
     string? busy;
     string? note;
     bool noteIsError;
-    /// <summary>Why a Sign in again or a new key didn't connect, under its connection, as the iPad's <c>reconnectErrors</c>.</summary>
-    readonly Dictionary<string, string> fixErrors = [];
 
     public AppConnectionsPage()
     {
@@ -139,7 +137,6 @@ public sealed partial class AppConnectionsPage : Page
             fix.Click += (_, _) => _ = FixAsync(g);
             lines.Children.Add(fix);
         }
-        if (fixErrors.TryGetValue(g.Id, out var why)) lines.Children.Add(Words(why, 13, "TafsNo"));
         var row = new Grid { ColumnSpacing = 12, MinHeight = 44 };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -203,45 +200,23 @@ public sealed partial class AppConnectionsPage : Page
     }
 
     /// <summary>
-    /// Sign in again, as the iPad's <c>reconnect</c>: the grant and KIFF's words for its profile read now, then the same
-    /// approval as connecting with Windows Hello (a connected one signed in again in place; planque's <c>connect-fresh</c> where
-    /// it asks for a new sign-in), then the vendor's page. Replace the key, as the iPad's: the key sheet over this connection.
-    /// Connected, the connections are read again; otherwise why stays under the connection.
+    /// Sign in again: the connecting sheet over this connection, showing what's approved (its words and KIFF's for its profile)
+    /// before Windows Hello, so nothing planque added since is approved unseen; then the same approval as connecting (a
+    /// connected one signed in again in place; planque's <c>connect-fresh</c> where it asks for a new sign-in) and the vendor's
+    /// page. Replace the key: the key sheet over this connection. Connected, the connections and the list are read again;
+    /// otherwise the sheet said why.
     /// </summary>
     async Task FixAsync(PlanqueGrant g)
     {
         if (opening is not { Connecting: { } connecting } o || busy is not null) return;
-        var w = App.Words;
-        fixErrors.Remove(g.Id);
-        (busy, note) = (g.Id, null);
-        Show();
-        string? why = null;
-        var connected = false;
-        if (g.TakesKey)
+        var connected = g.TakesKey
+            ? connecting.GiveKey is not null && await KeyDialog.ShowAsync(XamlRoot, ActualTheme, o.App, g.Id, connecting)
+            : await ConnectDialog.ShowAsync(XamlRoot, ActualTheme, o.App, g.Id, connecting, again: true);
+        if (connected)
         {
-            busy = null;
+            (busy, note) = (g.Id, null);
             Show();
-            connected = connecting.GiveKey is not null && await KeyDialog.ShowAsync(XamlRoot, ActualTheme, o.App, g.Id, connecting);
-        }
-        else
-        {
-            var (grant, words, read) = await connecting.Read(g.Id);
-            if (grant is null || read is not null) why = read ?? w.Get("connect.no_such_connection");
-            else
-            {
-                var result = await connecting.Approve(grant.Id, grant.Digest, words, true);
-                connected = result.Connected;
-                // Windows Hello closed, or the sign-in left: nothing said. What changed since it was read is said, to try again.
-                if (!connected && (result.Why is not null || result.Changed is not null))
-                    why = result.Why ?? w.Get("version.out_of_date_card");
-            }
-        }
-        if (why is not null) fixErrors[g.Id] = why;
-        if (connected) await AfterAsync(null, isError: false);
-        else
-        {
-            busy = null;
-            Show();
+            await AfterAsync(null, isError: false);
         }
     }
 

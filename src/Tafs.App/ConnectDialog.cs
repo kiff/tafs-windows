@@ -22,8 +22,13 @@ public sealed record ConnectAppsConnecting(IReadOnlyList<(string Id, string Name
 /// </summary>
 public static class ConnectDialog
 {
-    /// <summary>Connected: true; else nothing changed.</summary>
-    public static async Task<bool> ShowAsync(XamlRoot root, ElementTheme theme, ConnectApp app, string grantId, ConnectAppsConnecting connecting)
+    /// <summary>
+    /// Connected: true; else nothing changed. <paramref name="again"/>: Sign in again on a connection, the same sheet (what's
+    /// approved is shown first, its words and KIFF's for its profile, so nothing added since is approved unseen), a connected
+    /// one signed in again in place.
+    /// </summary>
+    public static async Task<bool> ShowAsync(XamlRoot root, ElementTheme theme, ConnectApp app, string grantId, ConnectAppsConnecting connecting,
+        bool again = false)
     {
         var w = App.Words;
         var (grant, words, why) = await connecting.Read(grantId);
@@ -32,7 +37,8 @@ public static class ConnectDialog
         var body = new StackPanel { Spacing = 10 };
         var dialog = new ContentDialog
         {
-            XamlRoot = root, RequestedTheme = theme, Title = w.Get("coach.connect_service", ("service", grant?.Vendor ?? app.DisplayName)),
+            XamlRoot = root, RequestedTheme = theme,
+            Title = again ? $"{w.Get("connect.sign_in_again")} · {grant?.Vendor ?? app.DisplayName}" : w.Get("coach.connect_service", ("service", grant?.Vendor ?? app.DisplayName)),
             Content = new ScrollViewer { Content = body, MaxHeight = 520 },
             PrimaryButtonText = w.Get("approval.approve_with", ("biometry", Tafs.Core.Coach.CoachScreen.Biometry)),
             CloseButtonText = w.Get("common.cancel"), DefaultButton = ContentDialogButton.Primary,
@@ -62,7 +68,7 @@ public static class ConnectDialog
             Draw();
             try
             {
-                var result = await connecting.Approve(grant.Id, grant.Digest, words, false);
+                var result = await connecting.Approve(grant.Id, grant.Digest, words, again);
                 if (result.Connected)
                 {
                     connected = true;
