@@ -138,6 +138,18 @@ public sealed partial class TafPage : Page
         InitializeComponent();
         // A resize can take the side column in or out.
         TabBody.SizeChanged += (_, _) => ShowSide(redraw: false);
+        // Refreshing, as the iPad's pull to refresh on a taf: F5 or Ctrl+R reads the tab shown again, here before Home's own keys.
+        foreach (var (key, modifiers) in new[] { (Windows.System.VirtualKey.F5, Windows.System.VirtualKeyModifiers.None),
+                     (Windows.System.VirtualKey.R, Windows.System.VirtualKeyModifiers.Control) })
+        {
+            var refresh = new Microsoft.UI.Xaml.Input.KeyboardAccelerator { Key = key, Modifiers = modifiers };
+            refresh.Invoked += (_, a) =>
+            {
+                a.Handled = true;
+                Refresh();
+            };
+            KeyboardAccelerators.Add(refresh);
+        }
         // The thread read again while the taf works or a sent message waits for it, only while Chat shows: fast while it
         // moves, then slower, then not at all (ChatFollow). Minimised, it waits; the next tick after reads.
         chatClock = new DispatcherTimer { Interval = ChatFollow.Fast };
@@ -863,6 +875,27 @@ public sealed partial class TafPage : Page
         Show();
         await loading;
         Show();
+    }
+
+    /// <summary>
+    /// The tab shown, read again, as the iPad's <c>.refreshable</c>: Activity's newest page and the taf's work and runs
+    /// (<c>loadActivityPage</c>, <c>loadRunPage</c>); the chat's thread; Setup. The Card tab draws what Home and the dial hold.
+    /// </summary>
+    void Refresh()
+    {
+        switch (tab)
+        {
+            case TafTab.Activity:
+                _ = LoadActivityAsync();
+                _ = LoadWorkAsync();
+                break;
+            case TafTab.Chat:
+                _ = LoadChatAsync();
+                break;
+            case TafTab.Setup:
+                _ = LoadSetupAsync();
+                break;
+        }
     }
 
     /// <summary>Try again: the next page when some are in, else the newest, as the iPad's.</summary>

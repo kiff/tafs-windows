@@ -13,6 +13,9 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
   says Revoked and fades, and the chip says Stopped. Chat opens on a sample taf and on one tafs cloud runs, as the
   iPad's `canChat`, and a taf's page opens on it, as the iPad's, unless it's opened on another tab.
   The Card bar is above the Chat and the Activity, and its chevron opens the Card tab.
+- **Refreshing** (`TafPage.Refresh`, the iPad's `.refreshable` on a taf's Activity): F5 or Ctrl+R reads the tab shown
+  again, ahead of Home's own keys: Activity's newest page with the taf's work and runs (`loadActivityPage`,
+  `loadRunPage`), the chat's thread, or Setup. The Card tab draws what Home and the dial already hold.
 - **The Chat** (`TafChat`, the iPad's `TafChatView`): the taf's thread, read from tafs cloud each time it shows
   (`GET /v1/tafs/{id}/conversation`, Coach's thread's shape, so `CoachThread.Read` reads it), in a column 720 wide.
   Each message once, by time. A time between parts an hour or more apart (`CoachChat.GapTime`). The person's words on
