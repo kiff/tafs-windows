@@ -77,4 +77,21 @@ public class KiffUsageTests
         Assert.Null(await KiffUsage.DeclineAsync(En, "t1", request, "", _ => Task.FromResult(StepConfirmed.Cancelled), m => key.SignDerAsync(m), Post, () => "1", () => true));
         Assert.Empty(sent);
     }
+
+    /// <summary>
+    /// Where to buy on a PC (no store here): the phone's app for Solo and credits, and kiff.dev for Team unless it's Team
+    /// already, for whoever manages billing; neither for a member (who asks an admin) or under a company's agreement.
+    /// </summary>
+    [Theory]
+    [InlineData("solo", "apple", true, true, true)]
+    [InlineData("free", null, true, true, true)]
+    [InlineData("team", "stripe", true, true, false)]
+    [InlineData("team", "contract", true, false, false)]
+    [InlineData("solo", "apple", false, false, false)]
+    public void A_pc_says_where_to_buy(string plan, string? source, bool manages, bool onPhone, bool teamOnWeb)
+    {
+        var u = new KiffUsage(plan, source, null, [], []);
+        Assert.Equal((onPhone, teamOnWeb), u.WhereToBuy(manages));
+        Assert.Equal("https://kiff.dev/dashboard/checkout", KiffUsage.TeamCheckout.AbsoluteUri);
+    }
 }

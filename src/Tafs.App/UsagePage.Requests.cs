@@ -78,6 +78,19 @@ public sealed partial class UsagePage
             return;
         }
         if (u.BillingLine(w) is { } billing) KiffPanels.Children.Add(Card(Line(billing, 15)));
+        // Where to buy: a PC has no store, so the phone's app for Solo and credits, and kiff.dev for Team.
+        if (u.WhereToBuy(managesBilling) is (true, var team))
+        {
+            var buy = new StackPanel { Spacing = 8 };
+            buy.Children.Add(Line(w.Get("billing.buy_on_phone"), 14, soft: true));
+            if (team)
+            {
+                var link = new HyperlinkButton { Content = w.Get("billing.team_on_web"), NavigateUri = KiffUsage.TeamCheckout, Padding = new Thickness(0) };
+                AutomationProperties.SetAutomationId(link, "usage.team-on-web");
+                buy.Children.Add(link);
+            }
+            KiffPanels.Children.Add(Card(buy));
+        }
         if (!managesBilling) AskPanel(w, u);
         else RequestsPanel(w, u);
     }
