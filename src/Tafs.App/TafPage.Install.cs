@@ -168,12 +168,8 @@ public sealed partial class TafPage
         body.Children.Add(head);
         if (draft is { Cards: not null })
         {
-            foreach (var line in draft.CardLines(w).SelectMany(l => l))
-            {
-                var mono = Words(line, 12, "TafsInkText");
-                mono.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas");
-                body.Children.Add(mono);
-            }
+            // The new Cards as one, each changed Card as now and after, each removed one struck through (DraftCardsView).
+            body.Children.Add(DraftCards(draft, w));
             body.Children.Add(Words(w.Get(draft.Retires is { Count: > 0 } ? "version.card_note.removes_biometry" : "version.card_note.issues_biometry",
                 ("biometry", Tafs.Core.Coach.CoachScreen.Biometry)), 12, "TafsSoftText"));
         }
