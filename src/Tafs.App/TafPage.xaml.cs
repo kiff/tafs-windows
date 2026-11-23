@@ -28,6 +28,7 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafSteps? Steps = null, TafFiles? Files = null, TafDoorSigning? DoorSigning = null,
     string? DoorOn = null, TafSlackDoor? SlackDoor = null, ConnectAppsConnecting? Connecting = null,
     Func<CardUnitException, Border?>? CardUnit = null, TafNextStep? Next = null,
+    Func<IReadOnlyList<string>, string, Task<(int Left, string? Why, bool Stopped)>>? EndConnection = null,
     Func<IReadOnlyList<CardUnitException>>? CardUnitsListed = null)
 {
     /// <summary>
@@ -1207,9 +1208,12 @@ public sealed partial class TafPage : Page
             var box = new StackPanel { Spacing = 4, Width = 78 };
             box.Children.Add(name);
             box.Children.Add(words);
-            var node = new Border { Child = box, Padding = new Thickness(5), CornerRadius = new CornerRadius(14),
+            // It opens its sheet (the iPad's ConnectedAppSheet): what it may do, its workflow, its week and its connections.
+            var node = new Button { Content = box, Padding = new Thickness(5), CornerRadius = new CornerRadius(14), BorderThickness = new Thickness(0),
                 Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(ThemeColour("TafsPanel")) };
             AutomationProperties.SetName(node, $"{app.Name}, {app.ActionWords}");
+            var opened = nodes[i];
+            node.Click += (_, _) => _ = ShowAppSheetAsync(opened);
             node.Loaded += (_, _) =>
             {
                 Canvas.SetLeft(node, x - node.ActualWidth / 2);

@@ -2224,6 +2224,8 @@ public sealed partial class MainWindow : Window
                 SlackDoor: SlackDoorFor(taf),
                 // Setup's own Connect again: that same connection signed in again here, on a PC that approves.
                 Connecting: ConnectingFor(),
+                // A connected app's sheet on Setup: Remove access, planque's end behind Windows Hello, as Connect apps' is.
+                EndConnection: ConnectionsFor()?.End,
                 // A Card unit's request on its Setup: Coach about it and Dismiss, as on Needs you; none once dismissed here.
                 CardUnit: ask => dismissedCardUnits.Contains(ask.Id) ? null : CardUnitPanelFor(ask.Taf.Length > 0 ? ask : ask with { Taf = taf.Id }),
                 CardUnitsListed: () => CardUnitsShown.Where(a => a.Taf == taf.Id).ToList(),

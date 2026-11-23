@@ -5,7 +5,7 @@ using Tafs.Core.Words;
 namespace Tafs.Core.Taf;
 
 /// <summary>One action a connection gives the taf: its name, its title, and its limits in KIFF's words.</summary>
-public sealed record SetupAction(string Name, string Title, IReadOnlyList<string> Limits);
+public sealed record SetupAction(string Name, string Title, IReadOnlyList<string> Limits, string StepWords = "");
 
 /// <summary>
 /// One connected app, as tafs cloud says it: its status in words ("Sign in again") and whether that means signing in
@@ -14,7 +14,11 @@ public sealed record SetupAction(string Name, string Title, IReadOnlyList<string
 /// </summary>
 public sealed record SetupConnection(string Id, string Name, string Status, string StatusWords, bool Reconnect,
     string ActionWords, IReadOnlyList<SetupAction> Actions, string? WorkflowWords, string StatsWords, string? ActivityQuery,
-    int ActionCount = 0, bool Running = false);
+    int ActionCount = 0, bool Running = false)
+{
+    /// <summary>The steps of the taf's workflow on this connection (<c>workflow_steps</c>), as its sheet lists them.</summary>
+    public IReadOnlyList<WorkflowStep> WorkflowSteps { get; init; } = [];
+}
 
 /// <summary>One app around the taf in Setup's ring: the connection that does the work, with any other sign-in to the same app.</summary>
 public sealed record SetupNode(SetupConnection App, IReadOnlyList<SetupConnection> Others);
@@ -168,7 +172,10 @@ public static class TafSetup
             Lenient.Bool(c, "reconnect"), Lenient.Text(c, "action_words") ?? "",
             Lenient.Array(c, "actions").Select(Action).OfType<SetupAction>().ToList(),
             Lenient.Text(c, "workflow_words"), Lenient.Text(stats, "words") ?? "", Lenient.Text(stats, "activity_query"),
-            Lenient.Int(c, "action_count") ?? 0, Lenient.Bool(c, "running"));
+            Lenient.Int(c, "action_count") ?? 0, Lenient.Bool(c, "running"))
+        {
+            WorkflowSteps = Lenient.Array(c, "workflow_steps").Select(Step).OfType<WorkflowStep>().ToList(),
+        };
     }
 
     /// <summary><c>GET /v1/tafs/{id}/setup</c>; after a fresh sign-in, with <c>?connected_again=</c> that connection.</summary>
@@ -191,7 +198,8 @@ public static class TafSetup
     static SetupAction? Action(JsonElement a) =>
         Lenient.Text(a, "name") is { } name
             ? new SetupAction(name, Lenient.Text(a, "title") ?? name,
-                Lenient.Array(a, "limits").Where(l => l.ValueKind == JsonValueKind.String).Select(l => l.GetString()!).ToList())
+                Lenient.Array(a, "limits").Where(l => l.ValueKind == JsonValueKind.String).Select(l => l.GetString()!).ToList(),
+                Lenient.Text(a, "step_words") ?? "")
             : null;
 
     static WorkflowStep? Step(JsonElement s) =>
