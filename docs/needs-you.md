@@ -59,7 +59,7 @@ As the iPad's `HeldCallCard.answers`, for how Windows signs (`HeldAnswers`, belo
   the card, asking and sending nothing. Refuse and the next steps still go.
 - **Coach's held install** (KIFF's hold for a `version_install`, the iPad's `beginCoachInstall` and
   `useVersion(approving:)`): its answer is **Install with Windows Hello**, never Approve once.
-  1. The taf is found by tafs cloud's id, else by its name (`CoachInstalls.Find`). With none: "Coach asked to install a
+  1. The taf is found by tafs cloud's id, else by its name when exactly one taf has it (`CoachInstalls.Find`). With none: "Coach asked to install a
      version of a taf that isn't here."
   2. Its versions are read. A version it doesn't have says so. One already live is approved once at once, which only
      tells Coach so.
