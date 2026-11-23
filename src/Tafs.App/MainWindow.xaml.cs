@@ -2221,7 +2221,19 @@ public sealed partial class MainWindow : Window
             path => cloudRead is { } read ? read(path) : Task.FromResult(CloudRead.Unreached(App.Words)), kiffAccount,
             App.Sessions.Kept() is { } session ? (method, path, body) => CloudWriteAsync(session.AccessToken, method, path, body) : null,
             Halt.ManagesCards(capabilities), SetTimeZoneFor(), DeleteAccountFor(),
-            ChromesCallsFor() is { } chromes ? async () => (await chromes.Load()).Status is >= 200 and <= 299 : null));
+            ChromesCallsFor() is { } chromes ? async () => (await chromes.Load()).Status is >= 200 and <= 299 : null,
+            // Account › Sign-in: read, and turned off, as the session at KIFF; turning it on is KIFF's own page.
+            App.Sessions.Kept() is { } signIn && !sample ? () => KiffReadAsync(signIn.AccessToken, CodeSignIn.Path) : null,
+            App.Sessions.Kept() is { } signOff && !sample ? async () =>
+            {
+                try
+                {
+                    var (status, answer) = await KiffHttp.PutAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, CodeSignIn.Path), CodeSignIn.OffBody,
+                        signOff.AccessToken, App.Words.Language);
+                    return Answered(App.Words, status, answer);
+                }
+                catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(App.Words); }
+            } : null));
         ShowAccountChosen(true);
     }
 

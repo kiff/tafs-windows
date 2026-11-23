@@ -145,6 +145,8 @@ public sealed partial class MainWindow
         if (screenshot is null) _ = CheckHelloAsync();
         // Devices read again, as the iPad's on its scene's return: a device added on the phone meanwhile shows.
         if (Pages.Content is DevicesPage devices) _ = devices.ReadAgainAsync();
+        // Account › Sign-in read again after KIFF's page was opened to turn it on.
+        if (Pages.Content is AccountPage account) account.CameBack();
         // A thread whose following stopped while its run still works is read once, and followed again if it moves.
         if (Pages.Content is TafPage taf) taf.CameBack();
         CoachMode.CameBack();
