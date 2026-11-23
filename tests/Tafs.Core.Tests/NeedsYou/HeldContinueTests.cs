@@ -5,7 +5,7 @@ using Tafs.Core.Words;
 
 namespace Tafs.Core.Tests.NeedsYou;
 
-/// <summary>The paused run asked to go on after a held call's answer: never swallowed (the PM's 04:46).</summary>
+/// <summary>The paused run asked to go on after a held call's answer: a refusal is said, never swallowed.</summary>
 [Part("approvals")]
 public class HeldContinueTests
 {
@@ -25,6 +25,9 @@ public class HeldContinueTests
         // The run had ended: tafs cloud's words, in the owner's language (kiff/tafs#1812).
         var ended = CloudRead.Refused(En, 404, """{"error":"run ended","code":"run_ended","words":" That run had already ended, so nothing ran. "}""");
         Assert.Equal("That run had already ended, so nothing ran.", HeldContinue.Said(En, "Refund €150", ended));
+        // KIFF's alert continued it first (409 not_paused): it went on, so nothing is said, even with words.
+        Assert.Null(HeldContinue.Said(En, "Refund €150", CloudRead.Refused(En, 409, """{"error":"not paused","code":"not_paused","words":"x"}""")));
+        Assert.Null(HeldContinue.Said(En, "Refund €150", CloudRead.Refused(En, 409, "")));
         // Any other refusal, or one with no words: what didn't go through, and why.
         Assert.Equal("Refund €150 didn't go through. It didn't reach the server. Try again once you're online.",
             HeldContinue.Said(En, "Refund €150", CloudRead.Unreached(En)));

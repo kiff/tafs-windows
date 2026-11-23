@@ -65,9 +65,10 @@ As the iPad's `HeldCallCard.answers`, for how Windows signs (`HeldAnswers`, belo
   Not taken, why shows at the top of Needs you, in red.
 - **The paused run goes on at once** (the iPad's `continueHeld`, kiff/tafs#206): once KIFF takes any answer, tafs cloud is
   asked to continue that taf's run (`POST /v1/tafs/{taf}/holds/{hold}/continue`, the taf found by its agent in Home),
-  then Home is read again. Unlike the phones, a refusal isn't swallowed (`HeldContinue`): a run that had already ended
-  says so at the top of Needs you, in tafs cloud's words (`run_ended`), and any other refusal says what didn't go through
-  and why. KIFF's alert and the hold's expiry still continue a run this missed.
+  then Home is read again. A refusal isn't swallowed (`HeldContinue`): a run that had already ended says so at the top of
+  Needs you, in tafs cloud's words (`run_ended`), and an unreached or other refusal says what didn't go through and why.
+  A run KIFF's alert continued first answers 409 (`not_paused`): it went on, so nothing is said. KIFF's alert and the
+  hold's expiry still continue a run this missed.
 - **Allow this from now on**, below, for someone who manages Cards.
 - **Not yet:** Change the limit in Coach mode, with improving a taf; and installing the version Coach's hold names.
 
