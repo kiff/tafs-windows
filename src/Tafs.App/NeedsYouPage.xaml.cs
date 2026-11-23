@@ -379,6 +379,7 @@ public sealed partial class NeedsYouPage : Page
         cardUnitsShown = asks.Count;
         ShowEmpty();
     }
+
     /// <summary>The account Turn on alerts turns them on for; none hides the card.</summary>
     string? alertsTenant;
 
@@ -413,6 +414,7 @@ public sealed partial class NeedsYouPage : Page
     }
 
     void OnAlertsSettings(object sender, RoutedEventArgs e) => _ = Windows.System.Launcher.LaunchUriAsync(new Uri("ms-settings:notifications"));
+
     internal void ShowUnproven(IReadOnlyList<Unproven> calls, bool mayAnswerHolds)
     {
         var w = App.Words;
