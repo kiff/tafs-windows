@@ -880,23 +880,27 @@ public sealed partial class TafPage : Page
     /// <summary>
     /// The tab shown, read again, as the iPad's <c>.refreshable</c>: Activity's newest page and the taf's work and runs
     /// (<c>loadActivityPage</c>, <c>loadRunPage</c>); the chat's thread; Setup. The Card tab draws what Home and the dial hold.
+    /// A held key repeats: a refresh while the last one still reads is ignored, so it stays one read of the tab per press.
     /// </summary>
-    void Refresh()
+    async void Refresh()
     {
-        switch (tab)
+        if (refreshing) return;
+        refreshing = true;
+        try
         {
-            case TafTab.Activity:
-                _ = LoadActivityAsync();
-                _ = LoadWorkAsync();
-                break;
-            case TafTab.Chat:
-                _ = LoadChatAsync();
-                break;
-            case TafTab.Setup:
-                _ = LoadSetupAsync();
-                break;
+            await (tab switch
+            {
+                TafTab.Activity => Task.WhenAll(LoadActivityAsync(), LoadWorkAsync()),
+                TafTab.Chat => LoadChatAsync(),
+                TafTab.Setup => LoadSetupAsync(),
+                _ => Task.CompletedTask,
+            });
         }
+        finally { refreshing = false; }
     }
+
+    /// <summary>A refresh is reading: another press waits for it (<see cref="Refresh"/>).</summary>
+    bool refreshing;
 
     /// <summary>Try again: the next page when some are in, else the newest, as the iPad's.</summary>
     void OnActivityTryAgain(object sender, RoutedEventArgs e) => _ = LoadActivityAsync(more: CloudPages().Pages.Count > 0);
