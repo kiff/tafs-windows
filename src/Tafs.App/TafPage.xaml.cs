@@ -879,10 +879,6 @@ public sealed partial class TafPage : Page
         ShowComposer();
     }
 
-    /// <summary>
-    /// A taf's card for Coach, as the iPad's <c>AskCoachCardView</c>: its words, 15, on a panel; Ask Coach, outlined, only for
-    /// whoever manages the taf and may use Coach, which opens Coach improving this taf with the words in its box, nothing sent.
-    /// </summary>
     /// <summary>Loop cards answered here, by id: they show as answered at once, until the thread's words for it come.</summary>
     readonly HashSet<string> loopTaken = [];
 
@@ -951,6 +947,10 @@ public sealed partial class TafPage : Page
         await LoadChatAsync();
     }
 
+    /// <summary>
+    /// A taf's card for Coach, as the iPad's <c>AskCoachCardView</c>: its words, 15, on a panel; Ask Coach, outlined, only for
+    /// whoever manages the taf and may use Coach, which opens Coach improving this taf with the words in its box, nothing sent.
+    /// </summary>
     UIElement AskCoachCardView(Tafs.Core.Coach.AskCoachCard card)
     {
         var words = Words(card.Text, 15, "TafsInkText");
