@@ -133,6 +133,8 @@ public sealed partial class TafPage
     /// <summary>Retry, for a task the switch stopped: its message sent again as a new one, once, on the owner's click.</summary>
     async Task RetryStoppedAsync(string text)
     {
+        // Once: a second click, queued before the chat redrew without the button, finds it already sent.
+        if (switchStopped is null) return;
         switchStopped = null;
         ShowChat();
         await SendTextAsync(text);
