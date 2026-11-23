@@ -106,15 +106,23 @@ sealed class AttachTray(StackPanel tray, Button paperclip, Func<FrameworkElement
             photo = await camera.CaptureFileAsync(Microsoft.Windows.Media.Capture.CameraCaptureUIMode.Photo);
         }
         catch (Exception e) when (e is System.Runtime.InteropServices.COMException or UnauthorizedAccessException) { photo = null; }
-        if (photo is null || forTaf != taf || FilePrep.Room(files.Count) == 0) return;
-        var w = App.Words;
-        var pending = new Pending(w.Get("attachment.photo"));
-        files.Add(pending);
-        Show();
-        await AttachAsync(pending, photo, taf, send, named: w.Get("attachment.photo"));
-        // Windows' copy of the photo is a temporary file: gone once it's read.
-        try { await photo.DeleteAsync(Windows.Storage.StorageDeleteOption.PermanentDelete); }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException) { }
+        if (photo is null) return;
+        try
+        {
+            // The tray moved to another taf, or filled, while the camera was open: the photo isn't added.
+            if (forTaf != taf || FilePrep.Room(files.Count) == 0) return;
+            var w = App.Words;
+            var pending = new Pending(w.Get("attachment.photo"));
+            files.Add(pending);
+            Show();
+            await AttachAsync(pending, photo, taf, send, named: w.Get("attachment.photo"));
+        }
+        finally
+        {
+            // Windows' copy of the photo is a temporary file: gone on every path once it's taken, added or not.
+            try { await photo.DeleteAsync(Windows.Storage.StorageDeleteOption.PermanentDelete); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException) { }
+        }
     }
 
     /// <summary>Choose file: up to five a message, each declared for <paramref name="taf"/> and sent up as it's picked.</summary>
