@@ -13,7 +13,7 @@ public sealed record WhatsAppSignedUp(string Taf, string State, string Code, str
 /// embedded sign-up in the browser, which hands back to the app on <c>tafs://doors/whatsapp</c>, and the app makes the door with
 /// the code, as the session. The iPad's return is bound to the sign-up it started (<c>ASWebAuthenticationSession</c>); on
 /// Windows any link can open <c>tafs:</c>, so this PC sends a one-use <c>state</c>, which the page echoes, and takes only the
-/// return carrying it, for that taf, within 15 minutes (the PM's (a), kiff/work#20, 23 Nov 23:59).
+/// return carrying it, for that taf, within 15 minutes.
 /// </summary>
 public static class WhatsAppDoor
 {

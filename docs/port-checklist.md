@@ -85,7 +85,7 @@ None: ChromeShotView, the last, is ported (the picture before a Chrome step, fro
 | TafKnobView.swift | 377 | Not reachable at the pin, as `TafDialPanel` (only `TafKnobView.color` is reused, by Coach's chat). Reopen it if the iPad turns it on. |
 | TafKnobRemote.swift | 64 | Not reachable at the pin, as `TafDialPanel`. Reopen it if the iPad turns it on. |
 | DriveViews.swift | 73 | The phone's: Coach drives the phone's own screen (docs/drive.md is the iOS and Android contract), so there's nothing on Windows for it to drive (the PM's 21:45). |
-| MicButton.swift | 122 | The iPad's promise is that recognition runs on the device only, so no audio leaves it (`Dictation.swift`: "no audio leaves the phone"; `voice.voice_becomes_text_device_not`). An app's free dictation on Windows (`SpeechRecognizer` with the dictation topic) goes through Microsoft's online speech service and works only with Online speech recognition on, so that promise can't hold. Windows' own voice typing (Win+H) already types into the message box. The PM allowed either way (kiff/work#20, 01:00); reopen if Windows gives apps on-device dictation |
+| MicButton.swift | 122 | The iPad's promise is that recognition runs on the device only, so no audio leaves it (`Dictation.swift`: "no audio leaves the phone"; `voice.voice_becomes_text_device_not`). An app's free dictation on Windows (`SpeechRecognizer` with the dictation topic) goes through Microsoft's online speech service and works only with Online speech recognition on, so that promise can't hold. Windows' own voice typing (Win+H) already types into the message box. Either way was allowed; reopen if Windows gives apps on-device dictation |
 
 ## Shared pieces
 

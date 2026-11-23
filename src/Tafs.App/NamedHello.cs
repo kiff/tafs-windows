@@ -3,7 +3,7 @@ using Tafs.Core.Approvals;
 namespace Tafs.App;
 
 /// <summary>
-/// What this PC's passkey is approving now (the owner's ask, kiff/work#20, 22 Nov): set where the act is known, read when
+/// What this PC's passkey is approving now (the owner's ask): set where the act is known, read when
 /// Windows Hello opens. Windows' WebAuthn prompt shows only kiff.dev and Windows' own words, so tafs says the act itself
 /// while the prompt is up (<c>approval.hello.before</c>). It flows with the call that approves (an <see cref="AsyncLocal{T}"/>),
 /// so two acts never name each other.
