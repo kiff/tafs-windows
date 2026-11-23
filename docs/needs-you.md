@@ -251,9 +251,13 @@ Notification Center without a banner or sound, as the iPad's passive alert (tafs
     still opens that hold. The PC counts as locked when the input desktop isn't the person's own, or can't be read.
     Locked is read when the notification is made: one shown while the PC was unlocked keeps its details in Notification
     Centre, and they show there if the PC is locked later, as a phone keeps an alert shown with previews on.
-- **When it's read:** with each refresh of Home's list, and every minute while a session is in use. The iPad hears of a
-  new hold by push instead, which Windows doesn't have yet. Minimised for more than ten minutes, the minute's read stops;
-  the window coming back reads once.
+- **When it's read:** with each refresh of Home's list, and about every minute while a session is in use. The iPad
+  hears of a new hold by push instead, which Windows doesn't have yet (a push or relay signal from KIFF would replace the
+  timer; until then it's the slow fallback). Minimised for more than ten minutes, the minute's read stops; the window
+  coming back reads once.
+  - **The timer's read** (`HeldWatch`): each wait is a minute moved up to 20% either way, so windows don't read KIFF in
+    step. It reads only the holds, reusing the capabilities already read (`GET /v1/me`), and reads them again only
+    every 15 minutes. Sign-in, F5, Home's refresh and coming back to the window read both.
 - **Which holds:** one KIFF has held since the last read of Needs you. A session's first read notifies nothing, so opening
   tafs doesn't announce what was already waiting: it's all in Needs you. A sample is never notified. A sign-out starts
   again.

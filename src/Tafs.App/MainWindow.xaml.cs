@@ -47,6 +47,8 @@ public sealed partial class MainWindow : Window
 
     /// <summary>KIFF's capabilities for the person, from <c>GET /v1/me</c>: "Allow this from now on" waits for <c>holds.allow</c>.</summary>
     IReadOnlyList<string>? capabilitiesRead;
+    /// <summary>When KIFF's capabilities were last read this session (<see cref="HeldWatch.ReadsMe"/>).</summary>
+    DateTimeOffset? meReadAt;
     readonly Dictionary<string, string> lastingRefusals = [];
     readonly HashSet<string> sendingHolds = [];
 
@@ -242,7 +244,9 @@ public sealed partial class MainWindow : Window
         Toasts.HoldChosen += hold => DispatcherQueue.TryEnqueue(() => OpenHold(hold));
         heldClock.Tick += (_, _) =>
         {
-            if (home is { } listed && kiffRead is not null && HoldToast.Reads(minimisedSince, DateTimeOffset.UtcNow)) _ = ReadHeldAsync(listed, sessions);
+            // Each wait jittered, so windows don't read KIFF in step (HeldWatch).
+            heldClock.Interval = HeldWatch.Wait(Random.Shared.NextDouble());
+            if (home is { } listed && kiffRead is not null && HoldToast.Reads(minimisedSince, DateTimeOffset.UtcNow)) _ = ReadHeldAsync(listed, sessions, timed: true);
         };
         // Minimised for more than ten minutes, the minute's read stops; the window coming back reads once.
         AppWindow.Changed += (window, change) =>
@@ -665,13 +669,19 @@ public sealed partial class MainWindow : Window
     /// plain read as the session, each hold under its taf by its agent. A read that fails, or that KIFF answers in a way it
     /// can't read, leaves Needs you as it was; one that lands after another session began is dropped.
     /// </summary>
-    async Task ReadHeldAsync(HomeAnswer listed, int reading)
+    async Task ReadHeldAsync(HomeAnswer listed, int reading, bool timed = false)
     {
         if (kiffRead is not { } read || sampleHeld) return;
         // Who answers, and who manages Cards, as the iPad's mayAnswerHolds and canManageCards: KIFF's capabilities on /v1/me.
-        var capabilities = Tafs.Core.Coach.CoachAccess.Capabilities((await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer);
-        if (reading != sessions) return;
-        (mayAnswerHolds, managesCards, capabilitiesRead) = (DidThisHappen.MayAnswerHolds(capabilities), capabilities?.Contains("cards.manage") ?? true, capabilities);
+        // The minute's own read uses those already read, and reads them again only every 15 minutes (HeldWatch.ReadsMe).
+        var capabilities = capabilitiesRead;
+        if (HeldWatch.ReadsMe(timed, meReadAt, DateTimeOffset.UtcNow))
+        {
+            capabilities = Tafs.Core.Coach.CoachAccess.Capabilities((await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer);
+            if (reading != sessions) return;
+            meReadAt = DateTimeOffset.UtcNow;
+            (mayAnswerHolds, managesCards, capabilitiesRead) = (DidThisHappen.MayAnswerHolds(capabilities), capabilities?.Contains("cards.manage") ?? true, capabilities);
+        }
         var answer = (await read(KiffHeld.Path)).Answer;
         if (reading != sessions || answer is not { } json || KiffHeld.Read(json) is not { } holds) return;
         var tafs = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => (g.First().Name, g.First().Colour));
@@ -729,6 +739,7 @@ public sealed partial class MainWindow : Window
         // Read into locals first: an answer from an earlier session never replaces this one's, as the iPad's accountGeneration.
         var capabilities = Tafs.Core.Coach.CoachAccess.Capabilities((await read(Tafs.Core.Coach.CoachAccess.MePath)).Answer);
         if (reading != sessions) return;
+        meReadAt = DateTimeOffset.UtcNow;
         (mayAnswerHolds, managesCards, capabilitiesRead) = (DidThisHappen.MayAnswerHolds(capabilities), capabilities?.Contains("cards.manage") ?? true, capabilities);
         ShowHeld(held);
         if (mayAnswerHolds && (await read(DidThisHappen.Path)).Answer is { } json && reading == sessions && DidThisHappen.Read(json) is { } calls)
@@ -1245,6 +1256,7 @@ public sealed partial class MainWindow : Window
         if (needsYouRow is { } briefRow) ShowCount(briefRow, App.Words, NeedsYouTitle);
         managesCards = true;
         capabilitiesRead = null;
+        meReadAt = null;
         AllowDialog.Close();
         lastingRefusals.Clear();
         sendingHolds.Clear();
