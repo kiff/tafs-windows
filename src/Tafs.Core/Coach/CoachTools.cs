@@ -8,7 +8,14 @@ namespace Tafs.Core.Coach;
 
 /// <summary>The step's words, every one tafs cloud's, in the person's language (the iPad's <c>CoachTools.Step</c>).</summary>
 public sealed record ToolsStep(string Title, string Intro, IReadOnlyList<StepGroup> Groups, string Details, string Ask, string Give,
-    string NotNow, string Row);
+    string NotNow, string Row)
+{
+    /// <summary>
+    /// What to say when Give went but nothing was connected (tafs cloud still asks for the same batch), in tafs cloud's words
+    /// (<c>not_connected</c>); empty from a tafs cloud that doesn't send it, when the app's own <c>coach.tools_not_given</c> is said.
+    /// </summary>
+    public string NotConnected { get; init; } = "";
+}
 
 /// <summary>
 /// Coach's tools as tafs cloud says KIFF has them (<c>GET /v1/setup</c>'s <c>tools</c>, the iPad's <c>TafsCloud.CoachTools</c>):
@@ -51,7 +58,7 @@ public sealed record CoachTools(string State, string? Taken, StartRequest? Conne
     {
         string T(string n) => Lenient.Text(s, n) ?? "";
         var groups = FirstStart.Read(JsonDocument.Parse("{\"start\":{\"coach_tools_step\":" + s.GetRawText() + "}}").RootElement)?.Groups ?? [];
-        return new(T("title"), T("intro"), groups, T("details"), T("ask"), T("give"), T("not_now"), T("row"));
+        return new(T("title"), T("intro"), groups, T("details"), T("ask"), T("give"), T("not_now"), T("row")) { NotConnected = T("not_connected").Trim() };
     }
 
     /// <summary>The row above the conversation, in tafs cloud's words, else the app's own: only while there's something to give.</summary>
@@ -140,6 +147,13 @@ public static class CoachToolsGive
         catch (HttpRequestException) { return calls.Current() ? new(false, Failed(w.Get("error.offline"))) : none; }
         var after = await calls.ReadSetup();
         if (!calls.Current()) return none;
-        return after.Answer is { } a && CoachTools.Read(a) is { Given: true } ? new(true) : new(false, w.Get("coach.tools_unknown"));
+        if (after.Answer is not { } a || CoachTools.Read(a) is not { } now) return new(false, w.Get("coach.tools_unknown"));
+        if (now.Given) return new(true);
+        // The batch went and KIFF took it, yet tafs cloud still asks for the very same batch: nothing was connected (KIFF counted
+        // every tool as already there). Said, in tafs cloud's words when it sends them, never as if KIFF hadn't answered (as the
+        // iPad's and Android's giveCoachTools).
+        if (now.ToGive && tools.Together?.Connect is { } sent && (now.Together?.Connect ?? now.Connect) is { } asked && asked.Body.AsSpan().SequenceEqual(sent.Body))
+            return new(false, now.Step?.NotConnected is { Length: > 0 } said ? said : w.Get("coach.tools_not_given", ("why", "")).Trim());
+        return new(false, w.Get("coach.tools_unknown"));
     }
 }

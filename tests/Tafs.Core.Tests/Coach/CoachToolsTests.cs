@@ -70,6 +70,31 @@ public class CoachToolsTests
         Assert.Equal("Give Coach its tools", CoachTools.Read(Setup(change: t => t["coach_tools_step"]!.AsObject().Remove("row")))!.Row(En));
     }
 
+    /// <summary>
+    /// The batch went, yet tafs cloud still asks for the very same batch: nothing was connected. Give says so, in tafs cloud's
+    /// words when it sends them, else "Coach's tools weren't given.", never that KIFF didn't answer; as the iPad's and Android's.
+    /// </summary>
+    [Fact]
+    public async Task A_batch_that_connects_nothing_says_so()
+    {
+        var stubs = new Stubs();
+        stubs.Reads.Enqueue(Setup());
+        stubs.Reads.Enqueue(Setup());
+        Assert.Equal(new ToolsGiven(false, "Coach's tools weren't given."), await CoachToolsGive.GiveAsync(En, stubs.Make(), Shown));
+        Assert.Contains("batch b", stubs.Calls);
+
+        var worded = new Stubs();
+        worded.Reads.Enqueue(Setup());
+        worded.Reads.Enqueue(Setup(change: t => t["coach_tools_step"]!.AsObject()["not_connected"] = " Nothing was connected. "));
+        Assert.Equal("Nothing was connected.", (await CoachToolsGive.GiveAsync(En, worded.Make(), Shown)).Why);
+
+        // Still to give, but asking for another batch: not this case; tafs cloud's read is what it says.
+        var other = new Stubs();
+        other.Reads.Enqueue(Setup());
+        other.Reads.Enqueue(Setup(change: t => t["requests"]![0]!["body"]!.AsObject()["another"] = true));
+        Assert.Equal(En.Get("coach.tools_unknown"), (await CoachToolsGive.GiveAsync(En, other.Make(), Shown)).Why);
+    }
+
     [Fact]
     public async Task The_pair_goes_under_one_Windows_Hello_the_batch_first()
     {
