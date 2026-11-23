@@ -20,11 +20,24 @@ public sealed record RecordDayView(string Title, IReadOnlyList<RecordLineView> E
 /// One line of the Record, as drawn: its status dot, its taf's colour, "Taf · what", the time and the detail; read out as
 /// one, with what a tap does.
 /// </summary>
+/// <summary>A Record line's template: a call's opens its receipt; tafs' own event has nothing to open, so it isn't a button.</summary>
+public sealed partial class RecordRowSelector : DataTemplateSelector
+{
+    public DataTemplate? Call { get; set; }
+    public DataTemplate? Event { get; set; }
+    protected override DataTemplate? SelectTemplateCore(object item) => item is RecordLineView { Opens: false } ? Event : Call;
+    protected override DataTemplate? SelectTemplateCore(object item, DependencyObject container) => SelectTemplateCore(item);
+}
+
 public sealed record RecordLineView(string Title, string Time, string Detail, Brush TafColour, Visibility IsDone, Visibility IsWaiting, Visibility IsRefused,
     RecordEntry Entry, string Receipt = "", Visibility ReceiptShown = Visibility.Collapsed)
 {
     public string Name => $"{Title}, {Time}, {Detail}";
-    public string Hint => App.Words.Get("record.shows_receipt");
+    /// <summary>A call's line opens its receipt; tafs' own event has none (it isn't a call), so it says nothing.</summary>
+    public string Hint => Opens ? App.Words.Get("record.shows_receipt") : "";
+    public bool Opens => Entry.Kind != EntryKind.InTafs;
+    /// <summary>tafs' own event: a dim dot.</summary>
+    public Visibility IsQuiet => Entry.Kind == EntryKind.InTafs ? Visibility.Visible : Visibility.Collapsed;
 
     public static RecordLineView Of(RecordEntry e, TimeZoneInfo zone)
     {
@@ -32,7 +45,9 @@ public sealed record RecordLineView(string Title, string Time, string Detail, Br
         static Visibility Seen(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
         var dot = RecordScreen.DotOf(e.Kind);
         var receipt = RecordScreen.ReceiptLine(App.Words, e);
-        return new(title, time, e.Detail, Colour(e.TafColor), Seen(dot == Dot.Went), Seen(dot == Dot.Waiting), Seen(dot == Dot.Stopped), e,
+        // What it acted on first, and a hold KIFF dropped says so, as the iPad's RecordRow; tafs' own events as they are.
+        var detail = e.Kind == EntryKind.InTafs ? e.Detail : RecordNaming.Detail(App.Words, e, RecordPage.Held?.Invoke());
+        return new(title, time, detail, Colour(e.TafColor), Seen(dot == Dot.Went), Seen(dot == Dot.Waiting), Seen(dot == Dot.Stopped), e,
             receipt ?? "", Seen(receipt is not null));
     }
 
@@ -336,7 +351,7 @@ public sealed partial class RecordPage : Page
         var line = new Grid { ColumnSpacing = 10 };
         line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         line.ColumnDefinitions.Add(new ColumnDefinition());
-        var colour = RecordScreen.DotOf(hit.Line.Kind) switch { Dot.Went => "TafsOk", Dot.Waiting => "TafsAmber", _ => "TafsNo" };
+        var colour = RecordScreen.DotOf(hit.Line.Kind) switch { Dot.Went => "TafsOk", Dot.Waiting => "TafsAmber", Dot.Quiet => "TafsDim", _ => "TafsNo" };
         line.Children.Add(new Ellipse { Width = 9, Height = 9, Fill = Look(colour), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 6, 0, 0) });
         var words = new StackPanel { Spacing = 2 };
         words.Children.Add(Text(hit.Line.Title, 15, "TafsInk", semibold: true));
@@ -425,8 +440,15 @@ public sealed partial class RecordPage : Page
     /// <summary>A line's sheet: its facts, what happened and KIFF's receipt.</summary>
     async void OnLine(object sender, RoutedEventArgs e)
     {
-        if (sender is Button { Tag: RecordEntry entry }) await ReceiptSheet.ShowAsync(XamlRoot, ActualTheme, entry);
+        // tafs' own event isn't a call: there's no receipt to show (kiff/tafs#236).
+        if (sender is Button { Tag: RecordEntry { Kind: not EntryKind.InTafs } entry }) await ReceiptSheet.ShowAsync(XamlRoot, ActualTheme, entry);
     }
+
+    /// <summary>The account's tafs, by name and colour, for the chips; none before Home is read.</summary>
+    public static Func<IReadOnlyList<(string Taf, int Colour)>?>? AccountTafs { get; set; }
+
+    /// <summary>KIFF's holds once read, for a held line's words; none before (a held line then still waits).</summary>
+    public static Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>?>? Held { get; set; }
 
     /// <summary>Draws the chips, the chosen ones inverted, and the days the filter and the taf leave.</summary>
     void Show()
@@ -434,7 +456,8 @@ public sealed partial class RecordPage : Page
         var w = App.Words;
         TafChips.Children.Clear();
         TafChips.Children.Add(Chip(RecordScreen.AllTafs(w), null, taf is null, () => taf = null));
-        foreach (var (name, colour) in RecordScreen.TafChips(entries))
+        // Every taf of the account's, as the iPad's tafChips; the lines' own tafs until Home is read.
+        foreach (var (name, colour) in RecordScreen.TafChips(entries, AccountTafs?.Invoke()))
             TafChips.Children.Add(Chip(name, RecordLineView.Colour(colour), taf == name, () => taf = name));
 
         FilterChips.Children.Clear();

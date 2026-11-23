@@ -147,13 +147,17 @@ public static class Receipt
     static bool OwnerApproved(RecordEntry e) => e.Call is { Outcome: "allowed", Held: true };
 
     /// <summary>
-    /// Where the line and KIFF's signed steps disagree, as the iPad's <c>amountMismatch</c> and <c>answerMismatch</c>: the
+    /// Where the line and KIFF's signed steps disagree, as the iPad's <c>onMismatch</c>, <c>amountMismatch</c> and <c>answerMismatch</c>, in that
+    /// order: a named line's payment isn't the value KIFF hashed (<c>on_hash</c>), the
     /// decision step signed another amount, or the hold's settling another answer (KIFF records a refusal as "reject").
     /// None when they agree, or the steps don't say. Amounts are compared as numbers with their unit, so "150.00" and "150"
     /// agree (the iPad compares their strings); one that isn't a number is compared as written.
     /// </summary>
     public static string? Mismatch(WordBook w, RecordEntry e, IReadOnlyList<ReceiptStep> steps)
     {
+        // The payment first, as the iPad's order: a named line (what it acted on, kiff/tafs#167) is held to what KIFF signed.
+        if (e.OnValue is { } on && steps.Select(s => s.OnHash).FirstOrDefault(h => h is not null) is { } signedOn && !RecordNaming.IsOn(on, signedOn))
+            return w.Get("receipt.check.payment_mismatch");
         if (e.Call?.Amount is { } line && steps.Select(s => s.Amount).FirstOrDefault(a => a is not null) is { } signed
             && (!SameValue(line.Value, signed.Value) || (line.Unit ?? "") != (signed.Unit ?? "")))
             return w.Get("receipt.check.amount_mismatch");
