@@ -219,7 +219,8 @@ public sealed partial class AppConnectionsPage : Page
     }
 
     /// <summary>
-    /// A connection's page, as the iPad's <c>ConnectionDetailView</c>: its health, the tafs that use it, and for whoever manages
+    /// A connection's page, as the iPad's <c>ConnectionDetailView</c>: its health, the tafs that use it, the Chrome a browser
+    /// connection runs in, and for whoever manages
     /// Cards planque's known actions in its words and order. Remove asks first in planque's words, naming what stops; Sign in
     /// again shows what's approved first (by a key, the key sheet).
     /// </summary>
@@ -232,6 +233,13 @@ public sealed partial class AppConnectionsPage : Page
         if (g.Health is { } health) lines.Children.Add(Words(health.Words, 15, health.Ok ? "TafsInk" : "TafsAmberText", semibold: true));
         if (g.UsedBy is { Count: > 0 } used) lines.Children.Add(Words(w.Get("connect.apps.used_by", ("tafs", string.Join(", ", used))), 14, "TafsSoft"));
         if (lines.Children.Count > 0) Section("", [lines]);
+        // The Chrome it runs in, read only (the iPad's chromeSection): moving it is the phone's, its key signs it.
+        if (AppConnections.HeldIn(w, g) is { } held)
+        {
+            var chrome = Words(held, 14, "TafsSoft");
+            AutomationProperties.SetAutomationId(chrome, "connect.chrome");
+            Section("", [chrome]);
+        }
         var actions = AppConnections.KnownActions(g);
         if (o.Calls.Manages && actions.Count > 0)
         {

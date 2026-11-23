@@ -225,4 +225,18 @@ public class AppConnectionsTests
         Assert.Null(AppConnections.LastFailure(En, g with { Tools = ["stripe__list"] }, record));
         Assert.Null(AppConnections.LastFailure(En, g, []));
     }
+
+    /// <summary>A browser connection's page says the Chrome it runs in, by its name; moving it isn't offered (the phone's key signs it).</summary>
+    [Fact]
+    public void A_browser_connection_says_which_Chrome_holds_it_and_offers_no_move()
+    {
+        var plain = new PlanqueGrant("g", "connected", "t", "d", new GrantRequest("wiki", "rae", []), []);
+        Assert.Null(AppConnections.HeldIn(En, plain));
+        var held = plain with { Chrome = new ChromeConnection("c1", " Work laptop ", ["wikipedia.org"]) };
+        Assert.Equal("In Work laptop", AppConnections.HeldIn(En, held));
+        Assert.Null(AppConnections.HeldIn(En, plain with { Chrome = new ChromeConnection("c1", "  ", []) }));
+        Assert.Null(AppConnections.HeldIn(En, plain with { Chrome = new ChromeConnection("c1", null, []) }));
+        var move = held with { Actions = [new GrantAction("use_another_chrome", "Use another Chrome", "approve", null)] };
+        Assert.Empty(AppConnections.KnownActions(move));
+    }
 }
