@@ -138,9 +138,15 @@ public sealed partial class TafPage : Page
         InitializeComponent();
         // A resize can take the side column in or out.
         TabBody.SizeChanged += (_, _) => ShowSide(redraw: false);
-        // The thread read again every 2 s while the taf works or a sent message waits for it, only while Chat shows.
-        chatClock = new DispatcherTimer { Interval = TafChatSend.WhileWorking };
-        chatClock.Tick += (_, _) => { if (tab == TafTab.Chat) _ = LoadChatAsync(); };
+        // The thread read again while the taf works or a sent message waits for it, only while Chat shows: fast while it
+        // moves, then slower, then not at all (ChatFollow). Minimised, it waits; the next tick after reads.
+        chatClock = new DispatcherTimer { Interval = ChatFollow.Fast };
+        chatClock.Tick += (_, _) =>
+        {
+            if (tab != TafTab.Chat) { chatClock.Stop(); return; }
+            if (MainWindow.Hidden) return;
+            _ = LoadChatAsync();
+        };
         Unloaded += (_, _) =>
         {
             chatClock.Stop();
@@ -235,7 +241,18 @@ public sealed partial class TafPage : Page
         // A run at work that nothing streams here: picked back up, as the iPad's resumeChat (once per run).
         if (thread?.WorkingRun is { } run && thread.Working is { } session) _ = ResumeAsync(run, session);
         // While a run of its works, or a message waits for the thread, read again, as the iPad's chat does as it works.
-        if (thread?.Working is not null || sent.Count > 0) chatClock.Start(); else chatClock.Stop();
+        // Each read says how long until the next: fast while it moves, slower when quiet, none after half an hour (ChatFollow).
+        if ((thread?.Working is not null || sent.Count > 0)
+            && chatFollow.Next(ChatFollow.Signature(chat, sent.Count), DateTimeOffset.UtcNow, Random.Shared.NextDouble()) is { } wait)
+        {
+            chatClock.Interval = wait;
+            chatClock.Start();
+        }
+        else
+        {
+            chatClock.Stop();
+            chatFollow.Reset();
+        }
         if (tab == TafTab.Chat) ShowChat();
     }
 
@@ -321,6 +338,16 @@ public sealed partial class TafPage : Page
     string? chatNote;
     bool chatNoteIsError;
     DispatcherTimer chatClock = null!;
+    readonly ChatFollow chatFollow = new();
+
+    /// <summary>
+    /// The window came back: a chat whose following stopped (<see cref="ChatFollow.StopAfter"/>) while its run still works,
+    /// or a message still waits, is read once, and followed again from there.
+    /// </summary>
+    internal void CameBack()
+    {
+        if (tab == TafTab.Chat && !chatClock.IsEnabled && (chat?.Working is not null || sent.Count > 0)) _ = LoadChatAsync();
+    }
 
     /// <summary>
     /// The composer under the thread, for a taf tafs cloud runs and someone signed in: "Message Refunds", Send, and Stop

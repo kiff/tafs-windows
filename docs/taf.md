@@ -268,7 +268,13 @@ rules and totals.
     back in the box, and the consent's screen says why (`docs/account.md`); sent again once it's allowed.
   - **Retry is a new send.** tafs cloud doesn't take an idempotency key for a message yet, so
     a send that reached it but whose answer was lost can show twice after Retry.
-- **While the taf works,** or a sent message waits, the thread is read again every 2 s, only while Chat shows.
+- **While the taf works,** or a sent message waits, the thread is read again, only while Chat shows (`ChatFollow`):
+  - every 2 s for the first minute after the thread last changed (new words, a new message or run, a message sent);
+  - then every 15 s, and every minute once it's been quiet 10 minutes, each wait moved up to 20% either way so windows
+    don't read in step;
+  - and not at all once it's been quiet 30 minutes: opening the tab again, F5, writing, or coming back to the window
+    while the run still works reads again and starts over.
+  - With the window minimised it waits, and reads at the next tick after it comes back. Coach's thread is read the same way.
 - **Stop,** for whoever manages the taf (KIFF's `cards.manage` access, once read): the run at work is cancelled
   (`POST /v1/tafs/{id}/stop`, `{session}`), then "You stopped Refunds.", or "Not stopped." and why.
 - A sample taf has no composer yet; the iPad's answers its own words in sample mode.

@@ -18,9 +18,6 @@ public static class TafChatSend
     /// <summary>How long a sent message waits on screen for the thread to have it, as the iPad's <c>SentMessages.kept</c>.</summary>
     public static readonly TimeSpan Kept = TimeSpan.FromSeconds(120);
 
-    /// <summary>How often the thread is read again while the taf works.</summary>
-    public static readonly TimeSpan WhileWorking = TimeSpan.FromSeconds(2);
-
     public static string MessagesPath(string taf) => $"/v1/tafs/{CloudRead.PathPart(taf)}/messages";
 
     public static string StopPath(string taf) => $"/v1/tafs/{CloudRead.PathPart(taf)}/stop";
