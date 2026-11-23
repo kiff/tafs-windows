@@ -77,7 +77,7 @@ The iPad's `AppConnectionsView` and its model (`refreshConnections`, `connection
 - **Fixing one,** for whoever manages Cards, under its lines (not while its sign-in waits or its request is unanswered):
   - **Sign in again** opens the connecting sheet over the connection, titled "Sign in again · Gmail": the grant read now,
     in planque's words and KIFF's for its profile, so nothing added since is approved unseen (the iPad goes straight to Face
-    ID; the PM's gate for re-approvals that add tools, 04:02). Then the same approval as connecting: Windows Hello, planque's
+    ID; a re-approval that adds tools is always shown first). Then the same approval as connecting: Windows Hello, planque's
     approve in KIFF's window, the vendor's own page, planque's confirm (`ConnectFlow.ApproveAsync`, `again`). A connected one
     is signed in again in place: planque keeps the sign-in in use until this PC confirms the new one. Where planque says
     `reconnect: fresh`, it's a new sign-in instead (`…/grants/{id}/connect-fresh`, the same body). Why it didn't go stays on

@@ -87,7 +87,7 @@ static class ChromesDialog
             AutomationProperties.SetAutomationId(pair, "chrome.pair");
             pair.Click += (_, _) =>
             {
-                // Pairing binds the approval key the extension trusts later: on the phone, as on Linux (the PM's 20:12).
+                // Pairing binds the approval key the extension trusts later: on the phone, as on Linux.
                 pairSaid = w.Get("approval.device_can_not_approve_approve");
                 _ = Draw();
             };

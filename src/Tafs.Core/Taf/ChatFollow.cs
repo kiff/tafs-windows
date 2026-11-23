@@ -4,7 +4,7 @@ namespace Tafs.Core.Taf;
 
 /// <summary>
 /// How often a thread (a taf's chat, Coach's) is read again while something happens in it: the scale review's finding 4
-/// (kiff/tafs <c>docs/scale.md</c>, the PM's lane item). A Windows PC gets no push, so it polls, but only while the thread
+/// (kiff/tafs <c>docs/scale.md</c>). A Windows PC gets no push, so it polls, but only while the thread
 /// moves: every 2 s for the first minute after its last change, then every 15 s, then every minute after 10 minutes, each
 /// wait jittered ±20% so windows don't read in step. Thirty minutes with no change, it stops: opening the tab again, F5,
 /// writing, or coming back to the window while the run still works reads again and starts over.
