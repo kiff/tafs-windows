@@ -33,6 +33,8 @@ public class AttachmentsTests
         Assert.Equal((1449u, 2576u), FilePrep.Scaled(3024, 5376));
         Assert.Equal((800u, 600u), FilePrep.Scaled(800, 600));
         Assert.Equal(("IMG_0042.jpg", "Photo.jpg"), (FilePrep.JpegName(En, "IMG_0042.HEIC"), FilePrep.JpegName(En, ".png")));
+        // A photo just taken is named "Photo", not after the camera's file, as the iPad's FilePrep.photo(name: Words.Attachment.photo).
+        Assert.Equal("Photo.jpg", FilePrep.JpegName(En, En.Get("attachment.photo")));
         Assert.Equal("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", FilePrep.Sha256(Encoding.ASCII.GetBytes("abc")));
     }
 
