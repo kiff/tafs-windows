@@ -156,6 +156,10 @@ public class HeldAnswerTests
         Assert.Equal("taf_2", CoachInstalls.Find(new VersionInstall("taf_2", 1), tafs)?.Id);
         Assert.Equal("taf_1", CoachInstalls.Find(new VersionInstall("refunds", 1), tafs)?.Id);
         Assert.Null(CoachInstalls.Find(new VersionInstall("Billing", 1), tafs));
+        // Two tafs of that name: none, never a guess at which.
+        var twins = new[] { Taf("taf_1", "Refunds"), Taf("taf_3", "refunds") };
+        Assert.Null(CoachInstalls.Find(new VersionInstall("Refunds", 1), twins));
+        Assert.Equal("taf_3", CoachInstalls.Find(new VersionInstall("taf_3", 1), twins)?.Id);
     }
 
     /// <summary>
