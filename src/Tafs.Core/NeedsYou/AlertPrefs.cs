@@ -55,4 +55,13 @@ public static class AlertsScreen
 
     /// <summary>"Alerts on this Windows PC".</summary>
     public static string OnThisDevice(WordBook w) => w.Get("alert.on_this_device", ("device", w.Get("device.windows")));
+
+    /// <summary>
+    /// Whether Needs you offers alerts (the iPad's <c>AlertsCard</c>, as Windows has it): signed in with KIFF on a PC holding the
+    /// session's device key, for someone who answers the account's holds, while this account's alerts are off here (not chosen,
+    /// or Windows doesn't allow tafs's notifications). An alert comes only while tafs runs, so the card never says "even with
+    /// tafs closed".
+    /// </summary>
+    public static bool Offers(bool signedIn, bool hasDeviceKey, bool mayAnswerHolds, bool alertsOn) =>
+        signedIn && hasDeviceKey && mayAnswerHolds && !alertsOn;
 }

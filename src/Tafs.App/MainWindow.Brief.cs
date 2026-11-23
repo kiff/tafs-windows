@@ -51,6 +51,7 @@ public sealed partial class MainWindow
         if (Pages.Content is NeedsYouPage page) page.ShowUnproven(unproven, mayAnswerHolds);
         ShowSteps();
         ShowCoachWaiting();
+        ShowAlertsCard();
         _ = ReadUnprovenAsync(sessions);
         ShowRequestedHold();
     }

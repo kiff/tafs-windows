@@ -97,6 +97,11 @@ held call raises while tafs runs, `needs-you.md`).
     Settings, then try again." with a link to Windows' notifications settings, and stays off.
   - **The choice is kept for each account** (off until turned on, as the iPad's `alertsEnabledKey`), so an account never
     inherits another's.
+  - **Needs you offers it too** (the iPad's `AlertsCard`, as Windows has it): while this account's alerts are off here,
+    for someone who answers the account's holds on a PC with the session's device key (`AlertsScreen.Offers`), a card at
+    the top says "Know the moment a taf needs you" and "Get an alert when a taf needs you", never "even with tafs closed".
+    Turn on alerts is this switch: Windows is asked first, and if it refuses, the card says where to allow it (Open
+    settings). On, the card goes. There's no offer sheet after sign-in.
   - Both choices are kept beside the session, in `alerts.json`.
   - **Sound** ("For a hold or a halt only") is the PC's, on until turned off. It's off and greyed while alerts are off,
     and keeps its choice for when they're back. With Sound off, it goes to Notification Center without a banner or sound,
