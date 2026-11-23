@@ -102,6 +102,13 @@ public sealed partial class TafPage
                 return;
             }
             (staleVersion, blockedVersion) = (null, null);
+            // What the switch stopped while it waited on the owner's answer, in tafs cloud's words: said here, and in the chat
+            // with Retry on that task's message (one click, never by itself).
+            if (begun.StoppedWords is { } stoppedWords)
+            {
+                (installWhy, switchStopped) = (stoppedWords, (stoppedWords, begun.Stopped));
+                if (tab == TafTab.Chat) ShowChat();
+            }
             if (sw.Draft is null) Settle(await calls.Install(v.N, null), v);
             else
             {
@@ -118,6 +125,17 @@ public sealed partial class TafPage
                 if (knob is not null) await LoadKnobAsync();
             }
         }
+    }
+
+    /// <summary>What the last switch stopped (tafs cloud's words, and the tasks), for the chat's Retry; none once it's sent or gone.</summary>
+    (string Words, IReadOnlyList<StoppedRun> Runs)? switchStopped;
+
+    /// <summary>Retry, for a task the switch stopped: its message sent again as a new one, once, on the owner's click.</summary>
+    async Task RetryStoppedAsync(string text)
+    {
+        switchStopped = null;
+        ShowChat();
+        await SendTextAsync(text);
     }
 
     /// <summary>What an install came to: live, the Card shown again, Draft its Card again, or why.</summary>
