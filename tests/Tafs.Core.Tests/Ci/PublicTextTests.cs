@@ -34,7 +34,7 @@ public partial class PublicTextTests
     ];
 
     /// <summary>What a line may never say, names aside: the private issues, a manager's credit, a rule dated by its day.</summary>
-    [GeneratedRegex(@"kiff/work|\bthe PM\b|\bPM's\b|\(PM[ ,):]|\bowner(?:'s|,) [0-9]{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b")]
+    [GeneratedRegex(@"kiff/work|\bthe PM\b|\bPM's\b|\(PM[ ,):]|\bPM [0-9]{1,2}:[0-9]{2}|\b(review|probe|ask|point|negatives|read) (on|of)\)|\bowner(?:'s|,) [0-9]{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b")]
     private static partial Regex Said();
 
     /// <summary>
@@ -77,6 +77,10 @@ public partial class PublicTextTests
     [InlineData("as the PM's ruling")]
     [InlineData("pricing (PM)")]
     [InlineData("the owner's 22 Nov rule")]
+    [InlineData("the owner, 3 December")]
+    [InlineData("as the PM 20:12 said")]
+    [InlineData("(a review on)")]
+    [InlineData("per the read of)")]
     public void A_thread_a_credit_or_a_date_is_caught(string line) => Assert.NotNull(Problem(line));
 
     [Fact]
@@ -107,6 +111,7 @@ public partial class PublicTextTests
     [InlineData("kiff/cloud#23 and kiff/planque#23 are public issues")]
     [InlineData("tafs-linux's table, the same as Windows'")]
     [InlineData("3 PM in the afternoon")]
+    [InlineData("tafs cloud's words, read at 4:30 PM")]
     public void Plain_text_passes(string line) => Assert.Null(Problem(line));
 
     static IEnumerable<string> Files(string root)
