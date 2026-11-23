@@ -96,10 +96,46 @@ public sealed record AgentDraft(string Id, string AgentId, string Status, string
         return all.Select(c => c.Lines(w, alike)).ToList();
     }
 
+    /// <summary>
+    /// How its Cards show before Windows Hello, as the iPad's <c>DraftCardsView.shown</c>: its new Cards as one, "A new Card"
+    /// (KIFF's draft has one per tool, and five panels read as five Cards to approve), every new Card's lines once, in the
+    /// draft's order, where the first of them is; a Card it revises as it is now and as it will be; one re-issued as it is,
+    /// "Unchanged", its terms once. The others keep their place.
+    /// </summary>
+    public IReadOnlyList<DraftShown> Shown(WordBook w)
+    {
+        var cards = Cards ?? [];
+        var lines = CardLines(w);
+        var fresh = Enumerable.Range(0, cards.Count).Where(i => cards[i].Current is null).ToList();
+        var shown = new List<DraftShown>();
+        for (var i = 0; i < cards.Count; i++)
+        {
+            if (cards[i].Current is { } current)
+            {
+                shown.Add(cards[i].IsUnchanged ? new DraftShown(DraftShownKind.Unchanged, lines[i], [])
+                    : new DraftShown(DraftShownKind.Changes, lines[i], current.Lines(w)));
+                continue;
+            }
+            if (i != fresh[0]) continue;
+            shown.Add(new DraftShown(DraftShownKind.New, fresh.SelectMany(f => lines[f]).Distinct().ToList(), []));
+        }
+        return shown;
+    }
+
+    /// <summary>Each Card it removes, by what it allows now (struck through on the sheet); a Card KIFF sent no terms for has none.</summary>
+    public IReadOnlyList<IReadOnlyList<string>> RetiredLines(WordBook w) =>
+        (Retires ?? []).Select(r => r.Current?.Lines(w) ?? (IReadOnlyList<string>)[]).ToList();
+
     /// <summary>"Refunds assistant's Card": the name it was submitted with, never its agent id; else "The taf's Card".</summary>
     public string CardTitle(WordBook w) =>
         Label?.Trim() is { Length: > 0 } name ? w.Get("coach.card_of", ("owner", name)) : w.Get("card.the_tafs_card");
 }
+
+/// <summary>What a shown group of a draft's Cards is: its new Cards together, a Card it changes, or one it re-issues as it is.</summary>
+public enum DraftShownKind { New, Changes, Unchanged }
+
+/// <summary>One group of a draft's Cards as shown: its lines (after the change), and for a Card it changes, its lines now.</summary>
+public sealed record DraftShown(DraftShownKind Kind, IReadOnlyList<string> Lines, IReadOnlyList<string> Now);
 
 /// <summary>KIFF's drafts, as the iPad's <c>KIFFClient.draft</c>: <c>GET /v1/me/agent-drafts/{id}</c> as the session.</summary>
 public static class KiffDrafts

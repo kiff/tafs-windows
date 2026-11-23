@@ -66,6 +66,41 @@ public class KiffDraftsTests
         Assert.Equal(["KIFF's own line"], kiff.CardLines(En)[0]);
     }
 
+    /// <summary>
+    /// As the iPad's DraftCardsView.shown: the new Cards as one, every line once in the draft's order, where the first of them
+    /// is; a revised Card as now and after; one re-issued as it is, its terms once; and each Card removed, by its lines now.
+    /// </summary>
+    [Fact]
+    public void A_draft_s_Cards_show_new_ones_together_and_a_change_as_now_and_after()
+    {
+        var d = Draft("""
+            {"lines": ["Read charges"], "revises": "crd_1", "current": {"lines": ["Read charges", "€50 in total a day"]}},
+            {"lines": ["Send an email", "20 calls a day"]},
+            {"lines": ["Keep notes"], "revises": "crd_2", "unchanged": true, "current": {"lines": ["Keep notes"]}},
+            {"lines": ["Post to Slack", "20 calls a day"]}
+            """, """, "retires": [{"id": "crd_3", "current": {"lines": ["Refund a payment: up to €100 each"]}}, {"id": "crd_4"}]""");
+        var shown = d.Shown(En);
+        Assert.Equal(3, shown.Count);
+        Assert.Equal(new DraftShown(DraftShownKind.Changes, ["Read charges"], ["Read charges", "€50 in total a day"]), shown[0], Same);
+        // The new Cards at the first one's place, their lines once.
+        Assert.Equal(new DraftShown(DraftShownKind.New, ["Send an email", "20 calls a day", "Post to Slack"], []), shown[1], Same);
+        Assert.Equal(new DraftShown(DraftShownKind.Unchanged, ["Keep notes"], []), shown[2], Same);
+        Assert.Equal([["Refund a payment: up to €100 each"], []], d.RetiredLines(En));
+        // A draft of new Cards only: one "A new Card"; no Cards: nothing.
+        Assert.Equal(DraftShownKind.New, Assert.Single(Draft("""{"lines": ["a"]}, {"lines": ["b"]}""").Shown(En)).Kind);
+        Assert.Empty(Read("""{"id": "d", "agent_id": "a", "status": "draft", "version": "v"}""")!.Shown(En));
+        Assert.Empty(Read("""{"id": "d", "agent_id": "a", "status": "draft", "version": "v"}""")!.RetiredLines(En));
+    }
+
+    static readonly DraftShownComparer Same = new();
+
+    sealed class DraftShownComparer : IEqualityComparer<DraftShown>
+    {
+        public bool Equals(DraftShown? x, DraftShown? y) =>
+            x is not null && y is not null && x.Kind == y.Kind && x.Lines.SequenceEqual(y.Lines) && x.Now.SequenceEqual(y.Now);
+        public int GetHashCode(DraftShown d) => d.Kind.GetHashCode();
+    }
+
     /// <summary>Two grants that read alike, on one Card or two, each add their action in words; one alone stays as it is.</summary>
     [Fact]
     public void Grants_that_read_alike_add_their_action()
