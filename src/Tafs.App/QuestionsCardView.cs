@@ -172,9 +172,14 @@ sealed class QuestionsCardView : StackPanel
         send?.Invoke(QuestionAnswers.Encode(answers));
     }
 
-    /// <summary>An answered card, folded to one line, as the iPad's <c>OutcomeLine</c>: a tick in the green, its words soft, at 14.</summary>
+    /// <summary>
+    /// An answered card, folded to one line, as the iPad's <c>OutcomeLine</c>: a tick in the green, its words soft, at 14. With
+    /// <paramref name="detail"/> (what an approval signed), its lines show dim under the folded line; opened, the line stands
+    /// alone over the Card in full, as the iPad's <c>signedCardView</c>: <paramref name="detailTitle"/> above the lines, in a
+    /// raised box, with nothing to answer. A tap on the line folds it again.
+    /// </summary>
     internal static Border Outcome(string text, Func<string, Brush> brush, string glyph = "\uEC61", string tone = "TafsOk",
-        IReadOnlyList<string>? detail = null)
+        IReadOnlyList<string>? detail = null, string? detailTitle = null)
     {
         var line = new Grid { ColumnSpacing = 8 };
         line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -183,8 +188,8 @@ sealed class QuestionsCardView : StackPanel
         line.Children.Add(new FontIcon { Glyph = glyph, FontSize = 14, Foreground = brush(tone), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 0, 0) });
         var words = new StackPanel { Spacing = 2 };
         words.Children.Add(CoachPanel.Words(text, 14, "TafsSoftText"));
-        // What was approved, folded under the line until opened, as the iPad's OutcomeLine with its thin ⌄.
-        var more = new StackPanel { Spacing = 2, Visibility = Visibility.Collapsed };
+        // What was approved, dim under the folded line, as the iPad's OutcomeLine with its thin ⌄.
+        var more = new StackPanel { Spacing = 2 };
         foreach (var each in detail ?? []) more.Children.Add(CoachPanel.Words(each, 12, "TafsDimText"));
         words.Children.Add(more);
         Grid.SetColumn(words, 1);
@@ -200,21 +205,32 @@ sealed class QuestionsCardView : StackPanel
         // (the Expand/Collapse pattern, FoldButton).
         var toggle = new FoldButton { Content = card, Style = (Style)Application.Current.Resources["TafsBox"], HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Stretch };
+        // Opened: the Card it signed, in full, under the line.
+        var signed = new StackPanel { Spacing = 6 };
+        if (detailTitle is { Length: > 0 } title) signed.Children.Add(new TextBlock { Text = title, Style = (Style)Application.Current.Resources["TafsEyebrow"] });
+        foreach (var each in detail ?? [])
+            signed.Children.Add(new TextBlock { Text = each, FontSize = 12, TextWrapping = TextWrapping.Wrap, Foreground = brush("TafsInk"),
+                FontFamily = new FontFamily("Cascadia Mono, Consolas, Courier New") });
+        var full = new Border { Child = signed, Padding = new Thickness(12), CornerRadius = new CornerRadius(12), Background = brush("TafsRaised"),
+            Visibility = Visibility.Collapsed };
+        AutomationProperties.SetAutomationId(full, "approval.signed-card");
         AutomationProperties.SetName(toggle, text);
         toggle.Toggled += open =>
         {
             if (open)
             {
-                more.Visibility = Visibility.Visible;
+                more.Visibility = Visibility.Collapsed;
+                full.Visibility = Visibility.Visible;
                 chevron.Glyph = "";
             }
             else
             {
-                more.Visibility = Visibility.Collapsed;
+                more.Visibility = Visibility.Visible;
+                full.Visibility = Visibility.Collapsed;
                 chevron.Glyph = "";
             }
         };
-        return new Border { Child = toggle };
+        return new Border { Child = new StackPanel { Spacing = 8, Children = { toggle, full } } };
     }
 
     /// <summary>Why a tap ended without reaching Setup, as the iPad's <c>CardNote</c>: an ⓘ and the words, soft, at 13.</summary>
