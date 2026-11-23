@@ -2205,6 +2205,8 @@ public sealed partial class MainWindow : Window
                 DoorSigning: DoorSigningFor(taf),
                 // A Slack door: planque subscribes its channel behind Windows Hello, then tafs cloud makes it; removing stops it first.
                 SlackDoor: SlackDoorFor(taf),
+                // Setup's own Connect again: that same connection signed in again here, on a PC that approves.
+                Connecting: ConnectingFor(),
                 Revoke: RevokeFor(taf), RevokeNeedsApprover: Manages(taf) && App.Sessions.Kept()?.Mode == ApprovalMode.View,
                 // Setup › Starts when and Results go to: when it starts and where results go, as Home says, and the changes made at once.
                 Change: cloudChange, Starts: taf.Starts, Paused: taf.State == "paused", Email: kiffAccount?.Email, TimeZone: kiffAccount?.TimeZone,

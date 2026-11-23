@@ -91,6 +91,23 @@ public class ConnectFlowTests
     }
 
     [Fact]
+    public async Task A_taf_s_Connect_again_tafs_cloud_says_is_fresh_goes_to_connect_fresh()
+    {
+        // planque says nothing of it, tafs cloud's connect_again does: a new sign-in, as the iPad's fresh || reconnectsFresh.
+        var calls = new Calls { Now = [Grant("needs_reconnect")] };
+        calls.Taps.Enqueue((200, """{"status": "approved", "sign_in_url": "https://accounts.google.com/o"}"""));
+        calls.Taps.Enqueue((200, """{"status": "connected"}"""));
+        Assert.True((await ConnectFlow.ApproveAsync(En, "t_1", "grt_1", "d1", null, calls.Make(), again: true, fresh: true)).Connected);
+        Assert.Contains("""tap win_az /v1/accounts/t_1/grants/grt_1/connect-fresh {"digest":"d1"}""", calls.Said);
+        // Fresh means signing in again: a first connection is approved as ever.
+        var first = new Calls { Now = [Grant("pending")] };
+        first.Taps.Enqueue((200, """{"status": "approved", "sign_in_url": "https://accounts.google.com/o"}"""));
+        first.Taps.Enqueue((200, """{"status": "connected"}"""));
+        await ConnectFlow.ApproveAsync(En, "t_1", "grt_1", "d1", null, first.Make(), fresh: true);
+        Assert.Contains("""tap win_az /v1/accounts/t_1/grants/grt_1/approve {"digest":"d1"}""", first.Said);
+    }
+
+    [Fact]
     public async Task An_open_window_is_used_with_no_Windows_Hello_and_one_that_ended_is_opened_again_once()
     {
         var calls = new Calls { Read = new OpenWindow(Win, DateTimeOffset.UtcNow.AddMinutes(4), true, "device", null) };
