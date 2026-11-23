@@ -241,6 +241,7 @@ public sealed partial class MainWindow : Window
         HelloState.Changed += () => DispatcherQueue.TryEnqueue(() => { if (Pages.Content is NeedsYouPage or TafPage) ShowSteps(); });
         NeedsYouPage.HeldAnswerChosen += (call, answer) => _ = AnswerHeldAsync(call, answer);
         NeedsYouPage.AllowChosen += call => _ = OpenAllowAsync(call);
+        NeedsYouPage.InstallChosen += call => _ = InstallFromHoldAsync(call);
         // "Change the limit in Coach mode": Coach improving the call's taf, as the iPad's improveTaf.
         NeedsYouPage.ChangeLimitChosen += call =>
         {
@@ -839,7 +840,7 @@ public sealed partial class MainWindow : Window
     /// signed by the session's device key. Taken, the call leaves Needs you and Home is read again; not taken, why shows
     /// at the top and a lasting refusal stays with the call. A sign-out meanwhile ends it quietly.
     /// </summary>
-    async Task AnswerHeldAsync(HeldCall call, HeldAnswer answer)
+    async Task AnswerHeldAsync(HeldCall call, HeldAnswer answer, bool installed = false)
     {
         var w = App.Words;
         if (App.Sessions.Kept() is not { } session || sampleHeld || call.KiffId is not { } id || sendingHolds.Contains(id)) return;
@@ -877,7 +878,7 @@ public sealed partial class MainWindow : Window
                 try { return await KiffHttp.PostAsync(path, body, bearer: bearer); }
                 catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException) { return (0, ""); }
             },
-            () => SigningTime.Next(DateTimeOffset.UtcNow), () => reading == sessions);
+            () => SigningTime.Next(DateTimeOffset.UtcNow), () => reading == sessions, installed);
         if (answered.Stopped || reading != sessions) return;
         sendingHolds.Remove(id);
         if (answered.Taken)

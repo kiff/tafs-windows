@@ -139,6 +139,7 @@ public sealed partial class TafPage
         else versionsWhy = answer.Why ?? App.Words.Get("kiff.kiff_did_not_answer_expected");
         ShowVersionLine();
         if (tab == TafTab.Card && cardScreen == CardScreen.Versions) ShowCards();
+        StartHoldInstall();
     }
 
     /// <summary>Versions, as the iPad's panel: the intro, a switch under way, then each version newest first, or one so far.</summary>

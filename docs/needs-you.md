@@ -57,6 +57,17 @@ As the iPad's `HeldCallCard.answers`, for how Windows signs (`HeldAnswers`, belo
   a PC can't make one. So Windows offers no Approve once, no Extra room and no Allow this from now on for it, only
   "Approve on your phone instead", with no gate. `HeldAnswers.AnswerAsync` refuses an allowing answer on it too, behind
   the card, asking and sending nothing. Refuse and the next steps still go.
+- **Coach's held install** (KIFF's hold for a `version_install`, the iPad's `beginCoachInstall` and
+  `useVersion(approving:)`): its answer is **Install with Windows Hello**, never Approve once.
+  1. The taf is found by tafs cloud's id, else by its name (`CoachInstalls.Find`). With none: "Coach asked to install a
+     version of a taf that isn't here."
+  2. Its versions are read. A version it doesn't have says so. One already live is approved once at once, which only
+     tells Coach so.
+  3. Otherwise the taf's page opens on its versions and installs it as Install this version does, with what's in the way
+     stopped, its Card read first when it brings one.
+  4. Only once the version is live is the hold approved once, with its own approval (`HeldAnswers.AnswerAsync`'s
+     `installed`). An Approve once on it before that is refused. Cancelled or refused, the hold stays and nothing is answered.
+  Someone who can't install here (not managing the taf, or no passkey that signs) is told to answer in KIFF.
 - **Change the limit in Coach mode** (the iPad's `changeLimit`), outlined: on a call over a total, after Extra room, and
   on one KIFF takes only this person's refusal for and approving once can't pass. Only for someone who may improve the
   call's taf in Coach (they manage it and may use Coach). Coach opens improving that taf: a lasting change is Coach's.

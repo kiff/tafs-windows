@@ -22,7 +22,7 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     TafRemove? Remove = null, Func<HttpMethod, string, byte[]?, Task<CloudRead>>? Change = null, TafStarts? Starts = null,
     bool Paused = false, string? Email = null, string? TimeZone = null, Action? AskCoach = null, SetupScreen SetupOn = SetupScreen.Main,
     TafHealth? Health = null, Action<string>? AskCoachWith = null, Action? OpenUsage = null, Func<bool>? MayUseCoach = null,
-    CardScreen CardOn = CardScreen.Main, bool CreditsPrevious = false, TafTrying? Trying = null, TafInTrial? InTrial = null,
+    CardScreen CardOn = CardScreen.Main, bool CreditsPrevious = false, TafHoldInstall? HoldInstall = null, TafTrying? Trying = null, TafInTrial? InTrial = null,
     TafInstalling? Installing = null, Func<int, KnobItem, Task<KnobEventResult>>? ApproveEvent = null, TafSharing? Share = null,
     Action<string>? AskCoachAbout = null, Func<Task<string?>>? Revoke = null, bool RevokeNeedsApprover = false, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null,
     Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafSteps? Steps = null, TafFiles? Files = null, TafDoorSigning? DoorSigning = null,
@@ -80,6 +80,13 @@ public delegate Task<(int Status, string Body, System.Net.Http.HttpResponseMessa
 
 /// <summary>A run's stream opened again (a GET to tafs cloud's stream host), as the iPad's <c>resumeRun</c>.</summary>
 public delegate Task<(int Status, string Body, System.Net.Http.HttpResponseMessage? Open)> TafResumeStream(string path, CancellationToken cancel);
+
+/// <summary>
+/// Coach's held install, opened from Needs you (the iPad's <c>beginCoachInstall</c> and <c>useVersion(approving:)</c>): version
+/// <paramref name="N"/> installed on this page once its versions are read, with what's in the way stopped, its Card read first
+/// when it brings one; <paramref name="AfterLive"/> answers the hold, only once the version is live.
+/// </summary>
+public sealed record TafHoldInstall(int N, Func<Task> AfterLive);
 
 /// <summary>A taf's halt row, for whoever manages the taf: how its halt is read, and what opens its screen.</summary>
 public sealed record TafHalt(Func<Task<Halt>> Read, Action Open);
