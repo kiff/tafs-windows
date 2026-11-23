@@ -38,6 +38,7 @@ public sealed partial class TafPage
     internal void CardUnitsChanged()
     {
         if (tab == TafTab.Setup) ShowSetup();
+        ShowWork();
     }
 
     /// <summary>A step answered or ended from its page: its work read again, as the iPad's <c>YourStepCard(onTaf:)</c>.</summary>
@@ -59,6 +60,15 @@ public sealed partial class TafPage
         {
             ShowRun(w, run);
             return;
+        }
+        // A Card unit's requests before the work, as the iPad's Activity: the page's own, else Home's for this taf; then
+        // tafs cloud's notice. Each with Coach and Dismiss where this person may.
+        if (opening is { CardUnit: { } panel } o)
+        {
+            var last = CloudPages().Pages.LastOrDefault();
+            foreach (var ask in last?.CardUnits ?? o.CardUnitsListed?.Invoke() ?? [])
+                if (panel(ask) is { } drawn) WorkHost.Children.Add(drawn);
+            if (last?.CardUnitsNotice is { } notice) WorkHost.Children.Add(Words(notice, 13, "TafsDimText"));
         }
         if (work is not null || workWhy is not null) WorkHost.Children.Add(WorkPanel(w));
         WorkHost.Children.Add(RunsPanel(w));
