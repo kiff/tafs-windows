@@ -143,4 +143,25 @@ public class AppConnectionsTests
         Assert.True((await AppConnections.EndAsync(En, ["a", "b"], "Clear?", _ => Task.FromResult(StepConfirmed.Yes), SignOut, () => current)).Stopped);
         Assert.Equal(["a"], sent);
     }
+
+    [Fact]
+    public void A_connection_s_page_shows_planque_s_known_actions_in_its_order()
+    {
+        PlanqueGrant With(IReadOnlyList<GrantAction>? actions) =>
+            new("g", "connected", "t", "d", new GrantRequest("gmail", "rae", []), []) { Actions = actions };
+        Assert.False(AppConnections.RowFromPlanque(With(null)));
+        Assert.True(AppConnections.RowFromPlanque(With([])));
+        var g = With([
+            new GrantAction("remove", "Remove access", "delete", "Rae stops reading mail."),
+            new GrantAction("sign_in_again", "Sign in again", "approve", null),
+            new GrantAction("sign_in_again", "Give a new key", "key", null),
+            new GrantAction("rename", "Rename", "patch", null),
+            new GrantAction("remove", "Remove", "patch", null),
+            new GrantAction("remove_unfinished", "Remove the unfinished sign-in", "delete", null),
+            new GrantAction("", "", "", null),
+        ]);
+        Assert.Equal(["remove", "sign_in_again", "sign_in_again", "remove_unfinished"], AppConnections.KnownActions(g).Select(a => a.Id));
+        Assert.Equal([true, false, false, true], AppConnections.KnownActions(g).Select(AppConnections.Removes));
+        Assert.Empty(AppConnections.KnownActions(With(null)));
+    }
 }

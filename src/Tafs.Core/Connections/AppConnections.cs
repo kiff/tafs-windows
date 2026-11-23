@@ -35,6 +35,22 @@ public static class AppConnections
 
     public static bool Cancellable(PlanqueGrant g) => WaitingSignIn(g) || PendingRequest(g);
 
+    /// <summary>
+    /// The row planque draws, as the iPad's <c>rowFromPlanque</c>: when it sends actions for the connection, the row shows its
+    /// name, the tafs that use it and its health, and opens the connection's page, where its actions are.
+    /// </summary>
+    public static bool RowFromPlanque(PlanqueGrant g) => g.Actions is not null;
+
+    /// <summary>
+    /// The actions this app knows, in planque's order, as the iPad's <c>Action.known</c>: Sign in again, by approve or by a key,
+    /// and Remove or Remove unfinished, by delete. Any other is left out, never guessed at.
+    /// </summary>
+    public static IReadOnlyList<GrantAction> KnownActions(PlanqueGrant g) => (g.Actions ?? []).Where(a =>
+        (a.Id == "sign_in_again" && a.How is "approve" or "key") || (a.Id is "remove" or "remove_unfinished" && a.How == "delete")).ToList();
+
+    /// <summary>An action that ends the connection (<c>delete</c>): asked first, in planque's words, naming what stops.</summary>
+    public static bool Removes(GrantAction a) => a.How == "delete";
+
     /// <summary>The row's word for ending it: "Cancel the request", Cancel for a sign-in that waits, else Remove access.</summary>
     public static string EndWord(WordBook w, PlanqueGrant g) =>
         PendingRequest(g) ? w.Get("connect.cancel_request.button") : WaitingSignIn(g) ? w.Get("common.cancel") : w.Get("connect.disconnect_button");
