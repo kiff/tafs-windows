@@ -35,6 +35,18 @@ sealed class ReceiptSheet
     /// <summary>How the sheet reports a payment to tafs cloud (<c>POST /v1/record/{trace_id}/report</c>): whether it took it. None signed out.</summary>
     public static Func<string, Task<bool>>? SendReport { get; set; }
 
+    /// <summary>
+    /// The pictures a paired Chrome kept before this operation's steps (planque's safe route, signed by this PC's device key), by
+    /// KIFF's <c>proposal_id</c>; none on any failure, so the receipt shows no link. None signed out.
+    /// </summary>
+    public static Func<string, Task<IReadOnlyList<Tafs.Core.Kiff.ShotRef>>>? Shots { get; set; }
+
+    /// <summary>One step's picture, read and checked (<see cref="Tafs.Core.Kiff.ChromeShots.Read"/>). None signed out.</summary>
+    public static Func<string, Task<(Tafs.Core.Kiff.ShotRead Read, Tafs.Core.Kiff.ChromeShot? Shot)>>? Shot { get; set; }
+
+    /// <summary>"See the page before this step", one a picture planque kept for the line's operation; empty until read.</summary>
+    readonly StackPanel shots = new() { Spacing = 8 };
+
     /// <summary>A payment was reported from a receipt: its taf is halted, so Home is read again.</summary>
     public static event Action? Reported;
 
@@ -81,6 +93,9 @@ sealed class ReceiptSheet
         body.Children.Add(facts);
         body.Children.Add(happened);
         if (entry.Call?.Receipt is not null) body.Children.Add(receipt);
+        // The pictures a paired Chrome kept before this operation's steps (the iPad's ChromeShotView): a link each, once read.
+        body.Children.Add(shots);
+        if (entry.Call?.ProposalId is { Length: > 0 } operation && Shots is { } list) _ = LoadShotsAsync(w, operation, list);
         // Where tafs cloud offers it, until it's reported: outlined in red, as the iPad's.
         if (ReportPayment.Offers(entry) && SendReport is not null)
         {
@@ -93,6 +108,79 @@ sealed class ReceiptSheet
             body.Children.Add(report);
         }
         return body;
+    }
+
+    /// <summary>The links, one per picture planque kept for the operation, oldest first; none on any failure.</summary>
+    async Task LoadShotsAsync(WordBook w, string operation, Func<string, Task<IReadOnlyList<Tafs.Core.Kiff.ShotRef>>> list)
+    {
+        IReadOnlyList<Tafs.Core.Kiff.ShotRef> kept;
+        // Unawaited: any failure (offline, no device key to sign with) is no link, never an escape.
+        try { kept = await list(operation); }
+        catch (Exception) { return; }
+        foreach (var shot in kept)
+        {
+            var open = Wide(w.Get("chrome.shot_open"), "TafsOutlineButton", () => ShowShot(w, shot.Step));
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(open, "record.chromeShot");
+            shots.Children.Add(open);
+        }
+    }
+
+    /// <summary>
+    /// The picture of a step (the iPad's <c>ChromeShotView</c>), in this sheet's place: "Before this step", the picture, when it
+    /// was taken and that it's kept for 30 days; or that none is kept; or that it couldn't be loaded, never a blank. Back to the
+    /// receipt with Done.
+    /// </summary>
+    void ShowShot(WordBook w, string step)
+    {
+        var view = new StackPanel { Spacing = 12 };
+        view.Children.Add(Words(w.Get("chrome.shot_title"), 26, "TafsInk", FontWeights.Bold));
+        var place = new StackPanel { Spacing = 10 };
+        place.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Left });
+        view.Children.Add(place);
+        view.Children.Add(Wide(w.Get("common.done"), "TafsOutlineButton", () => scroller.Content = body));
+        scroller.Content = view;
+        _ = LoadShotAsync(w, step, place);
+    }
+
+    async Task LoadShotAsync(WordBook w, string step, StackPanel place)
+    {
+        (Tafs.Core.Kiff.ShotRead Read, Tafs.Core.Kiff.ChromeShot? Shot) read = (Tafs.Core.Kiff.ShotRead.Failed, null);
+        // Unawaited: any failure reads as "The picture couldn't be loaded".
+        try { if (Shot is { } get) read = await get(step); }
+        catch (Exception) { }
+        place.Children.Clear();
+        if (read is { Read: Tafs.Core.Kiff.ShotRead.Shown, Shot: { } shot })
+        {
+            var image = new Image { Stretch = Stretch.Uniform, MaxHeight = 360, HorizontalAlignment = HorizontalAlignment.Left };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(image, w.Get("chrome.shot_title"));
+            if (await Drawn(image, shot.Image))
+            {
+                place.Children.Add(new Border { Child = image, BorderBrush = Brush("TafsLine"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6),
+                    HorizontalAlignment = HorizontalAlignment.Left });
+                place.Children.Add(Words(Receipt.Shown(w, shot.TakenAt, TimeZoneInfo.Local), 13, "TafsDim"));
+                place.Children.Add(Words(w.Get("chrome.shot_kept"), 13, "TafsDim"));
+                return;
+            }
+        }
+        place.Children.Add(read.Read == Tafs.Core.Kiff.ShotRead.None
+            ? Words(w.Get("chrome.shot_none"), 15, "TafsDim")
+            : Words(w.Get("chrome.shot_failed"), 15, "TafsNo"));
+    }
+
+    /// <summary>The picture decoded on this PC from its checked bytes; one Windows can't decode is no picture.</summary>
+    static async Task<bool> Drawn(Image image, byte[] bytes)
+    {
+        try
+        {
+            using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+            await stream.WriteAsync(System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeBufferExtensions.AsBuffer(bytes));
+            stream.Seek(0);
+            var bitmap = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage();
+            await bitmap.SetSourceAsync(stream);
+            image.Source = bitmap;
+            return true;
+        }
+        catch (Exception) { return false; }
     }
 
     enum ReportPhase { Asking, Sending, Done, Failed }
