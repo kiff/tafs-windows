@@ -67,7 +67,7 @@ public static class SignInScreen
     public static readonly IReadOnlySet<string> LegalLanguages = new HashSet<string>
     {
         "de", "es", "fr", "it", "nl", "pl", "pt", "ko", "ja", "et", "lt", "lv", "cs", "sk", "sl", "hu", "ro", "bg", "hr", "tr",
-        "id", "vi", "th", "zh", "ar", "sr", "sq", "ka", "hy", "az", "bn", "he", "ca", "mk", "mn", "ne", "km", "lo", "el", "tk", "hi",
+        "id", "vi", "th", "zh", "ar", "sr", "sq", "ka", "hy", "az", "bn", "he", "ca", "mk", "mn", "ne", "km", "lo", "el", "tk", "hi", "ur",
         // Brazilian Portuguese has its own pages, in lower case (kiff.dev answers 404 for /pt-BR/).
         "pt-br",
     };

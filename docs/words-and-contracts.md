@@ -14,7 +14,7 @@ Run `dotnet run --project tools/Tafs.Ci -- sync` first: they land in `shared/`, 
 - `PluralRules` has CLDR's rules for whole numbers in every language tafs has words for (languages.json's
   `all`, pt-BR, and batch 5's six), so a language that ships later needs no code: Polish has one/few/many,
   Arabic zero/one/two/few/many, each beside `other`.
-- **The languages are tafs's, read from languages.json's `shipped`** at the pin: 42 today (Turkmen and Hindi the newest), Arabic and Hebrew
+- **The languages are tafs's, read from languages.json's `shipped`** at the pin: 43 today (Urdu the newest), Arabic, Hebrew and Urdu
   right to left. Nothing in code lists them, except the picker's names (`AppLanguage.Named`, every language
   tafs has words for; a test fails if a shipped one has none).
 - **What .NET has no formatter for comes from CLDR** (45), the data the iPad's formatters read: past times

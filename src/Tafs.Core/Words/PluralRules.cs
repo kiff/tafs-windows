@@ -16,7 +16,7 @@ public static class PluralRules
         switch (language)
         {
             case "en": case "de": case "es": case "it": case "nl": case "ca": case "et":
-            case "el": case "hu": case "bg": case "tr": case "az": case "sq": case "ka": case "mn": case "ne": case "tk":
+            case "el": case "hu": case "bg": case "tr": case "az": case "sq": case "ka": case "mn": case "ne": case "tk": case "ur":
                 return n == 1 ? "one" : "other";
             // 0 and 1 are "one": Portuguese (CLDR pt, as the iPad and Linux format it, pt-BR too), French, Armenian, Bengali, Hindi.
             case "pt": case "pt-BR": case "fr": case "hy": case "bn": case "hi":

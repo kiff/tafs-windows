@@ -359,8 +359,8 @@ public static class KiffHeld
                     _ => "è",
                 };
                 return d + ca;
-            // ICU's own data: Mongolian takes the English "th", Lao Thai's "ที่", Khmer its "ទី".
-            case "mn": return d + "th";
+            // ICU's own data: Mongolian and Urdu take the English "th", Lao Thai's "ที่", Khmer its "ទី".
+            case "mn" or "ur": return d + "th";
             case "km": return "ទី" + d;
             case "lo": return "ที่​" + d;
             case "az": return d + "'inci";

@@ -97,7 +97,7 @@ public partial class App : Application
     {
         // Monospaced text in a language whose letters join is drawn in the plain face (Monospace.Face).
         if (Tafs.Core.Words.Locale.JoinedScript(language)) Current.Resources["TafsMono"] = Microsoft.UI.Xaml.Media.FontFamily.XamlAutoFontFamily;
-        if (language is not ("ja" or "ko" or "zh-Hant" or "ar")) return;
+        if (language is not ("ja" or "ko" or "zh-Hant" or "ar" or "ur")) return;
         if (!Current.Resources.TryGetValue("TafsEyebrow", out var found) || found is not Style eyebrow) return;
         // The style itself, changed before anything draws with it (a style is sealed once used): Theme.xaml's own templates
         // reach it inside their dictionary, where a replacement at the app's level wouldn't. Its size and theme-following

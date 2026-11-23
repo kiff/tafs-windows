@@ -53,7 +53,7 @@ public static class AppLanguage
         ("bg", "Български"), ("hr", "Hrvatski"), ("tr", "Türkçe"), ("id", "Indonesia"), ("vi", "Tiếng Việt"), ("th", "ไทย"),
         ("zh-Hant", "中文（繁體）"), ("ar", "العربية"), ("sr-Latn", "Srpski (latinica)"), ("sq", "Shqip"), ("ka", "ქართული"),
         ("hy", "Հայերեն"), ("az", "Azərbaycan"), ("bn", "বাংলা"), ("he", "עברית"), ("ca", "Català"), ("mk", "Македонски"),
-        ("mn", "Монгол"), ("ne", "नेपाली"), ("km", "ខ្មែរ"), ("lo", "ລາວ"), ("tk", "Türkmen dili"), ("hi", "हिन्दी"), ("el", "Ελληνικά"), ("pt-BR", "Português (Brasil)"),
+        ("mn", "Монгол"), ("ne", "नेपाली"), ("km", "ខ្មែរ"), ("lo", "ລາວ"), ("tk", "Türkmen dili"), ("hi", "हिन्दी"), ("ur", "اردو"), ("el", "Ελληνικά"), ("pt-BR", "Português (Brasil)"),
     ];
 
     /// <summary>The in-app picker's rows, after this PC's own language: <see cref="Named"/>'s languages tafs ships, in that order.</summary>
