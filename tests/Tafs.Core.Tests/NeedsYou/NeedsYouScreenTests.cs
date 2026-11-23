@@ -144,4 +144,21 @@ public class NeedsYouScreenTests
             .Concat(calls.SelectMany(c => new[] { NeedsYouScreen.SidebarRow(w, c, TimeZoneInfo.Utc).Line, NeedsYouScreen.OverviewRow(w, c, TimeZoneInfo.Utc).AnswerBy }));
         Assert.All(all, line => { Assert.False(string.IsNullOrWhiteSpace(line)); Assert.DoesNotContain("{", line); });
     }
+
+    /// <summary>A knock at a taf's door waits for the owner too: each taf with any, in Home's order, with how many.</summary>
+    [Fact]
+    public void Tafs_with_knocks_at_their_doors_are_listed_with_how_many()
+    {
+        var tafs = Tafs.Core.Home.HomeList.Read(En, System.Text.Json.JsonDocument.Parse("""
+            {"tafs": [{"id": "t1", "name": "Refunds", "state": "idle", "color": 0, "waiting": 0,
+                       "doors": [{"app": "email", "open": true, "knocks": 2}, {"app": "slack", "open": true, "knocks": 1}]},
+                      {"id": "t2", "name": "Quiet", "state": "idle", "color": 0, "waiting": 0, "doors": [{"app": "email", "open": true}]},
+                      {"id": "t3", "name": "Inbox", "state": "idle", "color": 0, "waiting": 0, "doors": [{"app": "email", "open": false, "knocks": 1}]},
+                      {"id": "t4", "name": "Odd", "state": "idle", "color": 0, "waiting": 0, "doors": [{"knocks": -4}, "x"]},
+                      {"id": "t5", "name": "None", "state": "idle", "color": 0, "waiting": 0}]}
+            """).RootElement, TimeZoneInfo.Utc).Tafs;
+        Assert.Equal([3, 0, 1, 0, 0], tafs.Select(t => t.Knocks));
+        Assert.Equal([("t1", "3 knocks at its doors. Nothing was done."), ("t3", "Someone knocked at its door. Nothing was done.")],
+            NeedsYouScreen.Knocked(En, tafs).Select(k => (k.Taf.Id, k.Line)));
+    }
 }

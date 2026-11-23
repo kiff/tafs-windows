@@ -287,7 +287,8 @@ public sealed partial class NeedsYouPage : Page
     /// <summary>Nothing waiting only with no held call and no call to say about, as the iPad's.</summary>
     void ShowEmpty()
     {
-        Empty.Visibility = views.Count == 0 && unproven.Count == 0 && steps.Count == 0 && waitingShown == 0 && cardUnitsShown == 0 ? Visibility.Visible : Visibility.Collapsed;
+        Empty.Visibility = views.Count == 0 && unproven.Count == 0 && steps.Count == 0 && waitingShown == 0 && cardUnitsShown == 0 && knockedShown == 0
+            ? Visibility.Visible : Visibility.Collapsed;
         // Board 6, nothing waiting, as the iPad's NeedsYouView: drawn once, in this page's theme.
         if (Empty.Visibility == Visibility.Visible && EmptyArt.Child is null) EmptyArt.Child = Illustrations.NothingWaiting();
     }
@@ -405,6 +406,52 @@ public sealed partial class NeedsYouPage : Page
         CardUnitRequests.Children.Clear();
         foreach (var ask in asks) CardUnitRequests.Children.Add(panel(ask));
         cardUnitsShown = asks.Count;
+        ShowEmpty();
+    }
+
+    int knockedShown;
+
+    /// <summary>
+    /// The tafs with a knock waiting at their doors, as the iPad's NeedsYouView: each on a panel with an amber edge, its
+    /// avatar, its name and how many knocked, and a chevron; it opens the taf's Activity, where its knocks are answered.
+    /// </summary>
+    internal void ShowKnocked(IReadOnlyList<(Tafs.Core.Home.HomeTaf Taf, string Line)> knocked, Action<string> open)
+    {
+        var w = App.Words;
+        KnockedTafs.Children.Clear();
+        foreach (var (taf, line) in knocked)
+        {
+            var row = new Grid { ColumnSpacing = 10, ColumnDefinitions = { new() { Width = GridLength.Auto }, new(), new() { Width = GridLength.Auto } } };
+            var avatar = new Border
+            {
+                Width = 32, Height = 32, CornerRadius = new CornerRadius(10), Background = RecordLineView.Colour(taf.Colour), VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock { Text = Tafs.Core.Taf.TafScreen.Initial(taf.Name), FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Colors.White), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+            };
+            AutomationProperties.SetAccessibilityView(avatar, Microsoft.UI.Xaml.Automation.Peers.AccessibilityView.Raw);
+            row.Children.Add(avatar);
+            var words = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+            words.Children.Add(new TextBlock { Text = taf.Name, FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Foreground = ChatViews.Themed("TafsInk") });
+            words.Children.Add(new TextBlock { Text = line, FontSize = 14, TextWrapping = TextWrapping.Wrap, Foreground = ChatViews.Themed("TafsSoft") });
+            Grid.SetColumn(words, 1);
+            row.Children.Add(words);
+            var chevron = new FontIcon { Glyph = "", FontSize = 13, Foreground = ChatViews.Themed("TafsDim"), VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(chevron, 2);
+            row.Children.Add(chevron);
+            var button = new Button
+            {
+                Content = row, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Background = ChatViews.Themed("TafsPanel"), BorderBrush = ChatViews.Themed("TafsAmberEdge"), BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(18), Padding = new Thickness(16),
+            };
+            AutomationProperties.SetName(button, taf.Name + ", " + line);
+            AutomationProperties.SetHelpText(button, w.Get("needs_you.opens_where_you_answer", ("taf", taf.Name)));
+            AutomationProperties.SetAutomationId(button, "needs-you.knocked." + taf.Id);
+            var id = taf.Id;
+            button.Click += (_, _) => open(id);
+            KnockedTafs.Children.Add(button);
+        }
+        knockedShown = knocked.Count;
         ShowEmpty();
     }
 

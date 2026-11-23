@@ -78,6 +78,13 @@ public static class NeedsYouScreen
     public static string Title(WordBook w) => w.Get("needs_you.title");
 
     /// <summary>With nothing waiting: the panel's two lines.</summary>
+    /// <summary>
+    /// The tafs with a knock waiting at one of their doors, in Home's order, each with its line ("Someone knocked at its door.
+    /// Nothing was done."), as the iPad's NeedsYouView: a knock waits for the owner too, answered on the taf's Activity.
+    /// </summary>
+    public static IReadOnlyList<(Tafs.Core.Home.HomeTaf Taf, string Line)> Knocked(WordBook w, IEnumerable<Tafs.Core.Home.HomeTaf> tafs) =>
+        tafs.Where(t => t.Knocks > 0).Select(t => (t, w.Count("needs_you.knocks", t.Knocks))).ToList();
+
     public static (string Lead, string Hint) Empty(WordBook w) => (w.Get("needs_you.nothing_waiting"), w.Get("needs_you.empty_hint"));
 
     /// <summary>

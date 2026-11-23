@@ -61,6 +61,8 @@ public sealed partial class TafPage
             ShowRun(w, run);
             return;
         }
+        // What waits at its doors first, for whoever manages it, as the iPad's TafKnocksPanel.
+        KnocksPanels(w);
         // A Card unit's requests before the work, as the iPad's Activity: the page's own, else Home's for this taf; then
         // tafs cloud's notice. Each with Coach and Dismiss where this person may.
         if (opening is { CardUnit: { } panel } o)
@@ -73,6 +75,37 @@ public sealed partial class TafPage
         if (work is not null || workWhy is not null) WorkHost.Children.Add(WorkPanel(w));
         WorkHost.Children.Add(RunsPanel(w));
         if (runPages.Count > 0 || runPagesWhy is not null) WorkHost.Children.Add(KeptRunsPanel(w));
+    }
+
+    /// <summary>
+    /// What waits for the owner at the taf's doors, as the iPad's <c>TafKnocksPanel</c>: strangers' knocks (Do it, Pair them,
+    /// Ignore) under an amber edge, then a paired sender's message kept from its knock, apart and calmly; why the doors couldn't
+    /// be read or changed under them. The doors are read with the Activity, for whoever manages the taf.
+    /// </summary>
+    void KnocksPanels(Tafs.Core.Words.WordBook w)
+    {
+        if (opening?.Manages != true || doors is null) return;
+        var (waiting, paired) = doors.ActivityKnocks;
+        if (waiting.Count > 0)
+        {
+            var eyebrow = new TextBlock { Text = w.Get("door.knocks_waiting"), Style = Look("TafsEyebrow") };
+            var panel = Panel([eyebrow, .. waiting.Select(KnockCard)]);
+            // The iPad's Panel(stroke: amber at 0.45), its eyebrow amber.
+            if (Application.Current.Resources["TafsAmber"] is Microsoft.UI.Xaml.Media.SolidColorBrush amber)
+            {
+                eyebrow.Foreground = amber;
+                (panel.BorderBrush, panel.BorderThickness) = (new Microsoft.UI.Xaml.Media.SolidColorBrush(amber.Color) { Opacity = 0.45 }, new Thickness(1));
+            }
+            AutomationProperties.SetAutomationId(panel, "activity.knocks-waiting");
+            WorkHost.Children.Add(panel);
+        }
+        if (paired.Count > 0)
+        {
+            var panel = Panel([new TextBlock { Text = w.Get("door.paired"), Style = Look("TafsEyebrow") }, .. paired.Select(KnockCard)]);
+            AutomationProperties.SetAutomationId(panel, "activity.knocks-paired");
+            WorkHost.Children.Add(panel);
+        }
+        if (waiting.Count + paired.Count > 0 && doorsWhy is { } why) WorkHost.Children.Add(Words(why, 13, "TafsNoText"));
     }
 
     /// <summary>

@@ -50,6 +50,19 @@ public class TafDoorsTests
         Assert.Equal(["slack"], d.Addable.Select(a => a.Id));
     }
 
+    /// <summary>On Activity: strangers' open knocks, then paired senders' apart; answered ones and a day's line left out.</summary>
+    [Fact]
+    public void Activity_shows_strangers_knocks_then_paired_senders_apart()
+    {
+        var d = TafDoors.Read(JsonDocument.Parse(Doors).RootElement)!;
+        var paired = d.Knocks[0] with { Id = "k4", Paired = true };
+        var answered = d.Knocks[0] with { Id = "k5", Paired = true, State = "answered" };
+        var (waiting, kept) = (d with { Knocks = [.. d.Knocks, paired, answered] }).ActivityKnocks;
+        Assert.Equal(["k1"], waiting.Select(k => k.Id));
+        Assert.Equal(["k4"], kept.Select(k => k.Id));
+        Assert.Equal((0, 0), ((d with { Knocks = [] }).ActivityKnocks.Waiting.Count, (d with { Knocks = [] }).ActivityKnocks.Paired.Count));
+    }
+
     [Fact]
     public void A_knock_says_who_wrote_and_that_nothing_was_done()
     {

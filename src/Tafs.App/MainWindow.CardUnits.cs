@@ -37,6 +37,16 @@ public sealed partial class MainWindow
 
     IReadOnlyList<CardUnitException> CardUnitsShown => CardUnits.Shown(listedCardUnits, dismissedCardUnits);
 
+    /// <summary>
+    /// The tafs with a knock waiting at their doors, on Needs you, from Home's list: each opens its Activity, where the knocks
+    /// are answered.
+    /// </summary>
+    void ShowKnocked()
+    {
+        if (Pages.Content is NeedsYouPage page)
+            page.ShowKnocked(NeedsYouScreen.Knocked(App.Words, home?.Tafs ?? []), id => OpenBeside(typeof(TafPage), OpenTaf(App.Words, id, TafTab.Activity)));
+    }
+
     void ShowCardUnits()
     {
         if (Pages.Content is NeedsYouPage page) page.ShowCardUnits(CardUnitsShown, CardUnitPanelFor);
