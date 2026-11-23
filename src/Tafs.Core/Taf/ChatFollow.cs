@@ -6,8 +6,8 @@ namespace Tafs.Core.Taf;
 /// How often a thread (a taf's chat, Coach's) is read again while something happens in it: the scale review's finding 4
 /// (kiff/tafs <c>docs/scale.md</c>, the PM's lane item). A Windows PC gets no push, so it polls, but only while the thread
 /// moves: every 2 s for the first minute after its last change, then every 15 s, then every minute after 10 minutes, each
-/// slow wait jittered ±20% so windows don't read in step. Thirty minutes with no change, it stops: opening the tab again,
-/// F5, or writing reads again and starts over.
+/// wait jittered ±20% so windows don't read in step. Thirty minutes with no change, it stops: opening the tab again, F5,
+/// writing, or coming back to the window while the run still works reads again and starts over.
 /// </summary>
 public sealed class ChatFollow
 {
@@ -29,7 +29,7 @@ public sealed class ChatFollow
     /// <summary>After this long quiet, nothing more is read until someone acts: the cap.</summary>
     public static readonly TimeSpan StopAfter = TimeSpan.FromMinutes(30);
 
-    /// <summary>How far a slow wait is moved, either way, as a share of it.</summary>
+    /// <summary>How far each wait is moved, either way, as a share of it.</summary>
     public const double Jitter = 0.2;
 
     DateTimeOffset? since;
@@ -47,9 +47,8 @@ public sealed class ChatFollow
     {
         if (since is null || signature != last) (since, last) = (now, signature);
         var quiet = now - since.Value;
-        if (quiet < FastFor) return Fast;
         if (quiet >= StopAfter) return null;
-        var wait = quiet < SlowFor ? Slow : Slowest;
+        var wait = quiet < FastFor ? Fast : quiet < SlowFor ? Slow : Slowest;
         return wait * (1 - Jitter + 2 * Jitter * Math.Clamp(unit, 0, 1));
     }
 

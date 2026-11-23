@@ -40,6 +40,12 @@ public sealed partial class CoachPanel
     DispatcherTimer coachClock = null!;
     readonly ChatFollow coachFollow = new();
 
+    /// <summary>The window came back: Coach's thread, open, whose following stopped while Coach still works, is read once.</summary>
+    internal void CameBack()
+    {
+        if (IsOpen && !coachSending && !coachClock.IsEnabled && (thread?.Working is not null || coachSent.Count > 0)) _ = LoadThreadAsync();
+    }
+
     /// <summary>The thread's items as drawn, by id, so a read again keeps their order; none for a conversation not drawn yet.</summary>
     List<string>? drawnOrder;
 

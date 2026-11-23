@@ -341,6 +341,15 @@ public sealed partial class TafPage : Page
     readonly ChatFollow chatFollow = new();
 
     /// <summary>
+    /// The window came back: a chat whose following stopped (<see cref="ChatFollow.StopAfter"/>) while its run still works,
+    /// or a message still waits, is read once, and followed again from there.
+    /// </summary>
+    internal void CameBack()
+    {
+        if (tab == TafTab.Chat && !chatClock.IsEnabled && (chat?.Working is not null || sent.Count > 0)) _ = LoadChatAsync();
+    }
+
+    /// <summary>
     /// The composer under the thread, for a taf tafs cloud runs and someone signed in: "Message Refunds", Send, and Stop
     /// while a run of its works for someone who manages it. A message being sent turns Send off, as the iPad's one at a time.
     /// </summary>

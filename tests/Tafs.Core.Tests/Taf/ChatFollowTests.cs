@@ -46,10 +46,11 @@ public class ChatFollowTests
     }
 
     [Fact]
-    public void SlowWaitsAreJitteredWithinTwentyPercentAndFastIsNot()
+    public void EveryWaitIsJitteredWithinTwentyPercent()
     {
         var follow = new ChatFollow();
-        Assert.Equal(ChatFollow.Fast, follow.Next("a", Now, 0));
+        Assert.Equal(TimeSpan.FromSeconds(1.6), follow.Next("a", Now, 0));
+        Assert.Equal(TimeSpan.FromSeconds(2.4), follow.Next("a", Now, 1));
         Assert.Equal(TimeSpan.FromSeconds(12), follow.Next("a", Now.AddMinutes(2), 0));
         Assert.Equal(TimeSpan.FromSeconds(18), follow.Next("a", Now.AddMinutes(2), 1));
         Assert.Equal(TimeSpan.FromSeconds(48), follow.Next("a", Now.AddMinutes(15), 0));

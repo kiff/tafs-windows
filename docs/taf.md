@@ -270,9 +270,10 @@ rules and totals.
     a send that reached it but whose answer was lost can show twice after Retry.
 - **While the taf works,** or a sent message waits, the thread is read again, only while Chat shows (`ChatFollow`):
   - every 2 s for the first minute after the thread last changed (new words, a new message or run, a message sent);
-  - then every 15 s, and every minute once it's been quiet 10 minutes, each slow wait moved up to 20% either way so
-    windows don't read in step;
-  - and not at all once it's been quiet 30 minutes: opening the tab again, F5, or writing reads again and starts over.
+  - then every 15 s, and every minute once it's been quiet 10 minutes, each wait moved up to 20% either way so windows
+    don't read in step;
+  - and not at all once it's been quiet 30 minutes: opening the tab again, F5, writing, or coming back to the window
+    while the run still works reads again and starts over.
   - With the window minimised it waits, and reads at the next tick after it comes back. Coach's thread is read the same way.
 - **Stop,** for whoever manages the taf (KIFF's `cards.manage` access, once read): the run at work is cancelled
   (`POST /v1/tafs/{id}/stop`, `{session}`), then "You stopped Refunds.", or "Not stopped." and why.
