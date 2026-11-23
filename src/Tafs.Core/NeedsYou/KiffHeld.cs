@@ -364,6 +364,11 @@ public static class KiffHeld
             case "km": return "ទី" + d;
             case "lo": return "ที่​" + d;
             case "az": return d + "'inci";
+            // ICU's Turkmen, with English as the fallback (as Mongolian): English's suffixes by CLDR's Turkmen ordinal classes,
+            // "rd" for few (n % 10 = 6 or 9, or n = 10), else "th".
+            case "tk": return d + (n10 is 6 or 9 || n == 10 ? "rd" : "th");
+            // ICU's Hindi: 1ला, 2रा, 3रा, 4था, 6ठा, every other वाँ; 0 has none.
+            case "hi": return n == 0 ? d : d + (n switch { 1 => "ला", 2 or 3 => "रा", 4 => "था", 6 => "ठा", _ => "वाँ" });
             // ICU's Bengali: English's suffixes by CLDR's Bengali ordinal classes.
             case "bn":
                 return d + (n switch { 1 or 5 or 7 or 8 or 9 or 10 => "st", 2 or 3 => "nd", 4 => "rd", 6 => "th", _ => "th" });

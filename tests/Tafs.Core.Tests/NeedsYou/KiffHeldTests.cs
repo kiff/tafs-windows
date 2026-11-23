@@ -175,5 +175,10 @@ public class KiffHeldTests
     [InlineData("en", 11, "11th")] [InlineData("en", 12, "12th")] [InlineData("en", 13, "13th")] [InlineData("en", 21, "21st")] [InlineData("en", 112, "112th")]
     [InlineData("fr", 1, "1er")] [InlineData("fr", 2, "2e")] [InlineData("de", 2, "2.")] [InlineData("pl", 2, "2.")]
     [InlineData("es", 2, "2.º")] [InlineData("it", 2, "2º")] [InlineData("pt", 2, "2º")] [InlineData("nl", 2, "2e")]
+    // ICU's, read from its ordinal formatter with English as the fallback, as an English iPad's.
+    [InlineData("tk", 1, "1th")] [InlineData("tk", 6, "6rd")] [InlineData("tk", 9, "9rd")] [InlineData("tk", 10, "10rd")]
+    [InlineData("tk", 20, "20th")] [InlineData("tk", 26, "26rd")] [InlineData("tk", 110, "110th")]
+    [InlineData("hi", 1, "1ला")] [InlineData("hi", 2, "2रा")] [InlineData("hi", 3, "3रा")] [InlineData("hi", 4, "4था")]
+    [InlineData("hi", 5, "5वाँ")] [InlineData("hi", 6, "6ठा")] [InlineData("hi", 21, "21वाँ")] [InlineData("hi", 0, "0")]
     public void Ordinals(string language, long n, string written) => Assert.Equal(written, KiffHeld.Ordinal(language, n));
 }

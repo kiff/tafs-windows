@@ -416,6 +416,26 @@ static class Cldr
             ["month"] = new() { ["other"] = "{0} ເດືອນກ່ອນ" },
             ["year"] = new() { ["other"] = "{0} ປີກ່ອນ" },
         },
+        ["tk"] = new()
+        {
+            ["second"] = new() { ["one"] = "{0} sekunt öň", ["other"] = "{0} sekunt öň" },
+            ["minute"] = new() { ["one"] = "{0} minut öň", ["other"] = "{0} minut öň" },
+            ["hour"] = new() { ["one"] = "{0} sagat öň", ["other"] = "{0} sagat öň" },
+            ["day"] = new() { ["one"] = "{0} gün öň", ["other"] = "{0} gün öň" },
+            ["week"] = new() { ["one"] = "{0} hepde öň", ["other"] = "{0} hepde öň" },
+            ["month"] = new() { ["one"] = "{0} aý öň", ["other"] = "{0} aý öň" },
+            ["year"] = new() { ["one"] = "{0} ýyl öň", ["other"] = "{0} ýyl öň" },
+        },
+        ["hi"] = new()
+        {
+            ["second"] = new() { ["one"] = "{0} सेकंड पहले", ["other"] = "{0} सेकंड पहले" },
+            ["minute"] = new() { ["one"] = "{0} मिनट पहले", ["other"] = "{0} मिनट पहले" },
+            ["hour"] = new() { ["one"] = "{0} घंटे पहले", ["other"] = "{0} घंटे पहले" },
+            ["day"] = new() { ["one"] = "{0} दिन पहले", ["other"] = "{0} दिन पहले" },
+            ["week"] = new() { ["one"] = "{0} सप्ताह पहले", ["other"] = "{0} सप्ताह पहले" },
+            ["month"] = new() { ["one"] = "{0} माह पहले", ["other"] = "{0} माह पहले" },
+            ["year"] = new() { ["one"] = "{0} वर्ष पहले", ["other"] = "{0} वर्ष पहले" },
+        },
     };
 
     /// <summary>Each language's standard "and" list: two names, then a longer list's start, middle and end.</summary>
@@ -462,5 +482,7 @@ static class Cldr
         ["ne"] = ("{0} र {1}", "{0},{1}", "{0}, {1}", "{0} र {1}"),
         ["km"] = ("{0} និង​{1}", "{0}, {1}", "{0}, {1}", "{0} និង {1}"),
         ["lo"] = ("{0} ແລະ {1}", "{0}, {1}", "{0}, {1}", "{0}, {1}"),
+        ["tk"] = ("{0} we {1}", "{0}, {1}", "{0}, {1}", "{0} we {1}"),
+        ["hi"] = ("{0} और {1}", "{0}, {1}", "{0}, {1}", "{0}, और {1}"),
     };
 }

@@ -16,10 +16,10 @@ public static class PluralRules
         switch (language)
         {
             case "en": case "de": case "es": case "it": case "nl": case "ca": case "et":
-            case "el": case "hu": case "bg": case "tr": case "az": case "sq": case "ka": case "mn": case "ne":
+            case "el": case "hu": case "bg": case "tr": case "az": case "sq": case "ka": case "mn": case "ne": case "tk":
                 return n == 1 ? "one" : "other";
-            // 0 and 1 are "one": Portuguese (CLDR pt, as the iPad and Linux format it, pt-BR too), French, Armenian, Bengali.
-            case "pt": case "pt-BR": case "fr": case "hy": case "bn":
+            // 0 and 1 are "one": Portuguese (CLDR pt, as the iPad and Linux format it, pt-BR too), French, Armenian, Bengali, Hindi.
+            case "pt": case "pt-BR": case "fr": case "hy": case "bn": case "hi":
                 return n <= 1 ? "one" : "other";
             // One form for every number.
             case "ko": case "ja": case "id": case "vi": case "th": case "zh-Hant": case "km": case "lo":
