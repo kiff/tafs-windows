@@ -22,11 +22,12 @@ public static class CardUnits
     public static string Path(string id) => "/v1/me/card-exceptions/" + CloudRead.PathPart(id);
 
     /// <summary>
-    /// Whether KIFF's request is still the one shown, as the iPad checks before signing: a Card unit's, still held, for this
-    /// taf's agent, with the version the answer signs. Anything else changed meanwhile, and nothing is signed.
+    /// Whether KIFF's request is still the one shown, as the iPad checks before signing: the same request (its id), a Card
+    /// unit's, still held, for this taf's agent, with the version the answer signs. Anything else changed meanwhile, and
+    /// nothing is signed.
     /// </summary>
-    public static bool StillHeld(KiffHold current, string agent) =>
-        current.Kind == "card_unit" && current.Status == "held" && current.Subject == agent && current.AccountingVersion is not null;
+    public static bool StillHeld(KiffHold current, string id, string agent) =>
+        current.Id == id && current.Kind == "card_unit" && current.Status == "held" && current.Subject == agent && current.AccountingVersion is not null;
 
     /// <summary>How a dismissal went: dismissed; not, with why; or dropped by a sign-out.</summary>
     public sealed record Dismissed(bool Done, string? Why = null, bool Stopped = false);
@@ -45,7 +46,7 @@ public static class CardUnits
         if (!current()) return new(false, Stopped: true);
         if (answer.Answer is not { } json)
             return new(false, w.Get("needs_you.card_unit.not_dismissed", ("why", answer.Why ?? w.Get("kiff.kiff_did_not_answer_expected"))));
-        if (KiffHeld.Hold(json) is not { } held || !StillHeld(held, agent)) return new(false, w.Get("needs_you.card_unit.changed"));
+        if (KiffHeld.Hold(json) is not { } held || !StillHeld(held, ask.Id, agent)) return new(false, w.Get("needs_you.card_unit.changed"));
         var confirmed = await confirm(w.Get("needs_you.card_unit.dismiss_prompt", ("title", ask.Title)));
         if (!current()) return new(false, Stopped: true);
         if (confirmed != StepConfirmed.Yes) return new(false, w.Get("needs_you.card_unit.not_dismissed_unconfirmed"));

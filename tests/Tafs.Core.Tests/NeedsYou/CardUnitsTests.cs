@@ -46,7 +46,16 @@ public sealed class CardUnitsTests
     [InlineData("card_unit", "approved", "agt_refunds", false)]
     [InlineData("card_unit", "held", "agt_other", false)]
     public void Only_the_request_shown_is_dismissed(string kind, string status, string subject, bool still) =>
-        Assert.Equal(still, CardUnits.StillHeld(KiffHeld.Hold(Held(kind, status, subject).Answer!.Value)!, "agt_refunds"));
+        Assert.Equal(still, CardUnits.StillHeld(KiffHeld.Hold(Held(kind, status, subject).Answer!.Value)!, "ce_7", "agt_refunds"));
+
+    /// <summary>KIFF answering with another request than the one shown: nothing is signed for it.</summary>
+    [Fact]
+    public async Task Another_request_read_back_is_never_signed()
+    {
+        var f = new Fakes { Read = CloudRead.Of(JsonDocument.Parse("""{"id":"ce_8","subject":"agt_refunds","action":"card_unit","entity_id":"e","status":"held","breaches":[],"created_at":"2026-11-23T06:00:00Z","kind":"card_unit","accounting_version":4}""").RootElement) };
+        Assert.Equal("This request changed. Read it again before dismissing it.", (await f.Dismiss()).Why);
+        Assert.Single(f.Said);
+    }
 
     sealed class Fakes
     {
