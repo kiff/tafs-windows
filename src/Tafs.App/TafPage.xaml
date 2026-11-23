@@ -162,6 +162,7 @@
                   </ItemsControl.ItemsPanel>
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="local:TafLineView">
+                      <StackPanel Spacing="6">
                       <!-- With tafs cloud's call, a click opens its receipt, as the iPad's SourceActivityRow. -->
                       <Button Style="{StaticResource TafsRow}" Background="Transparent" Padding="0" Click="OnLine" Tag="{x:Bind Evidence}"
                               IsTabStop="{x:Bind Opens}" AutomationProperties.Name="{x:Bind Title}">
@@ -194,6 +195,12 @@
                         </Grid>
                       </Border>
                       </Button>
+                      <!-- tafs cloud's next step (the iPad's NextStepRow): a button for whoever may take it, else its words. -->
+                      <Button Content="{x:Bind NextWords}" Visibility="{x:Bind NextButton}" Click="OnNextStep" Style="{StaticResource TafsOutlineButton}"
+                              Margin="14,0,0,0" />
+                      <TextBlock Text="{x:Bind NextWords}" Visibility="{x:Bind NextLine}" FontSize="13" TextWrapping="Wrap"
+                                 Foreground="{ThemeResource TafsSoft}" Margin="14,0,0,0" />
+                      </StackPanel>
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>

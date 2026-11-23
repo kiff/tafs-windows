@@ -65,6 +65,15 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
 - A kind this app doesn't know reads as Unknown, so it waits under amber rather than passing as done. An entry with no
   id or title is left out.
 - The filters are tafs cloud's. The app sends the chosen one back.
+- **A line's next step** (`next`, the iPad's `NextStepRow`, `NextSteps`, `TafPage.NextStep.cs`): tafs cloud's words under
+  the line. Without its kind or words, there's none.
+  - For whoever manages the taf it's an outlined button: a `reconnect` always, an `ask_coach` for someone who may use
+    Coach (`NextSteps.Offered`). For anyone else, or any other kind, it's its words, 13 soft.
+  - **A reconnect** signs in again the connection whose tools include tafs cloud's `tool` (the taf's own first, by its KIFF
+    agent, else the account's; not one ended), when it needs it, over its Sign in again sheet. Otherwise it opens Connect
+    apps. So do a provider's connection, which planque can't sign in again, and a PC that can't approve.
+  - **Ask Coach** opens Coach improving the taf, with tafs cloud's `message` in its box, else the line's title and detail,
+    nothing sent. The button is off while it goes.
 
 **A taf from tafs cloud** (opened from the Overview or Your tafs) reads its Activity there, page after page
 (`ActivityPages`, ported from `SourcePages` and `AppModel.loadActivityPage`, and drawn as `TafPresentationViews.swift`'s
@@ -423,7 +432,7 @@ is the approval key's act, never the device key's); a revoked taf can still be r
   whether a view-only session may send it, is settled in its own PR with the security review. Today's Revoke reaches
   nothing, so it's shown on the sample's Card tab only, never on a real taf's.
 - **The rest:** the head's second line (the version); held calls, Card-unit exceptions, its work and its runs
-  at the top of the Activity; a line's receipt and its next step.
+  at the top of the Activity; a line's receipt.
 
 ## Sharing a taf (P32, `Shares`, `TafPage.Share.cs`)
 

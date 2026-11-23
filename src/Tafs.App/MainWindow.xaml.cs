@@ -2226,6 +2226,8 @@ public sealed partial class MainWindow : Window
                 Connecting: ConnectingFor(),
                 // A Card unit's request on its Setup: Coach about it and Dismiss, as on Needs you; none once dismissed here.
                 CardUnit: ask => dismissedCardUnits.Contains(ask.Id) ? null : CardUnitPanelFor(ask.Taf.Length > 0 ? ask : ask with { Taf = taf.Id }),
+                // An Activity line's next step: sign in again, Connect apps, or Coach with its words, for whoever manages it.
+                Next: new TafNextStep(next => NextSteps.Offered(next, Manages(taf), mayUseCoach), (next, fallback) => DoNextStepAsync(taf, next, fallback)),
                 Revoke: RevokeFor(taf), RevokeNeedsApprover: Manages(taf) && App.Sessions.Kept()?.Mode == ApprovalMode.View,
                 // Setup › Starts when and Results go to: when it starts and where results go, as Home says, and the changes made at once.
                 Change: cloudChange, Starts: taf.Starts, Paused: taf.State == "paused", Email: kiffAccount?.Email, TimeZone: kiffAccount?.TimeZone,

@@ -27,7 +27,7 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     Action<string>? AskCoachAbout = null, Func<Task<string?>>? Revoke = null, bool RevokeNeedsApprover = false, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null,
     Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafSteps? Steps = null, TafFiles? Files = null, TafDoorSigning? DoorSigning = null,
     string? DoorOn = null, TafSlackDoor? SlackDoor = null, ConnectAppsConnecting? Connecting = null,
-    Func<CardUnitException, Border?>? CardUnit = null)
+    Func<CardUnitException, Border?>? CardUnit = null, TafNextStep? Next = null)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
@@ -87,18 +87,37 @@ public sealed record SetupOpening(string Job, IReadOnlyList<MemoryNote> Notes);
 /// <summary>One day of a taf's Activity, as drawn: tafs cloud sends a day going on from the page before with no title.</summary>
 public sealed record TafDayView(string Title, IReadOnlyList<TafLineView> Lines) { public Visibility HasTitle => Title.Length > 0 ? Visibility.Visible : Visibility.Collapsed; }
 
+/// <summary>
+/// A line's next step on a tafs cloud taf (the iPad's <c>NextStepRow</c>): whether it's a button for this person, and what it
+/// does, with the line's title and detail as Coach's words when tafs cloud sends none.
+/// </summary>
+public sealed record TafNextStep(Func<NextStep, bool> Offered, Func<NextStep, string, Task> Do);
+
 /// <summary>One line of a taf's Activity, as drawn: its dot, what it was, its time, the words under it, and any money it moved.</summary>
 public sealed record TafLineView(string Title, string Time, string Detail, string Amount, Visibility HasAmount,
     Visibility IsDone, Visibility IsWaiting, Visibility IsRefused, RecordEntry? Evidence = null)
 {
     /// <summary>A line as drawn; with tafs cloud's call, its receipt opens on a click (<see cref="ReportPayment.Evidence"/>).</summary>
-    public static TafLineView Of(ActivityLine l, TafHead? taf = null)
+    public static TafLineView Of(ActivityLine l, TafHead? taf = null, Func<NextStep, bool>? offered = null)
     {
         static Visibility Seen(bool shown) => shown ? Visibility.Visible : Visibility.Collapsed;
         var dot = RecordScreen.DotOf(l.Kind);
+        var button = l.Next is { } next && offered?.Invoke(next) == true;
         return new(l.Title, l.Time, l.Detail, l.Amount ?? "", Seen(l.Amount is not null),
-            Seen(dot == Dot.Went), Seen(dot == Dot.Waiting), Seen(dot == Dot.Stopped), taf is null ? null : ReportPayment.Evidence(l, taf.Name, taf.Colour));
+            Seen(dot == Dot.Went), Seen(dot == Dot.Waiting), Seen(dot == Dot.Stopped), taf is null ? null : ReportPayment.Evidence(l, taf.Name, taf.Colour))
+        {
+            Next = l.Next, NextWords = l.Next?.Words ?? "", NextButton = Seen(button), NextLine = Seen(l.Next is not null && !button),
+            Fallback = $"{l.Title}: {l.Detail}",
+        };
     }
+
+    /// <summary>tafs cloud's next step under the line: an outlined button for whoever may take it, else its words, 13 soft.</summary>
+    public NextStep? Next { get; init; }
+    public string NextWords { get; init; } = "";
+    public Visibility NextButton { get; init; } = Visibility.Collapsed;
+    public Visibility NextLine { get; init; } = Visibility.Collapsed;
+    /// <summary>Coach's first words when tafs cloud's Ask Coach sends none: the line's title and detail, as the iPad's.</summary>
+    public string Fallback { get; init; } = "";
 
     /// <summary>Whether a click opens its receipt.</summary>
     public bool Opens => Evidence is not null;
@@ -1761,7 +1780,7 @@ public sealed partial class TafPage : Page
         FilterChips.Children.Clear();
         foreach (var f in page.Filters) FilterChips.Children.Add(Chip(f, f.Id == page.Filter));
 
-        Days.ItemsSource = page.Groups.Select(g => new TafDayView(g.Title, g.Lines.Select(l => TafLineView.Of(l, opening?.Head)).ToList())).ToList();
+        Days.ItemsSource = page.Groups.Select(g => new TafDayView(g.Title, g.Lines.Select(l => TafLineView.Of(l, opening?.Head, opening?.Next?.Offered)).ToList())).ToList();
         Empty.Text = TafActivity.Empty(w, page.Filter);
         Empty.Visibility = page.Groups.Count == 0 && page.EndWords is null ? Visibility.Visible : Visibility.Collapsed;
         EndWords.Text = page.EndWords ?? "";
@@ -1777,7 +1796,7 @@ public sealed partial class TafPage : Page
         var pages = CloudPages();
         FilterChips.Children.Clear();
         foreach (var f in pages.Filters) FilterChips.Children.Add(Chip(f, f.Id == filter));
-        Days.ItemsSource = pages.Groups.Select(g => new TafDayView(g.Title, g.Lines.Select(l => TafLineView.Of(l, opening?.Head)).ToList())).ToList();
+        Days.ItemsSource = pages.Groups.Select(g => new TafDayView(g.Title, g.Lines.Select(l => TafLineView.Of(l, opening?.Head, opening?.Next?.Offered)).ToList())).ToList();
         Empty.Visibility = Visibility.Collapsed;
         var end = pages.End(App.Words);
         EndWords.Text = end.Words ?? "";
