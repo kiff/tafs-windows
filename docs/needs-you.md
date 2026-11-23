@@ -241,8 +241,8 @@ The iPad's `CardUnitExceptionPanel`, `discussCardUnit` and `dismissCardUnit`.
     improving that taf, with tafs cloud's `coach_text` in its box, nothing sent.
   - **Dismiss** (its `dismiss_title`, in the no colour), for someone who answers the account's holds on a PC with its
     device key. It's asked first ("Dismiss {title}"), then:
-    1. KIFF's request is read again (`GET /v1/me/card-exceptions/{id}`). Only a Card unit's, still held, for this taf's
-       agent, with its version, goes on. Anything else says "This request changed. Read it again before dismissing it."
+    1. KIFF's request is read again (`GET /v1/me/card-exceptions/{id}`). Only the same request (its id), a Card unit's,
+       still held, for this taf's agent, with its version, goes on. Anything else says "This request changed. Read it again before dismissing it."
     2. Windows Hello over "Dismiss {title}". Closed or unconfirmed: "Not dismissed: it wasn't confirmed.", and nothing is
        sent.
     3. KIFF's `kiff.answer.v1` refusing it, at the version read, signed by this PC's device key, posted to `…/reject`.
