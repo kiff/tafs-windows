@@ -79,6 +79,9 @@ public sealed partial class TafPage
             stop.Click += (_, _) => _ = UseVersionAsync(waiting, stopBlocking: true);
             inside.Children.Add(stop);
         }
+        // What the last switch stopped while it waited on the owner, on a line of its own: an install or a Cancel after it
+        // doesn't wipe it, and the next switch clears it.
+        if (switchStopped is { } stopped) inside.Children.Add(Words(stopped.Words, 13, "TafsNoText"));
         if (installWhy is { } why) inside.Children.Add(Words(why, 13, "TafsNoText"));
     }
 
@@ -90,7 +93,8 @@ public sealed partial class TafPage
     {
         if (installing is not null || opening?.Installing is not { } calls) return;
         var mine = opening;
-        (installing, installWhy) = (v.N, null);
+        // Each switch starts clean: an earlier one's stop (and its Retry) never shows for this one.
+        (installing, installWhy, switchStopped) = (v.N, null, null);
         ShowVersionsAgain();
         try
         {
@@ -106,7 +110,7 @@ public sealed partial class TafPage
             // with Retry on that task's message (one click, never by itself).
             if (begun.StoppedWords is { } stoppedWords)
             {
-                (installWhy, switchStopped) = (stoppedWords, (stoppedWords, begun.Stopped));
+                switchStopped = (stoppedWords, begun.Stopped);
                 if (tab == TafTab.Chat) ShowChat();
             }
             if (sw.Draft is null) Settle(await calls.Install(v.N, null), v);
