@@ -78,8 +78,20 @@ public sealed partial class TafPage
         }
         if (flow.Children.Count > 1) body.Children.Add(flow);
 
-        // The last seven days, in tafs cloud's words.
-        if (app.StatsWords.Length > 0) body.Children.Add(Words(app.StatsWords, 14, "TafsSoftText"));
+        // The last seven days, in tafs cloud's words: it opens the Activity on this app (tafs cloud's query), as the iPad's,
+        // off for an app with no actions. Only a query this page would send (ActivityPages.Plain) makes it a link, so a
+        // selection never shows All apps over what is really every app.
+        if (app.StatsWords.Length > 0)
+        {
+            if (app.ActivityQuery is { } query && ActivityPages.Plain(query) && opening?.CloudId is not null)
+            {
+                var week = new HyperlinkButton { Content = app.StatsWords, Padding = new Thickness(0), IsEnabled = app.Actions.Count > 0 };
+                AutomationProperties.SetAutomationId(week, "taf.app.week." + app.Id);
+                week.Click += (_, _) => { dialog.Hide(); ShowAppWeek(query); };
+                body.Children.Add(week);
+            }
+            else body.Children.Add(Words(app.StatsWords, 14, "TafsSoftText"));
+        }
 
         // Other sign-ins to the same app on this taf, each with its own Remove access.
         if (node.Others.Count > 0)

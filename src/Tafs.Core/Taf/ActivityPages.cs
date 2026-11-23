@@ -24,12 +24,19 @@ public sealed class ActivityPages
     public string? Error { get; private set; }
 
     /// <summary>
+    /// Whether tafs cloud's selection is a plain query to add as it is (<c>tools=a,b&amp;from=…</c>): no path, fragment, second
+    /// <c>?</c>, space or control character, and not empty. Anything else is left out, so the read is all apps, never another route.
+    /// </summary>
+    public static bool Plain(string selection) =>
+        selection.Length > 0 && selection.All(c => c > ' ' && c != 0x7F && c is not ('/' or '\\' or '#' or '?'));
+
+    /// <summary>
     /// <c>GET /v1/tafs/{id}/activity?filter=…</c>, with the app's selection (<c>tools=…&amp;from=…</c>, as tafs cloud gave it)
     /// and the cursor, as the iPad's <c>activityPage</c>.
     /// </summary>
     public static string Path(string taf, string filter, string? cursor, string selection = "") =>
         $"/v1/tafs/{CloudRead.PathPart(taf)}/activity?filter={CloudRead.QueryPart(filter)}"
-        + (selection.Length == 0 ? "" : "&" + selection)
+        + (Plain(selection) ? "&" + selection : "")
         + (cursor is null ? "" : "&cursor=" + CloudRead.QueryPart(cursor));
 
     /// <summary>

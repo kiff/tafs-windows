@@ -145,4 +145,20 @@ public class ActivityPagesTests
     public void The_path_escapes_as_the_iPad_s_and_keeps_tafs_cloud_s_selection() =>
         Assert.Equal("/v1/tafs/a%2Fb/activity?filter=all&tools=stripe_refund&from=2026-10-09&cursor=x%2By",
             ActivityPages.Path("a/b", "all", "x+y", "tools=stripe_refund&from=2026-10-09"));
+
+    /// <summary>One app's week: tafs cloud's query goes as it is only when it's a plain query; anything else reads all apps.</summary>
+    [Theory]
+    [InlineData("tools=stripe_refund,stripe_list&from=2026-10-09", true)]
+    [InlineData("", false)]
+    [InlineData("tools=a b", false)]
+    [InlineData("tools=a#x", false)]
+    [InlineData("x=1/../../v1/me", false)]
+    [InlineData("a=1?b=2", false)]
+    [InlineData("a=1\\b", false)]
+    [InlineData("a=1\nb=2", false)]
+    public void Only_a_plain_selection_is_sent(string selection, bool sent)
+    {
+        Assert.Equal(sent, ActivityPages.Plain(selection));
+        Assert.Equal(sent ? "/v1/tafs/t/activity?filter=all&" + selection : "/v1/tafs/t/activity?filter=all", ActivityPages.Path("t", "all", null, selection));
+    }
 }

@@ -112,7 +112,10 @@ Activity):
     on a PC that approves (that connection's sheet, then Setup read again);
   - **What it may do:** each action's title (16 semibold), its limits and its `step_words`;
   - **Workflow:** its `workflow_words` with no saved workflow, then its own `workflow_steps` ("2 · Reply" and their words);
-  - the last seven days in tafs cloud's words;
+  - the last seven days in tafs cloud's words, which opens the Activity on this app (off with no actions): tafs cloud's
+    `activity_query` is the selection, only when it's a plain query (`ActivityPages.Plain`): any other query leaves the
+    week as words, so All apps never stands over every app; and
+    **All apps** beside the filters clears it;
   - **Other connections** to the same app, each with its status and Remove access;
   - for whoever manages the taf, **Add actions with Coach** (Coach improving it) and **Remove access**. Remove access asks
     "Remove access to Gmail?" and that its actions stop for this taf, then planque ends it behind Windows Hello, as Connect
