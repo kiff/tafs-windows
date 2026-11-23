@@ -81,6 +81,9 @@
               <ProgressRing x:Name="ContinueBusy" Width="20" Height="20" IsActive="False" Visibility="Collapsed" Foreground="White" />
             </Grid>
           </Button>
+          <!-- Try it with sample data, as the iPad's welcome: tafs with the sample's tafs, calls and Record, signed in as no one. -->
+          <Button x:Name="TrySample" Click="OnTrySample" Style="{StaticResource TafsOutlineButton}" HorizontalAlignment="Center"
+                  AutomationProperties.AutomationId="onboarding.sample" />
         </StackPanel>
       </ScrollViewer>
       <!-- Continue: KIFF's code, checked in the browser, here in this half. -->
