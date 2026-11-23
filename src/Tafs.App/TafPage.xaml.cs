@@ -893,12 +893,38 @@ public sealed partial class TafPage : Page
     }
 
     /// <summary>
-    /// The pages for the filter and selection, as the iPad's <c>activityKey(id, filter, selection)</c>. No screen gives a
-    /// selection yet (Setup's "last 7 days" will); until then it's always none.
+    /// The pages for the filter and selection, as the iPad's <c>activityKey(id, filter, selection)</c>. The selection is tafs
+    /// cloud's own query for one app's week (<c>activity_query</c>), given from its sheet on Setup's ring; none is all apps.
     /// </summary>
-    const string Selection = "";
+    string selection = "";
 
-    ActivityPages CloudPages() => cloudPages.TryGetValue($"{filter}:{Selection}", out var p) ? p : cloudPages[$"{filter}:{Selection}"] = new();
+    ActivityPages CloudPages() => cloudPages.TryGetValue($"{filter}:{selection}", out var p) ? p : cloudPages[$"{filter}:{selection}"] = new();
+
+    /// <summary>
+    /// One app's week, from its sheet (the iPad's <c>activitySelection = query; section = 1</c>): the Activity, read for tafs cloud's
+    /// query, with All apps above it to go back to every app.
+    /// </summary>
+    void ShowAppWeek(string query)
+    {
+        selection = query;
+        tab = TafTab.Activity;
+        ShowTab();
+        _ = LoadActivityAsync();
+    }
+
+    /// <summary>All apps, while one app's week is shown (the iPad's <c>Words.Taf.Activity.allApps</c>): the selection cleared.</summary>
+    Button AllAppsChip()
+    {
+        var all = new Button { Content = App.Words.Get("taf.activity.all_apps"), FontSize = 13, Style = Look("TafsChip") };
+        AutomationProperties.SetAutomationId(all, "taf.activity.allApps");
+        all.Click += (_, _) =>
+        {
+            selection = "";
+            Show();
+            _ = LoadActivityAsync();
+        };
+        return all;
+    }
 
     /// <summary>
     /// The filter's newest page, or with <paramref name="more"/> its next, drawn as the read starts and once it's in, as the
@@ -908,7 +934,7 @@ public sealed partial class TafPage : Page
     {
         if (opening is not { CloudId: { } id, Read: { } read }) return;
         var pages = CloudPages();
-        var loading = pages.LoadAsync(id, filter, read, more, Selection);
+        var loading = pages.LoadAsync(id, filter, read, more, selection);
         Show();
         await loading;
         Show();
@@ -951,7 +977,7 @@ public sealed partial class TafPage : Page
     {
         var inView = e.EffectiveViewport.Height > 0 && e.BringIntoViewDistanceY <= 0;
         if (!inView || opening is not { CloudId: { } id, Read: { } read }) return;
-        var seen = CloudPages().SeenAsync(id, filter, read, Selection);
+        var seen = CloudPages().SeenAsync(id, filter, read, selection);
         Show();
         await seen;
         Show();
@@ -1800,6 +1826,7 @@ public sealed partial class TafPage : Page
         var pages = CloudPages();
         FilterChips.Children.Clear();
         foreach (var f in pages.Filters) FilterChips.Children.Add(Chip(f, f.Id == filter));
+        if (selection.Length > 0) FilterChips.Children.Add(AllAppsChip());
         Days.ItemsSource = pages.Groups.Select(g => new TafDayView(g.Title, g.Lines.Select(l => TafLineView.Of(l, opening?.Head, opening?.Next?.Offered)).ToList())).ToList();
         Empty.Visibility = Visibility.Collapsed;
         var end = pages.End(App.Words);
