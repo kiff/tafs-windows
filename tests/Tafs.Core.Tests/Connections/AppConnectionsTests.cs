@@ -164,4 +164,40 @@ public class AppConnectionsTests
         Assert.Equal([true, false, false, true], AppConnections.KnownActions(g).Select(AppConnections.Removes));
         Assert.Empty(AppConnections.KnownActions(With(null)));
     }
+
+    [Fact]
+    public void Also_on_names_the_other_tafs_whose_Card_draws_on_a_connection_s_tools()
+    {
+        Tafs.Core.Home.HomeTaf Taf(string name, string agent, IReadOnlyList<string> draws, string state = "running", bool revoked = false) =>
+            new($"t_{name}", name, 0, state, "", null, [], 0, null, null, Agent: agent, Revoked: revoked, Draws: draws);
+        var grant = new PlanqueGrant("g", "connected", "t", "d", new GrantRequest("stripe", "rae", [new GrantTool("refund"), new GrantTool("read", SetupReads: true)]), []);
+        var tafs = new[]
+        {
+            Taf("Rae", "rae", ["refund"]),                 // the taf it was made for: left out
+            Taf("Ana", "ana", ["refund", "email"]),        // draws on refund
+            Taf("Bo", "bo", ["read"]),                      // only Setup's read, not a taf's tool
+            Taf("Cy", "cy", ["refund"], revoked: true),     // its Card revoked
+            Taf("Di", "di", ["refund"], state: "revoked"),
+            Taf("Ed", "ed", ["refund"]),
+        };
+        Assert.Equal(["Ana", "Ed"], AppConnections.AlsoStops(grant, tafs));
+        // planque's own tools win over the request's.
+        Assert.Equal(["Bo"], AppConnections.AlsoStops(grant with { Tools = ["read"] }, tafs));
+        Assert.Empty(AppConnections.AlsoStops(grant with { Tools = [] }, tafs));
+        Assert.Null(AppConnections.AlsoOn(En, []));
+        Assert.Equal("Also on Ana's Card", AppConnections.AlsoOn(En, ["Ana"]));
+        Assert.StartsWith("Also on the Cards of Ana", AppConnections.AlsoOn(En, ["Ana", "Ed"]));
+    }
+
+    [Fact]
+    public void Home_reads_what_a_taf_s_Card_draws_on()
+    {
+        var home = Tafs.Core.Home.HomeList.Read(En, System.Text.Json.JsonDocument.Parse("""
+            {"tafs":[{"id":"t1","name":"Ana","state":"running","kiff_agent":"ana",
+              "card":{"ids":["c1"],"active":true,"tools":["refund","email"],"rules":[{"action":"refund"},{"action":"charge"},{"x":1}]}},
+             {"id":"t2","name":"Bo","state":"running"}]}
+            """).RootElement, TimeZoneInfo.Utc);
+        Assert.Equal(["refund", "email", "charge"], home.Tafs[0].CardDraws);
+        Assert.Empty(home.Tafs[1].CardDraws);
+    }
 }

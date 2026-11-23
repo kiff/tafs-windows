@@ -132,6 +132,8 @@ public sealed partial class AppConnectionsPage : Page
         if (AppConnections.RowFromPlanque(g)) return PlanqueRow(g);
         var lines = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
         lines.Children.Add(Words(g.Title ?? opening.App.DisplayName, 16, "TafsInk", semibold: true));
+        // The other tafs whose Card draws on its tools, as the iPad's alsoOnCards: removing it stops them too.
+        if (AppConnections.AlsoOn(w, opening.Calls.AlsoStops?.Invoke(g) ?? []) is { } also) lines.Children.Add(Words(also, 13, "TafsSoft"));
         if (g.StatusWords is { Length: > 0 } status) lines.Children.Add(Words(status, 13, "TafsDim"));
         else if (AppConnections.WaitingSignIn(g)) lines.Children.Add(Words(w.Get("connect.status.waiting_sign_in", ("vendor", g.Vendor)), 13, "TafsDim"));
         // Made under a taf that doesn't need the app (tafs cloud's misplaced): said, so it can be removed.
@@ -298,13 +300,14 @@ public sealed partial class AppConnectionsPage : Page
         if (opening is not { } o || busy is not null) return;
         var w = App.Words;
         var cancel = AppConnections.Cancellable(g);
-        var title = cancel ? AppConnections.CancelTitle(w, g) : AppConnections.DisconnectTitle(w, g.Vendor, taf, []);
+        var alsoStops = o.Calls.AlsoStops?.Invoke(g) ?? [];
+        var title = cancel ? AppConnections.CancelTitle(w, g) : AppConnections.DisconnectTitle(w, g.Vendor, taf, alsoStops);
         var ask = new ContentDialog
         {
             XamlRoot = XamlRoot, Title = title, RequestedTheme = ActualTheme,
             Content = new TextBlock
             {
-                Text = cancel ? w.Get("connect.cancel_sign_in.body", ("vendor", g.Vendor)) : AppConnections.DisconnectMessage(w, g.Vendor, taf, [], g.TakesKey),
+                Text = cancel ? w.Get("connect.cancel_sign_in.body", ("vendor", g.Vendor)) : AppConnections.DisconnectMessage(w, g.Vendor, taf, alsoStops, g.TakesKey),
                 TextWrapping = TextWrapping.Wrap,
             },
             PrimaryButtonText = cancel ? AppConnections.CancelWord(w, g) : w.Get("connect.disconnect_button"),

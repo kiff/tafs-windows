@@ -19,6 +19,8 @@ public sealed partial class MainWindow
             Grants: () => GrantsAsync(session),
             // The taf a connection was made for, by its agent in KIFF; none when this PC can't name it (never proof it was removed).
             TafOf: g => home?.Tafs.FirstOrDefault(t => t.Agent == g.Request.Agent && !t.Revoked)?.Name,
+            // The other tafs whose Card draws on its tools, from Home's Cards (the iPad's alsoStops).
+            AlsoStops: g => AppConnections.AlsoStops(g, home?.Tafs ?? []),
             Manages: Halt.ManagesCards(capabilities),
             End: async (ids, prompt) =>
             {
