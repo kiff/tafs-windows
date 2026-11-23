@@ -29,6 +29,15 @@ public class AppLanguageTests
         Assert.Equal(["English", "Deutsch", "Français", "Español", "Italiano", "Português", "Nederlands", "Polski", "한국어", "Português (Brasil)"], picker.Select(l => l.Name));
     }
 
+    /// <summary>Turkmen and Hindi named in themselves, as Android's, after Lao.</summary>
+    [Fact]
+    public void Turkmen_and_Hindi_are_named_in_themselves()
+    {
+        var named = AppLanguage.Named.Select(l => l.Code).ToList();
+        Assert.Equal(["lo", "tk", "hi"], named.Skip(named.IndexOf("lo")).Take(3));
+        Assert.Equal(["Türkmen dili", "हिन्दी"], AppLanguage.Named.Where(l => l.Code is "tk" or "hi").Select(l => l.Name));
+    }
+
     /// <summary>Every language tafs ships at the pin has its name, so the picker never drops one.</summary>
     [Fact]
     public void Every_shipped_language_at_the_pin_is_named()

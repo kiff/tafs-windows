@@ -32,6 +32,7 @@ public static class FileSizes
         ["az"] = U("{0} bayt"), ["bn"] = U("{0} বাইট"), ["he"] = U("{0} בייט"), ["ca"] = U("{0} B"),
         ["mk"] = new([("one", "{0} бајт"), ("other", "{0} бајти")], "{0} kB", "{0} MB", "{0} GB"),
         ["mn"] = U("{0} байт", "{0} кБ", "{0} МБ", "{0} ГБ"), ["ne"] = U("{0} byte"), ["km"] = U("{0} byte"), ["lo"] = U("{0} byte"),
+        ["tk"] = U("{0} B"), ["hi"] = U("{0} बाइट"),
     };
 
     /// <summary>The language's own base (<c>pt-BR</c> is <c>pt</c>, <c>zh-Hant</c> is <c>zh</c>); a language not in the table writes English's.</summary>

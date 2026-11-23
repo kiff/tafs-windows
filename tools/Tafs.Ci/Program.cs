@@ -58,7 +58,7 @@ async Task<int> Cldr()
         ("sk", "sk"), ("sl", "sl"), ("hu", "hu"), ("ro", "ro"), ("bg", "bg"), ("hr", "hr"), ("tr", "tr"), ("id", "id"),
         ("vi", "vi"), ("th", "th"), ("zh-Hant", "zh-Hant"), ("ar", "ar"), ("sr-Latn", "sr-Latn"), ("sq", "sq"), ("ka", "ka"),
         ("hy", "hy"), ("az", "az"), ("bn", "bn"), ("he", "he"), ("ca", "ca"), ("mk", "mk"), ("mn", "mn"), ("ne", "ne"),
-        ("km", "km"), ("lo", "lo"),
+        ("km", "km"), ("lo", "lo"), ("tk", "tk"), ("hi", "hi"),
     };
     var units = new[] { "second", "minute", "hour", "day", "week", "month", "year" };
     using var http = new HttpClient();
