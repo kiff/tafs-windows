@@ -45,5 +45,7 @@
 
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
+    <!-- Take photo in a chat (Windows' own camera dialog), asked for by Windows the first time. -->
+    <DeviceCapability Name="webcam" />
   </Capabilities>
 </Package>

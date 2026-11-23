@@ -52,10 +52,82 @@ sealed class AttachTray(StackPanel tray, Button paperclip, Func<FrameworkElement
         Show();
     }
 
-    /// <summary>The paperclip: up to five a message, each declared for <paramref name="taf"/> and sent up as it's picked.</summary>
+    /// <summary>
+    /// The paperclip, as the iPad's <c>AttachButton</c>: with a camera on this PC, a menu of Take photo and Choose file; with none,
+    /// the file picker at once, as before (Take photo only where a camera is, as the iPad's <c>isSourceTypeAvailable(.camera)</c>).
+    /// </summary>
     public async Task PickAsync(string taf, Func<string, byte[], Task<CloudRead>> send)
     {
         if (forTaf != taf) { files.Clear(); forTaf = taf; }
+        if (FilePrep.Room(files.Count) == 0) return;
+        if (!await HasCameraAsync())
+        {
+            await ChooseAsync(taf, send);
+            return;
+        }
+        var w = App.Words;
+        var menu = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.TopEdgeAlignedLeft };
+        var take = new MenuFlyoutItem { Text = w.Get("chat.file.take_photo"), Icon = new FontIcon { Glyph = "" } };
+        AutomationProperties.SetAutomationId(take, "attach.take-photo");
+        take.Click += (_, _) => _ = TakeAsync(taf, send);
+        var choose = new MenuFlyoutItem { Text = w.Get("chat.file.choose_file"), Icon = new FontIcon { Glyph = "" } };
+        AutomationProperties.SetAutomationId(choose, "attach.choose-file");
+        choose.Click += (_, _) => _ = ChooseAsync(taf, send);
+        menu.Items.Add(take);
+        menu.Items.Add(choose);
+        menu.ShowAt(paperclip);
+    }
+
+    /// <summary>Whether this PC has a camera now (one can be plugged in or out between two clicks): Windows' video capture devices.</summary>
+    static async Task<bool> HasCameraAsync()
+    {
+        try
+        {
+            var cameras = await Windows.Devices.Enumeration.DeviceInformation.FindAllAsync(Windows.Devices.Enumeration.DeviceClass.VideoCapture);
+            return cameras.Count > 0;
+        }
+        catch (Exception e) when (e is System.Runtime.InteropServices.COMException or UnauthorizedAccessException) { return false; }
+    }
+
+    /// <summary>
+    /// Take photo, as the iPad's <c>CameraPicker</c>: Windows' own camera dialog (<c>CameraCaptureUI</c>, with Windows' own
+    /// permission prompt), one photo, then the same way as a picked image: redrawn as a JPEG on white, its pixels only, named
+    /// "Photo.jpg". Closed, or refused by Windows' camera setting, nothing is added.
+    /// </summary>
+    async Task TakeAsync(string taf, Func<string, byte[], Task<CloudRead>> send)
+    {
+        if (forTaf != taf || FilePrep.Room(files.Count) == 0) return;
+        Windows.Storage.StorageFile? photo;
+        try
+        {
+            var camera = new Microsoft.Windows.Media.Capture.CameraCaptureUI(Microsoft.UI.Win32Interop.GetWindowIdFromWindow(App.WindowHandle));
+            camera.PhotoSettings.Format = Microsoft.Windows.Media.Capture.CameraCaptureUIPhotoFormat.Jpeg;
+            camera.PhotoSettings.AllowCropping = false;
+            photo = await camera.CaptureFileAsync(Microsoft.Windows.Media.Capture.CameraCaptureUIMode.Photo);
+        }
+        catch (Exception e) when (e is System.Runtime.InteropServices.COMException or UnauthorizedAccessException) { photo = null; }
+        if (photo is null) return;
+        try
+        {
+            // The tray moved to another taf, or filled, while the camera was open: the photo isn't added.
+            if (forTaf != taf || FilePrep.Room(files.Count) == 0) return;
+            var w = App.Words;
+            var pending = new Pending(w.Get("attachment.photo"));
+            files.Add(pending);
+            Show();
+            await AttachAsync(pending, photo, taf, send, named: w.Get("attachment.photo"));
+        }
+        finally
+        {
+            // Windows' copy of the photo is a temporary file: gone on every path once it's taken, added or not.
+            try { await photo.DeleteAsync(Windows.Storage.StorageDeleteOption.PermanentDelete); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException) { }
+        }
+    }
+
+    /// <summary>Choose file: up to five a message, each declared for <paramref name="taf"/> and sent up as it's picked.</summary>
+    async Task ChooseAsync(string taf, Func<string, byte[], Task<CloudRead>> send)
+    {
         var room = FilePrep.Room(files.Count);
         if (room == 0) return;
         var picker = new Windows.Storage.Pickers.FileOpenPicker();
@@ -71,12 +143,12 @@ sealed class AttachTray(StackPanel tray, Button paperclip, Func<FrameworkElement
         }
     }
 
-    async Task AttachAsync(Pending pending, Windows.Storage.StorageFile file, string taf, Func<string, byte[], Task<CloudRead>> send)
+    async Task AttachAsync(Pending pending, Windows.Storage.StorageFile file, string taf, Func<string, byte[], Task<CloudRead>> send, string? named = null)
     {
         var w = App.Words;
         try
         {
-            var (name, mediaType, bytes) = await PrepareAsync(file);
+            var (name, mediaType, bytes) = await PrepareAsync(file, named);
             pending.Name = name;
             if (FilePrep.Problem(w, name, bytes.Length, mediaType) is { } problem) { pending.Why = problem; return; }
             var declared = await send(Attachments.Path(taf), Attachments.DeclareBody(mediaType!, name, bytes.Length, FilePrep.Sha256(bytes)));
@@ -101,8 +173,9 @@ sealed class AttachTray(StackPanel tray, Button paperclip, Func<FrameworkElement
     /// <summary>
     /// A picked file as it goes: an image redrawn as a JPEG (its long edge at most 2,576, on white, its pixels only, by a new
     /// encoder, named .jpg); anything else as it is, by its kind. A kind tafs doesn't take has no media type, and says why.
+    /// <paramref name="named"/>, a photo just taken: its name ("Photo"), not the camera's file's.
     /// </summary>
-    static async Task<(string Name, string? MediaType, byte[] Bytes)> PrepareAsync(Windows.Storage.StorageFile file)
+    static async Task<(string Name, string? MediaType, byte[] Bytes)> PrepareAsync(Windows.Storage.StorageFile file, string? named = null)
     {
         if (!FilePrep.IsImage(file.Name))
         {
@@ -136,7 +209,7 @@ sealed class AttachTray(StackPanel tray, Button paperclip, Func<FrameworkElement
             await reader.LoadAsync((uint)output.Size);
             reader.ReadBytes(bytes);
         }
-        return (FilePrep.JpegName(App.Words, file.Name), "image/jpeg", bytes);
+        return (FilePrep.JpegName(App.Words, named ?? file.Name), "image/jpeg", bytes);
     }
 
     /// <summary>The tray: each file with its mark, its name, where it stands (Uploading, Ready, or why in red) and Remove.</summary>
