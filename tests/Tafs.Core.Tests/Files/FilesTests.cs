@@ -152,13 +152,21 @@ public class FilesTests
         Assert.Equal(new PreviewRead(PreviewKind.Text, new FilePreviewText("hi", true)), await DeliveredFiles.PreviewAsync(csv, Start, Bytes));
         Assert.Equal(PreviewKind.NoPreview, (await DeliveredFiles.PreviewAsync(csv, NoStart, Bytes)).Kind);
         Assert.Equal(PreviewKind.Unreachable, (await DeliveredFiles.PreviewAsync(csv, Unreached, Bytes)).Kind);
-        Assert.Equal(PreviewKind.NoPreview, (await DeliveredFiles.PreviewAsync(pdf, NoStart, Bytes)).Kind);
         Assert.Equal(0, bytesRead);
 
         var picture = await DeliveredFiles.PreviewAsync(png, NoStart, Bytes);
         Assert.Equal((PreviewKind.Copy, 3), (picture.Kind, picture.Bytes!.Length));
         Assert.Equal(PreviewKind.Copy, (await DeliveredFiles.PreviewAsync(png, Unreached, Bytes)).Kind);
         Assert.Equal(PreviewKind.Unreachable, (await DeliveredFiles.PreviewAsync(png, NoStart, _ => Task.FromResult<byte[]?>(null))).Kind);
+
+        // A PDF: its bytes read on this PC and its pages drawn here (the iPad's QuickLook); a failed read says so.
+        var document = await DeliveredFiles.PreviewAsync(pdf, NoStart, Bytes);
+        Assert.Equal((PreviewKind.Pdf, 3), (document.Kind, document.Bytes!.Length));
+        Assert.Equal(PreviewKind.Unreachable, (await DeliveredFiles.PreviewAsync(pdf, NoStart, _ => Task.FromResult<byte[]?>(null))).Kind);
+        // Another type with no text start (a sheet, a deck): still no preview, and no bytes read.
+        var before = bytesRead;
+        Assert.Equal(PreviewKind.NoPreview, (await DeliveredFiles.PreviewAsync(File1("4", "t", "r", "2026-11-19T08:00:00Z", "d.xlsx", "XLSX"), NoStart, Bytes)).Kind);
+        Assert.Equal(before, bytesRead);
     }
 
     /// <summary>A copy's name on this PC's disk never leaves its folder (agentgabo's read): no drive, no stream, no device name.</summary>

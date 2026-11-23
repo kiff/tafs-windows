@@ -24,6 +24,8 @@ public enum PreviewKind
     Text,
     /// <summary>The bytes on this PC, drawn here: only for a type with no text start.</summary>
     Copy,
+    /// <summary>A PDF's bytes on this PC, its pages drawn here by Windows' own PDF reader (the iPad's QuickLook).</summary>
+    Pdf,
     /// <summary>tafs cloud answered a text type with no start: no preview, and no bytes read.</summary>
     NoPreview,
     /// <summary>tafs cloud couldn't be reached for a text type: the line, and no bytes read.</summary>
@@ -50,6 +52,12 @@ public static class DeliveredFiles
 
     /// <summary>The types this PC draws from their bytes, as pictures; any other type has no preview, only its details.</summary>
     public static readonly IReadOnlySet<string> PictureTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "PNG", "JPG", "JPEG", "GIF", "BMP" };
+
+    /// <summary>A PDF: its pages drawn on this PC from its bytes, as the iPad's QuickLook shows one.</summary>
+    public const string PdfType = "PDF";
+
+    /// <summary>At most this many of a PDF's pages are drawn in its preview; Download has the whole file.</summary>
+    public const int PdfPages = 10;
 
     public static string PagePath(string? after) => after is null ? ListPath : $"{ListPath}?after={Uri.EscapeDataString(after)}";
     public static string FilePath(string id) => $"{ListPath}/{Uri.EscapeDataString(id)}";
@@ -114,8 +122,9 @@ public static class DeliveredFiles
         var answer = await read(FilePath(file.Id));
         if (answer.Answer is null && text) return new(PreviewKind.Unreachable);
         if (answer.Answer is { } a && ReadStart(a) is { } start) return new(PreviewKind.Text, start);
-        if (text || !PictureTypes.Contains(file.Type)) return new(PreviewKind.NoPreview);
-        return await bytes(file.Id) is { } got ? new(PreviewKind.Copy, Bytes: got) : new(PreviewKind.Unreachable);
+        var pdf = string.Equals(file.Type, PdfType, StringComparison.OrdinalIgnoreCase);
+        if (text || (!PictureTypes.Contains(file.Type) && !pdf)) return new(PreviewKind.NoPreview);
+        return await bytes(file.Id) is { } got ? new(pdf ? PreviewKind.Pdf : PreviewKind.Copy, Bytes: got) : new(PreviewKind.Unreachable);
     }
 
     /// <summary>The files of one taf, one run or one chat (tafs cloud's <c>?taf=</c>, <c>?run=</c>, <c>?chat=</c>).</summary>
