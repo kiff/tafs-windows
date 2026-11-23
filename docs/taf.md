@@ -104,6 +104,16 @@ Activity):
   green arc and green words. One node an app (`TafSetup.Nodes`): the connection with actions in front, else one to sign in
   again, else the first. The taf in the middle shows its job. Under it, the workflow folded: its title and summary, then
   each step's number (green while it runs), label, words and app.
+- **An app on the ring opens its sheet** (the iPad's `ConnectedAppSheet`, `TafPage.AppSheet.cs`), titled with its name:
+  - its status in tafs cloud's words, amber when it's to sign in again, with **Sign in again** for whoever manages the taf
+    on a PC that approves (that connection's sheet, then Setup read again);
+  - **What it may do:** each action's title (16 semibold), its limits and its `step_words`;
+  - **Workflow:** its `workflow_words` with no saved workflow, then its own `workflow_steps` ("2 · Reply" and their words);
+  - the last seven days in tafs cloud's words;
+  - **Other connections** to the same app, each with its status and Remove access;
+  - for whoever manages the taf, **Add actions with Coach** (Coach improving it) and **Remove access**. Remove access asks
+    "Remove access to Gmail?" and that its actions stop for this taf, then planque ends it behind Windows Hello, as Connect
+    apps' does; Setup is read again. Why it didn't go shows on the sheet when it's opened again.
 - A failed read keeps the page read before, as the iPad keeps `tafSetups` beside `tafSetupErrors`.
 - `--page taf-setup` with `--home` opens the first taf on Setup, from `taf-setup.json` beside the Home contract (CI's
   `taf-home` and `taf-setup-home`).
