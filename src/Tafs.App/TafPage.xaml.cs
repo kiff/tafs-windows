@@ -775,11 +775,15 @@ public sealed partial class TafPage : Page
             empty.Margin = new Thickness(0, 30, 0, 30);
             ChatPane.Children.Add(empty);
         }
-        // The taf's cards for Coach, among its messages by time, as the iPad's chat items; not in a trial's chat.
-        var asks = new Queue<Tafs.Core.Coach.AskCoachCard>(opening?.InTrial is null ? (chat?.AskCoach ?? []).OrderBy(a => a.At) : []);
+        // The taf's cards among its messages by time, as the iPad's chat items: its cards for Coach, and a run's loop card
+        // ("Still reading"); not in a trial's chat.
+        var asks = new Queue<(DateTimeOffset At, Func<UIElement> View)>(opening?.InTrial is null
+            ? (chat?.AskCoach ?? []).Select(a => (a.At, (Func<UIElement>)(() => AskCoachCardView(a))))
+                .Concat((chat?.LoopCards ?? []).Select(l => (l.At, (Func<UIElement>)(() => LoopCardView(l))))).OrderBy(c => c.Item1)
+            : []);
         for (var i = 0; i < items.Count; i++)
         {
-            while (asks.Count > 0 && asks.Peek().At <= items[i].At) ChatPane.Children.Add(AskCoachCardView(asks.Dequeue()));
+            while (asks.Count > 0 && asks.Peek().At <= items[i].At) ChatPane.Children.Add(asks.Dequeue().View());
             if (Tafs.Core.Coach.CoachChat.GapTime(w, items, i, DateTimeOffset.Now, TimeZoneInfo.Local) is { } gap)
             {
                 var time = CoachPanel.Words(gap, 12, "TafsDimText", HorizontalAlignment.Center);
@@ -825,7 +829,7 @@ public sealed partial class TafPage : Page
             if (m.RefusedLines is { } refused) lines.Children.Add(ChatViews.RefusedLines(refused, Brush));
             ChatPane.Children.Add(lines);
         }
-        while (asks.Count > 0) ChatPane.Children.Add(AskCoachCardView(asks.Dequeue()));
+        while (asks.Count > 0) ChatPane.Children.Add(asks.Dequeue().View());
         // Written while it works: what the run hasn't read, what waits for after, what a stopped run never read.
         AddSteering(Brush);
         // What tafs cloud didn't take, after the thread, where it was written.
@@ -873,6 +877,74 @@ public sealed partial class TafPage : Page
         if (!PinSent() && atEnd) DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
             () => PageScroll.ChangeView(null, PageScroll.ScrollableHeight, null, disableAnimation: true));
         ShowComposer();
+    }
+
+    /// <summary>Loop cards answered here, by id: they show as answered at once, until the thread's words for it come.</summary>
+    readonly HashSet<string> loopTaken = [];
+
+    /// <summary>
+    /// A run's loop card, as the iPad's <c>LoopCardView</c>: tafs cloud's words as sent, its title, its line, and its answers
+    /// (the first primary, Read on; then Stop here). Once answered, or tapped here, it says how and offers nothing more.
+    /// </summary>
+    UIElement LoopCardView(Tafs.Core.Coach.LoopCard card)
+    {
+        var parts = new List<UIElement>();
+        if (card.Title.Length > 0)
+        {
+            var title = Words(card.Title, 15, "TafsInkText");
+            title.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+            parts.Add(title);
+        }
+        if (card.Text.Length > 0) parts.Add(Words(card.Text, 14, "TafsSoftText"));
+        if (card.Answered is { } answered)
+        {
+            if (answered.Length > 0) parts.Add(Words(answered, 13, "TafsDimText"));
+        }
+        else
+            foreach (var (option, i) in card.Options.Select((o, i) => (o, i)))
+            {
+                var b = new Button
+                {
+                    Content = option.Label, Style = Look(i == 0 ? "TafsPrimary" : "TafsOutlineButton"), HorizontalAlignment = HorizontalAlignment.Stretch,
+                    IsEnabled = !loopTaken.Contains(card.Id) && opening?.Send is not null,
+                };
+                AutomationProperties.SetAutomationId(b, $"chat.loop.{i}");
+                var value = option.Value;
+                b.Click += (_, _) => _ = AnswerLoopAsync(card, value);
+                parts.Add(b);
+            }
+        return Panel([.. parts]);
+    }
+
+    /// <summary>
+    /// The owner's answer to a loop card, as Android's <c>answerTafCard</c> and the iPad's <c>answerLoopCard</c>: the option's
+    /// value to the taf's own route with the card's chat; the run that waited on it goes on, and the thread is read again, so
+    /// it's picked back up and followed to its end. A card that no longer waits (409) is read again; any other failure says
+    /// why under the chat and the card can be answered again.
+    /// </summary>
+    async Task AnswerLoopAsync(Tafs.Core.Coach.LoopCard card, string value)
+    {
+        if (opening is not { CloudId: { } id, Send: { } send } mine || loopTaken.Contains(card.Id) || card.Answer(id, value) is not { } request) return;
+        loopTaken.Add(card.Id);
+        chatError = null;
+        ShowChat();
+        var answer = await send(request.Path, request.Body);
+        if (opening != mine) return;
+        if (answer.Answer is { } taken)
+        {
+            // The run goes on: it's followed again, even if it was followed before it paused on the card (the iPad's
+            // resumedRuns.remove(run)); without its run named, any run at work is picked back up.
+            if (taken.ValueKind == System.Text.Json.JsonValueKind.Object && taken.TryGetProperty("run", out var r) && r.ValueKind == System.Text.Json.JsonValueKind.String) resumed.Remove(r.GetString()!);
+            else resumed.Clear();
+            chatFollow.Reset();
+        }
+        else
+        {
+            loopTaken.Remove(card.Id);
+            if (answer.Status != 409) chatError = App.Words.Get("common.didnt_go_through", ("what", card.Title.Length > 0 ? card.Title : card.Text),
+                ("why", answer.Why ?? App.Words.Get("error.ours")));
+        }
+        await LoadChatAsync();
     }
 
     /// <summary>
