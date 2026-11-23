@@ -922,9 +922,12 @@ public sealed partial class CoachPanel : UserControl
         if (state is ApprovalState.Done or ApprovalState.Declined)
         {
             // What the person approved, under the line: the Card KIFF says it signed.
-            var signed = state == ApprovalState.Done && draft is { Signed: true, NoTools: not true } ? draft.CardLines(w).SelectMany(l => l).ToList() : [];
+            // Opened, the Card in full under its title, as the iPad's signedCardView: never planque's grant as it reads now,
+            // which a later approval can have widened past what this one approved.
+            var signedDraft = state == ApprovalState.Done && draft is { Signed: true, NoTools: not true } ? draft : null;
+            var signed = signedDraft?.CardLines(w).SelectMany(l => l).ToList() ?? [];
             return QuestionsCardView.Outcome(ApprovalCard.Outcome(w, thread, c, state, grant, draft), Brush,
-                state == ApprovalState.Done ? "\uEC61" : "\uECC9", state == ApprovalState.Done ? "TafsOk" : "TafsDim", signed);
+                state == ApprovalState.Done ? "\uEC61" : "\uECC9", state == ApprovalState.Done ? "TafsOk" : "TafsDim", signed, signedDraft?.CardTitle(w));
         }
         var failed = state == ApprovalState.Failed;
         var box = new StackPanel { Spacing = 10 };
