@@ -338,7 +338,14 @@ each its own screen with Back.
     click sends it again as a new message, never by itself (`TafSwitch.RetryText`). With none of that session's messages
     loaded, only the words show, so a message that already ran is never sent twice. A switch that stopped nothing waiting
     says nothing.
-  - **With a Card:** Its Card, KIFF's draft as read, and that the taf doesn't run while it switches. Install this version
+  - **With a Card:** Its Card, KIFF's draft as read, and that the taf doesn't run while it switches. The draft's Cards
+    are drawn as the iPad's `DraftCardsView` (`TafPage.DraftCards.cs`, `AgentDraft.Shown`), here and on the try sheet:
+    - its new Cards as one panel, "A new Card", each new Card's lines whole, in the draft's order. Only a whole Card that
+      reads exactly as one already shown is left out, never a line: a Card's totals can be bare ("20 calls a day"), and
+      the owner never sees less than they sign;
+    - each Card it revises as "Changes a Card", Now and its lines, then After and the new lines;
+    - one re-issued as it is, "Unchanged", its terms once;
+    - each Card it removes, "Removes a Card", its lines struck through, then "Your taf can't do this any more." Install this version
     signs exactly what was shown: one Windows Hello, this PC's passkey asserting KIFF's confirm, unless KIFF has it
     already. A Card changed meanwhile is shown again and the switch dropped; KIFF's `card_revised` offers Draft its Card
     again (`redraft`). Cancel drops the switch (`DELETE /v1/tafs/{id}/switching`).

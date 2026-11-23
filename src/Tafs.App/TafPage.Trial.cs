@@ -111,12 +111,8 @@ public sealed partial class TafPage
             if (draft is { Cards: not null } shown)
             {
                 body.Children.Add(new TextBlock { Text = w.Get("card.its_card"), Style = Look("TafsEyebrow") });
-                foreach (var line in shown.CardLines(w).SelectMany(l => l))
-                {
-                    var mono = Words(line, 12, "TafsInkText");
-                    mono.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas");
-                    body.Children.Add(mono);
-                }
+                // As the iPad's try sheet: its Cards as DraftCardsView draws them.
+                body.Children.Add(DraftCards(shown, w));
             }
             else if (loaded && why is null) body.Children.Add(Words(w.Get("version.trial_card_unreadable"), 13, "TafsNoText"));
             else if (!loaded) body.Children.Add(new ProgressRing { IsActive = true, Width = 24, Height = 24, HorizontalAlignment = HorizontalAlignment.Left });
