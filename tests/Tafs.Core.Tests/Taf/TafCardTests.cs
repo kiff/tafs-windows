@@ -209,4 +209,22 @@ public class TafCardTests
         Assert.DoesNotContain("{", card.Bar(w, 3).Hero + card.Bar(w, 3).Under);
         Assert.All(card.Facts(w), f => Assert.DoesNotContain("{", f));
     }
+
+    [Fact]
+    public void Pending_use_shows_only_on_a_live_active_Card_and_unit_words_say_why_there_is_no_currency()
+    {
+        var total = new CardTotal(KiffAmount.Euros(2_000), KiffAmount.Euros(480), Day, Pending: " €30 pending from a refused call ",
+            UnitWords: " Its currency comes from Stripe, which isn't connected. ");
+        var calls = new CallsTotal(20, 4, Day, Pending: "1 call pending");
+        var card = new TafCard("c", "Refunds", [Refunds], total, calls);
+        Assert.Equal(["€30 pending from a refused call", "1 call pending"], card.PendingLines);
+        Assert.Equal("Its currency comes from Stripe, which isn't connected.", card.UnitWords);
+        // A test Card's or an ended one's totals aren't what the taf may do: no pending lines.
+        Assert.Empty((card with { Live = false }).PendingLines);
+        Assert.Empty((card with { Active = false }).PendingLines);
+        // Nothing pending, no unit words: none drawn.
+        var plain = new TafCard("c", "Refunds", [Refunds], new CardTotal(KiffAmount.Euros(2_000), null, Day, Pending: "  "));
+        Assert.Empty(plain.PendingLines);
+        Assert.Null(plain.UnitWords);
+    }
 }

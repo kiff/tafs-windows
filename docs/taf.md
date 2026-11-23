@@ -214,6 +214,10 @@ rules and totals.
   then it asks you" when past them it asks; "≤ €150 each · €2,000 a day" when it refuses; "never", "always asks you".
   Under its name: "Outside: held for you" or "Outside: refused", from KIFF's `outside` (`hold` or `refuse`).
 - **What it carries for the Card tab:** a total's pending use and why it has no currency, in KIFF's words as sent.
+  Both are drawn under How this is counted, as the iPad's: what a vendor's refusal still counts against its totals
+  (`TafCard.PendingLines`, the money total's then the calls'), in 13 soft, for a live, active Card only (a test Card's
+  totals aren't what the taf may do); and why its total has no currency (`TafCard.UnitWords`), with **Reconnect it in
+  Coach** for whoever manages the taf and may use Coach, a new conversation on it, as Improve in Coach.
 - **Its facts:** its main rule and how many tools, or without a figure its first two rules and how many more.
 - **A window** is KIFF's (`calendar_day`, `rolling_24h`, `rolling_7d`, `rolling_1h`, `lifetime`). tafs cloud's words
   come first, and one this app doesn't know reads as sent, never as a day.
@@ -399,7 +403,6 @@ is the approval key's act, never the device key's); a revoked taf can still be r
   the taf, and Stopped only once KIFF has revoked them all (`card.revoke_failed` otherwise). How it's signed, and
   whether a view-only session may send it, is settled in its own PR with the security review. Today's Revoke reaches
   nothing, so it's shown on the sample's Card tab only, never on a real taf's.
-- A Card's pending use and unit words drawn (its totals for each item and How this is counted are on Windows, #190).
 - **The rest:** the head's second line (the version); held calls, Card-unit exceptions, its work and its runs
   at the top of the Activity; a line's receipt and its next step.
 
