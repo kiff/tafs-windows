@@ -45,6 +45,9 @@
           </StackPanel>
         </Border>
 
+        <!-- A held browser step's place on the card, as the iPad's BrowserStepBlock: drawn in code (HeldCallView.BrowserBlock). -->
+        <ContentPresenter Content="{x:Bind BrowserBlock}" Visibility="{x:Bind BrowserShown}" />
+
         <!-- What it's on, as KIFF keeps the call, folded under Details as the iPad's: ids aren't words for the card's face. -->
         <Expander Visibility="{x:Bind local:HeldCallView.Seen(DetailsText)}" HorizontalAlignment="Stretch"
                   HorizontalContentAlignment="Left" Padding="0">

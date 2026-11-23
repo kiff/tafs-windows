@@ -50,6 +50,56 @@ public sealed class HeldCallView : INotifyPropertyChanged
     public string? AnswerLine { get; }
     public Visibility GateShown { get; }
 
+    /// <summary>
+    /// A held browser step's place on the card, as the iPad's <c>BrowserStepBlock</c> (docs/chrome.md, "The approval card"): the
+    /// site large and its exact origin small, the paired Chrome it would run in; under "On the page", the act with the
+    /// element's own label, the page's title and what it showed around the element; under "In the basket", its lines when it's
+    /// a checkout (the total is KIFF's amount, at the top). Every line is planque's or the page's, drawn as it is: never markup,
+    /// never a link, and never the card's summary, which stays KIFF's. None for any other call.
+    /// </summary>
+    public UIElement? BrowserBlock => browserBlock ??= Call.Browser is { } step ? BrowserStepBlock(words, step) : null;
+    UIElement? browserBlock;
+    public Visibility BrowserShown => Call.Browser is null ? Visibility.Collapsed : Visibility.Visible;
+
+    static UIElement BrowserStepBlock(WordBook w, BrowserStep step)
+    {
+        static TextBlock Line(string text, double size, string brush, bool semibold = false) => new()
+        {
+            Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, Foreground = ChatViews.Themed(brush),
+            FontWeight = semibold ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal,
+        };
+        var block = new StackPanel { Spacing = 8 };
+        var where = new StackPanel { Spacing = 2 };
+        where.Children.Add(new TextBlock { Text = step.Site, FontSize = 20, FontWeight = Microsoft.UI.Text.FontWeights.Bold, TextWrapping = TextWrapping.Wrap, Foreground = ChatViews.Themed("TafsInk") });
+        if (step.Origin is { } origin) where.Children.Add(new TextBlock { Text = origin, FontSize = 12, FontFamily = Monospace.Face, TextWrapping = TextWrapping.Wrap, Foreground = ChatViews.Themed("TafsSoft") });
+        if (step.ChromeName is { } chrome)
+        {
+            var held = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+            held.Children.Add(new FontIcon { Glyph = "", FontSize = 13, Foreground = ChatViews.Themed("TafsSoft") });
+            held.Children.Add(Line(w.Get("chrome.held_in", ("name", chrome)), 13, "TafsSoft"));
+            where.Children.Add(held);
+        }
+        block.Children.Add(where);
+        var page = new StackPanel { Spacing = 4 };
+        page.Children.Add(Line(w.Get("chrome.held_page"), 12, "TafsSoft", semibold: true));
+        var act = Line(step.ActionWords, 14, "TafsInk", semibold: true);
+        AutomationProperties.SetAutomationId(act, "held.browser.act");
+        page.Children.Add(act);
+        if (step.PageTitle is { } title) page.Children.Add(Line(title, 13, "TafsSoft", semibold: true));
+        if (step.PageText is { } text) page.Children.Add(Line(text, 13, "TafsInk"));
+        block.Children.Add(page);
+        if (step.Basket.Count > 0)
+        {
+            var basket = new StackPanel { Spacing = 4 };
+            basket.Children.Add(Line(w.Get("chrome.held_basket"), 12, "TafsSoft", semibold: true));
+            foreach (var item in step.Basket) basket.Children.Add(Line(item, 13, "TafsInk"));
+            block.Children.Add(basket);
+        }
+        var box = new Border { Child = block, Padding = new Thickness(10), CornerRadius = new CornerRadius(10), Background = ChatViews.Themed("TafsSoftWash") };
+        AutomationProperties.SetAutomationId(box, "held.browser");
+        return box;
+    }
+
     /// <summary>A taf's and Coach's calls have an avatar; an unknown agent's has none.</summary>
     public Visibility AvatarShown { get; }
 

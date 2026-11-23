@@ -36,6 +36,9 @@ public sealed record HeldCall(
     /// </summary>
     public bool NeedsRelease { get; init; }
 
+    /// <summary>The held browser step's place on the card (<see cref="BrowserStep"/>); none for any other call.</summary>
+    public BrowserStep? Browser { get; init; }
+
     /// <summary>KIFF's action for the call (the iPad's <c>proposed.action</c>), when it came from KIFF.</summary>
     public string? Action { get; init; }
 
@@ -68,6 +71,15 @@ public sealed record HeldAnswerLines(string? Line, bool Gate);
 public sealed record VersionInstall(string Taf, int N);
 
 /// <summary>What a held call's card says, top to bottom, as the iPad's HeldCallCard.</summary>
+/// <summary>
+/// A held browser step's place on the card, as the iPad's <c>BrowserStep</c> (docs/chrome.md, "The approval card"): the site,
+/// drawn large, and its exact origin; the act, with the element's own label; the page's title and what it showed around the
+/// element; the basket's lines when it's a checkout (its total is KIFF's amount); the paired Chrome it would run in. Every line
+/// is planque's or the page's, drawn as it is: never markup, never a link.
+/// </summary>
+public sealed record BrowserStep(string Site, string? Origin, string ActionWords, string? PageTitle, string? PageText,
+    IReadOnlyList<string> Basket, string? ChromeName);
+
 public sealed record HeldCallLines(
     string Holder, string Initial, string Left, string? Amount, string Summary, string? Context, string Reason,
     string? TafSays, string? TafAbout, string? TafReason, string Footer, bool Answerable);
