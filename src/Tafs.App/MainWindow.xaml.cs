@@ -91,6 +91,9 @@ public sealed partial class MainWindow : Window
     /// <summary>When the window was minimised, if it is: past ten minutes the minute's read stops (<see cref="HoldToast.Reads"/>).</summary>
     DateTimeOffset? minimisedSince;
 
+    /// <summary>The window is minimised: the threads it follows wait for it to come back (<see cref="ChatFollow"/>).</summary>
+    internal static bool Hidden { get; private set; }
+
     /// <summary>The Record's lines: KIFF's activity once Home is read as the session, else none, or the iPad's sample.</summary>
     IReadOnlyList<RecordEntry> record;
     /// <summary>How this window reads KIFF for the Record: as the session, or a stand-in file for a screenshot; none signed out.</summary>
@@ -246,6 +249,8 @@ public sealed partial class MainWindow : Window
         {
             var minimised = window.Presenter is Microsoft.UI.Windowing.OverlappedPresenter { State: Microsoft.UI.Windowing.OverlappedPresenterState.Minimized };
             var now = DateTimeOffset.UtcNow;
+            // Minimised, the threads followed in the window wait (ChatFollow): nobody sees them.
+            Hidden = minimised;
             if (minimised && minimisedSince is null) minimisedSince = now;
             else if (!minimised && minimisedSince is { } since)
             {

@@ -38,6 +38,7 @@ public sealed partial class CoachPanel
 
     /// <summary>The thread read again every 2 s while Coach works or a sent message waits, only while the panel is open.</summary>
     DispatcherTimer coachClock = null!;
+    readonly ChatFollow coachFollow = new();
 
     /// <summary>The thread's items as drawn, by id, so a read again keeps their order; none for a conversation not drawn yet.</summary>
     List<string>? drawnOrder;
@@ -62,8 +63,14 @@ public sealed partial class CoachPanel
         ToolTipService.SetToolTip(Handle, w.Get("coach.drag_make_wider_narrower"));
         ChatsBack.Content = w.Get("coach.chats.back");
         CoachSendButton.Content = w.Get("common.send");
-        coachClock = new DispatcherTimer { Interval = TafChatSend.WhileWorking };
-        coachClock.Tick += (_, _) => { if (IsOpen && !coachSending) _ = LoadThreadAsync(); else coachClock.Stop(); };
+        // Read again while Coach's thread moves: fast, then slower, then not at all (ChatFollow). Minimised, it waits.
+        coachClock = new DispatcherTimer { Interval = ChatFollow.Fast };
+        coachClock.Tick += (_, _) =>
+        {
+            if (!IsOpen || coachSending) { coachClock.Stop(); return; }
+            if (MainWindow.Hidden) return;
+            _ = LoadThreadAsync();
+        };
         try { chosen = CoachWidth.Read(File.Exists(WidthFile) ? File.ReadAllText(WidthFile) : null); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
         ShowFull();
@@ -78,6 +85,7 @@ public sealed partial class CoachPanel
         coachUnsent.Clear();
         coachQueued = null;
         coachClock.Stop();
+        coachFollow.Reset();
         CoachDraft.Text = "";
         ChatsView.Visibility = Visibility.Collapsed;
         ChatTools.Visibility = Visibility.Collapsed;
@@ -183,8 +191,18 @@ public sealed partial class CoachPanel
             });
         }
         // Read again while Coach works, a sent message waits, or a new version is still being prepared.
-        if (thread?.Working is not null || coachSent.Count > 0 || thread?.AwaitsImprovement(DateTimeOffset.UtcNow) == true) coachClock.Start();
-        else coachClock.Stop();
+        // Each read says how long until the next (ChatFollow): none once it has been quiet half an hour.
+        if ((thread?.Working is not null || coachSent.Count > 0 || thread?.AwaitsImprovement(DateTimeOffset.UtcNow) == true)
+            && coachFollow.Next(ChatFollow.Signature(thread, coachSent.Count), DateTimeOffset.UtcNow, Random.Shared.NextDouble()) is { } wait)
+        {
+            coachClock.Interval = wait;
+            coachClock.Start();
+        }
+        else
+        {
+            coachClock.Stop();
+            coachFollow.Reset();
+        }
         // What was just sent at the top, Coach's answer growing under it, as the iPad's SetupChatView; else the thread's end.
         if (!Pinner.Pin() && toEnd) DispatcherQueue.TryEnqueue(() =>
         {

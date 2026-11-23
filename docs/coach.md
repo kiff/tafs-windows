@@ -272,7 +272,8 @@ thread, planque's grants and KIFF's drafts) and asks no server for more; the car
   - Shown at once on the right, then `POST /v1/tafs/{coach}/messages` with `text`, and `session` for the conversation
     shown or `new_chat: true` for a new one, always with `new_chat_after_handover: true` (the iPad's `setupTarget`).
   - **Sent:** the conversation tafs cloud names (`session`) is the one shown from then on, a new one after a hand-over
-    included. The thread is read again, every 2 s while Coach works or a sent message waits, only while the panel is open.
+    included. The thread is read again while Coach works or a sent message waits, only while the panel is open, as a
+    taf's chat is (`ChatFollow`, docs/taf.md).
   - **Not taken:** it stays after the thread as not sent, as a taf's chat does (`docs/taf.md`): "Not sent · why", Edit and
     Retry, with Copy and Delete in its menu. Refused because the account is halted, it offers Resume, which closes Coach mode
     and opens Halt all. Another conversation forgets it.
@@ -343,7 +344,7 @@ send; it never sends. Not while improving a taf, which has its own lines. Read w
 - **After an answer:** the iPad follows the run's stream as it writes; here the thread is read again, until the stream is
   ported.
 - **A drive's end** (what Coach did in the app, `DriveRecap`), placed in the thread on the iPad: with drives.
-- **Writing to Coach, the rest:** the stream as Coach writes (here the thread is read again every 2 s), Stop, queued
+- **Writing to Coach, the rest:** the stream as Coach writes (here the thread is read again, `ChatFollow`), Stop, queued
   messages, steering, files and dictation, and `starts` and its recipes. A message refused for want of the AI-data
   consent goes back in the box, with no Not sent row, and the consent's screen says why, as the iPad's.
 - **The backdrop as a button** for Narrator: it has its name, but a tap is the only way to use it. Back and Escape close Coach from the keyboard.
