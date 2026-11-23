@@ -66,6 +66,15 @@ public static class AppConnections
     public static IReadOnlyList<GrantAction> KnownActions(PlanqueGrant g) => (g.Actions ?? []).Where(a =>
         (a.Id == "sign_in_again" && a.How is "approve" or "key") || (a.Id is "remove" or "remove_unfinished" && a.How == "delete")).ToList();
 
+    /// <summary>
+    /// The Chrome a browser connection runs in, on its page ("In Work laptop"), as the iPad's <c>chromeSection</c> (tafs'
+    /// docs/chrome.md, "Your Chrome" 4): by the name planque keeps for it; none for any other connection, or a Chrome with no
+    /// name. It's read only: moving a connection to another Chrome is signed by the phone's approval key, which the extension
+    /// trusts, so it isn't offered here (planque's <c>use_another_chrome</c> isn't among <see cref="KnownActions"/>).
+    /// </summary>
+    public static string? HeldIn(WordBook w, PlanqueGrant g) =>
+        g.Chrome?.ChromeName?.Trim() is { Length: > 0 } name ? w.Get("chrome.held_in", ("name", name)) : null;
+
     /// <summary>An action that ends the connection (<c>delete</c>): asked first, in planque's words, naming what stops.</summary>
     public static bool Removes(GrantAction a) => a.How == "delete";
 
