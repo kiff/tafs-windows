@@ -1920,6 +1920,8 @@ public sealed partial class MainWindow : Window
         ShowYourTafs();
         NoTafs.Visibility = home.Tafs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         if (Pages.Content is OverviewPage overview) overview.ShowRows(overviewRows, home?.Labels);
+        // A taf page open on a taf Home no longer lists (removed, here or elsewhere) says it's gone, as the iPad's LateNote.
+        if (Pages.Content is TafPage tafPage && tafPage.OnScreen is { } open) tafPage.ShowGone(read.Tafs.All(t => t.Id != open.Id));
         // Coach's result cards name and open the tafs on this list, and its empty chat draws board 7 with none or one.
         CoachMode.TafCount = read.Tafs.Count;
         CoachMode.Redraw();

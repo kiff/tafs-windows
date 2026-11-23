@@ -5,7 +5,7 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:local="using:Tafs.App"
       Background="{ThemeResource TafsBackground}">
-  <Grid Padding="24,16,24,0">
+  <Grid x:Name="Root" Padding="24,16,24,0">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
@@ -247,5 +247,9 @@
               Visibility="Collapsed" AutomationProperties.AutomationId="chat.stop" />
     </Grid>
     </Grid>
+    <!-- A taf that's gone (the iPad's LateNote): only its words, dim, in the middle, fading in after a moment. -->
+    <TextBlock x:Name="GoneNote" Grid.RowSpan="4" Visibility="Collapsed" Opacity="0" FontSize="15" TextWrapping="Wrap"
+               HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{ThemeResource TafsDim}"
+               AutomationProperties.AutomationId="taf.gone" />
   </Grid>
 </Page>
