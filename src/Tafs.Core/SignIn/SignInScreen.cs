@@ -68,15 +68,18 @@ public static class SignInScreen
     {
         "de", "es", "fr", "it", "nl", "pl", "pt", "ko", "ja", "et", "lt", "lv", "cs", "sk", "sl", "hu", "ro", "bg", "hr", "tr",
         "id", "vi", "th", "zh", "ar", "sr", "sq", "ka", "hy", "az", "bn", "he", "ca", "mk", "mn", "ne", "km", "lo", "el",
+        // Brazilian Portuguese has its own pages, in lower case (kiff.dev answers 404 for /pt-BR/).
+        "pt-br",
     };
 
     /// <summary>
-    /// The code kiff.dev serves a language's legal pages under, if it has them: KIFF's code, so Traditional Chinese is "zh",
-    /// Latin Serbian "sr" and Brazilian Portuguese "pt" (the iPad's <c>Legal.translated</c>).
+    /// The code kiff.dev serves a language's legal pages under, if it has them: KIFF's code, so Traditional Chinese is "zh" and
+    /// Latin Serbian "sr" (the iPad's <c>Legal.translated</c>). Brazilian Portuguese has its own pages, "pt-br", in lower case;
+    /// plain Portuguese stays on "pt".
     /// </summary>
     public static string? LegalCode(string language)
     {
-        var code = language switch { "zh-Hant" => "zh", "sr-Latn" => "sr", "pt-BR" => "pt", _ => language };
+        var code = language switch { "zh-Hant" => "zh", "sr-Latn" => "sr", "pt-BR" => "pt-br", _ => language };
         return LegalLanguages.Contains(code) ? code : null;
     }
 

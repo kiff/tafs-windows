@@ -129,7 +129,17 @@ public class LegalCodeTests
     [InlineData("he", "https://kiff.dev/he/tafs/terms")]
     [InlineData("zh-Hant", "https://kiff.dev/zh/tafs/terms")]
     [InlineData("sr-Latn", "https://kiff.dev/sr/tafs/terms")]
-    [InlineData("pt-BR", "https://kiff.dev/pt/tafs/terms")]
+    [InlineData("pt-BR", "https://kiff.dev/pt-br/tafs/terms")]
+    [InlineData("pt", "https://kiff.dev/pt/tafs/terms")]
     public void Each_language_opens_kiff_dev_s_page_under_KIFF_s_code(string language, string terms) =>
         Assert.Equal(terms, SignInScreen.Terms(language).AbsoluteUri);
+
+    /// <summary>Brazilian Portuguese opens its own pages, KIFF's and tafs's, at the lower-case path kiff.dev serves.</summary>
+    [Fact]
+    public void Brazilian_Portuguese_opens_its_own_pages()
+    {
+        Assert.Equal("https://kiff.dev/pt-br/tafs/privacy", SignInScreen.Privacy("pt-BR").AbsoluteUri);
+        Assert.Equal("https://kiff.dev/pt-br/privacy", Onboarding.KiffPage("pt-BR", "privacy").AbsoluteUri);
+        Assert.Equal("https://kiff.dev/pt/privacy", Onboarding.KiffPage("pt", "privacy").AbsoluteUri);
+    }
 }

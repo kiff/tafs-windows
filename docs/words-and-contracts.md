@@ -28,7 +28,7 @@ Run `dotnet run --project tools/Tafs.Ci -- sync` first: they land in `shared/`, 
   each value in a line is set apart (U+2068…U+2069), as the iPad's `Words.isolated`. Spaced capitals drop the
   monospaced face and spacing in Japanese, Korean, Chinese and Arabic.
 - **Legal pages** open in kiff.dev's language under KIFF's code (`SignInScreen.LegalCode`: zh-Hant is `zh`,
-  sr-Latn `sr`, pt-BR `pt`), else in English, and the row says so.
+  sr-Latn `sr`, pt-BR its own `pt-br`), else in English, and the row says so.
 - The possessive rule exists in English and German only. Other languages keep the name and word the
   line around it; a test fails if one of their lines uses `|possessive`.
 - The "this" rule exists in French only (`THIS` in the shared generate.py): "ce PC", "cet appareil". Other
