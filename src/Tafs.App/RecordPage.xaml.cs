@@ -346,7 +346,7 @@ public sealed partial class RecordPage : Page
         row.Children.Add(new TextBlock
         {
             Text = hit.TafName.ToUpper(Tafs.Core.Words.Locale.Culture(App.Words.Language)), FontSize = 11,
-            FontFamily = new FontFamily("Cascadia Mono, Consolas"), Foreground = Look("TafsDim"),
+            FontFamily = Monospace.Face, Foreground = Look("TafsDim"),
         });
         var line = new Grid { ColumnSpacing = 10 };
         line.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });

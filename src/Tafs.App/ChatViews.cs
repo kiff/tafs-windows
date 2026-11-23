@@ -123,7 +123,7 @@ static class ChatViews
         var text = door.Stamp(App.Words, fromOwner);
         var stamp = new TextBlock
         {
-            Text = text, FontSize = 10, FontWeight = Microsoft.UI.Text.FontWeights.Medium, FontFamily = new FontFamily("Cascadia Mono, Consolas"),
+            Text = text, FontSize = 10, FontWeight = Microsoft.UI.Text.FontWeights.Medium, FontFamily = Monospace.Face,
             MaxLines = 2, TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis,
             Foreground = brush(door.NotSent ? "TafsNo" : "TafsBlue"),
             HorizontalAlignment = fromOwner ? HorizontalAlignment.Right : HorizontalAlignment.Left,

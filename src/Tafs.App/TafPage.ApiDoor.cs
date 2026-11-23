@@ -224,7 +224,7 @@ static class ApiDoorDialogs
     /// <summary>Code, as written: monospaced, selectable, scrolled sideways rather than wrapped (an address may wrap).</summary>
     public static UIElement Code(string text, bool wrap, ElementTheme theme)
     {
-        var t = new TextBlock { Text = text, FontFamily = new FontFamily("Cascadia Mono, Consolas"), FontSize = 12, IsTextSelectionEnabled = true,
+        var t = new TextBlock { Text = text, FontFamily = Monospace.Face, FontSize = 12, IsTextSelectionEnabled = true,
             TextWrapping = wrap ? TextWrapping.Wrap : TextWrapping.NoWrap, Style = Look("TafsInkText"),
             FlowDirection = FlowDirection.LeftToRight };
         return new Border
@@ -246,7 +246,7 @@ static class ApiDoorDialogs
         var endpoint = ApiDoor.Endpoint(door, cloud);
         var body = new StackPanel { Spacing = 12 };
         body.Children.Add(Line(w.Get("door.api.shown_once_body", ("app", door.Label)), 15, "TafsSoftText"));
-        var shown = new TextBlock { Text = key.Key, FontFamily = new FontFamily("Cascadia Mono, Consolas"), FontSize = 14, IsTextSelectionEnabled = true,
+        var shown = new TextBlock { Text = key.Key, FontFamily = Monospace.Face, FontSize = 14, IsTextSelectionEnabled = true,
             TextWrapping = TextWrapping.Wrap, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Style = Look("TafsInkText") };
         AutomationProperties.SetAutomationId(shown, "door.api.key");
         body.Children.Add(new Border { Child = shown, Padding = new Thickness(12), CornerRadius = new CornerRadius(12), Background = ChatViews.ThemeBrush(theme, "TafsRaised") });

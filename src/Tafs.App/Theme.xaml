@@ -121,6 +121,9 @@
     <GradientStop Color="#2A64F5" Offset="1" />
   </LinearGradientBrush>
 
+  <!-- The monospaced face (Monospace.Face): the plain face instead in a language whose letters join (App.FollowScript). -->
+  <FontFamily x:Key="TafsMono">Cascadia Mono, Consolas</FontFamily>
+
   <!-- A section's label (the iPad's Eyebrow): monospaced, 12, tracked, in capitals (Sidebar.Eyebrow). -->
   <Style x:Key="TafsEyebrow" TargetType="TextBlock">
     <Setter Property="FontFamily" Value="Cascadia Mono, Consolas" />

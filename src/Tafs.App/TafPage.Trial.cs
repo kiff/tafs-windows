@@ -221,7 +221,7 @@ public sealed partial class TafPage
             foreach (var line in draft.CardLines(w).SelectMany(l => l))
             {
                 var mono = Words(line, 12, "TafsInkText");
-                mono.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas");
+                mono.FontFamily = Monospace.Face;
                 body.Children.Add(mono);
             }
         }

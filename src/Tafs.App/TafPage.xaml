@@ -155,7 +155,7 @@
               <StackPanel Spacing="10">
                 <!-- "TODAY · NOV 15": 11 medium, monospaced, dim, as the Record's. A next page's day goes on with no title, and none is drawn. -->
                 <TextBlock Text="{x:Bind Title}" Visibility="{x:Bind HasTitle}" FontSize="11" FontWeight="Medium"
-                           FontFamily="Cascadia Mono, Consolas" Foreground="{ThemeResource TafsDim}" Margin="0,6,0,0" />
+                           FontFamily="{StaticResource TafsMono}" Foreground="{ThemeResource TafsDim}" Margin="0,6,0,0" />
                 <ItemsControl ItemsSource="{x:Bind Lines}">
                   <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate><StackPanel Spacing="10" /></ItemsPanelTemplate>
@@ -187,7 +187,7 @@
                           </StackPanel>
                           <!-- Its time, and the money it moved when tafs cloud says. -->
                           <StackPanel Grid.Column="2" Spacing="4" HorizontalAlignment="Right">
-                            <TextBlock Text="{x:Bind Time}" FontSize="12" FontFamily="Cascadia Mono, Consolas" HorizontalAlignment="Right"
+                            <TextBlock Text="{x:Bind Time}" FontSize="12" FontFamily="{StaticResource TafsMono}" HorizontalAlignment="Right"
                                        Foreground="{ThemeResource TafsDim}" />
                             <TextBlock Text="{x:Bind Amount}" Visibility="{x:Bind HasAmount}" FontSize="13" FontWeight="SemiBold"
                                        HorizontalAlignment="Right" Foreground="{ThemeResource TafsInk}" />

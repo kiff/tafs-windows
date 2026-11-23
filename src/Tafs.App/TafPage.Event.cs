@@ -26,7 +26,7 @@ public sealed partial class TafPage
         var shownFilters = KnobEvent.Filters(approval);
         var filters = new TextBlock
         {
-            Text = shownFilters ?? "", FontSize = 13, FontFamily = new FontFamily("Cascadia Mono, Consolas"),
+            Text = shownFilters ?? "", FontSize = 13, FontFamily = Monospace.Face,
             TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Style = Look("TafsInkText"),
         };
         AutomationProperties.SetAutomationId(filters, "event.filters");

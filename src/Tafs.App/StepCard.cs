@@ -39,7 +39,7 @@ static class StepCard
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(open, link.Words);
             open.Click += (_, _) => _ = Windows.System.Launcher.LaunchUriAsync(link.Url);
             // Where it really goes, as tafs cloud read the link.
-            var host = new TextBlock { Text = link.Host, FontSize = 12, FontFamily = new FontFamily("Cascadia Mono, Consolas"), Style = Look("TafsDimText") };
+            var host = new TextBlock { Text = link.Host, FontSize = 12, FontFamily = Monospace.Face, Style = Look("TafsDimText") };
             lines.Children.Add(new StackPanel { Spacing = 4, Children = { open, host } });
         }
         // Answering confirms with Windows Hello: until it's ready, why, in place of Done and Skip, as the iPad's ApprovalNotReady.

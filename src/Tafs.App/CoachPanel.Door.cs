@@ -48,7 +48,7 @@ public sealed partial class CoachPanel
                 foreach (var f in d.Fields)
                 {
                     var field = Words(ApiDoorDrafts.Field(f), 13, "TafsInkText");
-                    field.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas");
+                    field.FontFamily = Monospace.Face;
                     field.FlowDirection = FlowDirection.LeftToRight;
                     lines.Children.Add(field);
                 }

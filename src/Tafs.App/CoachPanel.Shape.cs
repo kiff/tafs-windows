@@ -134,7 +134,7 @@ public sealed partial class CoachPanel
             box.Children.Add(top);
             if (tool.Actions.Count > 0)
                 box.Children.Add(new TextBlock { Text = string.Join(", ", tool.Actions), FontSize = 12, TextWrapping = TextWrapping.Wrap,
-                    FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas"), Foreground = Brush("TafsSoft") });
+                    FontFamily = Monospace.Face, Foreground = Brush("TafsSoft") });
             if (tool.Why is { } why) box.Children.Add(Words(why, 12, "TafsSoftText"));
             var card = new Border { Child = box, Padding = new Thickness(12), CornerRadius = new CornerRadius(14), BorderThickness = new Thickness(1),
                 Background = Brush("TafsPanel"), BorderBrush = Brush("TafsLine") };
@@ -151,7 +151,7 @@ public sealed partial class CoachPanel
         var w = App.Words;
         var view = new StackPanel { Spacing = 10 };
         view.Children.Add(Eyebrow(w.Get(card.Confirmed ? "card.card_confirmed_kiff" : "card.card_draft_kiff")));
-        var mono = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas");
+        var mono = Monospace.Face;
         var lines = new StackPanel { Spacing = 6, Padding = new Thickness(14) };
         lines.Children.Add(new TextBlock { Text = card.Title, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = mono,
             TextWrapping = TextWrapping.Wrap, Foreground = Brush("TafsInk") });

@@ -45,6 +45,15 @@ public class LocaleTests
     [InlineData("fr", false)]
     [InlineData("ja", false)]
     public void Arabic_and_Hebrew_read_right_to_left(string language, bool rtl) => Assert.Equal(rtl, Locale.RightToLeft(language));
+
+    /// <summary>Arabic's letters join, so its monospaced text is drawn in the plain face; Hebrew's don't.</summary>
+    [Theory]
+    [InlineData("ar", true)]
+    [InlineData("ar-EG", true)]
+    [InlineData("he", false)]
+    [InlineData("en", false)]
+    [InlineData("hi", false)]
+    public void Arabic_letters_join(string language, bool joined) => Assert.Equal(joined, Locale.JoinedScript(language));
 }
 
 [Part("strings")]
