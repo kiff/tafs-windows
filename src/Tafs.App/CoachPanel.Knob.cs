@@ -39,7 +39,7 @@ public sealed partial class CoachPanel
         else if (knob.ShowsDraft(c.Version))
         {
             foreach (var line in knob.DraftWords) lines.Children.Add(Words(line, 15, "TafsInkText"));
-            // Only for whoever manages the taf, on a PC that installs a version (agentgabo's read): anyone else gets no button.
+            // Only for whoever manages the taf, on a PC that installs a version: anyone else gets no button.
             if (taf is not null && c.TafId is { } open && CanInstall?.Invoke(open) == true && c.Version is { } named)
             {
                 // It opens Versions, where the install is confirmed: its words say so, not "Confirm with Windows Hello".

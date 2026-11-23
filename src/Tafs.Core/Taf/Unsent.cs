@@ -31,7 +31,7 @@ public sealed record Refusal(string Why, string? Halted = null, bool Consent = f
     public static Refusal Of(CloudRead r, string fallback) => new(r.Why ?? fallback, r.Halted, r.AsksConsent, r.Status);
 
     /// <summary>
-    /// Whether Retry keeps the message's id (kiff-admin's contract for <c>client_message_id</c>): after a 503 or another 5xx, a
+    /// Whether Retry keeps the message's id (the contract for <c>client_message_id</c>): after a 503 or another 5xx, a
     /// timeout (408), a dropped connection or no clear answer, nothing was taken or it isn't known, so Retry goes under the same
     /// id and gets the first send back if it landed. After a 409 <c>dedup_key_conflict</c> (the id is another message's) or
     /// any other 4xx, the message gives up its id, and Retry is a new message with a new one: never refused forever.

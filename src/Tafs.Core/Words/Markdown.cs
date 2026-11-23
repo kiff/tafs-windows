@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 namespace Tafs.Core.Words;
 
 /// <summary>A run of a line's text with its inline marks: bold, italic, code, or a link's address.</summary>
-/// <param name="Note">Where a link really goes, drawn dim after its words when they don't say it (agentgabo's read): never a link itself.</param>
+/// <param name="Note">Where a link really goes, drawn dim after its words when they don't say it: never a link itself.</param>
 public sealed record MarkdownSpan(string Text, bool Bold = false, bool Italic = false, bool Code = false, string? Link = null, bool Note = false);
 
 public enum MarkdownKind { Paragraph, Heading, Bullet, Numbered, Code, Table }

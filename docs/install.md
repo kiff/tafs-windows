@@ -55,7 +55,7 @@ The **MSIX** is built too, for the day it's signed.
   Windows' installed-apps list.
 - **Signed** in CI's `sign` job (Signing, below): the app's files inside it, the MSI, the setup's engine and the setup.
 - **Its words are in 8 of the app's languages** (en, de, fr, es, it, pt, nl, pl), in the PC's display language, with English as the fallback. The app's other 35 aren't in the setup yet.
-  - **Where they live:** `installer/words/<lang>.wxl` holds every line of WiX's standard setup (64), and legal-i18n writes them. WiX v5 ships these screens in English only.
+  - **Where they live:** `installer/words/<lang>.wxl` holds every line of WiX's standard setup (64), translated with the app's own lines. WiX v5 ships these screens in English only.
   - **How the setup picks one:** it looks for `<LCID>\thm.wxl` for each of the person's preferred UI languages, then for their language's default variant (fr-BE finds fr-FR's). Spanish is held under 3082 and 1034, and Portuguese under 2070 and 1046. Burn's `/lang <LCID>` chooses one by hand.
   - **What's checked:**
     - `SetupWordsTests`: each language has exactly English's ids, keeps each line's placeholders, link and key shortcut, and its buttons fit;

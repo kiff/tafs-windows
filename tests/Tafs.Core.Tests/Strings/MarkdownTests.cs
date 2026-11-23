@@ -103,7 +103,7 @@ public class MarkdownTests
         Assert.DoesNotContain('[', drawn);
     }
 
-    /// <summary>A link's words that aren't where it goes show its host after them (agentgabo's read); its own host or address shows nothing more.</summary>
+    /// <summary>A link's words that aren't where it goes show its host after them; its own host or address shows nothing more.</summary>
     [Theory]
     [InlineData("[https://kiff.dev](https://evil.example)", "https://kiff.dev (evil.example)")]
     [InlineData("[your bank](https://evil.example/login)", "your bank (evil.example)")]

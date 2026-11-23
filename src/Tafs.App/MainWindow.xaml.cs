@@ -62,7 +62,7 @@ public sealed partial class MainWindow : Window
     readonly HashSet<string> answeringSteps = [];
     /// <summary>
     /// Why the last answer to a step didn't go through, with the step it was for, so a taf's page draws it under that step only.
-    /// Its own, never Needs you's shared line, which a held call's refusal also sets (agentgabo's read).
+    /// Its own, never Needs you's shared line, which a held call's refusal also sets.
     /// </summary>
     (string Handoff, string Why)? stepRefusal;
     string? needsYouError;

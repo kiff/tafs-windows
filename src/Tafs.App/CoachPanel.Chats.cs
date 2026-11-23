@@ -429,7 +429,7 @@ public sealed partial class CoachPanel
         ShowChatTools();
         var gen = generation;
         var why = await TafChatSend.StopAsync(App.Words, id, working, send);
-        // Reset first: a chat or account switch meanwhile must never leave Stop off for good (mac-local's read).
+        // Reset first: a chat or account switch meanwhile must never leave Stop off for good.
         coachStopping = false;
         if (gen != generation) return;
         (coachStopped, chatError) = (why is null, why);

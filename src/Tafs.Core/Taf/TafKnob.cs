@@ -102,7 +102,7 @@ public sealed record TafKnob(bool CanPause, int? Version, KnobPending? Pending, 
 
     /// <summary>
     /// Whether Coach's dial card for <paramref name="version"/> shows this draft (K4): only for the version the card names, as
-    /// the dial's draft or its next version. A card that names none shows no draft (agentgabo's read).
+    /// the dial's draft or its next version. A card that names none shows no draft.
     /// </summary>
     public bool ShowsDraft(int? version) => version is { } v && (DraftVersion == v || Pending?.Version == v);
 

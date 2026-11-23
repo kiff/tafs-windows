@@ -2,7 +2,7 @@
   The setup's words in English, the fallback for any language below (docs/install.md). Derived from WiX Toolset v5.0.2's
   HyperlinkTheme.wxl, Copyright (c) .NET Foundation and contributors, under the Microsoft Reciprocal License (MS-RL),
   as is each translation beside it. Same ids as WiX's, all of them, so no screen shows a raw #(loc.…). Ours: the finish
-  line, Open tafs, "this PC". The words are legal-i18n's; installer/words/*.wxl must keep exactly these ids.
+  line, Open tafs, "this PC". Every installer/words/*.wxl must keep exactly these ids.
 -->
 <WixLocalization Culture="en-us" Language="1033" xmlns="http://wixtoolset.org/schemas/v4/wxl">
   <String Id="Caption" Value="[WixBundleName] Setup" />

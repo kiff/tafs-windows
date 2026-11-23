@@ -208,7 +208,7 @@ public static class FileText
     };
 
     /// <summary>
-    /// A name to write on this PC's disk (agentgabo's read): <see cref="Name"/>, then every character Windows refuses in a file's
+    /// A name to write on this PC's disk: <see cref="Name"/>, then every character Windows refuses in a file's
     /// name made <c>_</c> (so <c>C:evil.exe</c> is no drive-relative path and <c>a:b</c> no alternate stream), trailing dots and
     /// spaces trimmed, and a device name (<c>CON</c>, <c>NUL.txt</c>) prefixed; <paramref name="fallback"/> if nothing's left.
     /// </summary>

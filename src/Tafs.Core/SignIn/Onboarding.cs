@@ -133,7 +133,7 @@ public static class Onboarding
 }
 
 /// <summary>
-/// The minimum age to use the app by country (ISO 3166-1): legal-i18n's table, <c>app/strings/ages.json</c> at the pin,
+/// The minimum age to use the app by country (ISO 3166-1): the shared table, <c>app/strings/ages.json</c> at the pin,
 /// which the iPad's <c>MinimumAge</c> is generated from. Any other country, or none known, is the table's default.
 /// </summary>
 public sealed class MinimumAge

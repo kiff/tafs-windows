@@ -136,7 +136,7 @@ public class TafKnobTests
         Assert.Equal(["door_reply"], starts.Results!);
     }
 
-    /// <summary>Coach's dial card shows a draft only for the version it names (agentgabo's read on #244).</summary>
+    /// <summary>Coach's dial card shows a draft only for the version it names.</summary>
     [Fact]
     public void A_dial_card_shows_the_draft_only_for_the_version_it_names()
     {
