@@ -68,6 +68,39 @@ public class TafSetupTests
         Assert.Null(Json($$"""{"connect_again": {{again}}}""").ConnectAgain);
 
     [Fact]
+    public void A_fresh_Connect_again_says_where_it_went_and_otherwise_its_done_words()
+    {
+        var setup = Json("""
+            {"connect_again": {"grant": "grt_gmail", "app": "Gmail", "title": "Connect again", "words": "Sign in.", "done_words": " Gmail is connected again. ", "fresh": true},
+             "connected_again": {"grant": "grt_gmail", "words": "  Connected as rae@example.com. Rae and Ana use it now.  "}}
+            """);
+        var again = setup.ConnectAgain!;
+        Assert.True(again.Fresh);
+        Assert.Equal(new ConnectedAgain("grt_gmail", "Connected as rae@example.com. Rae and Ana use it now."), setup.ConnectedAgain);
+        // After a fresh sign-in: tafs cloud's words for this connection; for another connection, or none, its done words.
+        Assert.Equal("Connected as rae@example.com. Rae and Ana use it now.", again.Done(true, setup.ConnectedAgain));
+        Assert.Equal("Gmail is connected again.", again.Done(true, new ConnectedAgain("grt_other", "Elsewhere.")));
+        Assert.Equal("Gmail is connected again.", again.Done(true, new ConnectedAgain("grt_gmail", "")));
+        Assert.Equal("Gmail is connected again.", again.Done(true, null));
+        // Not fresh: its done words, whatever was read with it.
+        Assert.Equal("Gmail is connected again.", (again with { Fresh = false }).Done(true, setup.ConnectedAgain));
+        // Didn't connect, or no words: nothing said.
+        Assert.Null(again.Done(false, setup.ConnectedAgain));
+        Assert.Null((again with { DoneWords = "" }).Done(true, null));
+        // Not fresh unless tafs cloud says so; no connected_again without its connection.
+        Assert.False(Json("""{"connect_again": {"grant": "g", "title": "t", "words": "w", "fresh": "yes"}}""").ConnectAgain!.Fresh);
+        Assert.Null(Json("""{"connected_again": {"words": "Connected."}}""").ConnectedAgain);
+    }
+
+    [Fact]
+    public void After_a_fresh_sign_in_Setup_is_read_naming_that_connection()
+    {
+        Assert.Equal("/v1/tafs/taf_1/setup", TafSetup.Path("taf_1"));
+        Assert.Equal("/v1/tafs/taf_1/setup", TafSetup.Path("taf_1", ""));
+        Assert.Equal("/v1/tafs/taf_1/setup?connected_again=grt%2F1%26x", TafSetup.Path("taf_1", "grt/1&x"));
+    }
+
+    [Fact]
     public void What_it_can_t_read_is_left_out_never_the_page_with_it()
     {
         var setup = Json("""

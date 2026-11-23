@@ -176,6 +176,18 @@ the taf's dial (`GET /v1/tafs/{id}/knob`, read as strictly as the iPad's decoder
   taf's own Connect again.
 - What can't be read is left out, never the page with it. A Connect again without its connection, title or words reads
   as none, as the iPad's `usable`.
+- **Its own Connect again** (the iPad's `ConnectAgainPanel` and `connectAgain`, `TafPage.ConnectAgain.cs`): first in
+  Setup after the Card-unit exceptions, for whoever manages the taf on a PC that approves. It shows tafs cloud's `words` in
+  amber, in a panel stroked amber, and its `title` as the button ("Opening the sign-in…" meanwhile, one at a time).
+  - The button opens that same connection's Sign in again sheet: what's approved is shown first, then Windows Hello, then
+    the vendor's page in the browser. It never goes through every app.
+  - Where tafs cloud says `fresh` (or planque says `reconnect: fresh`), it's a new sign-in at planque's `connect-fresh`
+    (`ConnectFlow.ApproveAsync`'s `fresh`, as the iPad's `fresh || grant.reconnectsFresh`).
+  - A provider's connection says why it can't be signed in again (`connect.through_provider`), under the button, and nothing
+    is asked.
+  - Connected: Setup is read again. After a fresh sign-in, the read names that connection (`?connected_again=`) so tafs cloud
+    can say which account it went to and which tafs use it now (`connected_again`). The panel gives way to those words with
+    a ✓, else to its `done_words` (`ConnectAgain.Done`).
 
 **The sample:**
 - `--page taf --sample` opens Refunds, as the reference set does; `--page taf-setup --sample` opens it on Setup.
@@ -403,7 +415,7 @@ is the approval key's act, never the device key's); a revoked taf can still be r
   in its steps ("Asking KIFF: Create refund…", from planque's grants). The taf's words are drawn as written, not as
   Markdown, as Coach's are.
 - **What acts in Setup:** a connected app's sheet, the + to connect one, a Card-unit exception's Coach and Dismiss
-  (signed), the taf's own Connect again, Improve in Coach, Change the workflow with Coach, Starts when and Results go
+  (signed), Improve in Coach, Change the workflow with Coach, Starts when and Results go
   to. They need Coach, signing or sign-in, and whether the person manages the taf. The
   sample's Forget and Pause change its page only.
 - **The real Revoke:** `POST /v1/me/mandates/{id}/revoke` for each of its Cards, shown only to whoever KIFF says manages

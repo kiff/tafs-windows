@@ -38,7 +38,7 @@ public static class ConnectFlow
     public static bool Approvable(PlanqueGrant g) => g.Status is "pending" or "approved" or "signed_in" or "needs_reconnect";
 
     public static async Task<ConnectResult> ApproveAsync(WordBook w, string tenant, string grantId, string? shownDigest, ProfileWords? shownWords,
-        ConnectCalls calls, bool again = false)
+        ConnectCalls calls, bool again = false, bool fresh = false)
     {
         var none = new ConnectResult(false);
         var grants = await calls.Grants();
@@ -68,8 +68,9 @@ public static class ConnectFlow
 
         var body = ApprovalWindow.ApproveBody(grant.Digest, shownWords?.ProfileSha256, shownWords?.WordsSha256);
         (int Status, string Body, OpenWindow? Window) approved;
-        // A connection planque can't sign in again on its old account starts a new sign-in instead (connect-fresh), as the iPad's.
-        var approvePath = grant.ReconnectsFresh ? ApprovalWindow.ConnectFreshPath(tenant, grant.Id) : ApprovalWindow.ApprovePath(tenant, grant.Id);
+        // A connection planque can't sign in again on its old account starts a new sign-in instead (connect-fresh), as the iPad's;
+        // so does a taf's own Connect again that tafs cloud says is fresh (fresh || grant.reconnectsFresh).
+        var approvePath = grant.ReconnectsFresh || (again && fresh) ? ApprovalWindow.ConnectFreshPath(tenant, grant.Id) : ApprovalWindow.ApprovePath(tenant, grant.Id);
         try { approved = await TapAsync(calls, window, approvePath, body); }
         catch (OperationCanceledException) { return none; }
         catch (WindowRefused refused) { return calls.Current() ? new(false, Why: refused.Message) : none; }

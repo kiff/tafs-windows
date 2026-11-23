@@ -39,9 +39,10 @@ public sealed class SetupRead
     /// job, the plan, what it remembers and the asks at once (<paramref name="drawn"/>), keeping the connections already shown
     /// while the signed read brings them; that one's answer replaces it. A read that fails keeps the page read before.
     /// </summary>
-    public async Task LoadAsync(string taf, Func<string, string?, Task<CloudRead>> read, Func<Task<string?>>? proof = null, Action? drawn = null)
+    public async Task LoadAsync(string taf, Func<string, string?, Task<CloudRead>> read, Func<Task<string?>>? proof = null, Action? drawn = null,
+        string? connectedAgain = null)
     {
-        var path = TafSetup.Path(taf);
+        var path = TafSetup.Path(taf, connectedAgain);
         if (proof is null)
         {
             Take(await read(path, null));
@@ -102,8 +103,27 @@ public sealed record SetupVersions(string Title, string Summary, int? Live, int 
 public sealed record CardUnitException(string Id, string Title, string Words, string History, string ActionTitle,
     string DismissTitle, string CoachText, bool CanApproveOnce);
 
-/// <summary>The taf's own Connect again: the connection whose sign-in expired, and tafs cloud's words for it and after it.</summary>
-public sealed record ConnectAgain(string Grant, string App, string Title, string Words, string DoneWords);
+/// <summary>
+/// The taf's own Connect again: the connection whose sign-in expired, and tafs cloud's words for it and after it.
+/// <paramref name="Fresh"/>: planque can't sign it in again on the same account, so a new sign-in (<c>connect-fresh</c>).
+/// </summary>
+public sealed record ConnectAgain(string Grant, string App, string Title, string Words, string DoneWords, bool Fresh = false)
+{
+    /// <summary>
+    /// What the page says once it's connected again, as the iPad's <c>connectAgain</c>: after a fresh sign-in, tafs cloud's
+    /// words for this connection read with <c>?connected_again=</c> (which account it went to, which tafs use it now); else its
+    /// <c>done_words</c>. None when it didn't connect, or tafs cloud has no words for it.
+    /// </summary>
+    public string? Done(bool connected, ConnectedAgain? named)
+    {
+        if (!connected) return null;
+        if (Fresh && named is { } n && n.Grant == Grant && n.Words.Length > 0) return n.Words;
+        return DoneWords.Length > 0 ? DoneWords : null;
+    }
+}
+
+/// <summary>Read after a fresh sign-in (<c>?connected_again=</c>): the connection, and tafs cloud's words for where it went.</summary>
+public sealed record ConnectedAgain(string Grant, string Words);
 
 /// <summary>
 /// A taf's Setup, as tafs cloud's <c>GET /v1/tafs/{id}/setup</c> answers whoever manages it (contracts/taf-setup*.json):
@@ -111,7 +131,8 @@ public sealed record ConnectAgain(string Grant, string App, string Title, string
 /// its own Connect again.
 /// </summary>
 public sealed record SetupPage(IReadOnlyList<SetupConnection> Connections, string? ConnectionsError, SetupWorkflow Workflow,
-    SetupMemory Memory, SetupVersions Versions, IReadOnlyList<CardUnitException> CardUnitExceptions, ConnectAgain? ConnectAgain);
+    SetupMemory Memory, SetupVersions Versions, IReadOnlyList<CardUnitException> CardUnitExceptions, ConnectAgain? ConnectAgain,
+    ConnectedAgain? ConnectedAgain = null);
 
 /// <summary>A note the taf keeps, as tafs cloud's memory: its file's path, what it says, and when it changed.</summary>
 public sealed record MemoryNote(string Id, string Path, string Content, DateTimeOffset UpdatedAt);
@@ -133,7 +154,9 @@ public static class TafSetup
             new SetupVersions(Lenient.Text(versions, "title") ?? "", Lenient.Text(versions, "summary") ?? "",
                 Lenient.Int(versions, "live"), Lenient.Int(versions, "earlier") ?? 0),
             Lenient.Array(answer, "card_unit_exceptions").Select(Exception).OfType<CardUnitException>().ToList(),
-            Again(Lenient.Field(answer, "connect_again")));
+            Again(Lenient.Field(answer, "connect_again")),
+            Lenient.Field(answer, "connected_again") is { } done && Lenient.Text(done, "grant") is { } grant
+                ? new ConnectedAgain(grant, Lenient.Text(done, "words")?.Trim() ?? "") : null);
     }
 
     /// <summary>A connection with no id or name is left out.</summary>
@@ -148,7 +171,9 @@ public static class TafSetup
             Lenient.Int(c, "action_count") ?? 0, Lenient.Bool(c, "running"));
     }
 
-    public static string Path(string taf) => $"/v1/tafs/{CloudRead.PathPart(taf)}/setup";
+    /// <summary><c>GET /v1/tafs/{id}/setup</c>; after a fresh sign-in, with <c>?connected_again=</c> that connection.</summary>
+    public static string Path(string taf, string? connectedAgain = null) => $"/v1/tafs/{CloudRead.PathPart(taf)}/setup"
+        + (connectedAgain is { Length: > 0 } grant ? "?connected_again=" + Uri.EscapeDataString(grant) : "");
 
     /// <summary>
     /// The ring's apps, as the iPad's <c>ConnectedToolsRing.nodes</c>: one an app, in tafs cloud's order of each app's first
@@ -186,7 +211,7 @@ public static class TafSetup
     {
         if (a is not { } o) return null;
         string T(string name) => Lenient.Text(o, name)?.Trim() ?? "";
-        var again = new ConnectAgain(T("grant"), T("app"), T("title"), T("words"), T("done_words"));
+        var again = new ConnectAgain(T("grant"), T("app"), T("title"), T("words"), T("done_words"), Lenient.Bool(o, "fresh"));
         return again.Grant.Length > 0 && again.Title.Length > 0 && again.Words.Length > 0 ? again : null;
     }
 

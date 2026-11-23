@@ -11,7 +11,7 @@ namespace Tafs.App;
 /// its profile, and approving it (<see cref="ConnectFlow.ApproveAsync"/>).
 /// </summary>
 public sealed record ConnectAppsConnecting(IReadOnlyList<(string Id, string Name)> Tafs, Func<ConnectApp, string, Task<((string Grant, bool NeedsKey)? Started, string? Why)>> Start,
-    Func<string, Task<(PlanqueGrant? Grant, ProfileWords? Words, string? Why)>> Read, Func<string, string, ProfileWords?, bool, Task<ConnectResult>> Approve,
+    Func<string, Task<(PlanqueGrant? Grant, ProfileWords? Words, string? Why)>> Read, Func<string, string, ProfileWords?, bool, bool, Task<ConnectResult>> Approve,
     Func<string, Task<KeySheet?>>? Sheet = null, Func<string, string, ProfileWords?, string, Task<ConnectResult>>? GiveKey = null);
 
 /// <summary>
@@ -25,10 +25,11 @@ public static class ConnectDialog
     /// <summary>
     /// Connected: true; else nothing changed. <paramref name="again"/>: Sign in again on a connection, the same sheet (what's
     /// approved is shown first, its words and KIFF's for its profile, so nothing added since is approved unseen), a connected
-    /// one signed in again in place.
+    /// one signed in again in place. <paramref name="fresh"/>: a taf's own Connect again that tafs cloud says is fresh, a new
+    /// sign-in (<c>connect-fresh</c>) as planque's <c>reconnect: fresh</c> is.
     /// </summary>
     public static async Task<bool> ShowAsync(XamlRoot root, ElementTheme theme, ConnectApp app, string grantId, ConnectAppsConnecting connecting,
-        bool again = false)
+        bool again = false, bool fresh = false)
     {
         var w = App.Words;
         var (grant, words, why) = await connecting.Read(grantId);
@@ -68,7 +69,7 @@ public static class ConnectDialog
             Draw();
             try
             {
-                var result = await connecting.Approve(grant.Id, grant.Digest, words, again);
+                var result = await connecting.Approve(grant.Id, grant.Digest, words, again, fresh);
                 if (result.Connected)
                 {
                     connected = true;
