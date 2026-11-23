@@ -50,6 +50,32 @@ public sealed partial class TafPage
             };
             body.Children.Add(again);
         }
+        // Where an owner whose taf fails looks first (the iPad's gap 13): its last failed call, and how to fix the connection,
+        // from planque's grant as this PC reads it.
+        if (o.ConnectionOf is { } connectionOf && await connectionOf(app.Id) is { Grant: { } grant } found)
+        {
+            if (opening != o) return;
+            if (found.LastFailed is { } failed) body.Children.Add(Words(failed, 13, "TafsNoText"));
+            if (!app.Reconnect && manages && (grant.Connected || grant.NeedsReconnect))
+            {
+                if (grant.SignsInThroughProvider) body.Children.Add(Words(w.Get("connect.through_provider", ("vendor", grant.Vendor)), 13, "TafsSoftText"));
+                else if (o.Connecting is { } fixing && (!grant.TakesKey || fixing.GiveKey is not null))
+                {
+                    var fix = new Button { Content = w.Get(grant.TakesKey ? "connect.replace_key" : "connect.sign_in_again"), Style = Look("TafsOutlineButton") };
+                    AutomationProperties.SetAutomationId(fix, "taf.fix." + grant.Id);
+                    fix.Click += async (_, _) =>
+                    {
+                        dialog.Hide();
+                        var connect = new ConnectApp(grant.Id) { Name = app.Name, Title = app.Name };
+                        var done = grant.TakesKey
+                            ? await KeyDialog.ShowAsync(XamlRoot, ActualTheme, connect, grant.Id, fixing)
+                            : await ConnectDialog.ShowAsync(XamlRoot, ActualTheme, connect, grant.Id, fixing, again: true);
+                        if (done) await LoadSetupAsync();
+                    };
+                    body.Children.Add(fix);
+                }
+            }
+        }
         if (appSheetWhy.GetValueOrDefault(app.Id) is { } why) body.Children.Add(Words(why, 13, "TafsNoText"));
 
         // What it may do.

@@ -1,5 +1,6 @@
 using Tafs.Core.Connections;
 using Tafs.Core.Kiff;
+using Tafs.Core.Record;
 using Tafs.Core.NeedsYou;
 using Tafs.Core.Tests.Strings;
 using Tafs.Core.Words;
@@ -199,5 +200,29 @@ public class AppConnectionsTests
             """).RootElement, TimeZoneInfo.Utc);
         Assert.Equal(["refund", "email", "charge"], home.Tafs[0].CardDraws);
         Assert.Empty(home.Tafs[1].CardDraws);
+    }
+
+    /// <summary>The iPad's lastFailure: the newest not-done line on one of the connection's tools, the taf's own first.</summary>
+    [Fact]
+    public void A_connection_s_last_failed_call_is_its_own_taf_s_newest_on_its_tools()
+    {
+        var g = new PlanqueGrant("grt_s", "connected", "", "d", new GrantRequest("stripe", "agt_refunds",
+            [new GrantTool("stripe__refund"), new GrantTool("stripe__read", SetupReads: true)]), []);
+        RecordEntry Line(string action, string agent, EntryKind kind, int minutes, string title) =>
+            new("T", 0, kind, title, "Stripe refused", DateTimeOffset.Parse("2026-11-23T08:00:00Z").AddMinutes(minutes),
+                Call: new ActivityCall("p", action, "allowed", DateTimeOffset.Parse("2026-11-23T08:00:00Z"), false, ActorId: agent));
+        var record = new[]
+        {
+            Line("stripe__refund", "agt_other", EntryKind.NotDone, 30, "Another taf's, newer"),
+            Line("stripe__refund", "agt_refunds", EntryKind.NotDone, 10, "Its own"),
+            Line("stripe__refund", "agt_refunds", EntryKind.Done, 40, "Done, not failed"),
+            Line("stripe__read", "agt_refunds", EntryKind.NotDone, 50, "A setup read, not a tool it uses"),
+        };
+        Assert.Equal("Last failed: Its own · Stripe refused", AppConnections.LastFailure(En, g, record));
+        // With none of its own, another taf's on the same tools.
+        Assert.Equal("Last failed: Another taf's, newer · Stripe refused", AppConnections.LastFailure(En, g, record.Where(l => l.Title != "Its own").ToList()));
+        // planque's own list of tools wins over the request's.
+        Assert.Null(AppConnections.LastFailure(En, g with { Tools = ["stripe__list"] }, record));
+        Assert.Null(AppConnections.LastFailure(En, g, []));
     }
 }
