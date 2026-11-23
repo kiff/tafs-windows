@@ -87,6 +87,32 @@ public sealed record CoachLine(DateTimeOffset At, string Taf, string Said, bool 
 /// </summary>
 public sealed record AskCoachCard(string Id, DateTimeOffset At, string Session, string Text);
 
+/// <summary>One answer of a loop card, in tafs cloud's words, with the value that's sent.</summary>
+public sealed record LoopOption(string Label, string Value);
+
+/// <summary>
+/// A taf's loop card ("Still reading": Read on, Stop here), as Android's and the iPad's (docs/chat.md): kiff/agents'
+/// <c>confirm</c> with id <c>tafs-loop-N</c> and <c>loop</c>, shown in the taf's own chat when a run read page after page of one
+/// list, and the run waits on it. Its title, line and answers are tafs cloud's words; <see cref="Answered"/> is how it was
+/// answered, once it was, none while it waits.
+/// </summary>
+public sealed record LoopCard(string Id, DateTimeOffset At, string Session, string Title, string Text, IReadOnlyList<LoopOption> Options,
+    string? Answered)
+{
+    /// <summary>
+    /// The answer, as Android's <c>answerTafCard</c>: the option's value to the taf's own route
+    /// (<c>POST /v1/tafs/{id}/components/{card}/answer</c>) with the card's chat. None for a value the card doesn't offer.
+    /// </summary>
+    public (string Path, byte[] Body)? Answer(string taf, string value)
+    {
+        if (Answered is not null || !Options.Any(o => o.Value == value)) return null;
+        var body = new JsonObject { ["answer"] = value };
+        if (Session.Length > 0) body["session"] = Session;
+        return ($"/v1/tafs/{CloudRead.PathPart(taf)}/components/{CloudRead.PathPart(Id)}/answer",
+            System.Text.Encoding.UTF8.GetBytes(body.ToJsonString()));
+    }
+}
+
 /// <summary>One item of the thread, in order: a message, or a card where it's placed.</summary>
 public sealed record ThreadItem(ChatMessage? Message, ShownCard? Card)
 {
@@ -99,8 +125,11 @@ public sealed record ThreadItem(ChatMessage? Message, ShownCard? Card)
 /// <param name="Steering">What the thread says of messages written while it works.</param>
 public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyList<CoachLine> Lines, string? Working,
     IReadOnlyList<ShownCard>? Cards = null, string? WorkingRun = null, Taf.Steering? Steering = null,
-    IReadOnlyList<AskCoachCard>? AskCoachCards = null)
+    IReadOnlyList<AskCoachCard>? AskCoachCards = null, IReadOnlyList<LoopCard>? LoopCardList = null)
 {
+    /// <summary>The loop cards a run waits on in this chat, in the thread's order; none from a thread without them.</summary>
+    public IReadOnlyList<LoopCard> LoopCards => LoopCardList ?? [];
+
     public IReadOnlyList<ShownCard> Shown => Cards ?? [];
 
     /// <summary>A taf's cards for Coach, in the thread's order; none from a thread without them.</summary>
@@ -129,7 +158,7 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
         // A card the app can't read is left out, never the thread with it.
         var cards = ShownCard.Fold(Lenient.Array(answer, "components").Select(ShownCard.Read).OfType<ShownCard>());
         return new(messages, lines, Lenient.Text(Lenient.Field(answer, "working") ?? default, "session"), cards,
-            Taf.TafSteer.WorkingRun(answer), Taf.TafSteer.Read(answer), AskCoachRead(answer));
+            Taf.TafSteer.WorkingRun(answer), Taf.TafSteer.Read(answer), AskCoachRead(answer), LoopRead(answer));
     }
 
     /// <summary>
@@ -144,6 +173,25 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
                 && Lenient.Text(c, "text")?.Trim() is { Length: > 0 } text
                 ? new AskCoachCard(id, at, Lenient.Text(s, "session") ?? "", text) : null;
         }).OfType<AskCoachCard>().ToList();
+
+    /// <summary>
+    /// The thread's loop cards, as the iPad's <c>LoopCard.Lenient</c>: a <c>confirm</c> that carries <c>loop</c>, with an id
+    /// starting <c>tafs-loop-</c>, its time, and at least one answer with a label and a value. One that doesn't read is left
+    /// out, never the thread with it; any other confirm isn't a loop card.
+    /// </summary>
+    static IReadOnlyList<LoopCard> LoopRead(JsonElement answer) =>
+        Lenient.Array(answer, "components").Select(s =>
+        {
+            var c = Lenient.Field(s, "component") ?? default;
+            if (Lenient.Text(c, "type") != "confirm" || Lenient.Field(c, "loop") is not { ValueKind: JsonValueKind.Object }
+                || Lenient.Text(c, "id") is not { } id || !id.StartsWith("tafs-loop-", StringComparison.Ordinal) || Lenient.At(s, "at") is not { } at)
+                return null;
+            var options = Lenient.Array(c, "options").Select(o => Lenient.Text(o, "label")?.Trim() is { Length: > 0 } label
+                && Lenient.Text(o, "value") is { Length: > 0 } value ? new LoopOption(label, value) : null).OfType<LoopOption>().ToList();
+            if (options.Count == 0) return null;
+            var answered = Lenient.Field(s, "answer") is { ValueKind: JsonValueKind.Object } a ? (Lenient.Text(a, "words") ?? "").Trim() : null;
+            return new LoopCard(id, at, Lenient.Text(s, "session") ?? "", Lenient.Text(c, "title") ?? "", Lenient.Text(c, "text") ?? "", options, answered);
+        }).OfType<LoopCard>().ToList();
 
     static ChatMessage? Message(JsonElement m)
     {
