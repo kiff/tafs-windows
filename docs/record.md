@@ -142,6 +142,18 @@ as one, with "Shows the receipt". In `Tafs.Core.Record` (`Receipt`):
   - **Not read:** why, and Try again.
 - For a screenshot, `--home` reads `kiff-receipt.json` beside the Home file as the receipt.
 
+## The picture before a Chrome step (`ChromeShots`)
+
+The iPad's `ChromeShotView`. A line whose operation a paired Chrome acted for lists **See the page before this step** on
+its sheet, one per picture planque kept (`GET /v1/accounts/{t}/chromes/screenshots?op={proposal_id}`). Each opens its step's
+picture (`…/chromes/screenshots/{step}`) in the sheet's place, with Done back to the receipt.
+- **Both reads are planque's safe routes,** signed by this PC's device key; no session token goes. None kept, planque's
+  switch off (404), a failed list or no device key to sign with: no link.
+- **A picture is shown only if it checks out:** base64url with no padding, WebP, at most 120 KB, the SHA-256 planque kept,
+  the step asked for, and a time it was taken. It's shown with that time and "Kept for 30 days, then deleted."
+- A 404 says no picture is kept for the step. Anything else, or a picture Windows won't decode, says "The picture
+  couldn't be loaded." It's never blank.
+
 ## Not yet
 
 - **The tafs' chips are the tafs in the lines.** On the iPad they're the account's tafs, so a taf with no

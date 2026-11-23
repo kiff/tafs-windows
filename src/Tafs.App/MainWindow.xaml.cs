@@ -1159,6 +1159,21 @@ public sealed partial class MainWindow : Window
                 () => SigningTime.Next(DateTimeOffset.UtcNow), () => usageFor == sessions),
             async () => Tafs.Core.Coach.CoachAccess.Capabilities((await KiffReadAsync(bearer, Tafs.Core.Coach.CoachAccess.MePath)).Answer)?.Contains("billing.manage") == true);
         ReceiptSheet.Read = path => KiffBytesAsync(bearer, path);
+        // The pictures a paired Chrome kept before a step (the iPad's ChromeShotView): planque's safe routes, signed by this PC's
+        // device key, no session token; none signed out.
+        if (App.Sessions.Kept() is { } shotsFor)
+        {
+            ReceiptSheet.Shots = async operation =>
+            {
+                var (status, body) = await PlanqueDeviceSendAsync(shotsFor, HttpMethod.Get, Tafs.Core.Kiff.ChromeShots.ListPath(shotsFor.Tenant, operation));
+                return Tafs.Core.Kiff.ChromeShots.ReadList(status, body);
+            };
+            ReceiptSheet.Shot = async step =>
+            {
+                var (status, body) = await PlanqueDeviceSendAsync(shotsFor, HttpMethod.Get, Tafs.Core.Kiff.ChromeShots.ShotPath(shotsFor.Tenant, step));
+                return Tafs.Core.Kiff.ChromeShots.Read(status, body, step);
+            };
+        }
         // Report this payment, as the session: no signature and no Windows Hello, since it only takes authority away.
         ReceiptSheet.SendReport = async path => ReportPayment.Took((await CloudSendAsync(bearer, path, ReportPayment.Body)).Answer);
         // The Record's search, across the person's tafs, as the session.
@@ -1262,6 +1277,8 @@ public sealed partial class MainWindow : Window
         ShowKiffAccount();
         ReceiptSheet.Read = null;
         ReceiptSheet.SendReport = null;
+        ReceiptSheet.Shots = null;
+        ReceiptSheet.Shot = null;
         RecordPage.Read = null;
         UsagePage.Calls = null;
         ForgetFoot();
