@@ -29,14 +29,20 @@ public partial class PublicTextTests
         "2ad06b22b301f873", "3c00d0a9d4c2eb08", "018a7f9527b114ab", "94c6cdf43ac3f929", "4a25962615e31ac6",
         // The reviewers' own logins: GitHub reads them in CODEOWNERS, which isn't checked for names; nowhere else names them.
         "53dd1be914bd441c", "f66e74c6b8883a1f", "3726111e555e250c",
+        // Older names for the same lanes.
+        "d184eb5cf606a3eb", "d1cac6ef5a9ddbd1", "a74b534355e685fc", "ea0edce134693c74", "cb722454717333e5",
     ];
 
     /// <summary>What a line may never say, names aside: the private issues, a manager's credit, a rule dated by its day.</summary>
     [GeneratedRegex(@"kiff/work|\bthe PM\b|\bPM's\b|\(PM[ ,):]|\bowner(?:'s|,) [0-9]{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b")]
     private static partial Regex Said();
 
-    /// <summary>A word as a name would be written: lowercase letters and digits, joined by hyphens, not part of a longer one.</summary>
-    [GeneratedRegex(@"(?<![@\w-])[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-])")]
+    /// <summary>
+    /// A word as a name would be written: lowercase letters and digits, joined by hyphens, not part of a longer one. An
+    /// <c>@</c> before it doesn't hide it: an @-mention names someone as much as their name does (CODEOWNERS, where logins
+    /// belong, isn't read for names at all).
+    /// </summary>
+    [GeneratedRegex(@"(?<![\w-])[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-])")]
     private static partial Regex Word();
 
     static string Hash(string word) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(word)))[..16].ToLowerInvariant();
@@ -86,7 +92,11 @@ public partial class PublicTextTests
             Assert.NotNull(Problem($"{char.ToUpperInvariant(made[0])}{made[1..]}'s table has it."));
             Assert.NotNull(Problem($"as {made.ToUpperInvariant()} wrote"));
             Assert.Null(Problem($"as {made}-plus has it"));
-            Assert.Null(Problem($"@{made}"));
+            // An @-mention is still the name, in any case.
+            Assert.NotNull(Problem($"// thanks @{made}"));
+            Assert.NotNull(Problem($"cc @{made.ToUpperInvariant()}"));
+            // In CODEOWNERS, where GitHub reads logins, names aren't checked.
+            Assert.Null(Problem($"*    @{made}", names: false));
         }
         finally { Names.Remove(Hash(made)); }
         Assert.All(Names, n => Assert.Matches("^[0-9a-f]{16}$", n));
