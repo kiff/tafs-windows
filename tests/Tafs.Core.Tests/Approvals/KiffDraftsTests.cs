@@ -67,8 +67,8 @@ public class KiffDraftsTests
     }
 
     /// <summary>
-    /// As the iPad's DraftCardsView.shown: the new Cards as one, every line once in the draft's order, where the first of them
-    /// is; a revised Card as now and after; one re-issued as it is, its terms once; and each Card removed, by its lines now.
+    /// As the iPad's DraftCardsView.shown: the new Cards as one, each Card's lines whole in the draft's order, where the first
+    /// of them is; a revised Card as now and after; one re-issued as it is, its terms once; and each Card removed, by its lines now.
     /// </summary>
     [Fact]
     public void A_draft_s_Cards_show_new_ones_together_and_a_change_as_now_and_after()
@@ -82,10 +82,14 @@ public class KiffDraftsTests
         var shown = d.Shown(En);
         Assert.Equal(3, shown.Count);
         Assert.Equal(new DraftShown(DraftShownKind.Changes, ["Read charges"], ["Read charges", "€50 in total a day"]), shown[0], Same);
-        // The new Cards at the first one's place, their lines once.
-        Assert.Equal(new DraftShown(DraftShownKind.New, ["Send an email", "20 calls a day", "Post to Slack"], []), shown[1], Same);
+        // The new Cards at the first one's place, each Card's lines whole: the second Card's bare "20 calls a day" is its own
+        // limit, never folded into the first's.
+        Assert.Equal(new DraftShown(DraftShownKind.New, ["Send an email", "20 calls a day", "Post to Slack", "20 calls a day"], []), shown[1], Same);
         Assert.Equal(new DraftShown(DraftShownKind.Unchanged, ["Keep notes"], []), shown[2], Same);
         Assert.Equal([["Refund a payment: up to €100 each"], []], d.RetiredLines(En));
+        // Only a whole Card that reads exactly as one already shown is left out.
+        var twice = Draft("""{"lines": ["Send an email", "20 calls a day"]}, {"lines": ["Send an email", "20 calls a day"]}, {"lines": ["Send an email"]}""");
+        Assert.Equal(["Send an email", "20 calls a day", "Send an email"], Assert.Single(twice.Shown(En)).Lines);
         // A draft of new Cards only: one "A new Card"; no Cards: nothing.
         Assert.Equal(DraftShownKind.New, Assert.Single(Draft("""{"lines": ["a"]}, {"lines": ["b"]}""").Shown(En)).Kind);
         Assert.Empty(Read("""{"id": "d", "agent_id": "a", "status": "draft", "version": "v"}""")!.Shown(En));

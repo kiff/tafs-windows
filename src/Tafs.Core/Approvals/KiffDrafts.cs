@@ -98,9 +98,11 @@ public sealed record AgentDraft(string Id, string AgentId, string Status, string
 
     /// <summary>
     /// How its Cards show before Windows Hello, as the iPad's <c>DraftCardsView.shown</c>: its new Cards as one, "A new Card"
-    /// (KIFF's draft has one per tool, and five panels read as five Cards to approve), every new Card's lines once, in the
+    /// (KIFF's draft has one per tool, and five panels read as five Cards to approve), each new Card's lines whole, in the
     /// draft's order, where the first of them is; a Card it revises as it is now and as it will be; one re-issued as it is,
     /// "Unchanged", its terms once. The others keep their place.
+    /// Only a whole new Card that reads exactly as one already shown is left out, never a line: a Card's totals can be bare
+    /// ("20 calls a day"), and the owner never sees less than they sign.
     /// </summary>
     public IReadOnlyList<DraftShown> Shown(WordBook w)
     {
@@ -117,7 +119,10 @@ public sealed record AgentDraft(string Id, string AgentId, string Status, string
                 continue;
             }
             if (i != fresh[0]) continue;
-            shown.Add(new DraftShown(DraftShownKind.New, fresh.SelectMany(f => lines[f]).Distinct().ToList(), []));
+            var cardsShown = new List<IReadOnlyList<string>>();
+            foreach (var f in fresh)
+                if (!cardsShown.Any(c => c.SequenceEqual(lines[f]))) cardsShown.Add(lines[f]);
+            shown.Add(new DraftShown(DraftShownKind.New, cardsShown.SelectMany(c => c).ToList(), []));
         }
         return shown;
     }
