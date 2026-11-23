@@ -602,6 +602,8 @@ public sealed partial class MainWindow : Window
         // Home's steps; a list that can't be read leaves them as they were.
         if (YourSteps.Read(answer) is { } listedNow) listedSteps = listedNow;
         ShowSteps();
+        // A Card unit's requests, on Needs you and on their taf's Setup.
+        TakeCardUnits(answer);
         // Coach's chats waiting on the person, with Home's count of all that waits.
         homeNeedsYou = NeedsYouTotal.Read(answer);
         ReadCoachWaiting(answer);
@@ -746,6 +748,8 @@ public sealed partial class MainWindow : Window
             unproven = calls;
         if (reading == sessions && Pages.Content is NeedsYouPage page) page.ShowUnproven(unproven, mayAnswerHolds);
         if (reading == sessions) ShowSteps();
+        // Dismiss follows whether this person answers the account's holds, as KIFF says once read.
+        if (reading == sessions) ShowCardUnits();
         // Whether this person answers holds is now known: the alerts card follows it.
         if (reading == sessions) ShowAlertsCard();
     }
@@ -1276,6 +1280,7 @@ public sealed partial class MainWindow : Window
         ShowGalleryRows();
         CoachMode.Recipes = null;
         listedSteps = [];
+        ForgetCardUnits();
         // The brief is the account's: Needs you is back in its place.
         (brief, briefLabel, needsYouUnderBrief, mayUseCoach) = (null, null, false, false);
         if (needsYouRow is { } briefRow) ShowCount(briefRow, App.Words, NeedsYouTitle);
@@ -2219,6 +2224,8 @@ public sealed partial class MainWindow : Window
                 SlackDoor: SlackDoorFor(taf),
                 // Setup's own Connect again: that same connection signed in again here, on a PC that approves.
                 Connecting: ConnectingFor(),
+                // A Card unit's request on its Setup: Coach about it and Dismiss, as on Needs you; none once dismissed here.
+                CardUnit: ask => dismissedCardUnits.Contains(ask.Id) ? null : CardUnitPanelFor(ask.Taf.Length > 0 ? ask : ask with { Taf = taf.Id }),
                 Revoke: RevokeFor(taf), RevokeNeedsApprover: Manages(taf) && App.Sessions.Kept()?.Mode == ApprovalMode.View,
                 // Setup › Starts when and Results go to: when it starts and where results go, as Home says, and the changes made at once.
                 Change: cloudChange, Starts: taf.Starts, Paused: taf.State == "paused", Email: kiffAccount?.Email, TimeZone: kiffAccount?.TimeZone,

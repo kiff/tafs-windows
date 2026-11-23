@@ -43,6 +43,9 @@
         <!-- Did this happen?: a money call whose outcome KIFF can't prove, before the held calls, as the iPad's. Drawn in code. -->
         <StackPanel x:Name="UnprovenCalls" Spacing="14" />
 
+        <!-- A Card unit's requests, after Did this happen?, as the iPad's CardUnitExceptionPanel. Drawn in code. -->
+        <StackPanel x:Name="CardUnitRequests" Spacing="14" />
+
         <!-- Nothing waiting: the iPad's panel. -->
         <Border x:Name="Empty" Background="{ThemeResource TafsPanel}" BorderBrush="{ThemeResource TafsLine}" BorderThickness="1"
                 CornerRadius="18" Padding="16">

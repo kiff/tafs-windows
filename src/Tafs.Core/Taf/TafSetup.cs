@@ -101,7 +101,7 @@ public sealed record SetupVersions(string Title, string Summary, int? Live, int 
 /// to do. Approving the change goes through Coach and is signed there; nothing here approves.
 /// </summary>
 public sealed record CardUnitException(string Id, string Title, string Words, string History, string ActionTitle,
-    string DismissTitle, string CoachText, bool CanApproveOnce);
+    string DismissTitle, string CoachText, bool CanApproveOnce, string Taf = "", string Name = "");
 
 /// <summary>
 /// The taf's own Connect again: the connection whose sign-in expired, and tafs cloud's words for it and after it.
@@ -199,11 +199,12 @@ public static class TafSetup
             ? new WorkflowStep(n, label, Lenient.Text(s, "words") ?? "", Lenient.Text(s, "app"), Lenient.Bool(s, "running"))
             : null;
 
-    /// <summary>An exception with no id, title or words is left out: there'd be nothing to say.</summary>
-    static CardUnitException? Exception(JsonElement e) =>
+    /// <summary>An exception with no id, title or words is left out: there'd be nothing to say. Its taf is tafs cloud's id for it.</summary>
+    public static CardUnitException? Exception(JsonElement e) =>
         Lenient.Text(e, "id") is { } id && Lenient.Text(e, "title") is { } title && Lenient.Text(e, "words") is { } words
             ? new CardUnitException(id, title, words, Lenient.Text(e, "history") ?? "", Lenient.Text(e, "action_title") ?? "",
-                Lenient.Text(e, "dismiss_title") ?? "", Lenient.Text(e, "coach_text") ?? "", Lenient.Bool(e, "can_approve_once"))
+                Lenient.Text(e, "dismiss_title") ?? "", Lenient.Text(e, "coach_text") ?? "", Lenient.Bool(e, "can_approve_once"),
+                Lenient.Text(e, "taf") ?? "", Lenient.Text(e, "name") ?? "")
             : null;
 
     /// <summary>As the iPad's ConnectAgain.usable: one without its connection, title or words reads as none.</summary>

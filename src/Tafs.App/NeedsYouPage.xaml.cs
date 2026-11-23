@@ -259,7 +259,7 @@ public sealed partial class NeedsYouPage : Page
     /// <summary>Nothing waiting only with no held call and no call to say about, as the iPad's.</summary>
     void ShowEmpty()
     {
-        Empty.Visibility = views.Count == 0 && unproven.Count == 0 && steps.Count == 0 && waitingShown == 0 ? Visibility.Visible : Visibility.Collapsed;
+        Empty.Visibility = views.Count == 0 && unproven.Count == 0 && steps.Count == 0 && waitingShown == 0 && cardUnitsShown == 0 ? Visibility.Visible : Visibility.Collapsed;
         // Board 6, nothing waiting, as the iPad's NeedsYouView: drawn once, in this page's theme.
         if (Empty.Visibility == Visibility.Visible && EmptyArt.Child is null) EmptyArt.Child = Illustrations.NothingWaiting();
     }
@@ -369,6 +369,16 @@ public sealed partial class NeedsYouPage : Page
     /// words; why KIFF asks, 13 soft. For someone who answers held calls, the answers: until this PC approves, why it can't
     /// and Add this Windows PC, as on a held call.
     /// </summary>
+    int cardUnitsShown;
+
+    /// <summary>A Card unit's requests, each its panel (<see cref="CardUnitPanel"/>), with what this person may do on it.</summary>
+    internal void ShowCardUnits(IReadOnlyList<Tafs.Core.Taf.CardUnitException> asks, Func<Tafs.Core.Taf.CardUnitException, Border> panel)
+    {
+        CardUnitRequests.Children.Clear();
+        foreach (var ask in asks) CardUnitRequests.Children.Add(panel(ask));
+        cardUnitsShown = asks.Count;
+        ShowEmpty();
+    }
     /// <summary>The account Turn on alerts turns them on for; none hides the card.</summary>
     string? alertsTenant;
 
@@ -403,7 +413,6 @@ public sealed partial class NeedsYouPage : Page
     }
 
     void OnAlertsSettings(object sender, RoutedEventArgs e) => _ = Windows.System.Launcher.LaunchUriAsync(new Uri("ms-settings:notifications"));
-
     internal void ShowUnproven(IReadOnlyList<Unproven> calls, bool mayAnswerHolds)
     {
         var w = App.Words;
