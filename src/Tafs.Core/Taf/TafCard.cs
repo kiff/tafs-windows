@@ -81,6 +81,17 @@ public sealed record TafCard(string Id, string Title, IReadOnlyList<CardRule> Ru
     /// calls. What's left only when the use is known in the limit's own unit and scale; otherwise the limit alone, its use
     /// unavailable, never zero left or used. A bare number says so once, after the words.
     /// </summary>
+    /// <summary>
+    /// What a vendor's refusal still counts against its totals, in KIFF's words (the iPad's <c>pending</c>: its money total's
+    /// then its calls'), for a live, active Card only (<c>countsForReal</c>): a test Card's totals aren't what the taf may do.
+    /// </summary>
+    public IReadOnlyList<string> PendingLines => Live && Active
+        ? new[] { Total?.Pending, Calls?.Pending }.Select(p => p?.Trim()).Where(p => !string.IsNullOrEmpty(p)).Select(p => p!).ToList()
+        : [];
+
+    /// <summary>Why its money total has no currency, in KIFF's words (a tool it grants isn't connected any more); none when it has one.</summary>
+    public string? UnitWords => Total?.UnitWords?.Trim() is { Length: > 0 } words ? words : null;
+
     public (string Figure, string Words)? Hero(WordBook w, TimeZoneInfo? zone = null, DateTimeOffset? now = null)
     {
         // With room but no own limit from KIFF, its limit has the room folded in: no money figure, never a summed one.

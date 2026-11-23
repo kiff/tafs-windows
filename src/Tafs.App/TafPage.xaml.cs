@@ -1429,6 +1429,24 @@ public sealed partial class TafPage : Page
         // How KIFF counts each of its tools, as the owner approved it: its own screen, as the iPad's CountedView.
         if (shown.Counted is { Count: > 0 })
             CardPane.Children.Add(CardRow(w.Get("card.how_counted"), null, "\uE8FD", "card-counted", CardScreen.Counted));
+        // A vendor's refusal still counts against its totals, in KIFF's words: a live, active Card only (TafCard.PendingLines).
+        foreach (var pending in shown.PendingLines) CardPane.Children.Add(Words(pending, 13, "TafsSoftText"));
+        // Its total has no currency because a tool it grants isn't connected any more: KIFF's words, and for whoever manages
+        // the taf and may use Coach, Reconnect it in Coach (a new conversation on this taf, as Improve in Coach).
+        if (shown.UnitWords is { } unitWords)
+        {
+            var unit = new StackPanel { Spacing = 4 };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(unit, "card-unit-words");
+            unit.Children.Add(Words(unitWords, 13, "TafsSoftText"));
+            if (opening is { Manages: true, Improve: { } improve })
+            {
+                var reconnect = new HyperlinkButton { Content = w.Get("connect.reconnect_in_coach"), Padding = new Thickness(0), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(reconnect, "card-reconnect");
+                reconnect.Click += (_, _) => improve();
+                unit.Children.Add(reconnect);
+            }
+            CardPane.Children.Add(unit);
+        }
 
         // A revoked taf can't be halted. Remove for good is on Setup, as the iPad's.
         if (revoked) return;
