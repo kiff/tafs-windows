@@ -288,6 +288,15 @@ public sealed partial class FilesPage : Page
                 AutomationProperties.SetName(image, file.Name);
                 Detail.Children.Add(image);
                 break;
+            case { Kind: PreviewKind.Pdf, Bytes: { } pdf }:
+                // A PDF (the iPad's QuickLook): its pages drawn on this PC by Windows' own PDF reader, from its bytes; nothing goes
+                // to a viewer service. The first pages only; Download has the whole file.
+                var pages = new StackPanel { Spacing = 8 };
+                AutomationProperties.SetName(pages, file.Name);
+                AutomationProperties.SetAutomationId(pages, "file.preview");
+                Detail.Children.Add(new ScrollViewer { Content = pages, MaxHeight = 480 });
+                _ = DrawPdf(pages, pdf);
+                break;
             case { Kind: PreviewKind.Unreachable }:
                 // As the iPad's since tafs#1728: "Files couldn't be read: It didn't reach the server…".
                 Detail.Children.Add(Text(W.Get("common.could_not_read_why", ("what", W.Get("files.title")), ("why", W.Get("error.offline"))), 14, "TafsNoText"));
@@ -319,6 +328,36 @@ public sealed partial class FilesPage : Page
             AutomationProperties.SetAutomationId(delete, "file.delete");
             delete.Click += async (_, _) => await DeleteAsync(file);
             Detail.Children.Add(delete);
+        }
+    }
+
+    /// <summary>
+    /// A PDF's first pages (at most <see cref="DeliveredFiles.PdfPages"/>), each drawn by Windows' own PDF reader
+    /// (<c>Windows.Data.Pdf</c>) into a picture on this PC. One that won't open draws nothing, and the file's buttons stay.
+    /// </summary>
+    static async Task DrawPdf(StackPanel pages, byte[] bytes)
+    {
+        try
+        {
+            using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+            await stream.WriteAsync(System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeBufferExtensions.AsBuffer(bytes));
+            stream.Seek(0);
+            var document = await Windows.Data.Pdf.PdfDocument.LoadFromStreamAsync(stream);
+            for (uint i = 0; i < Math.Min(document.PageCount, (uint)DeliveredFiles.PdfPages); i++)
+            {
+                using var page = document.GetPage(i);
+                using var drawn = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+                await page.RenderToStreamAsync(drawn);
+                drawn.Seek(0);
+                var bitmap = new BitmapImage();
+                await bitmap.SetSourceAsync(drawn);
+                pages.Children.Add(new Image { Source = bitmap, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Left, MaxWidth = 560 });
+            }
+        }
+        catch (Exception e) when (e is System.Runtime.InteropServices.COMException or ArgumentException or UnauthorizedAccessException)
+        {
+            // A PDF this PC can't open (damaged, or locked with a password): no pages, and the file's details and buttons stay.
+            pages.Children.Clear();
         }
     }
 
