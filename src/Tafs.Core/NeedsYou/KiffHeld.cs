@@ -397,19 +397,20 @@ public static class KiffHeld
                     _ => "è",
                 };
                 return d + ca;
-            // ICU's own data: Mongolian and Urdu take the English "th", Lao Thai's "ที่", Khmer its "ទី".
-            case "mn" or "ur": return d + "th";
+            // Where ICU has no ordinal of its own and falls back to English ("1th", "6rd"), the language's own written ordinal,
+            // in the form the Card's lines need: each is about a call, which is feminine in Hindi and Urdu.
+            case "mn": return d + "-р";
+            case "ur": return d + "ویں";
             case "km": return "ទី" + d;
             case "lo": return "ที่​" + d;
             case "az": return d + "'inci";
-            // ICU's Turkmen, with English as the fallback (as Mongolian): English's suffixes by CLDR's Turkmen ordinal classes,
-            // "rd" for few (n % 10 = 6 or 9, or n = 10), else "th".
-            case "tk": return d + (n10 is 6 or 9 || n == 10 ? "rd" : "th");
-            // ICU's Hindi: 1ला, 2रा, 3रा, 4था, 6ठा, every other वाँ; 0 has none.
-            case "hi": return n == 0 ? d : d + (n switch { 1 => "ला", 2 or 3 => "रा", 4 => "था", 6 => "ठा", _ => "वाँ" });
-            // ICU's Bengali: English's suffixes by CLDR's Bengali ordinal classes.
+            // Turkmen: -njy for CLDR's Turkmen ordinal class few (n % 10 = 6 or 9, or n = 10), else -nji.
+            case "tk": return d + (n10 is 6 or 9 || n == 10 ? "-njy" : "-nji");
+            // Hindi, feminine: 1ली, 2री, 3री, 4थी, 6ठी, every other वीं; 0 has none.
+            case "hi": return n == 0 ? d : d + (n switch { 1 => "ली", 2 or 3 => "री", 4 => "थी", 6 => "ठी", _ => "वीं" });
+            // Bengali, by CLDR's Bengali ordinal classes: one ম, two য়, few র্থ, many ষ্ঠ, other তম.
             case "bn":
-                return d + (n switch { 1 or 5 or 7 or 8 or 9 or 10 => "st", 2 or 3 => "nd", 4 => "rd", 6 => "th", _ => "th" });
+                return d + (n switch { 1 or 5 or 7 or 8 or 9 or 10 => "ম", 2 or 3 => "য়", 4 => "র্থ", 6 => "ষ্ঠ", _ => "তম" });
             case "ar" or "he": return d;
             default: return d + ".";
         }
