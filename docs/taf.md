@@ -87,7 +87,8 @@ Activity):
   TPM key, so tafs cloud can read its connected apps ([keys](keys.md#planques-proof-for-a-tafs-setup)). When it can't be
   signed, Setup reads without it, as the iPad's `try?`, and tafs cloud says so where the connections would be ("Connect
   this phone to read its connected apps", its word "phone"): no app on the ring, and no Connect again.
-- **In the iPad's order:** the Card-unit exceptions (title, words, history); the job (Home's `job_summary`, else "Works
+- **In the iPad's order:** the Card-unit exceptions (title, words, history, with Coach and Dismiss where this person may,
+  as on Needs you: [Needs you](needs-you.md#a-card-units-requests-cardunits-cardunitpanel-mainwindowcardunitscs)); the job (Home's `job_summary`, else "Works
   under 2 KIFF Cards."); the connected apps; what it remembers ("3 notes" and the latest, two lines at most).
 - **The connected apps:** why they couldn't be read, in red, with Try again; a ring while it's read; then the ring, 280
   high: each app on a circle round the taf, joined by a dashed line, its name and its actions' words, a running one with a
@@ -414,8 +415,7 @@ is the approval key's act, never the device key's); a revoked taf can still be r
   (it's named only, until its bytes are read), and a connected tool's title
   in its steps ("Asking KIFF: Create refund…", from planque's grants). The taf's words are drawn as written, not as
   Markdown, as Coach's are.
-- **What acts in Setup:** a connected app's sheet, the + to connect one, a Card-unit exception's Coach and Dismiss
-  (signed), Improve in Coach, Change the workflow with Coach, Starts when and Results go
+- **What acts in Setup:** a connected app's sheet, the + to connect one, Improve in Coach, Change the workflow with Coach, Starts when and Results go
   to. They need Coach, signing or sign-in, and whether the person manages the taf. The
   sample's Forget and Pause change its page only.
 - **The real Revoke:** `POST /v1/me/mandates/{id}/revoke` for each of its Cards, shown only to whoever KIFF says manages

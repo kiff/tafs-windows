@@ -231,6 +231,25 @@ at sign-in, when Coach asks for Home, and with **F5** on Needs you, the Windows 
     with Card units and steps.
   - Not yet: reading again at the next expiry and on return to the app.
 
+## A Card unit's requests (`CardUnits`, `CardUnitPanel`, `MainWindow.CardUnits.cs`)
+
+The iPad's `CardUnitExceptionPanel`, `discussCardUnit` and `dismissCardUnit`.
+- **Where:** Home's `card_unit_exceptions` on Needs you, after Did this happen? (they count against "Nothing waiting"),
+  and each taf's own on its Setup, first (tafs cloud's Setup read). One without its id, title or words is left out.
+- **The panel:** tafs cloud's title (16 semibold), words (14, soft) and history (12, dim).
+  - **Its Coach button** (tafs cloud's `action_title`), for whoever manages the taf and may use Coach: Coach opens
+    improving that taf, with tafs cloud's `coach_text` in its box, nothing sent.
+  - **Dismiss** (its `dismiss_title`, in the no colour), for someone who answers the account's holds on a PC with its
+    device key. It's asked first ("Dismiss {title}"), then:
+    1. KIFF's request is read again (`GET /v1/me/card-exceptions/{id}`). Only a Card unit's, still held, for this taf's
+       agent, with its version, goes on. Anything else says "This request changed. Read it again before dismissing it."
+    2. Windows Hello over "Dismiss {title}". Closed or unconfirmed: "Not dismissed: it wasn't confirmed.", and nothing is
+       sent.
+    3. KIFF's `kiff.answer.v1` refusing it, at the version read, signed by this PC's device key, posted to `…/reject`.
+  - **Dismissed:** it leaves Needs you and the taf's Setup at once, and Home is read again. Refused: "The request
+    wasn't dismissed." with KIFF's words, under the panel. Off while it goes.
+- A sign-out clears them.
+
 `--sample` shows the iPad's two sample calls for screenshots, and never reads KIFF: Deploys' migration and Bill pay's
 €8,400. Their words are the shared sample words, so they're in every shipped language. Needs you's row in the sidebar carries their count at its end, as
 the iPad's sidebar list draws a row's badge: a plain number, 15 regular, in the soft colour (not the

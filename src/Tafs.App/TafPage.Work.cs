@@ -34,6 +34,12 @@ public sealed partial class TafPage
     /// <summary>A step answered, or answering, or Windows Hello's state changed: its work drawn again, as it was read.</summary>
     internal void StepsChanged() => ShowWork();
 
+    /// <summary>A Card unit's request dismissed, or its Dismiss going or refused: Setup drawn again, where they show.</summary>
+    internal void CardUnitsChanged()
+    {
+        if (tab == TafTab.Setup) ShowSetup();
+    }
+
     /// <summary>A step answered or ended from its page: its work read again, as the iPad's <c>YourStepCard(onTaf:)</c>.</summary>
     internal void StepAnswered() => _ = LoadWorkAsync();
 

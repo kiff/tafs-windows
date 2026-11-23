@@ -26,7 +26,8 @@ public sealed record TafOpening(TafHead Head, CardBarLine? Card, Func<string, Ac
     TafInstalling? Installing = null, Func<int, KnobItem, Task<KnobEventResult>>? ApproveEvent = null, TafSharing? Share = null,
     Action<string>? AskCoachAbout = null, Func<Task<string?>>? Revoke = null, bool RevokeNeedsApprover = false, string? TimeZoneWords = null, string? ScheduleTimeZoneWords = null,
     Func<IReadOnlyList<Tafs.Core.NeedsYou.HeldCall>>? Held = null, TafSteps? Steps = null, TafFiles? Files = null, TafDoorSigning? DoorSigning = null,
-    string? DoorOn = null, TafSlackDoor? SlackDoor = null, ConnectAppsConnecting? Connecting = null)
+    string? DoorOn = null, TafSlackDoor? SlackDoor = null, ConnectAppsConnecting? Connecting = null,
+    Func<CardUnitException, Border?>? CardUnit = null)
 {
     /// <summary>
     /// Coach, improving this taf (the iPad's <c>improveTaf</c>), for someone who may use Coach as KIFF says when it's drawn:
@@ -1056,6 +1057,12 @@ public sealed partial class TafPage : Page
         var page = setupRead.Page;
         foreach (var ask in page?.CardUnitExceptions ?? [])
         {
+            // With Coach and Dismiss where this person may (the iPad's CardUnitExceptionPanel); one dismissed here is gone.
+            if (opening?.CardUnit is { } panel)
+            {
+                if (panel(ask) is { } drawn) SetupPane.Children.Add(drawn);
+                continue;
+            }
             var title = Words(ask.Title, 16, "TafsInkText");
             title.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
             SetupPane.Children.Add(Panel(title, Words(ask.Words, 14, "TafsSoftText"), Words(ask.History, 12, "TafsDimText")));
