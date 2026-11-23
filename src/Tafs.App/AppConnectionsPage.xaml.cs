@@ -27,6 +27,8 @@ public sealed partial class AppConnectionsPage : Page
     string? busy;
     string? note;
     bool noteIsError;
+    /// <summary>The connection whose page is open (planque's row opened it), as the iPad's <c>ConnectionDetailView</c>; none, the list.</summary>
+    string? detail;
 
     public AppConnectionsPage()
     {
@@ -46,6 +48,13 @@ public sealed partial class AppConnectionsPage : Page
 
     void OnBack(object sender, RoutedEventArgs e)
     {
+        // A connection's page goes back to the app's connections; the connections, to Connect apps.
+        if (detail is not null)
+        {
+            (detail, note) = (null, null);
+            Show();
+            return;
+        }
         if (Frame.CanGoBack) Frame.GoBack();
     }
 
@@ -54,6 +63,17 @@ public sealed partial class AppConnectionsPage : Page
         if (opening is not { } o) return;
         var w = App.Words;
         Body.Children.Clear();
+        if (detail is { } id)
+        {
+            // Its page, while planque still lists it; one gone meanwhile goes back to the list.
+            if (grants.FirstOrDefault(g => g.Id == id) is { } open)
+            {
+                ShowDetail(open);
+                return;
+            }
+            detail = null;
+        }
+        Heading.Text = w.Get("connect.apps.your_connections", ("app", o.App.DisplayName));
         var listed = AppConnections.RemovedListed(removed);
         var (tafs, gone, others) = AppConnections.Groups(AppConnections.Of(o.App, grants), o.Calls.TafOf, removed.Select(t => t.Agent).ToHashSet());
         // This PC hasn't read the account's connections: it says so, rather than an empty list.
@@ -85,7 +105,7 @@ public sealed partial class AppConnectionsPage : Page
 
     void Section(string title, IEnumerable<UIElement> rows)
     {
-        Body.Children.Add(new TextBlock { Text = title, Style = (Style)Application.Current.Resources["TafsEyebrow"], Margin = new Thickness(0, 8, 0, 0) });
+        if (title.Length > 0) Body.Children.Add(new TextBlock { Text = title, Style = (Style)Application.Current.Resources["TafsEyebrow"], Margin = new Thickness(0, 8, 0, 0) });
         var panel = new StackPanel { Spacing = 0 };
         var first = true;
         foreach (var row in rows)
@@ -109,6 +129,7 @@ public sealed partial class AppConnectionsPage : Page
     {
         var w = App.Words;
         var opening = this.opening!;
+        if (AppConnections.RowFromPlanque(g)) return PlanqueRow(g);
         var lines = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
         lines.Children.Add(Words(g.Title ?? opening.App.DisplayName, 16, "TafsInk", semibold: true));
         if (g.StatusWords is { Length: > 0 } status) lines.Children.Add(Words(status, 13, "TafsDim"));
@@ -156,6 +177,105 @@ public sealed partial class AppConnectionsPage : Page
             row.Children.Add(end);
         }
         return row;
+    }
+
+    /// <summary>
+    /// A connection as planque draws it, when it sends its actions (the iPad's <c>entry</c>): its name, the tafs that use it, its
+    /// health, a word when it was made under a taf that doesn't need the app; the row opens its page, where its actions are.
+    /// </summary>
+    UIElement PlanqueRow(PlanqueGrant g)
+    {
+        var w = App.Words;
+        var app = opening!.App;
+        var lines = new StackPanel { Spacing = 2 };
+        lines.Children.Add(Words(g.Title ?? app.DisplayName, 16, "TafsInk", semibold: true));
+        if (g.UsedBy is { Count: > 0 } used) lines.Children.Add(Words(w.Get("connect.apps.used_by", ("tafs", string.Join(", ", used))), 13, "TafsSoft"));
+        if (g.Health is { } health) lines.Children.Add(Words(health.Words, 13, health.Ok ? "TafsDim" : "TafsAmberText"));
+        if (app.Misplaced.FirstOrDefault(m => m.Grant == g.Id) is { } wrong)
+            lines.Children.Add(Words(w.Get("connect.misplaced", ("taf", wrong.Name), ("app", app.DisplayName)), 13, "TafsAmberText"));
+        var grid = new Grid { ColumnSpacing = 12, MinHeight = 44 };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.Children.Add(lines);
+        var chevron = Words("›", 18, "TafsSoft");
+        chevron.VerticalAlignment = VerticalAlignment.Center;
+        Grid.SetColumn(chevron, 1);
+        grid.Children.Add(chevron);
+        var open = new Button
+        {
+            Content = grid, HorizontalAlignment = HorizontalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Style = (Style)Application.Current.Resources["TafsQuietButton"], Padding = new Thickness(0),
+        };
+        AutomationProperties.SetAutomationId(open, "connect.row." + g.Id);
+        AutomationProperties.SetName(open, g.Title ?? app.DisplayName);
+        open.Click += (_, _) =>
+        {
+            (detail, note) = (g.Id, null);
+            Show();
+        };
+        return open;
+    }
+
+    /// <summary>
+    /// A connection's page, as the iPad's <c>ConnectionDetailView</c>: its health, the tafs that use it, and for whoever manages
+    /// Cards planque's known actions in its words and order. Remove asks first in planque's words, naming what stops; Sign in
+    /// again shows what's approved first (by a key, the key sheet).
+    /// </summary>
+    void ShowDetail(PlanqueGrant g)
+    {
+        var w = App.Words;
+        var o = opening!;
+        Heading.Text = g.Title ?? o.App.DisplayName;
+        var lines = new StackPanel { Spacing = 6 };
+        if (g.Health is { } health) lines.Children.Add(Words(health.Words, 15, health.Ok ? "TafsInk" : "TafsAmberText", semibold: true));
+        if (g.UsedBy is { Count: > 0 } used) lines.Children.Add(Words(w.Get("connect.apps.used_by", ("tafs", string.Join(", ", used))), 14, "TafsSoft"));
+        if (lines.Children.Count > 0) Section("", [lines]);
+        var actions = AppConnections.KnownActions(g);
+        if (o.Calls.Manages && actions.Count > 0)
+        {
+            var rows = new List<UIElement>();
+            foreach (var (action, i) in actions.Select((a, i) => (a, i)))
+            {
+                var removes = AppConnections.Removes(action);
+                var b = new Button
+                {
+                    Content = busy == g.Id && removes ? w.Get("connect.disconnecting") : action.Words, IsEnabled = busy is null,
+                    Style = (Style)Application.Current.Resources[removes ? "TafsOutlineNo" : "TafsOutlineButton"], Padding = new Thickness(16, 0, 16, 0),
+                };
+                AutomationProperties.SetAutomationId(b, $"connect.action.{action.Id}.{i}");
+                b.Click += (_, _) => _ = TakeAsync(g, action);
+                rows.Add(b);
+            }
+            Section("", rows);
+        }
+        if (note is { } n) Body.Children.Add(Words(n, 13, noteIsError ? "TafsNo" : "TafsInk"));
+    }
+
+    /// <summary>One of planque's actions on a connection's page: Remove after its question; Sign in again, by approve or by a key.</summary>
+    async Task TakeAsync(PlanqueGrant g, GrantAction action)
+    {
+        if (opening is not { } o || busy is not null) return;
+        if (!AppConnections.Removes(action))
+        {
+            await FixAsync(g, key: action.How == "key");
+            return;
+        }
+        var w = App.Words;
+        // One more ask, in planque's words, naming what stops; only then Windows Hello, in the same words.
+        var ask = new ContentDialog
+        {
+            XamlRoot = XamlRoot, Title = action.Words, RequestedTheme = ActualTheme,
+            Content = action.Stops is { } stops ? new TextBlock { Text = stops, TextWrapping = TextWrapping.Wrap } : null,
+            PrimaryButtonText = action.Words, CloseButtonText = w.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
+        };
+        if (await ask.ShowAsync() != ContentDialogResult.Primary) return;
+        (busy, note) = (g.Id, null);
+        Show();
+        var (left, why, stopped) = await o.Calls.End([g.Id], action.Words);
+        if (stopped) return;
+        // Removed: back to the app's connections, read again; else why stays on its page.
+        if (left == 0) detail = null;
+        await AfterAsync(left == 0 ? null : why, isError: true);
     }
 
     /// <summary>A removed taf's connection: what it is, the removed taf by the name planque keeps, its status, and who keeps it.</summary>
@@ -206,10 +326,12 @@ public sealed partial class AppConnectionsPage : Page
     /// page. Replace the key: the key sheet over this connection. Connected, the connections and the list are read again;
     /// otherwise the sheet said why.
     /// </summary>
-    async Task FixAsync(PlanqueGrant g)
+    async Task FixAsync(PlanqueGrant g) => await FixAsync(g, g.TakesKey);
+
+    async Task FixAsync(PlanqueGrant g, bool key)
     {
         if (opening is not { Connecting: { } connecting } o || busy is not null) return;
-        var connected = g.TakesKey
+        var connected = key
             ? connecting.GiveKey is not null && await KeyDialog.ShowAsync(XamlRoot, ActualTheme, o.App, g.Id, connecting)
             : await ConnectDialog.ShowAsync(XamlRoot, ActualTheme, o.App, g.Id, connecting, again: true);
         if (connected)

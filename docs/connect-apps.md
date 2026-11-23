@@ -75,6 +75,13 @@ The iPad's `AppConnectionsView` and its model (`refreshConnections`, `connection
   - a provider's connection, connected, says "{vendor} signs in through its connection provider. To sign in again, remove
     access and connect it again." in place of Sign in again (planque can't tell which account a new sign-in there is);
   - connected again, the connections and the list are read again.
+- **A connection's page,** as the iPad's `ConnectionDetailView`: where planque sends a connection's actions (`actions`,
+  the iPad's `rowFromPlanque`), its row is planque's (its name, "Used by …", its health in planque's words, amber when not
+  ok, and the misplaced line) with a chevron, and opens its page: the health, Used by, and for whoever manages Cards
+  planque's known actions in its words and order (`AppConnections.KnownActions`: Sign in again by approve or by a key;
+  Remove and Remove unfinished by delete; any other left out). Remove asks first in planque's words, naming what stops
+  (`stops`), then Windows Hello in the same words and planque's DELETE; removed, it's back to the app's connections, read
+  again. Sign in again is the sheet above; by a key, the key sheet. Back returns to the app's connections.
 - **A connection made under a taf that doesn't need the app** (tafs cloud's `misplaced` on the app, read with this PC's
   grants) says so in amber: "Made for Bookings, which doesn't use Stripe.", so it can be removed.
 - **Clear these connections,** under From removed tafs, for whoever manages Cards: only those tafs cloud lists with no live
@@ -123,5 +130,4 @@ approves with its own passkey. Anyone else sees Connect dimmed.
 **Not yet:**
 - **A failed read's words** show on the page; the iPad shows them in its app-wide error line.
 
-- **On an app's connections:** a connection's own detail page (planque's `row`), its last failed call, and the other tafs
-  whose Card uses its tools ("Also on Ana's Card", and in Remove access's question).
+- **On an app's connections:** a connection's last failed call, and the other tafs whose Card uses its tools ("Also on Ana's Card", and in Remove access's question).
