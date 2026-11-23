@@ -82,10 +82,10 @@ public sealed partial class SignedOutPage : Page
     /// <summary>Ticked, Continue and Show the code are free; unticked, they wait again, and a pairing in progress stops.</summary>
     /// <summary>
     /// Try it with sample data, as the iPad's <c>startSample</c>: tafs starts again on the sample (<c>--sample</c>), which reads no
-    /// one's account and sends nothing. Account's Clear the sample starts it again without it.
+    /// one's account and sends nothing. Account's Clear the sample starts it again without it. Only <c>--sample</c> is passed:
+    /// the welcome has no other options worth carrying, and nothing unquoted goes along.
     /// </summary>
-    void OnTrySample(object sender, RoutedEventArgs e) => Microsoft.Windows.AppLifecycle.AppInstance.Restart(
-        string.Join(' ', Environment.GetCommandLineArgs().Skip(1).Where(a => a != "--sample").Append("--sample")));
+    void OnTrySample(object sender, RoutedEventArgs e) => Microsoft.Windows.AppLifecycle.AppInstance.Restart("--sample");
 
     void OnTicked(object sender, RoutedEventArgs e)
     {
