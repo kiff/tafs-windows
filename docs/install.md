@@ -81,6 +81,9 @@ The **MSIX** is built too, for the day it's signed.
 - **Unsigned** (sign not ticked, for the owner's install test before signing exists): the setups are named
   `tafs-setup-1.0.0-x64-UNSIGNED.exe` and `-arm64-UNSIGNED.exe`, so the page, which takes only `*-x64.exe`, never serves
   them, and the draft's title and notes say **never publish**. Its notes carry the SHA-256s too.
+- **Its notes:** each version's are in `release-notes/v<version>.md`, in the setup's 8 languages and v1.0.0's order
+  (English, Deutsch, Español, Français, Italiano, Nederlands, Polski, Português). They're put on the draft by hand,
+  above the SHA-256 lines and the run that CI writes there, so the hashes stay CI's own.
 - **Publishing it:** the owner presses Publish, as for every computer, on a **signed** draft only, once their test of
   that build passed. The team prepares the draft and says it's ready; no one else publishes. The page shows it within
   10 minutes.
