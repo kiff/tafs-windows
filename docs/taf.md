@@ -78,6 +78,11 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
   - **Ask Coach** opens Coach improving the taf, with tafs cloud's `message` in its box, else the line's title and detail,
     nothing sent. The button is off while it goes.
 
+**A taf that's gone** (the iPad's `LateNote`, `TafPage.Gone.cs`): when Home is read again and no longer lists the taf on
+the page (removed, here or on another device), the page shows only "This taf is gone.", dim, in the middle, fading in
+after 1.2 s, so a read in passing never flashes it. If Home lists it again, the page shows as it was. A sample taf and a
+trial's page aren't Home's, so they never read as gone.
+
 **A taf from tafs cloud** (opened from the Overview or Your tafs) reads its Activity there, page after page
 (`ActivityPages`, ported from `SourcePages` and `AppModel.loadActivityPage`, and drawn as `TafPresentationViews.swift`'s
 Activity):
