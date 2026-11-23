@@ -15,7 +15,7 @@ namespace Tafs.App;
 public sealed record AccountOpening(bool Sample, ElementTheme Theme, Func<string, Task<CloudRead>>? Read = null,
     KiffAccount? Account = null, Func<string, string, byte[]?, Task<CloudRead>>? Write = null, bool Manages = false,
     Func<string, Task<(string? Zone, string? Why)>>? SetTimeZone = null, Func<Task<(Deleted Done, string? Why)>>? DeleteAccount = null,
-    Func<Task<bool>>? ChromesOffered = null);
+    Func<Task<bool>>? ChromesOffered = null, Func<Task<CloudRead>>? ReadSignIn = null, Func<Task<CloudRead>>? SignInOff = null);
 
 /// <summary>
 /// Account. Its rows follow where this PC stands (the sample, signed in with KIFF, or signed out). The KIFF account's name,
@@ -59,6 +59,78 @@ public sealed partial class AccountPage : Page
         Show();
         _ = ReadSettingsAsync();
         _ = ReadChromesAsync();
+        _ = ReadSignInAsync();
+    }
+
+    /// <summary>Account › Sign-in, the email-code setting, as KIFF reads it; none until read, or for a session without it.</summary>
+    CodeSignIn? codeSignIn;
+    string? codeSignInWhy;
+    bool codeSignInBusy;
+    /// <summary>KIFF's page was opened to turn it on: the setting is read again when the person comes back to tafs.</summary>
+    bool codeSignInOpened;
+
+    async Task ReadSignInAsync()
+    {
+        if (opening.ReadSignIn is not { } read) return;
+        var mine = opening;
+        var answer = await read();
+        if (opening != mine) return;
+        if (answer.Answer is { } a && CodeSignIn.Read(a) is { } setting) (codeSignIn, codeSignInWhy) = (setting, null);
+        else codeSignInWhy = App.Words.Get("settings.sign_in_code.not_loaded", ("why", answer.Why ?? App.Words.Get("error.ours")));
+        Show();
+    }
+
+    /// <summary>The window is in front again: after KIFF's page was opened to turn it on, the setting is read again, as the iPad's after its sheet.</summary>
+    internal void CameBack()
+    {
+        if (!codeSignInOpened) return;
+        codeSignInOpened = false;
+        _ = ReadSignInAsync();
+    }
+
+    /// <summary>Turn off goes straight from here; Turn on opens KIFF's own sign-in page, where the person confirms it's them.</summary>
+    async Task ChangeSignInAsync(CodeSignInAction action)
+    {
+        var w = App.Words;
+        if (codeSignInBusy) return;
+        if (action == CodeSignInAction.TurnOn)
+        {
+            codeSignInOpened = true;
+            _ = Windows.System.Launcher.LaunchUriAsync(CodeSignIn.KiffPage);
+            return;
+        }
+        if (action != CodeSignInAction.TurnOff || opening.SignInOff is not { } off) return;
+        var mine = opening;
+        (codeSignInBusy, codeSignInWhy) = (true, null);
+        Show();
+        var answer = await off();
+        codeSignInBusy = false;
+        if (opening != mine) return;
+        if (answer.Answer is { } a && CodeSignIn.Read(a) is { } setting) codeSignIn = setting;
+        else codeSignInWhy = w.Get("settings.sign_in_code.not_changed", ("why", answer.Why ?? w.Get("error.ours")));
+        Show();
+    }
+
+    /// <summary>Account › Sign-in, as the iPad's <c>CodeSignInRow</c>: the setting On or Off, its help, its button, the line under it, why it failed.</summary>
+    void SignInSection(Tafs.Core.Words.WordBook w)
+    {
+        if (codeSignIn is null && codeSignInWhy is null) return;
+        var rows = new List<UIElement>();
+        if (codeSignIn?.Lines(w) is { } lines)
+        {
+            rows.Add(Row(lines.Label, lines.Value));
+            rows.Add(Words(lines.Help, "TafsSoftText", 13));
+            if (lines.Button is { } words)
+            {
+                var b = Action(words, lines.Action == CodeSignInAction.TurnOff ? "TafsNoText" : "TafsAccentText", () => _ = ChangeSignInAsync(lines.Action));
+                b.IsEnabled = !codeSignInBusy;
+                AutomationProperties.SetAutomationId(b, lines.Action == CodeSignInAction.TurnOff ? "settings.sign-in-code.off" : "settings.sign-in-code.on");
+                rows.Add(b);
+            }
+            if (lines.Note is { } note) rows.Add(Words(note, "TafsSoftText", 13));
+        }
+        if (codeSignInWhy is { } why) rows.Add(Words(why, "TafsNoText", 13));
+        Section(w.Get("settings.sign_in_code.title"), rows);
     }
 
     /// <summary>Whether Account shows Chrome: only once planque lists the account's Chromes (its switch decides, never the app).</summary>
@@ -202,6 +274,8 @@ public sealed partial class AccountPage : Page
             Section(w.Get("settings.plan"), [Opens(Row(w.Get("usage.title"), "", chevron: true), w.Get("usage.title"), () => UsageChosen?.Invoke())]);
         Section(null, [Opens(Row(w.Get("settings.alerts"), "", chevron: true), w.Get("settings.alerts"), () => AlertsChosen?.Invoke())]);
         Section(w.Get("settings.theme_title"), [ThemePicker(w)]);
+        // Sign-in, the email-code setting, as the iPad's Account preferences.
+        if (mode == AccountMode.Kiff) SignInSection(w);
         // The AI-data consent, as the iPad's AIConsentRow: given, its words and Withdraw in red; not given, its own screen. Every
         // word is tafs cloud's.
         if (mode == AccountMode.Kiff && consent is { Drawable: true } ai)
@@ -234,6 +308,9 @@ public sealed partial class AccountPage : Page
         Section(w.Get("onboarding.how_it_works"), Enum.GetValues<Onboarding.Card>().Select(card =>
             (UIElement)Opens(Row(Onboarding.Title(w, card), "", chevron: true), Onboarding.Title(w, card),
                 () => _ = OnboardingCards.ShowAsync(XamlRoot, ActualTheme, card))).ToList());
+        // Then Chrome and the emailed code, each only where it can be used (the iPad's HowTafsWorksView).
+        foreach (var help in HelpSections.Shown(w, chromesOffered, codeSignIn?.Available == true))
+            Section(help.Title, [Words(help.Lead, "TafsSoftText", 15), Words(help.More, "TafsDimText", 14)]);
         // The four legal pages, KIFF's and tafs's, each titled as its page is; one kiff.dev lacks in this language says so.
         Section(w.Get("settings.legal"), Onboarding.LegalRows(w).Select(row => Action(
             AccountScreen.LegalTitle(w, row.Title), "TafsAccentText", () => _ = Windows.System.Launcher.LaunchUriAsync(row.Link))).ToList());
