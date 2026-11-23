@@ -1,5 +1,6 @@
 using Tafs.Core.Kiff;
 using Tafs.Core.NeedsYou;
+using Tafs.Core.Record;
 using Tafs.Core.Taf;
 using Tafs.Core.Words;
 
@@ -16,6 +17,23 @@ public sealed record ConnectionGroup(string Agent, string Taf, IReadOnlyList<Pla
 /// </summary>
 public static class AppConnections
 {
+    /// <summary>
+    /// A connection's last failed call, where an owner whose taf fails looks first (the iPad's <c>lastFailure</c>): the newest
+    /// Record line KIFF says wasn't done whose action is one of the connection's tools (planque's list, else its request's
+    /// tools the taf uses), the taf's own (its agent) before any other's, as "Last failed: {title} · {detail}". None without
+    /// such a line, or with no tools to match.
+    /// </summary>
+    public static string? LastFailure(WordBook w, PlanqueGrant g, IReadOnlyList<RecordEntry> record)
+    {
+        var actions = (g.Tools ?? g.Request.Tools.Where(t => t.Tafs).Select(t => t.Action).ToList()).ToHashSet();
+        if (actions.Count == 0) return null;
+        var failed = record.Where(e => e.Kind == EntryKind.NotDone && e.Call?.ActionName is { } action && actions.Contains(action)).ToList();
+        var own = failed.Where(e => e.Call?.ActorId == g.Request.Agent).ToList();
+        return (own.Count > 0 ? own : failed).MaxBy(e => e.At) is { } last
+            ? w.Get("connect.last_failed", ("title", last.Title), ("detail", last.Detail))
+            : null;
+    }
+
     /// <summary>The app's live connections: by the entry planque names for each, or the grant tafs cloud named for the app.</summary>
     public static IReadOnlyList<PlanqueGrant> Of(ConnectApp app, IReadOnlyList<PlanqueGrant> grants) =>
         grants.Where(g => (g.Entry == app.Entry || (app.Grant is { } id && g.Id == id)) && g.Status is not ("disconnected" or "failed")).ToList();

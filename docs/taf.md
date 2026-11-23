@@ -110,6 +110,10 @@ Activity):
 - **An app on the ring opens its sheet** (the iPad's `ConnectedAppSheet`, `TafPage.AppSheet.cs`), titled with its name:
   - its status in tafs cloud's words, amber when it's to sign in again, with **Sign in again** for whoever manages the taf
     on a PC that approves (that connection's sheet, then Setup read again);
+  - **its last failed call** ("Last failed: {title} · {detail}", in red): the newest Record line KIFF says wasn't done on
+    one of the connection's tools, the taf's own before another's (`AppConnections.LastFailure`, the iPad's `lastFailure`);
+    and for whoever manages the taf, on a connection that's connected or to sign in again, **Replace the key** (a key's
+    sheet) or **Sign in again**, or for a provider's connection why it can't be signed in again in place;
   - **What it may do:** each action's title (16 semibold), its limits and its `step_words`;
   - **Workflow:** its `workflow_words` with no saved workflow, then its own `workflow_steps` ("2 · Reply" and their words);
   - the last seven days in tafs cloud's words, which opens the Activity on this app (off with no actions): tafs cloud's
