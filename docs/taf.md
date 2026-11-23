@@ -316,6 +316,12 @@ each its own screen with Back.
   another switch is under way or a trial is open:
   - The switch begins (`POST /v1/tafs/{id}/versions/{n}/switch`): from here the taf doesn't run. A run in the way is said
     in tafs cloud's words, with Stop it and install (`stop_blocking`).
+  - **A task Stop it and install stopped while it waited on the owner's answer** (its held call withdrawn, its message
+    never carried out): tafs cloud's answer names it (`stopped: [{run, session}]`, with `words`), and Windows says so in
+    those words under the versions, and in the taf's chat with **Retry** on the owner's last message of that session. One
+    click sends it again as a new message, never by itself (`TafSwitch.RetryText`). With none of that session's messages
+    loaded, only the words show, so a message that already ran is never sent twice. A switch that stopped nothing waiting
+    says nothing.
   - **With a Card:** Its Card, KIFF's draft as read, and that the taf doesn't run while it switches. Install this version
     signs exactly what was shown: one Windows Hello, this PC's passkey asserting KIFF's confirm, unless KIFF has it
     already. A Card changed meanwhile is shown again and the switch dropped; KIFF's `card_revised` offers Draft its Card

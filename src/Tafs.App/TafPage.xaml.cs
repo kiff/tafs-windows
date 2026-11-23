@@ -812,6 +812,22 @@ public sealed partial class TafPage : Page
             error.Foreground = Brush("TafsNo");
             ChatPane.Children.Add(error);
         }
+        // A switch stopped a task that waited on the owner: tafs cloud's words, and Retry on its message when it's loaded.
+        if (switchStopped is { } stopped)
+        {
+            var said = new StackPanel { Spacing = 6 };
+            var words = CoachPanel.Words(stopped.Words, 13, "TafsSoftText");
+            words.Foreground = Brush("TafsNo");
+            said.Children.Add(words);
+            if (chat is { } shown && TafSwitch.RetryText(shown.Messages, stopped.Runs) is { } again)
+            {
+                var retry = new Button { Content = App.Words.Get("chat.retry"), Style = (Style)Application.Current.Resources["TafsOutlineButton"] };
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetAutomationId(retry, "chat.switch-stopped.retry");
+                retry.Click += (_, _) => _ = RetryStoppedAsync(again);
+                said.Children.Add(retry);
+            }
+            ChatPane.Children.Add(said);
+        }
         if (live is { } answer && !answer.Ended) ChatPane.Children.Add(LiveBlock(answer, Brush));
         else SteadyDone();
         if (chatNote is { } note)
