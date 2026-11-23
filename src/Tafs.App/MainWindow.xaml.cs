@@ -870,6 +870,19 @@ public sealed partial class MainWindow : Window
             // Answered here: its Record line isn't "nothing sent" while KIFF's record catches up (the iPad's withDecisions).
             answeredHere.AddRange(held.Where(h => h.KiffId == id));
             ShowHeld(held.Where(h => h.KiffId != id).ToList());
+            // The paused run asked to go on now, as the iPad's continueHeld (kiff/tafs#206), by its taf's id in tafs cloud: a run
+            // that had already ended says so on Needs you, in tafs cloud's words; one KIFF's alert already continued says nothing
+            // (HeldContinue).
+            if (call.Agent is { } agent && home?.Tafs.FirstOrDefault(t => t.Agent == agent) is { } taf)
+            {
+                var went = await CloudSendAsync(bearer, HeldContinue.Path(taf.Id, id), "{}"u8.ToArray());
+                if (reading != sessions) return;
+                if (HeldContinue.Said(w, call.Summary, went) is { } said)
+                {
+                    needsYouError = said;
+                    ShowSteps();
+                }
+            }
             if (cloudRead is { } read) await ReadHomeAsync(read);
             return;
         }
