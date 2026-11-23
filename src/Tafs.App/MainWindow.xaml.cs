@@ -241,6 +241,11 @@ public sealed partial class MainWindow : Window
         HelloState.Changed += () => DispatcherQueue.TryEnqueue(() => { if (Pages.Content is NeedsYouPage or TafPage) ShowSteps(); });
         NeedsYouPage.HeldAnswerChosen += (call, answer) => _ = AnswerHeldAsync(call, answer);
         NeedsYouPage.AllowChosen += call => _ = OpenAllowAsync(call);
+        // "Change the limit in Coach mode": Coach improving the call's taf, as the iPad's improveTaf.
+        NeedsYouPage.ChangeLimitChosen += call =>
+        {
+            if (mayUseCoach && HomeTafOf(call) is { } taf && Manages(taf)) CoachMode.Improve(taf.Id, taf.Name);
+        };
         Toasts.HoldChosen += hold => DispatcherQueue.TryEnqueue(() => OpenHold(hold));
         heldClock.Tick += (_, _) =>
         {
@@ -760,8 +765,12 @@ public sealed partial class MainWindow : Window
         if (sampleHeld || App.Sessions.Kept() is not { } session) return HeldAnswering.None;
         var hasKey = TpmKey.Exists(session.KeyName);
         return new(mayAnswerHolds, call => HeldAnswers.CanAnswer(call, session.Tenant, hasKey), HeldAnswers.Approves(session.Mode, session.PasskeyId),
-            managesCards, lastingRefusals, sendingHolds, call => HoldAllow.Offers(call, capabilitiesRead, managesCards, TafOf(call)));
+            managesCards, lastingRefusals, sendingHolds, call => HoldAllow.Offers(call, capabilitiesRead, managesCards, TafOf(call)),
+            call => mayUseCoach && HomeTafOf(call) is { } taf && Manages(taf));
     }
+
+    /// <summary>The held call's taf on Home, by its agent; none for one no taf has.</summary>
+    Tafs.Core.Home.HomeTaf? HomeTafOf(HeldCall call) => call.Agent is { } agent ? home?.Tafs.FirstOrDefault(t => t.Agent == agent) : null;
 
     /// <summary>The held call's taf in tafs cloud, by its agent, as the iPad's <c>cloudTaf(for:)</c>: none for one no taf has.</summary>
     string? TafOf(HeldCall call) =>
