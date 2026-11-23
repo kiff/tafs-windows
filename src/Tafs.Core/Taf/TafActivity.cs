@@ -25,7 +25,15 @@ public sealed record ActivityFilter(string Id, string Title);
 /// of the next page when there's one, and how many entries it holds (the iPad tests these, not the days, for "Nothing here.").
 /// </summary>
 public sealed record ActivityPage(IReadOnlyList<ActivityGroup> Groups, IReadOnlyList<ActivityFilter> Filters, string Filter,
-    string? EndWords, string? Revision, string? NextCursor = null, int Entries = 0);
+    string? EndWords, string? Revision, string? NextCursor = null, int Entries = 0)
+{
+    /// <summary>
+    /// This taf's Card-unit requests as the page sends them (<c>card_unit_exceptions</c>), none when it sends none (then Home's
+    /// list for this taf stands in, as the iPad's); and tafs cloud's notice under them (<c>card_unit_exceptions_notice</c>).
+    /// </summary>
+    public IReadOnlyList<CardUnitException>? CardUnits { get; init; }
+    public string? CardUnitsNotice { get; init; }
+}
 
 /// <summary>A taf's Activity tab: read from tafs cloud, or the iPad's sample (the reference set's taf.png).</summary>
 public static class TafActivity
@@ -45,7 +53,13 @@ public static class TafActivity
             .OfType<ActivityFilter>()
             .ToList();
         return new ActivityPage(groups, filters, Lenient.Text(answer, "filter") ?? "all", Lenient.Text(answer, "end_words"), Lenient.Text(answer, "revision"),
-            Lenient.Text(answer, "next_cursor"), Lenient.Array(answer, "entries").Count());
+            Lenient.Text(answer, "next_cursor"), Lenient.Array(answer, "entries").Count())
+        {
+            CardUnits = Lenient.Field(answer, "card_unit_exceptions") is { ValueKind: JsonValueKind.Array } asks
+                ? asks.EnumerateArray().Where(e => e.ValueKind == JsonValueKind.Object).Select(TafSetup.Exception).OfType<CardUnitException>().ToList()
+                : null,
+            CardUnitsNotice = Lenient.Text(answer, "card_unit_exceptions_notice")?.Trim() is { Length: > 0 } notice ? notice : null,
+        };
     }
 
     /// <summary>One of tafs cloud's Activity entries, as drawn: none without an id or a title. The Record's search reads its hits with it.</summary>

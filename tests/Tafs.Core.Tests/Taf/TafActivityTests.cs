@@ -107,4 +107,21 @@ public class TafActivityTests
         Assert.Equal(3, Assert.Single(page.Groups).Lines.Count);
         Assert.All(page.Filters, f => Assert.False(string.IsNullOrWhiteSpace(f.Title)));
     }
+
+    /// <summary>The page's Card-unit requests and their notice (the iPad's TafActivityList); none sent is none, so Home's stand in.</summary>
+    [Fact]
+    public void A_page_carries_its_Card_unit_requests_and_their_notice()
+    {
+        var page = TafActivity.Read(JsonDocument.Parse("""
+            {"groups": [], "card_unit_exceptions": [{"id": "ce_7", "title": "A bigger unit", "words": "It asks for €200.", "dismiss_title": "Dismiss"}, {"id": "ce_8"}],
+             "card_unit_exceptions_notice": "  Dismissing one tells Refunds no.  "}
+            """).RootElement);
+        Assert.Equal(["ce_7"], page.CardUnits!.Select(a => a.Id));
+        Assert.Equal("Dismissing one tells Refunds no.", page.CardUnitsNotice);
+        // None sent: null, not empty, so Home's list for the taf stands in.
+        var none = TafActivity.Read(JsonDocument.Parse("""{"groups": []}""").RootElement);
+        Assert.Null(none.CardUnits);
+        Assert.Null(none.CardUnitsNotice);
+        Assert.Empty(TafActivity.Read(JsonDocument.Parse("""{"card_unit_exceptions": []}""").RootElement).CardUnits!);
+    }
 }
