@@ -20,6 +20,15 @@ public sealed record RecordDayView(string Title, IReadOnlyList<RecordLineView> E
 /// One line of the Record, as drawn: its status dot, its taf's colour, "Taf · what", the time and the detail; read out as
 /// one, with what a tap does.
 /// </summary>
+/// <summary>A Record line's template: a call's opens its receipt; tafs' own event has nothing to open, so it isn't a button.</summary>
+public sealed partial class RecordRowSelector : DataTemplateSelector
+{
+    public DataTemplate? Call { get; set; }
+    public DataTemplate? Event { get; set; }
+    protected override DataTemplate? SelectTemplateCore(object item) => item is RecordLineView { Opens: false } ? Event : Call;
+    protected override DataTemplate? SelectTemplateCore(object item, DependencyObject container) => SelectTemplateCore(item);
+}
+
 public sealed record RecordLineView(string Title, string Time, string Detail, Brush TafColour, Visibility IsDone, Visibility IsWaiting, Visibility IsRefused,
     RecordEntry Entry, string Receipt = "", Visibility ReceiptShown = Visibility.Collapsed)
 {

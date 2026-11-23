@@ -30,6 +30,8 @@ public sealed partial class MainWindow : Window
     IReadOnlyList<HeldCall> held;
     /// <summary>Whether KIFF's holds were read this session: until then, a held Record line is taken to still wait.</summary>
     bool heldRead;
+    /// <summary>Holds answered on this PC this session: their Record lines aren't "no longer waiting" while KIFF catches up.</summary>
+    readonly List<HeldCall> answeredHere = [];
     /// <summary>tafs' own events in the Record as last read, kept when a read fails.</summary>
     IReadOnlyList<RecordEntry> recordEvents = [];
 
@@ -622,25 +624,28 @@ public sealed partial class MainWindow : Window
         var w = App.Words;
         var tafs = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => (g.First().Name, g.First().Colour));
         var lines = KiffActivity.Lines(w, calls, agent => tafs.TryGetValue(agent, out var taf) ? taf : null);
+        // Drawn first, as the iPad's: what each line acted on and tafs' own events come after, and it's drawn again.
+        record = TafsEvents.With(lines, recordEvents);
+        if (Pages.Content is RecordPage drawn) drawn.ShowEntries(record);
         if (cloudRead is { } cloud && !sample)
         {
-            // What each line acted on (kiff/tafs#167): the call refs of each taf with a line KIFF hashed a resource for, kept only
-            // where the value's hash is KIFF's. Best effort: a taf whose calls can't be read keeps its lines unnamed.
+            // What each line acted on (kiff/tafs#167): the call refs of each taf with a line KIFF hashed a resource for, read
+            // together, kept only where the value's hash is KIFF's. Best effort: a taf whose calls can't be read stays unnamed.
             var cloudIds = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => g.First().Id);
+            var named = lines.Where(RecordNaming.Unnamed).Select(e => e.Call!.ActorId).OfType<string>().Distinct()
+                .Select(agent => cloudIds.GetValueOrDefault(agent)).OfType<string>().Distinct()
+                .Select(id => cloud(RecordNaming.CallsPath(id))).ToList();
+            var happened = cloud(TafsEvents.Path);
+            var reads = await Task.WhenAll(named);
+            if (reading != sessions) return;
             var refs = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var id in lines.Where(RecordNaming.Unnamed).Select(e => e.Call!.ActorId).OfType<string>().Distinct()
-                .Select(agent => cloudIds.GetValueOrDefault(agent)).OfType<string>().Distinct())
-            {
-                var read2 = await cloud(RecordNaming.CallsPath(id));
-                if (reading != sessions) return;
-                if (read2.Answer is { } a && RecordNaming.Refs(a) is { } found) foreach (var (key, value) in found) refs[key] = value;
-            }
+            foreach (var r in reads) if (r.Answer is { } a && RecordNaming.Refs(a) is { } found) foreach (var (key, value) in found) refs[key] = value;
             if (refs.Count > 0) lines = RecordNaming.Named(lines, refs);
             // What happened in tafs itself sits beside KIFF's calls (kiff/tafs#236, items 15 and 19); a read that fails keeps the last.
-            var happened = await cloud(TafsEvents.Path);
+            var events = await happened;
             if (reading != sessions) return;
-            if (happened.Answer is { } h && TafsEvents.Read(h) is { } events)
-                recordEvents = TafsEvents.Lines(w, events, listed.Tafs.Select(t => (t.Id, t.Name, t.Colour)).ToList());
+            if (events.Answer is { } h && TafsEvents.Read(h) is { } said)
+                recordEvents = TafsEvents.Lines(w, said, listed.Tafs.Select(t => (t.Id, t.Name, t.Colour)).ToList());
         }
         record = TafsEvents.With(lines, recordEvents);
         if (Pages.Content is RecordPage page) page.ShowEntries(record);
@@ -664,6 +669,8 @@ public sealed partial class MainWindow : Window
         if (reading != sessions || answer is not { } json || KiffHeld.Read(json) is not { } holds) return;
         var tafs = listed.Tafs.Where(t => t.Agent is not null).GroupBy(t => t.Agent!).ToDictionary(g => g.Key, g => (g.First().Name, g.First().Colour));
         var calls = KiffHeld.Calls(App.Words, holds, agent => tafs.TryGetValue(agent, out var taf) ? taf : null);
+        // KIFF's holds read: a held Record line KIFF no longer holds may now say so (the iPad's isWaiting).
+        heldRead = true;
         ShowHeld(calls);
         // A taf with a call waiting comes first.
         ShowYourTafs();
@@ -842,6 +849,8 @@ public sealed partial class MainWindow : Window
         sendingHolds.Remove(id);
         if (answered.Taken)
         {
+            // Answered here: its Record line isn't "nothing sent" while KIFF's record catches up (the iPad's withDecisions).
+            answeredHere.AddRange(held.Where(h => h.KiffId == id));
             ShowHeld(held.Where(h => h.KiffId != id).ToList());
             if (cloudRead is { } read) await ReadHomeAsync(read);
             return;
@@ -1005,8 +1014,6 @@ public sealed partial class MainWindow : Window
     {
         var w = App.Words;
         held = calls;
-        // A held line KIFF no longer holds says so in the Record (the iPad's isWaiting), now that the holds are read.
-        heldRead = true;
         if (Pages.Content is RecordPage recordShown) recordShown.ShowEntries(record);
         NeedsYouPage.Answering = HeldAnsweringNow();
         AddHeldCalls(w);
@@ -1104,7 +1111,7 @@ public sealed partial class MainWindow : Window
         // Export receipts: tafs cloud's answer as it came, so KIFF's receipts are exactly as issued.
         RecordPage.ReadBytes = path => CloudBytesAsync(bearer, path);
         // A held line's words in the Record: "no longer waiting · nothing sent" once KIFF's holds say it isn't held any more.
-        RecordPage.Held = () => heldRead ? held : null;
+        RecordPage.Held = () => heldRead ? [.. held, .. answeredHere] : null;
         // The Record's taf chips: every taf of the account's, as the iPad's.
         RecordPage.AccountTafs = () => home?.Tafs.Select(t => (t.Name, t.Colour)).ToList();
         // Given before Coach's read, which reads them as it draws its approvals.
@@ -1208,6 +1215,7 @@ public sealed partial class MainWindow : Window
         record = [];
         recordEvents = [];
         heldRead = false;
+        answeredHere.Clear();
         if (Pages.Content is RecordPage page)
         {
             page.ShowEntries(record);
