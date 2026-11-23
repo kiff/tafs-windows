@@ -188,4 +188,37 @@ public class ConnectAppsScreenTests
     [InlineData("/v1/logos/0123456789abcdef0123456789abcdef/..", null)]
     [InlineData(null, null)]
     public void A_logo_comes_only_from_tafs_cloud(string? path, string? url) => Assert.Equal(url, ConnectAppsScreen.LogoUrl(path)?.AbsoluteUri);
+
+    [Fact]
+    public void A_narrow_row_says_its_line_in_one()
+    {
+        // tafs cloud's line, as sent, when it words one; read trimmed, and a blank one is none.
+        var apps = ConnectAppsScreen.Read("""
+            {"apps":[
+             {"entry":"a","name":"Gmail","how":"oauth","state":"connected","whose":"Yours","line":"  Sign in · Yours · Connected  ","used_by":[{"taf":"t1","name":"Support"}]},
+             {"entry":"b","name":"Zendesk","how":"key","state":"connected","whose":"Yours","line":"  ","used_by":[{"taf":"t1","name":"Support"}]},
+             {"entry":"c","name":"Slack","how":"oauth","state":"available"},
+             {"entry":"d","name":"Notion","state":"needs_setup","words":"Not set up yet","line":"ignored"}
+            ]}
+            """).Apps;
+        Assert.Equal("Sign in · Yours · Connected", ConnectAppsScreen.Row(En, apps[0]).Second);
+        // Without it: how, whose, where it stands and who uses it, each only when there's one.
+        var zendesk = ConnectAppsScreen.Row(En, apps[1]);
+        Assert.Null(zendesk.Line);
+        Assert.Equal(string.Join(" · ", zendesk.How, "Yours", zendesk.Status, zendesk.UsedBy), zendesk.Second);
+        Assert.Equal(ConnectAppsScreen.Row(En, apps[2]).How, ConnectAppsScreen.Row(En, apps[2]).Second);
+        // An app to set up says tafs cloud's words for it, over its line.
+        Assert.Equal("Not set up yet", ConnectAppsScreen.Row(En, apps[3]).Second);
+    }
+
+    [Theory]
+    [InlineData(700, false)]
+    [InlineData(596, false)]
+    [InlineData(595, true)]
+    [InlineData(360, true)]
+    public void The_table_gives_way_to_narrow_rows_where_its_columns_dont_fit(double width, bool narrow)
+    {
+        // At the least widths (App 200, then 96, 84 and 180, 12 between each) the table still fits; any narrower, rows.
+        Assert.Equal(narrow, ConnectAppsScreen.Narrow(width));
+    }
 }
