@@ -37,7 +37,8 @@ public sealed record DraftTotal(string Quantity, long Limit, string Window, stri
 public sealed record DraftCard(IReadOnlyList<DraftGrant>? Grants, IReadOnlyList<DraftTotal>? Totals, string? OnExceed = null,
     IReadOnlyList<string>? KiffLines = null, string? Revises = null, DraftCard? Current = null, bool? Unchanged = null,
     string? Subject = null, IReadOnlyList<string>? Subjects = null, string? Domain = null, string? Environment = null,
-    string? Location = null, string? ValidFrom = null, string? ValidUntil = null, string? HoldExpiry = null, string? RevokedAt = null)
+    string? Location = null, string? ValidFrom = null, string? ValidUntil = null, string? HoldExpiry = null, string? RevokedAt = null,
+    string? Id = null)
 {
     public bool AsksPastLimits => OnExceed == "owner";
     public bool IsUnchanged => Unchanged == true && Current is not null;
@@ -193,7 +194,7 @@ public static class KiffDrafts
             T("from_hold"));
     }
 
-    static readonly string[] TermWords = ["on_exceed", "subject", "domain", "environment", "location", "valid_from", "valid_until"];
+    static readonly string[] TermWords = ["id", "on_exceed", "subject", "domain", "environment", "location", "valid_from", "valid_until"];
 
     /// <summary>A Card's terms in their shape, as the iPad's <c>DraftCard</c> (with <paramref name="card"/>) or <c>Terms</c>.</summary>
     static bool IsTerms(JsonElement c, bool card) =>
@@ -239,6 +240,6 @@ public static class KiffDrafts
             Lenient.Field(c, "current") is { ValueKind: JsonValueKind.Object } cur ? Card(cur) : null,
             Lenient.Field(c, "unchanged") is { ValueKind: JsonValueKind.True or JsonValueKind.False } u ? u.GetBoolean() : null,
             T("subject"), Texts(c, "subjects"), T("domain"), T("environment"), T("location"), T("valid_from"), T("valid_until"),
-            T("hold_expiry"), T("revoked_at"));
+            T("hold_expiry"), T("revoked_at"), T("id"));
     }
 }

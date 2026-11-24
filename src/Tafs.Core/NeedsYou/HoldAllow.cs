@@ -55,6 +55,9 @@ public static class HoldAllow
         foreach (var card in cards)
         {
             if (card.Revises is not { } revises || card.Current is not { } current) return false;
+            // The Card in force it's read over must be the one it revises, when KIFF names it: else the draft is
+            // compared with another Card's terms. KIFF names none yet, and then this checks nothing.
+            if (current.Id is { } currentId && currentId != revises) return false;
             // A draft that sets how long a hold waits, or revokes, changes more than a limit.
             if (!string.IsNullOrEmpty(card.HoldExpiry) || card.RevokedAt is not null) return false;
             var inForce = new Terms(current);
