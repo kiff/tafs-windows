@@ -70,17 +70,23 @@ public class PageLinksTests
         }
     }
 
-    /// <summary>What could hide where an address goes shows as its % code, in the address shown and the one opened alike.</summary>
+    /// <summary>
+    /// What could hide where an address goes shows as its % code, and the address can't be opened from the confirm: as written
+    /// or percent-decoded, a space, a control or a format character gets Cancel alone.
+    /// </summary>
     [Theory]
     [InlineData("https://shop.example/a‮gnp.exe", "https://shop.example/a%E2%80%AEgnp.exe")]
     [InlineData("https://shop.example/a‏b", "https://shop.example/a%E2%80%8Fb")]
     [InlineData("https://shop.example/a b", "https://shop.example/a%20b")]
     [InlineData("https://shop.example/x", "https://shop.example/%07x")]
-    public void A_direction_mark_a_space_or_a_control_shows_as_its_code(string written, string shown)
+    [InlineData("https://shop.example/a%E2%80%AEb", "https://shop.example/a%E2%80%AEb")]
+    [InlineData("https://shop.example/a%E2%81%A6b", "https://shop.example/a%E2%81%A6b")]
+    public void A_direction_mark_a_space_or_a_control_shows_as_its_code_and_never_opens(string written, string shown)
     {
         var uri = new Uri(written);
         Assert.Equal("⁦" + shown + "⁩", PageLinks.Shown(uri));
-        Assert.True(PageLinks.Opens(uri));
+        Assert.False(PageLinks.Opens(uri));
+        Assert.Null(PageLinks.Open(En, uri));
         Assert.Equal(shown, uri.AbsoluteUri);
     }
 }

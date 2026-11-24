@@ -11,10 +11,17 @@ namespace Tafs.Core.Coach;
 public static class PageLinks
 {
     /// <summary>
-    /// Opened from the confirm: <c>https</c> with a host only. Plain <c>http</c> goes unencrypted, so the network could change
-    /// where it lands; another scheme (<c>tel:</c>, <c>javascript:</c>, an app's) opens something other than a page.
+    /// Opened from the confirm: <c>https</c> with a host only, and nothing in the address, as written or percent-decoded, that's a
+    /// space, a control or a format character (a direction mark or override, an isolate), as the phones' rule. Plain <c>http</c>
+    /// goes unencrypted, so the network could change where it lands; another scheme (<c>tel:</c>, <c>javascript:</c>, an app's)
+    /// opens something other than a page; a hidden character makes an address that reads as another one.
     /// </summary>
-    public static bool Opens(Uri address) => address.IsAbsoluteUri && address.Scheme == Uri.UriSchemeHttps && address.Host.Length > 0;
+    public static bool Opens(Uri address) =>
+        address.IsAbsoluteUri && address.Scheme == Uri.UriSchemeHttps && address.Host.Length > 0
+        && Clean(address.OriginalString) && Clean(Uri.UnescapeDataString(address.AbsoluteUri));
+
+    static bool Clean(string text) => !text.Any(c => char.IsWhiteSpace(c) || char.IsControl(c)
+        || System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.Format);
 
     /// <summary>
     /// The address as the confirm shows it: whole, and isolated left to right (U+2066 … U+2069), so in Arabic, Hebrew or Urdu
