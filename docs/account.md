@@ -193,7 +193,7 @@ Ported from the iPad's `DevicesView` and `KIFFClient.Device`, opened from **Peop
   (`settings.devices.passkey_remove_last`): it warns and
   never refuses, since a lost or stolen passkey is when Remove is most needed. Sign out's question shows the device's last
   use under it, so two devices with one name read apart. A failed read says "Couldn't load
-  your passkeys." with why. **Add a passkey** stays the phone's: its words say "this phone".
+  your passkeys." with why. **Add a passkey** stays the phone's, by KIFF's rule (`approval_key_required`): registering one grants approval authority, which starts on the phone, so KIFF refuses it from a computer's passkey.
 - **Not for Windows:** the iPad's **Add a device** (`PairComputerView`), where a phone adds a computer by its code. On
   Windows, this PC is the computer, and it's added from the phone.
 
