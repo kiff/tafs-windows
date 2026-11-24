@@ -16,7 +16,7 @@
     <BootstrapperApplication>
       <bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense" LicenseUrl="" ShowVersion="yes" LogoFile="$(Logo)"
                                               LocalizationFile="$(Words)\en.wxl" SuppressOptionsUI="yes"
-                                              LaunchTarget="[ProgramFiles64Folder]tafs\Tafs.App.exe" />
+                                              LaunchTarget="[ProgramFiles64Folder]tafs\$(Version)\Tafs.App.exe" />
       <Payload Id="words1031" Name="1031\thm.wxl" SourceFile="$(Words)\de.wxl" />
       <Payload Id="words3082" Name="3082\thm.wxl" SourceFile="$(Words)\es.wxl" />
       <Payload Id="words1034" Name="1034\thm.wxl" SourceFile="$(Words)\es.wxl" />

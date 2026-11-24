@@ -14,8 +14,14 @@
     <Property Id="ARPPRODUCTICON" Value="tafs.ico" />
     <MediaTemplate EmbedCab="yes" />
 
+    <!-- Each version in its own folder, Program Files\tafs\<version>, so no two releases share a component. When they did
+         (one folder, component GUIDs from the paths), a file shipped at a lower version than the release before had (the
+         Windows App SDK's own DLLs do, between its releases) was kept out as "the same component with higher versioned
+         keyfile exists", and the update's removal of the old release then deleted it: tafs couldn't start. -->
     <StandardDirectory Id="ProgramFiles64Folder">
-      <Directory Id="INSTALLFOLDER" Name="tafs" />
+      <Directory Id="TAFSFOLDER" Name="tafs">
+        <Directory Id="INSTALLFOLDER" Name="$(Version)" />
+      </Directory>
     </StandardDirectory>
 
     <Feature Id="App">
