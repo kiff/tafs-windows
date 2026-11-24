@@ -265,11 +265,31 @@ jobs:
         env:
           PLATFORM: ${{ matrix.platform }}
         run: bash ci/installer.sh tools && bash ci/installer.sh msi && bash ci/installer.sh bundle
-      # On x64: the setup installs quietly, tafs starts from where it put it and saves its sign-in screen, and it uninstalls.
+      # On x64: the setup installs quietly, every file of the publish is installed, tafs starts from where it put it and
+      # saves its sign-in screen, and it uninstalls.
       - name: It installs, starts and uninstalls
         if: matrix.platform == 'x64'
         shell: pwsh
-        run: ./ci/install-check.ps1 -Setup "artifacts/installer/tafs-setup-$env:SETUP_NAME-x64.exe"
+        run: ./ci/install-check.ps1 -Setup "artifacts/installer/tafs-setup-$env:SETUP_NAME-x64.exe" -AppDir "artifacts/zip/tafs-x64"
+      # On x64: the same as an update, over the last published release, as people get a new version. An update once kept
+      # an older release's higher-versioned DLLs out and then removed them, so tafs couldn't start; this is the check for
+      # that, on every run. A team build (0.1.<run>.0) is lower than a release and MSI refuses a downgrade, so the check
+      # builds this same publish once more at 9.0.<run>.0, above any release, and removes that setup after it: it's never
+      # kept or uploaded.
+      - name: It updates over the last published release, keeps every file and starts
+        if: matrix.platform == 'x64'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern '*-x64.exe' --dir previous
+          from=$(ls previous/*-x64.exe | head -1)
+          export VERSION="9.0.$GITHUB_RUN_NUMBER.0" SETUP_NAME=update-check
+          trap 'rm -f artifacts/installer/tafs-9.0.*-x64.msi artifacts/installer/tafs-setup-update-check-x64.exe' EXIT
+          bash ci/installer.sh msi > /dev/null && bash ci/installer.sh bundle > /dev/null
+          pwsh -File ci/install-check.ps1 -Setup artifacts/installer/tafs-setup-update-check-x64.exe -From "$from" \
+            -AppDir artifacts/zip/tafs-x64
       # On x64: the setup's first and last screens in French and German, by the real setup with /lang, installing and
       # uninstalling (ci/setup-screens.ps1). Kept as `setup-screens`. A screen not saved doesn't fail the zip: a picture
       # is for people to read, and the install check above is what gates.
