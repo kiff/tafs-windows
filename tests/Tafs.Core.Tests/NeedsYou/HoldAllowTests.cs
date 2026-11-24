@@ -135,6 +135,21 @@ public class HoldAllowTests
 
     /// <summary>The iPad's testAChangeOfAKindTheContractDoesntNameIsNeverSigned.</summary>
     [Fact]
+    public void The_Card_in_force_is_the_one_revised_when_KIFF_names_it()
+    {
+        // The draft is compared with another Card's terms: refused.
+        Assert.False(Signs(Card(Grants(Refund(Raised)), "\"id\":\"c2\"," + Grants(Refund(Cap)))));
+        // The Card it revises: as before.
+        Assert.True(Signs(Card(Grants(Refund(Raised)), "\"id\":\"c1\"," + Grants(Refund(Cap)))));
+        // KIFF names none: as before.
+        Assert.True(Signs(Draft()));
+        // A Card marked unchanged is checked too: its Card in force must be the one it names.
+        const string unchanged = """,{"revises":"c2","unchanged":true,"current":{"id":"c3","grants":[{"action":"list_charges"}]},"grants":[{"action":"list_charges"}]}""";
+        Assert.False(Signs(Draft(extra: unchanged)));
+        Assert.True(Signs(Draft(extra: unchanged.Replace("\"c3\"", "\"c2\""))));
+    }
+
+    [Fact]
     public void A_change_of_a_kind_the_contract_doesnt_name_is_never_signed() =>
         Assert.False(Signs(Draft(), OfferJson(kind: "something_new")));
 
