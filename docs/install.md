@@ -36,14 +36,17 @@ The **MSIX** is built too, for the day it's signed.
 
 - **What it is:** `tafs-setup-<version>-x64.exe` and `tafs-setup-<version>-arm64.exe`, WiX's standard setup around one
   MSI per platform (`installer/Bundle.wxs`, `installer/Package.wxs`). It installs the same self-contained publish as the
-  zip, for every user of the PC, under `Program Files\tafs`, puts tafs in Start, and offers **Open tafs** on its last
+  zip, for every user of the PC, under `Program Files\tafs\<version>` (each version in its own folder, so an update never shares a file with the release before it), puts tafs in Start, and offers **Open tafs** on its last
   page. It asks for administrator rights once. A newer version replaces an older one in place; uninstalling (Settings ›
   Apps) removes the files, never what the app keeps for a person in `%LOCALAPPDATA%\tafs`.
 - **Windows 10, version 1809 (build 17763) or later,** with a TPM to sign in (the session's key lives there) and Windows
   Hello to approve.
 - **Built by CI** in the zip job (`ci/installer.sh`), every run that builds the zip, with WiX v5.0.2 pinned in `.config/dotnet-tools.json`
   and its standard bootstrapper extension at the same version. On x64, CI installs it quietly, starts tafs from where it
-  put it (its sign-in screen saved, or the job fails), and uninstalls it. Kept from main, the nightly run and on demand
+  put it (its sign-in screen saved, or the job fails), and uninstalls it, with every file of the publish found installed.
+  Then it does the same as an update: the last published release first, then this build over it (built once more at
+  `9.0.<run>.0`, above any release, and never kept), so an update that loses files fails the run (`ci/install-check.ps1`).
+  Kept from main, the nightly run and on demand
   as `tafs-windows-setup-x64` and `tafs-windows-setup-ARM64` (the setup .exe and its MSI).
 - **Building it yourself,** after the zip's publish, in Git Bash from the repository's root:
 
@@ -61,7 +64,7 @@ The **MSIX** is built too, for the day it's signed.
     - `SetupWordsTests`: each language has exactly English's ids, keeps each line's placeholders, link and key shortcut, and its buttons fit;
     - `ci/installer.sh`: every LCID is read back out of the setup it built;
     - on x64, CI keeps `setup-screens`, the first and last screens in French and German, from the real setup with `/lang` (`ci/setup-screens.ps1`).
-- **No Options page:** the MSI always installs under `Program Files\tafs`, so a folder chosen there would have been ignored.
+- **No Options page:** the MSI always installs under `Program Files\tafs\<version>`, so a folder chosen there would have been ignored.
 
 ## Releasing (a draft; the owner publishes)
 
