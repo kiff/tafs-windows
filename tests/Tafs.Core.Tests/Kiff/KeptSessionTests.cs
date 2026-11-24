@@ -112,4 +112,14 @@ public class KeptSessionTests
         var before = System.Text.Encoding.UTF8.GetBytes("""{"host":"api.kiff.dev","access_token":"t","tenant":"t1","subject":"s1","approval_mode":"passkey","expires":"2027-01-01T00:00:00Z","key_name":"k"}""");
         Assert.Null(KeptSessions.Read(before, Api, Now)!.PasskeyId);
     }
+
+    /// <summary>And its public key, from pairing, for Raise and Decline's check; a session paired before it was kept has none.</summary>
+    [Fact]
+    public void A_passkey_session_keeps_its_passkey_s_public_key()
+    {
+        var kept = Session("t", ApprovalMode.Passkey, "k") with { PasskeyId = "cred-1_x", PasskeyKey = "MFkwEw_spki" };
+        Assert.Equal("MFkwEw_spki", KeptSessions.Read(KeptSessions.Write(kept), Api, Now)!.PasskeyKey);
+        var before = System.Text.Encoding.UTF8.GetBytes("""{"host":"api.kiff.dev","access_token":"t","tenant":"t1","subject":"s1","approval_mode":"passkey","expires":"2027-01-01T00:00:00Z","key_name":"k","passkey_id":"cred-1_x"}""");
+        Assert.Null(KeptSessions.Read(before, Api, Now)!.PasskeyKey);
+    }
 }

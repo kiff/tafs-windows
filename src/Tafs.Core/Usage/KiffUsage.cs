@@ -18,8 +18,8 @@ public sealed record PackRequest(string Id, string Kind, string? Pack, string Re
 
 /// <summary>
 /// KIFF's usage (<c>GET /v1/me/usage</c>), as the iPad's <c>KIFFClient.Usage</c>: the plan, who bills it, the packs on sale,
-/// and members' requests (every open one for someone who manages billing, this person's own otherwise). Nothing that moves
-/// money happens on Windows in this release: Raise and buying say "Approve on your phone" where their buttons would be.
+/// and members' requests (every open one for someone who manages billing, this person's own otherwise). Buying is the phone's
+/// (a PC has no store); Raise and Decline are signed by the device key after Windows Hello (<see cref="DeviceSigning"/>).
 /// </summary>
 public sealed record KiffUsage(string? Plan, string? BillingSource, DateTimeOffset? AppleSoloUntil, IReadOnlyList<UsagePack> Packs,
     IReadOnlyList<PackRequest> Requests)
@@ -110,33 +110,4 @@ public sealed record KiffUsage(string? Plan, string? BillingSource, DateTimeOffs
     }
 
     public static byte[] DeclineBody(string note) => JsonSerializer.SerializeToUtf8Bytes(new Dictionary<string, string> { ["note"] = note.Trim() });
-
-    /// <summary>
-    /// Declines a member's request, with a note, as the iPad's signed call: Windows Hello first, then the device key's
-    /// signature over exactly the request (<c>KIFF-Device-Signature</c>), then the POST. Closed, failing or refused, why;
-    /// nothing is sent until it's confirmed and signed. A sign-out meanwhile sends nothing more.
-    /// </summary>
-    public static async Task<string?> DeclineAsync(WordBook w, string tenant, PackRequest r, string note, Func<string, Task<StepConfirmed>> confirm,
-        Func<byte[], Task<byte[]>> signDer, Func<string, byte[], string, Task<(int Status, string Body)>> post, Func<string> signedAt, Func<bool> current)
-    {
-        var confirmed = await confirm(w.Get("usage.requests.decline"));
-        if (!current()) return null;
-        if (confirmed != StepConfirmed.Yes) return confirmed == StepConfirmed.Failed ? w.Get("common.not_sent_unconfirmed") : null;
-        var path = DeclinePath(r.Id);
-        var body = DeclineBody(note);
-        var at = signedAt();
-        string header;
-        try { header = KiffSigning.SignatureHeaderV1(at, await signDer(KiffSigning.RequestV1(tenant, "POST", path, body, at))); }
-        catch (Exception e) when (e is System.Security.Cryptography.CryptographicException or System.Runtime.InteropServices.COMException
-            or InvalidOperationException or UnauthorizedAccessException)
-        {
-            return w.Get("common.not_sent_unconfirmed");
-        }
-        if (!current()) return null;
-        int status;
-        try { (status, _) = await post(path, body, header); }
-        catch (Exception e) when (e is HttpRequestException or TaskCanceledException) { status = 0; }
-        if (!current()) return null;
-        return status is >= 200 and < 300 ? null : KiffErrors.Words(w, status);
-    }
 }

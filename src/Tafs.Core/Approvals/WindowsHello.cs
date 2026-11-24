@@ -109,7 +109,12 @@ public sealed class WindowsHello(Func<IntPtr> window) : IPasskeyAuthenticator
             var assertion = Marshal.PtrToStructure<Assertion>(result);
             return new PasskeyAssertion(
                 Copy(assertion.AuthenticatorData, assertion.AuthenticatorDataLength),
-                Copy(assertion.Signature, assertion.SignatureLength));
+                Copy(assertion.Signature, assertion.SignatureLength))
+            {
+                // The credential Windows says answered; with one asked it may leave it out.
+                CredentialId = assertion.Credential.IdLength > 0 && assertion.Credential.Id != IntPtr.Zero
+                    ? Copy(assertion.Credential.Id, assertion.Credential.IdLength) : null,
+            };
         }
         finally { Native.WebAuthNFreeAssertion(result); }
     }, cancel);

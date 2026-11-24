@@ -168,6 +168,8 @@ public sealed partial class PairingPage : Page
                     session.DeviceId, session.Mode, session.ExpiresIn, DateTimeOffset.UtcNow, deviceKeyName!) with
                 {
                     PasskeyId = session.Mode == ApprovalMode.Passkey && offered.Current is { } passkey ? KiffSigning.Base64Url(passkey.CredentialId) : null,
+                    // And its public key, so a Windows Hello answer for Raise and Decline is checked here against it.
+                    PasskeyKey = session.Mode == ApprovalMode.Passkey && offered.Current is { } ownKey ? KiffSigning.Base64Url(ownKey.PublicKeyDer) : null,
                 });
                 Paired?.Invoke(session);
             }

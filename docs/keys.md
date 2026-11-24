@@ -100,7 +100,8 @@ tafs cloud, the agent or KIFF. Ported from the iPad's `setUpPlanque` and `enrolP
   another device signed in to your account.").
 
 The passkey's credential id is kept with a passkey session (`KeptSession.PasskeyId`, base64url) when it's paired: the one
-the QR offered. It's an id, not a secret. The calls to planque and KIFF come with the step that first runs this.
+the QR offered. It's an id, not a secret. Its public key is kept beside it (`KeptSession.PasskeyKey`, SPKI DER, base64url),
+which Raise the limit and Decline check Windows Hello's answer against; a session paired before has none. The calls to planque and KIFF come with the step that first runs this.
 
 The approval key isn't here. On Windows it's a Windows Hello passkey (see [approvals](approvals.md)).
 

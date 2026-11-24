@@ -137,11 +137,47 @@ here confirms anything.
 - **The Card's name:** the name the draft was submitted with ("Refunds assistant's Card"), never its agent id; else
   "The taf's Card".
 
+## Raise the limit and Decline: Windows Hello's passkey, then the device key
+
+KIFF takes these two only signed by the device key (`KIFF-Device-Signature`, its signed routes), never
+as a passkey's approval. A device key that signs with no prompt proves no one is there, so it signs
+only after this PC's Windows Hello passkey checked the person, for that very request
+(`Tafs.Core/Usage/DeviceSigned.cs`):
+- **The request first, fixed.** Raise (`PUT /v1/me/usage/limit`, `{"raise":true,"from_cents":N}`) or
+  Decline (`POST /v1/me/pack-requests/{id}/decline`, `{"note"}`) is made once, at a new `signed_at`,
+  before Windows Hello is asked, and never changes until it's sent (`DeviceSignedRequest`). Its note is
+  the one typed when Decline was pressed, and the field is off while Windows Hello is up; Raise's
+  figure on the sheet is that request's `from_cents`.
+- **What the passkey answers over.** `tafs.presence.request.v1`: the tenant, `signed_at`, and the
+  SHA-256 of the request's `kiff.request.v1`. It's never sent anywhere, and its first line keeps it
+  from ever being a message KIFF takes as an approval. Windows Hello is asked for this session's
+  passkey alone (`allowCredentials`), with user verification required, and its title names the act.
+- **The answer, checked here.** As KIFF checks one (kiff.dev's, present and verified, never a passkey
+  that can leave this PC), from the credential asked (an answer naming another is refused; one
+  naming none is the one asked), and by its signature against the passkey's public key kept when
+  this PC paired (`KeptSession.PasskeyKey`), never a key from the answer. Only that makes a
+  `Presence`: bound to that request, spent on use (a mismatch spends it too), and too old once its
+  `signed_at` is past KIFF's window (60 s).
+- **Then the device key, then KIFF.** The session's TPM key signs the request's `kiff.request.v1`,
+  `t=<signed_at>,v1=<base64 DER>`, through the `Presence` alone, and the request goes to KIFF once.
+  Tests pin the order by what's called: no signature before a checked presence, no send before the
+  signature.
+- **Closed or refused.** Windows Hello closed: nothing is sent, and the sheet stays to try again. Not
+  confirmed (Windows Hello failed, or the check didn't hold): nothing is sent, "Not sent: it wasn't
+  confirmed." KIFF's `409 limit_changed` and `limit_ceiling` are said in the app's words; anything
+  else is "The limit wasn't raised. {why}" or "The request wasn't declined. {why}". A sign-out
+  meanwhile stops it quietly.
+- **Who can.** A passkey session that kept its passkey's public key, with its TPM key. A session
+  paired before the key was kept, a key or view session, or one without its TPM key, keeps the
+  can't-approve line and sends nothing; pairing again gives it the key.
+
 ## What a Windows passkey never does
 
 Any program on the computer can ask Windows for a kiff.dev assertion, and Windows' prompt doesn't show
 what is being approved. So **this passkey never counts as the second, independent device**: payments
-and new money connections still need the phone. A Windows passkey alone never moves money.
+and new money connections still need the phone. Raise the limit and Decline, above, are the one
+exception, as on Linux: KIFF takes them signed by this computer's own device key, and the passkey is
+only this computer's check that the person is there for that request.
 
 ## Tests
 

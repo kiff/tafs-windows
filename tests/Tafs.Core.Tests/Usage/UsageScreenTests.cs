@@ -19,7 +19,7 @@ public class UsageScreenTests
              "warning":"Running low","raise":{"words":"Raise the limit","from_cents":5000}},
              "plan_line":"Solo · 40 credits left","plan_tone":"warning"}
             """)!;
-        Assert.Equal(new Balance(Tone.Warning, "Solo · 40 of 500 credits left", 100, "Then 900 in packs", "Running low", "Raise the limit",
+        Assert.Equal(new Balance(Tone.Warning, "Solo · 40 of 500 credits left", 100, "Then 900 in packs", "Running low", new RaiseOffer("Raise the limit", 5000, null),
             true, "Solo · 40 credits left", Tone.Warning, null), b);
     }
 

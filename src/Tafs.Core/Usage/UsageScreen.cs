@@ -8,9 +8,9 @@ public enum Tone { Ok, Warning, Waiting }
 
 /// <summary>
 /// The balance now (GET /v1/usage/balance), in tafs cloud's words: a bar at <see cref="MeterPct"/> where something bounds it.
-/// <see cref="Raise"/> is Raise the limit's words, set only for someone who may raise it.
+/// <see cref="Raise"/> is tafs cloud's offer to raise the limit, set only for someone who may raise it.
 /// </summary>
-public sealed record Balance(Tone State, string Words, int? MeterPct, string? Detail, string? Warning, string? Raise,
+public sealed record Balance(Tone State, string Words, int? MeterPct, string? Detail, string? Warning, RaiseOffer? Raise,
     bool CreditsPanel, string? PlanLine, Tone PlanTone, string? HomeLine)
 {
     /// <summary>tafs cloud sells packs of credits here (its <c>buy.packs</c>, as the iPad's <c>Buy</c>): where the iPad offers Buy credits.</summary>
@@ -63,7 +63,7 @@ public static class UsageScreen
         var root = JsonDocument.Parse(json).RootElement;
         if (!root.TryGetProperty("balance", out var b) || b.ValueKind != JsonValueKind.Object || Text(b, "words") is not { } words) return null;
         int? pct = b.TryGetProperty("meter_pct", out var m) && m.ValueKind == JsonValueKind.Number && m.TryGetInt32(out var n) ? Math.Clamp(n, 0, 100) : null;
-        var raise = b.TryGetProperty("raise", out var r) && r.ValueKind == JsonValueKind.Object ? Text(r, "words") : null;
+        var raise = RaiseOffer.Read(b);
         var panel = !(b.TryGetProperty("credits_panel", out var p) && p.ValueKind == JsonValueKind.False);
         var buy = b.TryGetProperty("buy", out var y) && y.ValueKind == JsonValueKind.Object ? y : default;
         return new Balance(ToneOf(Text(b, "state")), words, pct, Text(b, "detail"), Text(b, "warning"), raise, panel,
