@@ -147,6 +147,18 @@ public class DeviceSignedTests
         Assert.Empty(run.Sent);
     }
 
+    /// <summary>A kept key on another curve is never the passkey's, even when its own signature holds: P-256 by its curve, not its size.</summary>
+    [Fact]
+    public void A_key_on_another_curve_is_refused()
+    {
+        using var p384 = ECDsa.Create(ECCurve.NamedCurves.nistP384);
+        var r = Raise();
+        var authData = SHA256.HashData("kiff.dev"u8).Concat(new byte[] { UP | UV, 0, 0, 0, 9 }).ToArray();
+        var signed = authData.Concat(SHA256.HashData(PasskeyApprover.ClientDataJson(r.PresenceMessage))).ToArray();
+        var answer = new PasskeyAssertion(authData, p384.SignData(signed, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence));
+        Assert.Throws<PasskeyRefusedException>(() => Presence.Check(r, answer, Credential, p384.ExportSubjectPublicKeyInfo()));
+    }
+
     [Fact]
     public async Task Closing_Windows_Hello_sends_nothing_and_says_nothing()
     {

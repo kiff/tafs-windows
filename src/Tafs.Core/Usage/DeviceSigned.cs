@@ -91,7 +91,7 @@ public sealed class Presence
         {
             using var key = ECDsa.Create();
             key.ImportSubjectPublicKeyInfo(publicKeySpki, out var read);
-            holds = read == publicKeySpki.Length && key.KeySize == 256
+            holds = read == publicKeySpki.Length && KiffSigning.IsP256Spki(publicKeySpki)
                 && key.VerifyData(signed, answer.SignatureDer, HashAlgorithmName.SHA256, DSASignatureFormat.Rfc3279DerSequence);
         }
         catch (CryptographicException)
