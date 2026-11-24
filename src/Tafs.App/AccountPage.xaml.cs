@@ -128,6 +128,8 @@ public sealed partial class AccountPage : Page
                 rows.Add(b);
             }
             if (lines.Note is { } note) rows.Add(Words(note, "TafsSoftText", 13));
+            // Never give the code away: said here, beside the setting, where the code can be turned on.
+            if (HelpSections.CodeLine(w, codeSignIn.Available) is { } safe) rows.Add(Words(safe, "TafsDimText", 13));
         }
         if (codeSignInWhy is { } why) rows.Add(Words(why, "TafsNoText", 13));
         Section(w.Get("settings.sign_in_code.title"), rows);
@@ -247,7 +249,9 @@ public sealed partial class AccountPage : Page
                 Opens(Row(w.Get("people.title"), "", chevron: true), w.Get("people.title"), () => PeopleChosen?.Invoke()),
                 Opens(Row(w.Get("settings.devices.title"), "", chevron: true), w.Get("settings.devices.title"), () => DevicesChosen?.Invoke()),
                 // Chrome (docs/chrome.md): only once planque offers Chromes, as the iPad's.
-                .. (chromesOffered ? new UIElement[] { Opens(Row(w.Get("chrome.title"), "", chevron: true), w.Get("chrome.title"), () => ChromeChosen?.Invoke()) } : []),
+                // With what a Chrome does for tafs under it, beside the row that opens it.
+                .. (chromesOffered ? new UIElement[] { Opens(Row(w.Get("chrome.title"), "", chevron: true), w.Get("chrome.title"), () => ChromeChosen?.Invoke()),
+                    Words(HelpSections.ChromeLine(w, chromesOffered)!, "TafsSoftText", 13) } : []),
                 Opens(Row(w.Get("connect.apps.title"), "", chevron: true), w.Get("connect.apps.title"), () => ConnectAppsChosen?.Invoke()),
                 // Files (docs/files.md): every file the account's tafs delivered.
                 Opens(Row(w.Get("files.title"), "", chevron: true), w.Get("files.title"), () => FilesChosen?.Invoke()),
@@ -303,14 +307,15 @@ public sealed partial class AccountPage : Page
             Section(null, ExportRows(w));
             Footer(w.Get("export.own_chats_each_taf_coach"));
         }
-        Section(w.Get("sign_in.how_works"), [Words(AccountScreen.HowItWorks(w), "TafsSoftText", 15)]);
-        // How tafs works, any time (the iPad's HowTafsWorksView): the three cards again, each opening where it's tapped.
-        Section(w.Get("onboarding.how_it_works"), Enum.GetValues<Onboarding.Card>().Select(card =>
-            (UIElement)Opens(Row(Onboarding.Title(w, card), "", chevron: true), Onboarding.Title(w, card),
-                () => _ = OnboardingCards.ShowAsync(XamlRoot, ActualTheme, card))).ToList());
-        // Then Chrome and the emailed code, each only where it can be used (the iPad's HowTafsWorksView).
-        foreach (var help in HelpSections.Shown(w, chromesOffered, codeSignIn?.Available == true))
-            Section(help.Title, [Words(help.Lead, "TafsSoftText", 15), Words(help.More, "TafsDimText", 14)]);
+        // How it works, one section: the sign-in's line for this PC, then the three cards again, each opening where it's tapped
+        // (the iPad's HowTafsWorksView). Chrome's and the code's lines sit beside their own rows above.
+        Section(w.Get("onboarding.how_it_works"),
+        [
+            Words(AccountScreen.HowItWorks(w), "TafsSoftText", 15),
+            .. Enum.GetValues<Onboarding.Card>().Select(card =>
+                (UIElement)Opens(Row(Onboarding.Title(w, card), "", chevron: true), Onboarding.Title(w, card),
+                    () => _ = OnboardingCards.ShowAsync(XamlRoot, ActualTheme, card))),
+        ]);
         // The four legal pages, KIFF's and tafs's, each titled as its page is; one kiff.dev lacks in this language says so.
         Section(w.Get("settings.legal"), Onboarding.LegalRows(w).Select(row => Action(
             AccountScreen.LegalTitle(w, row.Title), "TafsAccentText", () => _ = Windows.System.Launcher.LaunchUriAsync(row.Link))).ToList());

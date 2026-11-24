@@ -3,13 +3,11 @@
 <Page x:Class="Tafs.App.AppConnectionsPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:local="using:Tafs.App"
       Background="{ThemeResource TafsBackground}">
   <ScrollViewer>
+    <local:PageColumn Kind="List">
     <Grid Padding="24">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" MaxWidth="720" />
-        <ColumnDefinition Width="Auto" />
-      </Grid.ColumnDefinitions>
       <StackPanel Spacing="12" AutomationProperties.AutomationId="connect.connections">
         <Button x:Name="BackButton" Click="OnBack" Style="{StaticResource TafsQuietButton}" FontSize="15"
                 Foreground="{ThemeResource TafsCoach}" Padding="0" />
@@ -18,5 +16,6 @@
         <StackPanel x:Name="Body" Spacing="12" />
       </StackPanel>
     </Grid>
+    </local:PageColumn>
   </ScrollViewer>
 </Page>

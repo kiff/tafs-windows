@@ -24,7 +24,6 @@ namespace Tafs.App;
 public sealed partial class MainWindow : Window
 {
     /// <summary>A laptop's window: the size the PR screenshots are taken at (else it opens sized to the screen).</summary>
-    static readonly SizeInt32 LaptopSize = new(1280, 800);
 
     /// <summary>The held calls Needs you shows: KIFF's, read with each refresh of Home's list, or the iPad's samples.</summary>
     IReadOnlyList<HeldCall> held;
@@ -149,7 +148,7 @@ public sealed partial class MainWindow : Window
     /// <param name="homeFile">Home's list from a contract file (contracts/home.json) in place of tafs cloud: for screenshots.</param>
     /// <param name="newVersion">A release tag (v1.0.2) the sidebar says is out, read from nowhere: for screenshots.</param>
     public MainWindow(string? screenshot, string? theme, string? page, bool viewOnly, bool sample = false, string? homeFile = null,
-        string? newVersion = null)
+        string? newVersion = null, string? size = null)
     {
         InitializeComponent();
         // Right to left for Arabic and Hebrew: every panel, list and row mirrors, as SwiftUI does on the iPad.
@@ -182,7 +181,7 @@ public sealed partial class MainWindow : Window
         this.sample = sample;
         var w = App.Words;
         Title = w.Get("app.name");
-        if (screenshot is not null) AppWindow.Resize(LaptopSize);
+        if (screenshot is not null) { var (width, height) = Tafs.Core.Ci.ScreenSize.Parse(size); AppWindow.Resize(new SizeInt32(width, height)); }
         else WindowMinimum.Open(this);
 
         Brand.Text = w.Get("app.name");
