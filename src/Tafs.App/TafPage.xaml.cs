@@ -340,7 +340,8 @@ public sealed partial class TafPage : Page
         if (text.Length < steadyShown) steadyShown = -1;
         steadyText = text;
         if (steadyShown < 0 || !new Windows.UI.ViewManagement.UISettings().AnimationsEnabled) steadyShown = text.Length;
-        steadyHost = new Border { Child = MarkdownView.Build(Tafs.Core.Words.Markdown.Healed(text[..steadyShown]), 16, SteadyBrush) };
+        // An answer still being written can't be told from a page turn's yet, so its links ask.
+        steadyHost = new Border { Child = MarkdownView.Build(Tafs.Core.Words.Markdown.Healed(text[..steadyShown]), 16, SteadyBrush, ask: true) };
         if (steadyShown < text.Length)
         {
             if (steadyClock is null)
@@ -363,7 +364,7 @@ public sealed partial class TafPage : Page
         }
         steadyShown += Math.Max(2, (left + 5) / 6);
         steadyShown = Math.Min(steadyShown, steadyText.Length);
-        steadyHost.Child = MarkdownView.Build(Tafs.Core.Words.Markdown.Healed(steadyText[..steadyShown]), 16, SteadyBrush);
+        steadyHost.Child = MarkdownView.Build(Tafs.Core.Words.Markdown.Healed(steadyText[..steadyShown]), 16, SteadyBrush, ask: true);
     }
 
     Microsoft.UI.Xaml.Media.Brush SteadyBrush(string key) => ChatViews.ThemeBrush(ActualTheme, key);
@@ -816,7 +817,7 @@ public sealed partial class TafPage : Page
             else
             {
                 // The taf's words as Markdown, as the iPad's MarkdownText: no symbol shows as written.
-                var text = MarkdownView.Build(m.Text, 16, Brush);
+                var text = MarkdownView.Build(m.Text, 16, Brush, m.PageTurn);
                 // Its answers can be reported, as Coach's (the iPad's reportable, for a taf's chat and a trial's).
                 if (Tafs.Core.Coach.AnswerReport.Can(m, kiff: opening?.Send is not null && opening.CloudId is not null)) text.ContextFlyout = ReportMenu(m);
                 lines.Children.Add(text);

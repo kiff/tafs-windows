@@ -66,6 +66,12 @@ public sealed record ChatMessage(DateTimeOffset At, ChatFrom From, bool Kickoff,
     /// </summary>
     public (string? Above, string? Under) RunLines => From == ChatFrom.Taf && !Kickoff ? (Delivered, Counted) : (null, null);
 
+    /// <summary>
+    /// A taf's answer from a turn that read a page in Chrome (tafs cloud's <c>page_turn</c>, only ever <c>true</c>): its links came
+    /// from that page, so each asks before it opens (<see cref="PageLinks"/>). Never on a person's message.
+    /// </summary>
+    public bool PageTurn { get; init; }
+
     /// <summary>A refused connection's lines under a taf's words (the iPad's <c>refusedLines</c>): none on a person's message or a run's start.</summary>
     public IReadOnlyList<string>? RefusedLines => From == ChatFrom.Taf && !Kickoff ? Refused : null;
 
@@ -202,7 +208,10 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
         return new ChatMessage(at, from.Value, Lenient.Text(m, "kind") == "kickoff", text, session, Work(Lenient.Field(m, "work")),
             Lenient.Text(m, "id"), Lenient.Text(m, "answers"), Line(Lenient.Text(m, "delivered")), Line(Lenient.Text(m, "counted")),
             new[] { Lenient.Text(refused, "words"), Lenient.Text(refused, "why"), Lenient.Text(refused, "next") }.Select(Line).OfType<string>().ToList() is { Count: > 0 } r ? r : null,
-            Door(Lenient.Field(m, "door")), Files(Lenient.Field(m, "attachments")));
+            Door(Lenient.Field(m, "door")), Files(Lenient.Field(m, "attachments")))
+        {
+            PageTurn = from == ChatFrom.Taf && Lenient.Field(m, "page_turn") is { ValueKind: JsonValueKind.True },
+        };
     }
 
     /// <summary>

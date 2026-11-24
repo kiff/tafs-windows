@@ -335,8 +335,15 @@ recipes (the gallery's, `GET /v1/recipes/gallery`) by category, each category's 
 what leads it (the problem it ends, else its title) over its line. A click puts the job's words in the box, to edit and
 send; it never sends. Not while improving a taf, which has its own lines. Read with the gallery; gone at sign-out.
 
+**A link from a page Coach read asks before it opens** (`PageLinks`, `MarkdownView`), as the phones' `PageLinkGuard`. That's a
+taf's answer tafs cloud marks `page_turn: true` (in Coach's chat and in a taf's), and any answer still being written,
+which can't be told apart yet (`TafPage.Steady`). The page could have put the link there, so clicking it shows "Open this
+link?" and "It came from a page Coach read. It goes to: {address}" (`chat.link_confirm_*`). The address is the link's
+real one, never its words, whole and isolated left to right (U+2066 … U+2069), so a right-to-left sentence can't reorder
+it. **Open** is offered only for `https`; any other address gets Cancel alone. Closed, nothing opens. Every other link
+opens in the browser as before, its address shown on hover.
+
 **Not yet:**
-- **Coach's words as Markdown:** they show as written until `MarkdownText` is ported.
 - **See version 3,** which opens the taf's Versions on the iPad: Versions aren't ported, so the made line shows instead,
   as the iPad does when it can't find the taf.
 - **Opening a sign-in card's vendor page** (it comes with connecting apps), connecting an app from an approval, and the conversation read's proof and `?can=`
