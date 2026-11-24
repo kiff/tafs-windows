@@ -28,21 +28,27 @@ writes them; the app adds nothing but their order. The core is `Tafs.Core.Usage.
 time it opens, as the iPad's `.task`: tafs cloud's balance (`GET /v1/usage/balance`) and both periods' credits
 (`GET /v1/usage/credits`, `?period=previous`), KIFF's usage (`GET /v1/me/usage`) and whether this person manages billing
 (`billing.manage` on KIFF's `/v1/me`). In the iPad's order:
-- **The balance,** then, where tafs cloud offers Raise and the person manages billing, "This device can't approve.
-  Approve on another device signed in to your account." in its place: nothing that moves money happens on Windows in
-  this release (decided 17 Nov), so no buying and no raise.
+- **The balance,** then, where tafs cloud offers Raise and the person manages billing, **Raise the limit**: its sheet shows
+  tafs cloud's offer ("Raise the limit to €300") and the limit it's raised from ("The spend limit is €200 now.",
+  `usage.raise_limit.from`), the signed `from_cents` in tafs cloud's `currency` (ISO 4217, at that code's own decimals,
+  in the app's language; `RaiseOffer`, `Currencies`). Then Windows Hello's passkey and the device key
+  ([approvals](approvals.md), Raise the limit and Decline). Without the limit or a currency: "The limit can't be raised
+  from here right now." A session that can't sign: "This device can't approve. Approve on another device signed in to
+  your account." Raised or not, everything is read again: after KIFF's "the limit changed", the balance offers the
+  raise from the limit it is now.
 - **Who bills the plan,** in one line ("Billed by KIFF").
 - **A member** (no `billing.manage`): their request waiting ("You asked an admin to raise the spend limit. An admin
   answers.") with Withdraw; else the last answer, and Ask an admin where the plan lets them ask (a raise on Company, a
   pack on Solo while packs are on sale): which pack, why (optional), Ask. Primary when the balance is waiting.
-- **Someone who manages billing:** members' open requests in the shared words with their reason, the same line where
-  Approve would be (it buys or raises), and **Decline** with an optional note: Windows Hello first, then this session's
-  TPM key signs exactly the request (`KIFF-Device-Signature`), as the account's time zone does, then the POST.
+- **Someone who manages billing:** members' open requests in the shared words with their reason; on a raise, **Raise the
+  limit** (the balance's, which answers every open request for one), on a pack where packs sell, "Buy Solo or credits in
+  the tafs app on your phone.", else the can't-approve line; and **Decline** with an optional note, signed the same way as
+  Raise: Windows Hello's passkey over that very request, then this session's TPM key (`KIFF-Device-Signature`).
 - KIFF's read failing is said once, in red. A change goes one at a time, then everything is read again.
 - `--page usage` or `usage-admin` with `--home` reads `usage-balance.json`, `usage-credits.json` and `kiff-usage.json`
   beside the Home file.
 
-**Not on Windows in this release:** buying Solo and packs, and Raise the limit (they move money).
+**Not on Windows in this release:** buying Solo and packs (a PC has no store).
 
 - **A taf's runs** (P10): a taf's row in Credits opens its Card › Usage in the period shown (`period=previous` for Last
   period), and a run that opens (`opens`) shows its own page: the request and what it did step by step.

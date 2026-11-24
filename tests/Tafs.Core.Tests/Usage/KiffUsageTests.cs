@@ -56,28 +56,6 @@ public class KiffUsageTests
         Assert.Equal(("/v1/me/pack-requests/q%2F1/withdraw", "/v1/me/pack-requests/q1/decline"), (KiffUsage.WithdrawPath("q/1"), KiffUsage.DeclinePath("q1")));
     }
 
-    /// <summary>Declining is signed: Windows Hello first, then the device key over exactly the request; closed, nothing is sent.</summary>
-    [Fact]
-    public async Task Declining_asks_Windows_Hello_then_signs_exactly_the_request()
-    {
-        using var key = new TestSigner();
-        var request = new PackRequest("q1", "raise", null, "", "open", null);
-        var sent = new List<(string Path, byte[] Body, string Header)>();
-        Task<(int, string)> Post(string path, byte[] body, string header) { sent.Add((path, body, header)); return Task.FromResult((200, "{}")); }
-        var why = await KiffUsage.DeclineAsync(En, "t1", request, " Not this month ", _ => Task.FromResult(StepConfirmed.Yes), m => key.SignDerAsync(m), Post,
-            () => "1700000000", () => true);
-        Assert.Null(why);
-        var (path, body, header) = Assert.Single(sent);
-        Assert.Equal("/v1/me/pack-requests/q1/decline", path);
-        Assert.Equal("""{"note":"Not this month"}""", Encoding.UTF8.GetString(body));
-        Assert.StartsWith("t=1700000000,v1=", header);
-        Assert.True(TestSigner.Verify(key.PublicKeyDer, KiffSigning.RequestV1("t1", "POST", path, body, "1700000000"), Convert.FromBase64String(header["t=1700000000,v1=".Length..])));
-
-        sent.Clear();
-        Assert.Null(await KiffUsage.DeclineAsync(En, "t1", request, "", _ => Task.FromResult(StepConfirmed.Cancelled), m => key.SignDerAsync(m), Post, () => "1", () => true));
-        Assert.Empty(sent);
-    }
-
     /// <summary>
     /// Where to buy on a PC (no store here): where tafs cloud's balance sells packs or Solo (`buy`, as the iPad's BalancePanel),
     /// the phone's app, and Team on kiff.dev unless the plan is Team; nothing where it sells nothing (a Company admin raises

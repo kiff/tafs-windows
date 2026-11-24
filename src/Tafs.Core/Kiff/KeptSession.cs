@@ -21,6 +21,13 @@ public sealed record KeptSession(
     /// </summary>
     public string? PasskeyId { get; init; }
 
+    /// <summary>
+    /// That passkey's public key (SPKI DER, base64url), kept when this PC paired with it: what a Windows Hello answer for Raise the
+    /// limit or Decline is checked against here, never a key from the answer. None for a session paired before it was kept: that
+    /// session can't raise or decline from this PC until it pairs again.
+    /// </summary>
+    public string? PasskeyKey { get; init; }
+
     /// <summary>A session KIFF just handed over, to keep: its expiry from expires_in, to the second.</summary>
     public static KeptSession Of(Uri api, string token, string tenant, string subject, string? deviceId, ApprovalMode mode,
         TimeSpan expiresIn, DateTimeOffset now, string keyName) =>
@@ -75,6 +82,7 @@ public static class KeptSessions
         ["host"] = s.Host, ["access_token"] = s.AccessToken, ["tenant"] = s.Tenant, ["subject"] = s.Subject,
         ["device_id"] = s.DeviceId, ["approval_mode"] = s.Mode.ToString().ToLowerInvariant(),
         ["expires"] = KiffSigning.Time(s.Expires), ["key_name"] = s.KeyName, ["passkey_id"] = s.PasskeyId,
+        ["passkey_key"] = s.PasskeyKey,
     });
 
     /// <summary>
@@ -94,6 +102,7 @@ public static class KeptSessions
                 DateTimeOffset.Parse(S("expires"), System.Globalization.CultureInfo.InvariantCulture), S("key_name"))
             {
                 PasskeyId = r.TryGetProperty("passkey_id", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null,
+                PasskeyKey = r.TryGetProperty("passkey_key", out var pk) && pk.ValueKind == JsonValueKind.String ? pk.GetString() : null,
             };
             return kept.Host == api.Host && kept.Expires > now && kept.AccessToken.Length > 0 ? kept : null;
         }

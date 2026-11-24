@@ -415,7 +415,7 @@ public sealed partial class MainWindow : Window
         {
             RecordPage.Read = path => Task.FromResult(ContractRead(App.Words, homeFile, path));
             // Plan & usage from usage-balance.json, usage-credits.json and kiff-usage.json beside the Home file; with usage-admin,
-            // as someone who manages billing. Asking says it didn't reach; declining says nothing, as offline.
+            // as someone who manages billing. Asking, raising and declining say they didn't reach.
             var usageBeside = Path.GetDirectoryName(Path.GetFullPath(homeFile))!;
             CloudRead Beside(string name) => File.Exists(Path.Combine(usageBeside, name))
                 ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(Path.Combine(usageBeside, name))) : CloudRead.Unreached(App.Words);
@@ -423,7 +423,7 @@ public sealed partial class MainWindow : Window
                 path => Task.FromResult(Beside(path.StartsWith("/v1/usage/balance", StringComparison.Ordinal) ? "usage-balance.json" : "usage-credits.json")),
                 _ => Task.FromResult(Beside("kiff-usage.json")),
                 (_, _) => Task.FromResult(CloudRead.Unreached(App.Words)),
-                (_, _) => Task.FromResult<string?>(null),
+                (_, _) => Task.FromResult<DeviceSent?>(new DeviceSent(DeviceSentKind.Sent)),
                 () => Task.FromResult(page == "usage-admin"));
             // The Calendar from calendar.json beside the Home file, as tafs cloud answers it.
             CalendarPage.Read = path => Task.FromResult(ContractRead(App.Words, homeFile, path));
@@ -1050,6 +1050,32 @@ public sealed partial class MainWindow : Window
     /// (a face, a fingerprint or the PIN) over this window, with the prompt. Closed is cancelled; Hello not set up, or
     /// anything else, isn't confirmed.
     /// </summary>
+    /// <summary>
+    /// Raise the limit and Decline, the device key's alone, as <see cref="DeviceSigning"/>: the request made once, at a new
+    /// <c>signed_at</c>, then Windows Hello's passkey (named for the act) over it, checked against the passkey's public key kept
+    /// at pairing, then this session's TPM key, then KIFF. None for a session that can't: no passkey kept with its public key,
+    /// or no TPM key (it was paired before the key was kept, or signs in another way); its page says to approve elsewhere.
+    /// </summary>
+    static Func<string, Func<string, string, DeviceSignedRequest?>, Task<DeviceSent?>>? DeviceSigner(KeptSession session, Func<bool> current)
+    {
+        if (session.Mode != ApprovalMode.Passkey || session.PasskeyId is not { } id || session.PasskeyKey is not { } spki || !TpmKey.Exists(session.KeyName))
+            return null;
+        return async (act, build) =>
+        {
+            if (build(session.Tenant, SigningTime.Next(DateTimeOffset.UtcNow)) is not { } request) return null;
+            using var named = HelloAct.Naming(act);
+            return await DeviceSigning.SendAsync(request, new NamedHello(), KiffSigning.FromBase64Url(id), KiffSigning.FromBase64Url(spki),
+                async message =>
+                {
+                    using var key = TpmKey.Open(session.KeyName);
+                    return await key.SignDerAsync(message);
+                },
+                (r, header) => KiffHttp.SignedChangeAsync(new HttpMethod(r.Method), new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, r.Path), r.Body,
+                    session.AccessToken, App.Words.Language, ("KIFF-Device-Signature", header)),
+                () => DateTimeOffset.UtcNow, current);
+        };
+    }
+
     static async Task<StepConfirmed> ConfirmStepAsync(string prompt)
     {
         try
@@ -1139,8 +1165,8 @@ public sealed partial class MainWindow : Window
         setupProof = () => SetupProofAsync(session);
         kiffRead = path => KiffReadAsync(bearer, path);
         _ = ReadKiffAccountAsync(sessions);
-        // Plan & usage as the session: tafs cloud's balance and credits, KIFF's usage, asking and withdrawing; declining is
-        // signed (Windows Hello, then this session's TPM key), as the account's time zone; billing.manage as KIFF says.
+        // Plan & usage as the session: tafs cloud's balance and credits, KIFF's usage, asking and withdrawing; raising the limit
+        // and declining are signed by this session's TPM key after Windows Hello's passkey (DeviceSigner); billing.manage as KIFF says.
         var usageFor = sessions;
         UsagePage.Calls = new UsageCalls(
             path => CloudReadAsync(bearer, path),
@@ -1150,15 +1176,7 @@ public sealed partial class MainWindow : Window
                 try { var (status, answer) = await KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), body, bearer, App.Words.Language); return Answered(App.Words, status, answer); }
                 catch (System.Net.Http.HttpRequestException) { return CloudRead.Unreached(App.Words); }
             },
-            (request, note) => Tafs.Core.Usage.KiffUsage.DeclineAsync(App.Words, session.Tenant, request, note, ConfirmStepAsync,
-                async message =>
-                {
-                    using var key = TpmKey.Open(session.KeyName);
-                    return await key.SignDerAsync(message);
-                },
-                (path, body, header) => KiffHttp.PostAsync(new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, path), body, bearer, App.Words.Language,
-                    signature: ("KIFF-Device-Signature", header)),
-                () => SigningTime.Next(DateTimeOffset.UtcNow), () => usageFor == sessions),
+            DeviceSigner(session, () => usageFor == sessions),
             async () => Tafs.Core.Coach.CoachAccess.Capabilities((await KiffReadAsync(bearer, Tafs.Core.Coach.CoachAccess.MePath)).Answer)?.Contains("billing.manage") == true);
         ReceiptSheet.Read = path => KiffBytesAsync(bearer, path);
         // The pictures a paired Chrome kept before a step (the iPad's ChromeShotView): planque's safe routes, signed by this PC's

@@ -40,7 +40,11 @@ public readonly record struct AuthenticatorData(byte[] RpIdHash, byte Flags, uin
 }
 
 /// <summary>What the authenticator returns for one assertion.</summary>
-public sealed record PasskeyAssertion(byte[] AuthenticatorData, byte[] SignatureDer);
+public sealed record PasskeyAssertion(byte[] AuthenticatorData, byte[] SignatureDer)
+{
+    /// <summary>The credential that answered, as Windows names it; none when it left it out (then it's the one asked).</summary>
+    public byte[]? CredentialId { get; init; }
+}
 
 /// <summary>The Windows WebAuthn call (it shows Windows Hello). Implemented in the app; faked in tests.</summary>
 public interface IPasskeyAuthenticator
