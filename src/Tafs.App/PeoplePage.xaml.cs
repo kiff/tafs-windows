@@ -10,8 +10,9 @@ namespace Tafs.App;
 /// <summary>How People &amp; groups reads KIFF as the session, and names a taf by its agent; no read for a screenshot.</summary>
 /// <param name="Change">One change, behind Windows Hello and signed (<see cref="PeopleChanges.MakeAsync"/>); none on a PC that doesn't approve.</param>
 /// <param name="ManagesPeople">KIFF's <c>members.manage</c>: groups, their names and who manages each.</param>
+/// <param name="Approves">This PC's passkey approves, as a share: adding someone and a role change are offered only then.</param>
 public sealed record PeopleOpening(Func<string, Task<CloudRead>>? Read, Func<string, string?> TafName,
-    Func<PeopleChange, Task<(bool Done, string? Why)>>? Change = null, bool ManagesPeople = false);
+    Func<PeopleChange, Task<(bool Done, string? Why)>>? Change = null, bool ManagesPeople = false, bool Approves = false);
 
 /// <summary>
 /// People &amp; groups, as the iPad's <c>PeopleGroupsView</c>: the account line, then each group's name and what it uses,
@@ -19,7 +20,8 @@ public sealed record PeopleOpening(Func<string, Task<CloudRead>>? Read, Func<str
 /// every 20 seconds while open; a read that fails keeps what's shown, with why over it. On a PC that approves, the changes
 /// (P24), each behind Windows Hello and signed: "+ Group" and each group's Rename and Delete for whoever manages people;
 /// "+ Add someone to Support" for whoever manages the group; each person's Make the manager or Make a member, and Remove,
-/// as KIFF allows. Not for KIFF's default group, which is everyone on the account.
+/// as KIFF allows. Adding someone and a role change are approved by this PC's passkey, as a share is, so they're offered only
+/// where it has one. Not for KIFF's default group, which is everyone on the account.
 /// </summary>
 public sealed partial class PeoplePage : Page
 {
@@ -145,8 +147,8 @@ public sealed partial class PeoplePage : Page
                     Padding = new Thickness(16, 0, 16, 0), BorderThickness = new Thickness(0, i > 0 ? 1 : 0, 0, 0) });
             var section = new StackPanel { Spacing = 6, Children = { header } };
             if (members.Count > 0) section.Children.Add(new Border { Style = Look("TafsListPanel"), Child = rows });
-            // Adding someone, for whoever manages the group; no one is added to everyone.
-            if (manages && group.Everyone != true)
+            // Adding someone, for whoever manages the group, approved by this PC's passkey as a share; no one is added to everyone.
+            if (manages && opening!.Approves && group.Everyone != true)
             {
                 var add = new HyperlinkButton { Content = w.Get("people.add_someone", ("group", People.ShownName(w, group))), Margin = new Thickness(16, 0, 0, 0) };
                 AutomationProperties.SetName(add, w.Get("people.add_someone_to", ("name", People.ShownName(w, group))));
@@ -185,7 +187,8 @@ public sealed partial class PeoplePage : Page
         AutomationProperties.SetName(row, $"{label}. {role}");
 
         var menu = new MenuFlyout();
-        if (managesPeople && opening?.Change is not null)
+        // A role change, approved by this PC's passkey as adding someone is.
+        if (managesPeople && opening is { Change: not null, Approves: true })
         {
             var other = member.IsManager ? "member" : "manager";
             var make = new MenuFlyoutItem { Text = w.Get(member.IsManager ? "people.make_member" : "people.make_manager") };

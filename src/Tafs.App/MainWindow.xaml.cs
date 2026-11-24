@@ -393,7 +393,7 @@ public sealed partial class MainWindow : Window
         AccountPage.ChromeChosen += () => { if (ChromesCallsFor() is { } chromes) _ = ChromesDialog.ShowAsync(Root.XamlRoot, Root.ActualTheme, chromes); };
         AccountPage.PeopleChosen += () => OpenBeside(typeof(PeoplePage), new PeopleOpening(kiffRead,
             agent => home?.Tafs.FirstOrDefault(t => t.Agent == agent)?.Name, PeopleChangeFor(),
-            Tafs.Core.Account.PeopleChanges.MayManagePeople(kiffAccount?.Capabilities)));
+            Tafs.Core.Account.PeopleChanges.MayManagePeople(kiffAccount?.Capabilities), App.Sessions.Kept()?.PasskeyId is not null));
         AccountPage.AddThisDeviceChosen += OpenPairing;
         // As the iPad's sign-out (its forgetSession): everything read as the last session goes, and nothing reads as anyone.
         AccountPage.SignedOut += () =>
@@ -1642,22 +1642,33 @@ public sealed partial class MainWindow : Window
 
     /// <summary>
     /// One change to People &amp; groups from this PC (P24, <see cref="Tafs.Core.Account.PeopleChanges.MakeAsync"/>): Windows Hello
-    /// naming it, as Your step asks it, then this session's TPM key signs exactly that request, as the time zone's. Only on a
-    /// session that approves; none otherwise, and People only reads.
+    /// naming it, as Your step asks it, then this session's TPM key signs exactly that request, as the time zone's. Adding
+    /// someone or changing a role is approved as a share is: this PC's passkey behind Windows Hello naming it
+    /// (<c>KIFF-Passkey-Assertion</c>), and only on a PC that has one. Only on a session that approves; none otherwise, and
+    /// People only reads.
     /// </summary>
     Func<Tafs.Core.Account.PeopleChange, Task<(bool Done, string? Why)>>? PeopleChangeFor()
     {
         if (App.Sessions.Kept() is not { } session || !HaltResume.MayResume(session)) return null;
         var reading = sessions;
+        Func<Tafs.Core.Account.PeopleChange, Task<(string Header, string Value)>>? approve = session.PasskeyId is { } id
+            ? async c =>
+            {
+                using var _ = HelloAct.Naming(c.What);
+                var passkey = new PasskeyApprover(new NamedHello(), KiffSigning.FromBase64Url(id), Features.WindowsPasskeyApprovals);
+                return (PasskeyApprover.HeaderName, await passkey.ApproveAsync(session.Tenant, c.Method, c.Path, c.Body, SigningTime.Next(DateTimeOffset.UtcNow)));
+            }
+            : null;
         return change => Tafs.Core.Account.PeopleChanges.MakeAsync(App.Words, session.Tenant, change, ConfirmStepAsync,
             async message =>
             {
                 using var key = TpmKey.Open(session.KeyName);
                 return await key.SignDerAsync(message);
             },
-            (c, header) => KiffHttp.SignedChangeAsync(new HttpMethod(c.Method), new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, c.Path), c.Body,
-                session.AccessToken, App.Words.Language, ("KIFF-Device-Signature", header)),
-            () => SigningTime.Next(DateTimeOffset.UtcNow), () => reading == sessions && App.Sessions.Kept()?.AccessToken == session.AccessToken);
+            (c, signature) => KiffHttp.SignedChangeAsync(new HttpMethod(c.Method), new Uri(Tafs.Core.SignIn.DeviceSignIn.Api, c.Path), c.Body,
+                session.AccessToken, App.Words.Language, signature),
+            () => SigningTime.Next(DateTimeOffset.UtcNow), () => reading == sessions && App.Sessions.Kept()?.AccessToken == session.AccessToken,
+            approve);
     }
 
     /// <summary>
