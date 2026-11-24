@@ -143,6 +143,10 @@ public class HoldAllowTests
         Assert.True(Signs(Card(Grants(Refund(Raised)), "\"id\":\"c1\"," + Grants(Refund(Cap)))));
         // KIFF names none: as before.
         Assert.True(Signs(Draft()));
+        // A Card marked unchanged is checked too: its Card in force must be the one it names.
+        const string unchanged = """,{"revises":"c2","unchanged":true,"current":{"id":"c3","grants":[{"action":"list_charges"}]},"grants":[{"action":"list_charges"}]}""";
+        Assert.False(Signs(Draft(extra: unchanged)));
+        Assert.True(Signs(Draft(extra: unchanged.Replace("\"c3\"", "\"c2\""))));
     }
 
     [Fact]
