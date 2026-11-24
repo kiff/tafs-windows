@@ -1,5 +1,6 @@
 using System.Text;
 using Tafs.Core.Account;
+using Tafs.Core.Approvals;
 using Tafs.Core.Kiff;
 using Tafs.Core.NeedsYou;
 using Tafs.Core.Tests.Strings;
@@ -66,10 +67,10 @@ public class PeopleChangesTests
         var (done, why) = await PeopleChanges.MakeAsync(En, "t_1", change,
             prompt => { said.Add("hello " + prompt); return Task.FromResult(StepConfirmed.Yes); },
             message => { signed = message; return Task.FromResult(new byte[] { 1, 2 }); },
-            (c, header) => { said.Add($"send {c.Method} {c.Path} {header[..header.IndexOf(',')]}"); return Task.FromResult((204, "")); },
+            (c, h) => { said.Add($"send {c.Method} {c.Path} {h.Header} {h.Value[..h.Value.IndexOf(',')]}"); return Task.FromResult((204, "")); },
             () => "2026-11-17T06:00:00.000Z", () => true);
         Assert.Equal((true, (string?)null), (done, why));
-        Assert.Equal(["hello Rename Support to Help", "send PATCH /v1/groups/grp_1 t=2026-11-17T06:00:00.000Z"], said);
+        Assert.Equal(["hello Rename Support to Help", "send PATCH /v1/groups/grp_1 KIFF-Device-Signature t=2026-11-17T06:00:00.000Z"], said);
         Assert.Equal(KiffSigning.RequestV1("t_1", "PATCH", "/v1/groups/grp_1", change.Body, "2026-11-17T06:00:00.000Z"), signed);
     }
 
@@ -78,7 +79,7 @@ public class PeopleChangesTests
     {
         var sent = false;
         var change = PeopleChanges.Delete(En, Support);
-        Task<(int, string)> Send(PeopleChange c, string h) { sent = true; return Task.FromResult((204, "")); }
+        Task<(int, string)> Send(PeopleChange c, (string, string) h) { sent = true; return Task.FromResult((204, "")); }
         Assert.Equal((false, (string?)null), await PeopleChanges.MakeAsync(En, "t", change, _ => Task.FromResult(StepConfirmed.Cancelled),
             _ => Task.FromResult(new byte[1]), Send, () => "x", () => true));
         Assert.False(sent);
@@ -92,5 +93,56 @@ public class PeopleChangesTests
         Assert.StartsWith("Delete the group Support didn't go through. ", refused.Why);
         Assert.Equal((false, (string?)null), await PeopleChanges.MakeAsync(En, "t", change, _ => Task.FromResult(StepConfirmed.Yes),
             _ => Task.FromResult(new byte[1]), (_, _) => Task.FromResult((204, "")), () => "x", () => false));
+    }
+
+    [Fact]
+    public void Adding_someone_and_a_role_change_are_approvals_and_the_rest_are_not()
+    {
+        Assert.True(PeopleChanges.SetRole(En, Support, "sub_cy", "cy@x", "member", adding: true).Approval);
+        Assert.True(PeopleChanges.SetRole(En, Support, "sub_ana", "ana@x", "manager", adding: false).Approval);
+        Assert.True(PeopleChanges.SetRole(En, Support, "sub_ana", "ana@x", "member", adding: false).Approval);
+        Assert.False(PeopleChanges.Create(En, "Help").Approval);
+        Assert.False(PeopleChanges.Rename(En, Support, "Help").Approval);
+        Assert.False(PeopleChanges.Delete(En, Support).Approval);
+        Assert.False(PeopleChanges.Remove(En, Support, "sub_ana", "ana@x").Approval);
+    }
+
+    [Fact]
+    public async Task An_approval_goes_with_the_passkey_alone_never_the_session_key()
+    {
+        var said = new List<string>();
+        var change = PeopleChanges.SetRole(En, Support, "sub_cy", "cy@x", "member", adding: true);
+        var (done, why) = await PeopleChanges.MakeAsync(En, "t_1", change,
+            _ => { said.Add("confirm"); return Task.FromResult(StepConfirmed.Yes); },
+            _ => { said.Add("device key"); return Task.FromResult(new byte[1]); },
+            (c, h) => { said.Add($"send {c.Method} {c.Path} {h.Header} {h.Value}"); return Task.FromResult((200, "{}")); },
+            () => "x", () => true,
+            c => { said.Add("passkey " + c.What); return Task.FromResult(("KIFF-Passkey-Assertion", "t=x,a=y")); });
+        Assert.Equal((true, (string?)null), (done, why));
+        Assert.Equal(["passkey " + change.What, "send PUT /v1/groups/grp_1/members/sub_cy KIFF-Passkey-Assertion t=x,a=y"], said);
+    }
+
+    [Fact]
+    public async Task An_approval_with_no_passkey_or_one_closed_or_refused_sends_nothing()
+    {
+        var sent = false;
+        var change = PeopleChanges.SetRole(En, Support, "sub_cy", "cy@x", "manager", adding: true);
+        Task<(int, string)> Send(PeopleChange c, (string, string) h) { sent = true; return Task.FromResult((200, "")); }
+        Task<StepConfirmed> Yes(string _) => Task.FromResult(StepConfirmed.Yes);
+        Task<byte[]> Sign(byte[] _) => Task.FromResult(new byte[1]);
+
+        var none = await PeopleChanges.MakeAsync(En, "t", change, Yes, Sign, Send, () => "x", () => true);
+        Assert.False(none.Done);
+        Assert.EndsWith("Not sent: it wasn't confirmed.", none.Why);
+        Assert.Equal((false, (string?)null), await PeopleChanges.MakeAsync(En, "t", change, Yes, Sign, Send, () => "x", () => true,
+            _ => throw new OperationCanceledException()));
+        var refused = await PeopleChanges.MakeAsync(En, "t", change, Yes, Sign, Send, () => "x", () => true,
+            _ => throw new PasskeyRefusedException("user_verification"));
+        Assert.EndsWith("Not sent: it wasn't confirmed.", refused.Why);
+        Assert.False(sent);
+
+        var notAllowed = await PeopleChanges.MakeAsync(En, "t", change, Yes, Sign, (_, _) => Task.FromResult((403, "{\"error\":\"passkey_required\"}")),
+            () => "x", () => true, _ => Task.FromResult(("KIFF-Passkey-Assertion", "t=x")));
+        Assert.Equal($"{change.What} didn't go through. {KiffErrors.Words(En, 403)}", notAllowed.Why);
     }
 }
