@@ -9,6 +9,17 @@ param(
   [string] $AppDir
 )
 $ErrorActionPreference = 'Stop'
+# On a failure, what the setup and Windows Installer did, so the run says why: the setup's own log, then each MSI's lines
+# on components it kept out, products it removed, and files it copied or removed.
+trap {
+  Write-Host '--- the setup:'; Get-Content install.log -Tail 40 -ErrorAction SilentlyContinue
+  Get-ChildItem $env:TEMP -Filter 'tafs_*.log' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | ForEach-Object {
+    Write-Host "--- $($_.Name):"
+    Select-String -Path $_.FullName -Pattern 'Disallowing|RemoveExistingProducts|UPGRADINGPRODUCTCODE|Removing related|Planned related bundle|Tafs\.App\.exe|REINSTALLMODE|Product: tafs' |
+      Select-Object -First 40 | ForEach-Object { $_.Line.Trim() }
+  }
+  break
+}
 $Setup = (Resolve-Path $Setup).Path
 if ($From) {
   $From = (Resolve-Path $From).Path
