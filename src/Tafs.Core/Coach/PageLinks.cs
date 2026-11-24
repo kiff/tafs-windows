@@ -10,12 +10,17 @@ namespace Tafs.Core.Coach;
 /// </summary>
 public static class PageLinks
 {
-    /// <summary>Opened from the confirm: <c>https</c> only. Plain <c>http</c> goes unencrypted, so the network could change where it lands.</summary>
-    public static bool Opens(Uri address) => address.IsAbsoluteUri && address.Scheme == Uri.UriSchemeHttps;
+    /// <summary>
+    /// Opened from the confirm: <c>https</c> with a host only. Plain <c>http</c> goes unencrypted, so the network could change
+    /// where it lands; another scheme (<c>tel:</c>, <c>javascript:</c>, an app's) opens something other than a page.
+    /// </summary>
+    public static bool Opens(Uri address) => address.IsAbsoluteUri && address.Scheme == Uri.UriSchemeHttps && address.Host.Length > 0;
 
     /// <summary>
     /// The address as the confirm shows it: whole, and isolated left to right (U+2066 … U+2069), so in Arabic, Hebrew or Urdu
-    /// the sentence around it can't reorder its parts into an address that isn't the one that opens.
+    /// the sentence around it can't reorder its parts into an address that isn't the one that opens. It's the escaped form,
+    /// the one that's launched: a direction mark or override, a space or a control inside it shows as its <c>%</c> code, so
+    /// nothing in the address can hide where it goes.
     /// </summary>
     public static string Shown(Uri address) => "\u2066" + address.AbsoluteUri + "\u2069";
 

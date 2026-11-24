@@ -36,6 +36,9 @@ public class PageLinksTests
     [InlineData("http://shop.example/offer", false)]
     [InlineData("mailto:someone@shop.example", false)]
     [InlineData("ftp://shop.example/file", false)]
+    [InlineData("javascript:alert(1)", false)]
+    [InlineData("tel:+3312345678", false)]
+    [InlineData("file:///C:/Windows/notepad.exe", false)]
     public void Only_https_is_opened(string address, bool opens)
     {
         var uri = new Uri(address);
@@ -65,5 +68,19 @@ public class PageLinksTests
                 Assert.True(w.Has(key), $"{key} in {language}");
             Assert.Contains("https://x.example/", PageLinks.Body(w, new Uri("https://x.example/")));
         }
+    }
+
+    /// <summary>What could hide where an address goes shows as its % code, in the address shown and the one opened alike.</summary>
+    [Theory]
+    [InlineData("https://shop.example/a‮gnp.exe", "https://shop.example/a%E2%80%AEgnp.exe")]
+    [InlineData("https://shop.example/a‏b", "https://shop.example/a%E2%80%8Fb")]
+    [InlineData("https://shop.example/a b", "https://shop.example/a%20b")]
+    [InlineData("https://shop.example/x", "https://shop.example/%07x")]
+    public void A_direction_mark_a_space_or_a_control_shows_as_its_code(string written, string shown)
+    {
+        var uri = new Uri(written);
+        Assert.Equal("⁦" + shown + "⁩", PageLinks.Shown(uri));
+        Assert.True(PageLinks.Opens(uri));
+        Assert.Equal(shown, uri.AbsoluteUri);
     }
 }
