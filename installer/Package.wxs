@@ -1,6 +1,6 @@
 <!--
   tafs for Windows, as one MSI per platform (docs/install.md): the self-contained app CI publishes, installed for every user
-  of the PC under Program Files\tafs, with tafs in Start. A newer version replaces an older one (MajorUpgrade, by the run's
+  of the PC under Program Files\tafs\<version>, with tafs in Start. A newer version replaces an older one (MajorUpgrade, by the run's
   version 0.1.<run>.0); uninstalling removes the files, never what the app keeps for a person (%LOCALAPPDATA%\tafs).
   Built by `wix build` with -d AppDir=<the publish folder> -d Version=<0.1.n.0> -arch <x64|arm64>. The setup .exe wraps it
   (Bundle.wxs). The UpgradeCode never changes.
