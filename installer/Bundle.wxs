@@ -8,7 +8,7 @@
   Its words are in the PC's display language, among the app's 8 (installer/words). WiX's standard setup looks
   for <LCID>\thm.wxl for each of the person's preferred UI languages, then for their language's default variant, and falls
   back to English. So Spanish is under 3082 and 1034 (Spanish's default variant), and Portuguese under 2070 and 1046 (its
-  default). There's no Options page: the MSI always installs under Program Files\tafs, so a folder chosen there would be
+  default). There's no Options page: the MSI always installs under Program Files\tafs\<version>, so a folder chosen there would be
   ignored.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
