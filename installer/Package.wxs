@@ -9,6 +9,11 @@
   <Package Name="tafs" Manufacturer="KIFF" Version="$(Version)" UpgradeCode="EB8E1C18-AF7A-4FF0-A1E7-0A12B2DC6965"
            Scope="perMachine" Compressed="yes">
     <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of tafs is already installed." />
+    <!-- Every file is laid down whatever version the one on disk carries. A file can ship at a lower version than the
+         release before it had (the Windows App SDK's own DLLs do, between its releases); MSI would then keep the old one
+         ("the same component with higher versioned keyfile exists") and the upgrade's removal of the old release would
+         delete it, leaving tafs unable to start. The folder is tafs's alone, so forcing it overwrites nothing else. -->
+    <Property Id="REINSTALLMODE" Value="amus" />
     <!-- tafs's own icon in Windows' list of installed apps, never the generic one. -->
     <Icon Id="tafs.ico" SourceFile="$(Icon)" />
     <Property Id="ARPPRODUCTICON" Value="tafs.ico" />
