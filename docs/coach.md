@@ -335,13 +335,19 @@ recipes (the gallery's, `GET /v1/recipes/gallery`) by category, each category's 
 what leads it (the problem it ends, else its title) over its line. A click puts the job's words in the box, to edit and
 send; it never sends. Not while improving a taf, which has its own lines. Read with the gallery; gone at sign-out.
 
-**A link from a page Coach read asks before it opens** (`PageLinks`, `MarkdownView`), as the phones' `PageLinkGuard`. That's a
-taf's answer tafs cloud marks `page_turn: true` (in Coach's chat and in a taf's), and any answer still being written,
-which can't be told apart yet (`TafPage.Steady`). The page could have put the link there, so clicking it shows "Open this
-link?" and "It came from a page Coach read. It goes to: {address}" (`chat.link_confirm_*`). The address is the link's
-real one, never its words, whole and isolated left to right (U+2066 … U+2069), so a right-to-left sentence can't reorder
-it. **Open** is offered only for `https`; any other address gets Cancel alone. Closed, nothing opens. Every other link
-opens in the browser as before, its address shown on hover.
+**A chat link opens only as a clean https page** (`PageLinks`, `MarkdownView`), as the phones' `PageLinkGuard`, in Coach's chat
+and a taf's:
+- **Any link that isn't clean `https`** (http, mailto, or an address with a space, a control or a format character, as
+  written or percent-decoded), in any answer: "This link won't open" and "tafs opens only secure web pages from a chat. This
+  link goes to: {address}" (`chat.link_blocked_*`), with Cancel alone.
+- **A clean https link in an answer from a page Coach read** (tafs cloud's `page_turn: true`): "Open this link?" and "It came
+  from a page Coach read. It goes to: {address}" (`chat.link_confirm_*`), then Open or Cancel.
+- **The same in an answer still being written** (`TafPage.Steady`), which can't be told from a page turn's yet: "This answer
+  is still being written. This link goes to: {address}" (`chat.link_confirm_body_live`).
+- **Any other clean https link** opens in the browser at once, its address shown on hover.
+
+The address shown is the link's real one, never its words, whole and isolated left to right (U+2066 … U+2069), so a
+right-to-left sentence can't reorder it. Closed, nothing opens.
 
 **Not yet:**
 - **See version 3,** which opens the taf's Versions on the iPad: Versions aren't ported, so the made line shows instead,

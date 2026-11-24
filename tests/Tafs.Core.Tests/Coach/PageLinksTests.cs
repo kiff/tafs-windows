@@ -89,4 +89,38 @@ public class PageLinksTests
         Assert.Null(PageLinks.Open(En, uri));
         Assert.Equal(shown, uri.AbsoluteUri);
     }
+
+    /// <summary>
+    /// The 09:23 ruling: any chat link that isn't clean https says it won't open, in any answer; a clean one opens at once in an
+    /// answer, and asks first from a page turn or an answer still being written.
+    /// </summary>
+    [Theory]
+    [InlineData("https://shop.example/o", LinkFrom.Answer, LinkStep.Open)]
+    [InlineData("https://shop.example/o", LinkFrom.PageTurn, LinkStep.Ask)]
+    [InlineData("https://shop.example/o", LinkFrom.StillWriting, LinkStep.Ask)]
+    [InlineData("http://shop.example/o", LinkFrom.Answer, LinkStep.Blocked)]
+    [InlineData("mailto:a@shop.example", LinkFrom.Answer, LinkStep.Blocked)]
+    [InlineData("http://shop.example/o", LinkFrom.PageTurn, LinkStep.Blocked)]
+    [InlineData("https://shop.example/a%E2%80%AEb", LinkFrom.Answer, LinkStep.Blocked)]
+    public void Each_link_s_click_by_where_it_is(string address, LinkFrom from, LinkStep step) =>
+        Assert.Equal(step, PageLinks.Step(new Uri(address), from));
+
+    [Fact]
+    public void A_link_that_won_t_open_and_one_in_an_answer_still_being_written_say_so()
+    {
+        var https = new Uri("https://shop.example/o");
+        var http = new Uri("http://shop.example/o");
+        Assert.Equal("This link won't open", PageLinks.BlockedTitle(En));
+        Assert.Equal("tafs opens only secure web pages from a chat. This link goes to: ⁦http://shop.example/o⁩", PageLinks.BlockedBody(En, http));
+        Assert.Equal("This answer is still being written. This link goes to: ⁦https://shop.example/o⁩", PageLinks.Body(En, https, LinkFrom.StillWriting));
+        Assert.StartsWith("It came from a page Coach read.", PageLinks.Body(En, https, LinkFrom.PageTurn));
+        foreach (var language in WordBook.Shipped(SharedFiles.Strings))
+        {
+            var w = WordBook.Load(SharedFiles.Strings, language);
+            foreach (var key in new[] { "chat.link_blocked_title", "chat.link_blocked_body", "chat.link_confirm_body_live" })
+                Assert.True(w.Has(key), $"{key} in {language}");
+            Assert.Contains("http://shop.example/o", PageLinks.BlockedBody(w, http));
+            Assert.Contains("https://shop.example/o", PageLinks.Body(w, https, LinkFrom.StillWriting));
+        }
+    }
 }
