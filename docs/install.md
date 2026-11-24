@@ -37,7 +37,7 @@ The **MSIX** is built too, for the day it's signed.
 - **What it is:** `tafs-setup-<version>-x64.exe` and `tafs-setup-<version>-arm64.exe`, WiX's standard setup around one
   MSI per platform (`installer/Bundle.wxs`, `installer/Package.wxs`). It installs the same self-contained publish as the
   zip, for every user of the PC, under `Program Files\tafs\<version>` (each version in its own folder, so an update never shares a file with the release before it), puts tafs in Start, and offers **Open tafs** on its last
-  page. It asks for administrator rights once. A newer version replaces an older one in place; uninstalling (Settings ›
+  page. It asks for administrator rights once. A newer version replaces an older one, removing its folder; uninstalling (Settings ›
   Apps) removes the files, never what the app keeps for a person in `%LOCALAPPDATA%\tafs`.
 - **Windows 10, version 1809 (build 17763) or later,** with a TPM to sign in (the session's key lives there) and Windows
   Hello to approve.
@@ -76,7 +76,7 @@ The **MSIX** is built too, for the day it's signed.
   `release` job runs only when every check of that run passed, none skipped (the tests, the app, the TPM keys, and the
   zip's install), and, with **sign** ticked, only when signing passed. It makes a **draft** release, tagged `v1.0.0` at
   that commit. A draft never shows on the page. Another run for the same version makes another draft beside the last
-  (delete the one not wanted), and its setup installs over the last one in place.
+  (delete the one not wanted), and its setup replaces the last one.
 - **Not from a commit that changes `.github/`:** GitHub refuses the run's token a release there (a 403), so `plan`
   refuses it first. Main's next commit releases fine.
 - **Signed** (sign ticked): the draft carries the signed setups, `tafs-setup-1.0.0-x64.exe` and `-arm64.exe`, with each
