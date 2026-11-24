@@ -13,11 +13,13 @@ $ErrorActionPreference = 'Stop'
 # on components it kept out, products it removed, and files it copied or removed.
 trap {
   Write-Host '--- the setup:'; Get-Content install.log -Tail 40 -ErrorAction SilentlyContinue
-  Get-ChildItem $env:TEMP -Filter 'tafs_*.log' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | ForEach-Object {
-    Write-Host "--- $($_.Name):"
-    Select-String -Path $_.FullName -Pattern 'Disallowing|RemoveExistingProducts|UPGRADINGPRODUCTCODE|Removing related|Planned related bundle|Tafs\.App\.exe|REINSTALLMODE|Product: tafs' |
-      Select-Object -First 40 | ForEach-Object { $_.Line.Trim() }
-  }
+  # The setups write their own and each package's logs beside the one named with /log (install_000_*.msi.log, …).
+  Get-ChildItem . -Filter '*.log' -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^(previous|install)' } |
+    Sort-Object LastWriteTime | ForEach-Object {
+      Write-Host "--- $($_.Name):"
+      Select-String -Path $_.FullName -Pattern 'Disallowing|RemoveExistingProducts|UPGRADINGPRODUCTCODE|related bundle|Planned package|Applied execute package|FileRemove\(,FileName=Tafs\.App\.exe|REINSTALLMODE|Product: tafs|Removal completed|Installation completed' |
+        Select-Object -First 60 | ForEach-Object { $_.Line.Trim().Substring(0, [Math]::Min(240, $_.Line.Trim().Length)) }
+    }
   break
 }
 $Setup = (Resolve-Path $Setup).Path
