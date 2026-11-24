@@ -31,9 +31,12 @@ if ($From) {
 }
 $p = Start-Process $Setup -ArgumentList '/quiet', '/norestart', '/log', 'install.log' -Wait -PassThru
 if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 60; throw "install: $($p.ExitCode)" }
-$dir = Join-Path $env:ProgramFiles 'tafs'
-$app = Join-Path $dir 'Tafs.App.exe'
-if (-not (Test-Path $app)) { throw "not installed at $app" }
+# Each version installs in its own folder, Program Files\tafs\<version>: after an update, only the new one is left.
+$top = Join-Path $env:ProgramFiles 'tafs'
+$found = @(Get-ChildItem $top -Recurse -Filter 'Tafs.App.exe' -ErrorAction SilentlyContinue)
+if ($found.Count -ne 1) { $found | ForEach-Object { Write-Host "found: $($_.FullName)" }; throw "expected one Tafs.App.exe under $top, found $($found.Count)" }
+$app = $found[0].FullName
+$dir = Split-Path $app
 if ($AppDir) {
   $root = (Resolve-Path $AppDir).Path
   $missing = Get-ChildItem $root -Recurse -File | ForEach-Object { $_.FullName.Substring($root.Length).TrimStart('\') } |
@@ -46,6 +49,6 @@ if (-not $run.WaitForExit(120000)) { $run.Kill(); throw 'the installed app did n
 if (-not (Test-Path installed-start.png) -or (Get-Item installed-start.png).Length -eq 0) { throw 'the installed app did not start' }
 $u = Start-Process $Setup -ArgumentList '/uninstall', '/quiet', '/norestart', '/log', 'uninstall.log' -Wait -PassThru
 if ($u.ExitCode -ne 0) { Get-Content uninstall.log -Tail 60; throw "uninstall: $($u.ExitCode)" }
-if (Test-Path $app) { throw 'still there after uninstalling' }
+if (Get-ChildItem $top -Recurse -Filter "Tafs.App.exe" -ErrorAction SilentlyContinue) { throw "still there after uninstalling" }
 Remove-Item installed-start.png -ErrorAction SilentlyContinue
 Write-Host 'installed, started and uninstalled'
