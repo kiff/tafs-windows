@@ -54,7 +54,7 @@ public sealed partial class CoachPanel : UserControl
     /// Start, as the iPad's <c>startSetup</c>, for a session that can approve; none otherwise, and Start stays off, as the
     /// iPad's behind its approval gate.
     /// </summary>
-    public Func<Task<StartResult>>? StartCoach
+    public Func<FirstStart?, Task<StartResult>>? StartCoach
     {
         get => startCoach;
         set
@@ -65,7 +65,7 @@ public sealed partial class CoachPanel : UserControl
         }
     }
 
-    Func<Task<StartResult>>? startCoach;
+    Func<FirstStart?, Task<StartResult>>? startCoach;
 
     /// <summary>
     /// Signed in, but this PC can't approve (a view session, a key session, or a passkey session that doesn't know its
@@ -90,22 +90,29 @@ public sealed partial class CoachPanel : UserControl
     /// <summary>tafs cloud has its own first start for this account that this PC can't sign: Start stays off.</summary>
     bool firstStart;
 
+    /// <summary>Coach's own control server at this app's tafs cloud, which a tools batch must connect (shown = signed).</summary>
+    public string Mcp { get; set; } = CoachStart.Mcp(global::Tafs.Core.Home.HomeList.Api);
+
     /// <summary>tafs cloud's first start, as last read, when Start's own screen draws it (the iPad's <c>oneScreen</c>).</summary>
     FirstStart? shown;
 
     void ShowStart()
     {
-        var on = startCoach is not null && !starting && !firstStart;
+        // The Card step whose plain list isn't exactly what the draft signs asks for no signature: no button, and it says so.
+        var mismatch = shown is { CardStep: true } step && !step.CardStepSigns(Mcp);
+        var on = startCoach is not null && !starting && !firstStart && !mismatch;
         // Windows Hello not ready, for a session that could start: its line and buttons in Start's place.
         var notReady = !startGate && startCoach is not null ? global::Tafs.Core.Approvals.HelloGate.NotReady(App.Words, HelloState.Readiness) : null;
         StartHello.Content = notReady is null ? null : ApprovalGate.NotReadyView(notReady);
         StartHello.Visibility = notReady is null ? Visibility.Collapsed : Visibility.Visible;
-        Start.Visibility = startGate || notReady is not null ? Visibility.Collapsed : Visibility.Visible;
-        StartGateLine.Visibility = startGate ? Visibility.Visible : Visibility.Collapsed;
-        StartGateLine.Text = App.Words.Get("approval.device_can_not_approve_approve");
+        Start.Visibility = startGate || notReady is not null || mismatch ? Visibility.Collapsed : Visibility.Visible;
+        StartGateLine.Visibility = startGate || mismatch ? Visibility.Visible : Visibility.Collapsed;
+        StartGateLine.Text = App.Words.Get(mismatch && !startGate ? "version.out_of_date_card" : "approval.device_can_not_approve_approve");
         Start.IsEnabled = on;
         Start.Style = (Style)Application.Current.Resources[on ? "TafsPrimary" : "TafsPrimaryOff"];
-        Start.Content = starting ? App.Words.Get("common.starting") : shown?.Words?.Start ?? App.Words.Get("coach.start");
+        // The Card step's button is the whole sentence for this PC ("Approve with your passkey"); else Start in its words.
+        Start.Content = starting ? App.Words.Get("common.starting")
+            : shown is { CardStep: true } card ? card.Words!.Give : shown?.Words?.Start ?? App.Words.Get("coach.start");
     }
 
     /// <summary>
@@ -119,11 +126,13 @@ public sealed partial class CoachPanel : UserControl
         var intro = CoachScreen.Intro(App.Words);
         LineText.Text = shown?.Words!.Lead ?? intro.Line;
         LineText.Foreground = Brush(shown is null ? "TafsSoft" : "TafsInk");
+        LineText.FontWeight = Microsoft.UI.Text.FontWeights.Normal;
         Footnote.Text = shown is null ? intro.Footnote : shown.Words!.Does;
         Footnote.Visibility = Footnote.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         Given.Children.Clear();
         Given.Visibility = shown is null ? Visibility.Collapsed : Visibility.Visible;
-        if (shown is { } s)
+        if (shown is { CardStep: true } step) ShowCardStep(step);
+        else if (shown is { } s)
         {
             if (s.Draft!.CardTitle is { Length: > 0 } title) Given.Children.Add(Said(title, 14, "TafsInk", bold: true));
             foreach (var card in s.Draft.Cards)
@@ -165,6 +174,58 @@ public sealed partial class CoachPanel : UserControl
         ShowStart();
     }
 
+    /// <summary>
+    /// The Card step before Coach's first approval, as the iPhone's <c>cardStepScreen</c> and Android's, in tafs cloud's words
+    /// (<c>start.words</c>): its title; what the approval allows, what always waits for the person, how this PC signs (its
+    /// passkey) and how to stop it; the plain list, each group of Coach's tools and each tool with what it does and its limit a
+    /// day; then, folded under "Exactly what you sign", Coach's Cards in KIFF's own words, as signed. The box isn't drawn: tafs
+    /// cloud's locked line stands in its place, else the app's own. The button is the whole sentence for this PC.
+    /// </summary>
+    void ShowCardStep(FirstStart step)
+    {
+        var w = step.Words!;
+        LineText.Text = w.Title;
+        LineText.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+        Footnote.Visibility = Visibility.Collapsed;
+        foreach (var line in new[] { w.Allows, w.Asks, w.Sign, w.Stop }) Given.Children.Add(Said(line, 14, "TafsInk"));
+        foreach (var group in step.Groups.Where(g => g.Tools.Count > 0))
+        {
+            Given.Children.Add(Said(group.Name, 14, "TafsInk", bold: true));
+            if (group.Line.Length > 0) Given.Children.Add(Said(group.Line, 13, "TafsSoft"));
+            foreach (var tool in group.Tools)
+            {
+                var row = new StackPanel { Spacing = 2, Margin = new Thickness(12, 0, 0, 0) };
+                row.Children.Add(Said(tool.Name, 14, "TafsInk", bold: true));
+                if (tool.Does.Length > 0) row.Children.Add(Said(tool.Does, 13, "TafsSoft"));
+                Given.Children.Add(row);
+            }
+        }
+        // What's signed, in KIFF's own words, folded at first.
+        var exact = new StackPanel { Spacing = 6, Visibility = Visibility.Collapsed };
+        if (step.Draft!.CardTitle is { Length: > 0 } title) exact.Children.Add(Said(title, 14, "TafsInk", bold: true));
+        foreach (var card in step.Draft.Cards)
+        {
+            if (card.Title.Length > 0) exact.Children.Add(Said(card.Title, 13, "TafsInk", bold: true));
+            foreach (var line in card.Lines) exact.Children.Add(Said(line, 13, "TafsSoft"));
+        }
+        var fold = new Button { Content = w.Exact + " ⌄", MinHeight = 44, Padding = new Thickness(0), FontSize = 14,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = Brush("TafsAmberText"),
+            Style = (Style)Application.Current.Resources["TafsQuietButton"] };
+        AutomationProperties.SetAutomationId(fold, "coach-card-step-exact");
+        fold.Click += (_, _) =>
+        {
+            var open = exact.Visibility == Visibility.Collapsed;
+            exact.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+            fold.Content = w.Exact + (open ? " ⌃" : " ⌄");
+        };
+        Given.Children.Add(fold);
+        Given.Children.Add(exact);
+        // No typing until it's approved: the locked line in the box's place, never an open box.
+        var locked = Said(w.LockedLine(App.Words), 14, "TafsDim", bold: true);
+        AutomationProperties.SetAutomationId(locked, "coach-composer-locked");
+        Given.Children.Add(locked);
+    }
+
     TextBlock Said(string text, double size, string brush, bool bold = false) => new()
     {
         Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, Foreground = Brush(brush),
@@ -182,7 +243,7 @@ public sealed partial class CoachPanel : UserControl
         starting = true;
         IntroError.Visibility = Visibility.Collapsed;
         ShowStart();
-        var result = await start();
+        var result = await start(shown);
         if (gen != generation) return;
         starting = false;
         firstStart = result.Outcome == StartOutcome.FirstStart;
@@ -198,6 +259,9 @@ public sealed partial class CoachPanel : UserControl
         }
         else if (result.Why is { } why)
         {
+            // What it asks to sign changed since it was shown: drawn again from tafs cloud's read, to read and approve again.
+            if (result.Outcome == StartOutcome.Changed) await LoadThreadAsync();
+            if (gen != generation) return;
             IntroError.Text = why;
             IntroError.Visibility = Visibility.Visible;
         }

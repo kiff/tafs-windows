@@ -61,6 +61,34 @@ public sealed record CoachTools(string State, string? Taken, StartRequest? Conne
         return new(T("title"), T("intro"), groups, T("details"), T("ask"), T("give"), T("not_now"), T("row")) { NotConnected = T("not_connected").Trim() };
     }
 
+    /// <summary>
+    /// Coach takes no typing until its tools are approved, as the iPhone's <c>composerLocked</c> and Android's: while the tools
+    /// themselves are still to give (a batch to connect, alone or in the pair), the box is one locked line that opens the step.
+    /// When only Cards for newer tools are missing, typing stays open.
+    /// </summary>
+    public bool LocksBox => ToGive && (Connect is not null || Together?.Connect is not null);
+
+    /// <summary>tafs cloud says which tools a draft carries (<c>in_draft</c>): the step's data is there to compare with.</summary>
+    public bool MarksDraft => Step?.Groups.Any(g => g.Tools.Any(t => t.InDraft is not null)) == true;
+
+    /// <summary>
+    /// Shown = signed for a later approval of Coach's Cards, as the iPhone's <c>draftSigns</c>: when tafs cloud marks which tools
+    /// this draft carries, those must be exactly what the draft signs (<see cref="CardStepCheck"/>). True with no draft to sign,
+    /// and from a tafs cloud that doesn't mark them, where KIFF's own words are what's shown as signed.
+    /// </summary>
+    public bool DraftSigns => (Card?.Body ?? Together?.Draft?.Body) is not { } draft || Step is not { } step || !MarksDraft
+        || CardStepCheck.Matches(step.Groups, draft, "");
+
+    /// <summary>
+    /// The tools batch this read asks to sign (alone, or in the pair), held to the step as the first start's is, once tafs
+    /// cloud marks the step's data. True with no batch, and from a tafs cloud that doesn't mark it.
+    /// </summary>
+    public bool BatchSigns(string mcp) => (Connect?.Body ?? Together?.Connect?.Body) is not { } batch || Step is not { } step || !MarksDraft
+        || CardStepCheck.BatchMatches(step.Groups, batch, mcp);
+
+    /// <summary>The locked box's line: the step's <c>row</c> in tafs cloud's words, else the app's "Coach's tools". Never blank.</summary>
+    public string LockedLine(WordBook w) => Step?.Row.Trim() is { Length: > 0 } row ? row : w.Get("coach.tools.title");
+
     /// <summary>The row above the conversation, in tafs cloud's words, else the app's own: only while there's something to give.</summary>
     public string? Row(WordBook w) => ToGive ? Step?.Row is { Length: > 0 } row ? row : w.Get("coach.tools.give") : null;
 
@@ -72,7 +100,7 @@ public sealed record CoachTools(string State, string? Taken, StartRequest? Conne
         Same(Together?.Connect, read.Together?.Connect) && Same(Together?.Draft, read.Together?.Draft)
         && Same(Connect, read.Connect) && Same(Card, read.Card);
 
-    static bool Same(StartRequest? a, StartRequest? b) => (a, b) switch
+    internal static bool Same(StartRequest? a, StartRequest? b) => (a, b) switch
     {
         (null, null) => true,
         ({ } x, { } y) => x.Id == y.Id && x.Method == y.Method && x.Path == y.Path && x.Gateway == y.Gateway
@@ -116,6 +144,8 @@ public static class CoachToolsGive
         }
         // tafs cloud rebuilt the pair since the step was drawn (more tools, other Cards): nothing the person didn't read is signed.
         if (!shown.SignsAsShown(tools)) return new(false, w.Get("coach.setup_changed_request_see_below"), tools);
+        // The list the step shows must be exactly what the draft and the batch sign, before Windows Hello: else nothing is signed.
+        if (!tools.DraftSigns || !tools.BatchSigns(calls.Mcp)) return new(false, w.Get("version.out_of_date_card"), tools);
         string Failed(string why) => w.Get("coach.tools_not_given", ("why", why));
         try
         {

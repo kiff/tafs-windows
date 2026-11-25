@@ -79,6 +79,30 @@ Ported from the iPad's `AppModel.startSetup`, which its Start calls (`SetupChatV
     title and lines), then every group and tool under the step's details, folded at first, or the batch's lines;
   - Start in tafs cloud's word;
   - `does` under it.
+- **The Card step** (as the iPhone's `cardStepScreen`, kiff/tafs#2112, and Android's, #2115), in place of Start's own screen
+  when every one of its lines came in tafs cloud's `start.words` (`FirstStartWords.CardStep`), this PC's button included:
+  - the title, then four lines: what the approval allows, what always waits for the person, how this PC signs
+    (`sign_passkey`: with its passkey, never the phone's line) and how to stop it;
+  - the plain list: each group of Coach's tools, each tool with what it does and its limit a day;
+  - folded under "Exactly what you sign", Coach's Cards in KIFF's own words, as signed;
+  - the box isn't drawn: tafs cloud's `locked` line stands in its place, else the app's own
+    (`coach.tools.write_after`), so it never opens for want of words;
+  - one button with the whole sentence for this PC: `buttons.passkey` ("Approve with your passkey").
+  - **Shown = signed, failing closed** (`CardStepCheck`, a port of the iPhone's): the tools marked `in_draft`, each with its
+    `tool`, `card`, `limit` and `asks`, are compared both ways with the draft the button signs. Each signed Card is read
+    on an allowlist:
+    - its id, `subject` (the draft's own agent) and `domain` (gateway);
+    - `on_exceed` (owner or refuse, with a hold's expiry only on owner);
+    - grants that name an action and nothing else;
+    - exactly one aggregate, a count a calendar day, with a whole limit.
+
+    The tools batch must connect only the step's tools, as Coach's own server at this app's tafs cloud (`{api}/v1/mcp`,
+    `mode: verify`, `control: true`). Anything else, a tool twice, or a limit or `asks` that differs is a mismatch: no
+    button, and "What you're asked to approve changed since it was shown."
+  - **Only what it showed is sent:** at the tap, `/v1/setup` is read again before Windows Hello. If its requests aren't
+    byte for byte the ones shown (`FirstStart.SignsAsShown`), or its list no longer matches, nothing is signed or sent,
+    and the step is drawn again from that read (`StartOutcome.Changed`). A Card step the person never saw is never signed.
+  - Without every line, Start's own screen is as before.
 - **Startable, as the iPad's `startable`:**
   - it's `to_give`;
   - the draft is a `POST` to `/v1/me/agent-drafts`, not for the gateway;
@@ -330,6 +354,13 @@ Ported from the iPad's `ReportAnswerSheet` and `reportable`, `AppModel.canReport
   Only what the step showed is signed (`CoachTools.SignsAsShown`): the read at the tap must ask for the same requests,
   byte for byte, with the same words for Coach's Cards. Otherwise nothing is signed, the step is drawn again from that
   read with "Setup changed this request: see below" above it, and Give asks again.
+  Before Windows Hello too, once tafs cloud marks which tools the draft carries (`in_draft`), those must be exactly what
+  the draft and the batch sign (`CoachTools.DraftSigns`, `BatchSigns`, the Card step's `CardStepCheck`); a mismatch signs
+  nothing, with "What you're asked to approve changed since it was shown."
+- **No typing until they're given** (as the iPhone's `composerLocked`, `CoachTools.LocksBox`): while the tools themselves
+  are still to give (a batch to connect, alone or in the pair), the box is one locked line in tafs cloud's `row` words,
+  else "Coach's tools", which opens the step; the row over it isn't drawn twice. When only Cards for newer tools are
+  missing, typing stays open.
   Windows Hello closed says nothing. A refusal stays in the step, in KIFF's words. tafs cloud's read after says whether
   they're given, and the row goes once they are.
 

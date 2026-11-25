@@ -8,7 +8,7 @@ using Tafs.Core.Words;
 namespace Tafs.Core.Coach;
 
 /// <summary>How Start ended: Coach started, or why not.</summary>
-public enum StartOutcome { Started, CantApprove, Cancelled, FirstStart, Failed }
+public enum StartOutcome { Started, CantApprove, Cancelled, FirstStart, Failed, Changed }
 
 /// <summary>What Start came to, with the person's words for why when it didn't, and Coach's id once it's there.</summary>
 public sealed record StartResult(StartOutcome Outcome, string? Why = null, string? Coach = null)
@@ -35,7 +35,14 @@ public sealed record StartCalls(
     Func<byte[], Task<CloudRead>> Claim,
     Func<string> SignedAt,
     Func<bool> Current,
-    Func<Task>? KeepAlerts = null);
+    Func<Task>? KeepAlerts = null)
+{
+    /// <summary>tafs cloud's first start as Start's screen showed it, when it did: after a Card step, only that is signed.</summary>
+    public FirstStart? Shown { get; init; }
+
+    /// <summary>Coach's own control server at this app's tafs cloud (<c>…/v1/mcp</c>), which a tools batch must connect.</summary>
+    public string Mcp { get; init; } = "";
+}
 
 /// <summary>
 /// Starting Coach, as the iPad's <c>AppModel.startSetup</c> from Start (<c>SetupChatView.introBefore</c>): planque first, as
@@ -82,6 +89,9 @@ public static class CoachStart
     }
 
     /// <summary>Whether this session may start Coach at all: only a passkey session that knows its passkey.</summary>
+    /// <summary>Coach's own control server at this app's tafs cloud, as the iPhone's <c>coachMCP</c>: <c>{api}/v1/mcp</c>.</summary>
+    public static string Mcp(Uri api) => new Uri(api, "/v1/mcp").AbsoluteUri;
+
     public static bool MayStart(KeptSession session) => session.Mode == ApprovalMode.Passkey && session.PasskeyId is not null;
 
     /// <summary>
@@ -121,6 +131,13 @@ public static class CoachStart
         // Signed only as Start's own screen draws it (its words, Coach's Cards in KIFF's): the tools step that shows them
         // otherwise isn't on this PC yet.
         if (first is { OneScreen: false }) return new(StartOutcome.FirstStart);
+        // After a Card step (or before one the person hasn't seen), only what it showed is signed, as the iPhone's startSetup:
+        // this read's requests byte for byte, its plain list exactly the draft's Cards, and its batch Coach's own. On any
+        // difference nothing is signed or sent, and the step is drawn again from this read, to read and approve again.
+        if ((first is { CardStep: true } || calls.Shown is { CardStep: true })
+            && (first is not { CardStep: true } || calls.Shown is not { CardStep: true } shown || !shown.SignsAsShown(first)
+                || !first.CardStepSigns(calls.Mcp)))
+            return new(StartOutcome.Changed, w.Get("version.out_of_date_card"));
 
         byte[]? draft = null;
         (string Header, string Value) signature = default;

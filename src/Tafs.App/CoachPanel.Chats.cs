@@ -109,7 +109,14 @@ public sealed partial class CoachPanel
     {
         ChatTools.Visibility = coach is not null && answer is not null ? Visibility.Visible : Visibility.Collapsed;
         var w = App.Words;
-        CoachComposer.Visibility = coach is not null && answer is not null ? Visibility.Visible : Visibility.Collapsed;
+        // Coach takes no typing until its tools are approved: while the tools themselves are still to give, the box is one
+        // locked line in tafs cloud's words that opens the step, and the row over it isn't drawn twice.
+        var locked = coach is not null && answer is not null && tools is { LocksBox: true };
+        CoachComposer.Visibility = coach is not null && answer is not null && !locked ? Visibility.Visible : Visibility.Collapsed;
+        ToolsLocked.Visibility = locked ? Visibility.Visible : Visibility.Collapsed;
+        ToolsLockedText.Text = tools is { LocksBox: true } t ? t.LockedLine(w) : "";
+        AutomationProperties.SetName(ToolsLocked, ToolsLockedText.Text);
+        if (locked) ToolsRow.Visibility = Visibility.Collapsed;
         CoachDraft.PlaceholderText = thread?.Working is not null ? w.Get("chat.write_next") : w.Get("coach.ask_anything");
         AutomationProperties.SetName(CoachDraft, CoachDraft.PlaceholderText);
         // While Coach sends or works, Send queues one message (the iPad's setupQueued); a second waits for that one to go.
