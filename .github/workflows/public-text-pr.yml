@@ -1,0 +1,39 @@
+name: Public text (pull request)
+
+# This repo is public, and so is what's said on its pull requests. A pull request's title, its body and each review say
+# what changed, why and how it was checked, never who decided it or where (tests/Tafs.Core.Tests/Ci/PublicTextTests.cs).
+# The text reaches the test only through env, never inside a run line, so nothing in it can run as a command. The test is
+# the base branch's own copy, so a pull request can't change the rule it's checked by.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+  pull_request_review:
+    types: [submitted, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  text:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.base.sha }}
+      - uses: ./.github/actions/setup
+      - name: Words and contracts at the pin
+        run: dotnet run --project tools/Tafs.Ci -- sync
+      - name: Build the tests
+        run: dotnet build tests/Tafs.Core.Tests -c Release -v q
+      - name: The pull request's title and body
+        env:
+          TAFS_PUBLIC_TEXT: "${{ github.event.pull_request.title }}\n${{ github.event.pull_request.body }}"
+        run: dotnet test tests/Tafs.Core.Tests -c Release --no-build --filter "FullyQualifiedName~PublicTextTests.A_pull_requests_text_names_no"
+      - name: The review's body
+        if: github.event_name == 'pull_request_review'
+        env:
+          TAFS_PUBLIC_TEXT: ${{ github.event.review.body }}
+        run: dotnet test tests/Tafs.Core.Tests -c Release --no-build --filter "FullyQualifiedName~PublicTextTests.A_pull_requests_text_names_no"
