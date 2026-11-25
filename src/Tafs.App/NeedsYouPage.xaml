@@ -6,12 +6,9 @@
       xmlns:local="using:Tafs.App"
       Background="{ThemeResource TafsBackground}">
   <ScrollViewer>
+    <local:PageColumn Kind="Reading">
     <!-- The iPad's NeedsYouView: padded 16 by 12, its cards across the page's width. -->
     <Grid Padding="16,12">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" />
-        <ColumnDefinition Width="Auto" />
-      </Grid.ColumnDefinitions>
       <StackPanel Spacing="14">
         <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
 
@@ -67,5 +64,6 @@
         <StackPanel x:Name="KnockedTafs" Spacing="14" />
       </StackPanel>
     </Grid>
+    </local:PageColumn>
   </ScrollViewer>
 </Page>

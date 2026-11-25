@@ -64,6 +64,9 @@ public sealed class ConnectRowView
     public Visibility IsConnected { get; init; } = Visibility.Collapsed;
     public Visibility IsReconnect { get; init; } = Visibility.Collapsed;
     public Visibility HasButton { get; init; } = Visibility.Collapsed;
+    /// <summary>The table's button beside the Status words, or under them when both are there (<see cref="ConnectAppsScreen.ButtonUnder"/>).</summary>
+    public Visibility ButtonBeside { get; init; } = Visibility.Collapsed;
+    public Visibility ButtonUnder { get; init; } = Visibility.Collapsed;
     /// <summary>Connect works: on a PC that approves, for an app connected by its sign-in, with a taf that needs it.</summary>
     public bool CanConnect { get; init; }
     public string ConnectName { get; init; } = "";
@@ -329,6 +332,8 @@ public sealed partial class ConnectAppsPage : Page
                 UsedBy = said.Setup is null ? said.UsedBy ?? "" : "", HasUsedBy = Seen(said.Setup is null && said.UsedBy is not null),
                 Second = said.Second, SecondDim = Seen(!app.NeedsReconnect), SecondAmber = Seen(app.NeedsReconnect),
                 Button = button ?? "", HasButton = Seen(button is not null),
+                ButtonBeside = Seen(button is not null && !ConnectAppsScreen.ButtonUnder(said.Status, said.Setup, button)),
+                ButtonUnder = Seen(ConnectAppsScreen.ButtonUnder(said.Status, said.Setup, button)),
                 // Connecting by a key comes with its own change; by a sign-in, for a taf that needs the app.
                 CanConnect = route == ConnectRoute.AskCoach || (route == ConnectRoute.Ask && (!app.TakesKey || opening?.Connecting?.GiveKey is not null)),
                 ConnectName = (button ?? "") + ", " + app.DisplayName,

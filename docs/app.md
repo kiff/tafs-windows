@@ -42,6 +42,11 @@ Built so far:
 
 Signing in is the only screen that reaches KIFF so far. Other screens show only their title until they're built, in the order of the desktop spec. 
 
+**Each page's width, the same rule on every app:** its content sits in a column capped by what the page is, and centred in
+the window (`PageColumn`, `Tafs.Core/Home/PageWidths.cs`): 720 for reading pages (Account, Devices, People, Alerts,
+Needs you, Connect apps, Plan & usage, Block all), 980 for list pages (Overview, an app's connections), 640 for the gallery,
+1100 for the Brief and 1180 for Calendar. A window narrower than the cap gives the column all of its width.
+
 ## Illustrations
 
 The owner's approved boards (rows S37–S48 of the parity list), drawn in code from iOS's `Illustrations.swift`, number for
@@ -117,5 +122,6 @@ The app speaks the first of the person's Windows languages that tafs ships (`App
 | `--home contract.json` | read Home's list from a contract file (`shared/contracts/home.json`) in place of tafs cloud, and each taf's runs, report, Activity and Setup from the contracts beside it (Your brief from a `brief.json` beside it, if there is one); with `--page taf` or `taf-setup`, open the first taf there |
 | `--new-version v1.0.2` | show the sidebar's "a new version is out" line for that release, without reading GitHub |
 | `--screenshot out.png` | save the window (1280×800) as a PNG and quit |
+| `--size 1920x1080` | with `--screenshot`, the window's size in pixels in place of 1280×800, to see a page on a big screen |
 
 CI's `app` job builds the app on Windows when `src/Tafs.App/**` changes, and nightly. It saves sign-in, the signed-out welcome with its tick, the three cards on how tafs works (`cards-1` to `cards-3`), the first Home (`first-home`), the Overview, Needs you, the Record, Plan & usage, Connect apps, Account and a taf's Activity, Setup and Card (with the samples), Coach mode (with the sample, and Coach's thread from the contracts), Calendar in Day and Week, the view-only notice, the pairing screen and the sidebar's new-version line (`sidebar-new-version`) in en, fr, ar (right to left) and ja, light and dark, as the `screenshots` artifact of the run. The job fails if any of the 240 is missing: a crash at launch, or a word missing at the pin, stops the app before it saves.

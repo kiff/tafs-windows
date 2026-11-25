@@ -67,7 +67,11 @@ The sections, in the iPad's order:
     use changes nothing. A choice that can't be kept says so and changes nothing.
   - **At launch,** `--lang` wins (screenshots), then the kept choice, then Windows' languages (`AppLanguage.Resolve`). A
     kept code tafs doesn't ship is ignored. tafs cloud and KIFF follow at once, through `Accept-Language`.
-- **How it works:** the sign-in's line, for this Windows PC.
+- **How it works:** one section: the sign-in's line for this Windows PC, then the three cards on how tafs works, each
+  opening where it's tapped.
+- **Each explanation sits beside its action, the same on every app** (`HelpSections`): what a Chrome does for tafs under
+  People & apps' Chrome row, only where planque offers Chromes; "Never give this code to anyone" in the sign-in section,
+  under the emailed-code setting, only where KIFF can send one. No section of explanation alone, with nothing to do there.
 - **Legal:** Terms and Privacy policy. They open tafs's pages, which are in English only for now, so outside English each
   row says so ("Conditions (en anglais)", from `settings.legal_in_english`).
 - **About:** Version, "1.0 (1)" from the app's version, and the tagline.

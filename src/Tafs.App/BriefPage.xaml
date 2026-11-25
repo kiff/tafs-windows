@@ -3,14 +3,12 @@
 <Page x:Class="Tafs.App.BriefPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:local="using:Tafs.App"
       Background="{ThemeResource TafsBackground}">
   <ScrollViewer>
-    <!-- The window's width, up to 1100, from the left: the two columns share it. -->
+    <local:PageColumn Kind="Brief">
+    <!-- The window's width, up to 1100, centred (PageColumn): the two columns share it. -->
     <Grid>
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" MaxWidth="1100" />
-        <ColumnDefinition Width="Auto" />
-      </Grid.ColumnDefinitions>
     <StackPanel Padding="24" Spacing="16" AutomationProperties.AutomationId="brief">
       <StackPanel Spacing="8">
         <TextBlock x:Name="Heading" FontSize="34" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" AutomationProperties.HeadingLevel="Level1" />
@@ -39,5 +37,6 @@
       <TextBlock x:Name="Credits" FontSize="12" HorizontalAlignment="Center" Foreground="{ThemeResource TafsDim}" Visibility="Collapsed" />
     </StackPanel>
     </Grid>
+    </local:PageColumn>
   </ScrollViewer>
 </Page>

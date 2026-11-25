@@ -245,6 +245,14 @@ public static class ConnectAppsScreen
     /// <summary>An app tafs cloud hasn't set up for anyone has its name in the soft colour; the others in the ink.</summary>
     public static bool NameIsSoft(ConnectApp app) => app.NeedsSetup;
 
+    /// <summary>
+    /// In the table, a row with words in its Status cell (Sign in again, or what to set up) and a button puts the button under
+    /// the words: side by side, a button as wide as "Ask Coach" leaves the words no room and cuts them ("Volve…"). A row
+    /// with only a button, or only words, keeps it beside them.
+    /// </summary>
+    public static bool ButtonUnder(string? status, string? setup, string? button) =>
+        !string.IsNullOrEmpty(button) && (!string.IsNullOrEmpty(status) || !string.IsNullOrEmpty(setup));
+
     /// <summary>The button at a row's end: none to set up, a ✓ when connected, else Connect or Sign in again.</summary>
     public static string? Button(WordBook w, ConnectApp app) =>
         app.NeedsSetup || app.Connected ? null : w.Get(app.NeedsReconnect ? "connect.sign_in_again" : "connect.apps.connect");

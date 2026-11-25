@@ -52,6 +52,9 @@ public sealed partial class GalleryPage : Page
         // In a sheet, its title is the sheet's own, on top.
         Heading.Visibility = o.OnHome || o.InSheet ? Visibility.Collapsed : Visibility.Visible;
         Holder.Padding = o.OnHome ? new Thickness(0) : o.InSheet ? new Thickness(24, 4, 24, 24) : new Thickness(24);
+        // On Home it fills the Overview's own column; elsewhere it's the gallery's.
+        Column.Kind = o.OnHome ? nameof(Tafs.Core.Home.PageKind.List) : nameof(Tafs.Core.Home.PageKind.Gallery);
+        Column.InvalidateMeasure();
         if (o.OnHome && g.Words.Title.Trim().Length > 0) Body.Children.Add(Words(g.Words.Title, 17, "TafsInk", semibold: true));
         // Creating, as the iPad's + New: "Say it in your own words" leads, in tafs cloud's words, where it sends them.
         if (!o.Browse && o.OwnWords is { } own && g.Words.OwnWords.Trim().Length > 0) Body.Children.Add(OwnWordsRow(g.Words, own));
