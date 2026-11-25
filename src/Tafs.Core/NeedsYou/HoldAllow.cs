@@ -219,7 +219,8 @@ public static class HoldAllow
         var kept = await get(KiffDrafts.Path(offer.Draft));
         if (kept.Answer is not { } d) return (null, kept.Why);
         if (KiffDrafts.Read(d) is not { } read) return (null, w.Get("kiff.kiff_did_not_answer_expected"));
-        return (new(answer, read, Matches(read, offer, call.Agent, call.KiffId, call.Action ?? "")), null);
+        // Signed only when every key of its Cards is one this check reads, and it is what was offered.
+        return (new(answer, read, HoldAllowKeys.Known(d) && Matches(read, offer, call.Agent, call.KiffId, call.Action ?? "")), null);
     }
 }
 

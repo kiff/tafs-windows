@@ -165,7 +165,8 @@ int Sync()
 {
     var dest = Path.Combine(root, "shared");
     var stamp = Path.Combine(dest, ".pin");
-    if (File.Exists(stamp) && File.ReadAllText(stamp).Trim() == pin.Commit)
+    // Current only when the commit is the pin's and every pinned path is there: a path added to the pin is fetched.
+    if (File.Exists(stamp) && File.ReadAllText(stamp).Trim() == pin.Commit && pin.Paths.All(p => Path.Exists(Path.Combine(dest, p))))
     {
         Console.WriteLine($"shared/ is already at {pin.Commit[..7]}");
         return 0;

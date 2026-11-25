@@ -411,6 +411,25 @@ public class HoldAllowTests
         Assert.NotNull(read.Draft);
     }
 
+    /// <summary>
+    /// The second half: KIFF's draft is what was offered, but one of its Cards carries a key this check doesn't read. The sheet
+    /// says it isn't what was offered, and nothing is signed.
+    /// </summary>
+    [Fact]
+    public async Task A_draft_with_a_Card_key_this_PC_doesnt_read_does_not_match()
+    {
+        var services = new Services();
+        services.Responses["POST /v1/tafs/taf_1/holds/ce_9/allow"] = OfferJson();
+        services.Responses["GET /v1/me/agent-drafts/dr_9"] = Draft().Replace("{\"revises\":\"c1\",", "{\"revises\":\"c1\",\"room_grants\":[\"rae\"],");
+        var read = await services.Read(round: false);
+        Assert.NotNull(read);
+        Assert.False(read.Matches);
+        Assert.NotNull(read.Draft);
+        // The same draft without the key is what was offered.
+        services.Responses["GET /v1/me/agent-drafts/dr_9"] = Draft().Replace("{\"revises\":\"c1\",", "{\"revises\":\"c1\",\"room_grants\":null,");
+        Assert.True((await services.Read(round: false))?.Matches);
+    }
+
     /// <summary>The iPad's testNoOfferReadsNoDraft: no offer, for a reason this app knows or not; tafs cloud's words, and no draft read.</summary>
     [Theory]
     [InlineData("no_change")]
