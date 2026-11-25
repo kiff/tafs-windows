@@ -53,6 +53,38 @@ static class ChatViews
             Foreground = new SolidColorBrush(Microsoft.UI.Colors.White) },
     };
 
+    /// <summary>The account's time zone as KIFF has it (Account › Time zone), given by the window; none until it's read.</summary>
+    public static Func<string?>? AccountZone { get; set; }
+
+    /// <summary>The zone a chat's days and times are in: the account's, else this PC's.</summary>
+    public static TimeZoneInfo Zone => AccountZone?.Invoke() is { } id && TimeZoneInfo.TryFindSystemTimeZoneById(id, out var z) ? z : TimeZoneInfo.Local;
+
+    /// <summary>Whether this PC's clock reads 24 hours, as Windows' own setting says; 24 when it can't be read.</summary>
+    public static bool TwentyFour
+    {
+        get
+        {
+            try { return Windows.System.UserProfile.GlobalizationPreferences.Clocks.FirstOrDefault() != "12HourClock"; }
+            catch (Exception) { return true; }
+        }
+    }
+
+    /// <summary>The header where a day starts (<see cref="ChatTime.Day"/>): Today, Yesterday, or the date, small and centred.</summary>
+    public static TextBlock DayHeader(Tafs.Core.Words.WordBook w, DateTimeOffset at, Func<string, Brush> brush)
+    {
+        var day = new TextBlock { Text = ChatTime.Day(at, DateTimeOffset.Now, Zone, w), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Foreground = brush("TafsDim"), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) };
+        AutomationProperties.SetHeadingLevel(day, Microsoft.UI.Xaml.Automation.Peers.AutomationHeadingLevel.Level3);
+        return day;
+    }
+
+    /// <summary>The time under a message (<see cref="ChatTime.Time"/>): under the person's bubble on the right, under the words on the left.</summary>
+    public static TextBlock SentTime(Tafs.Core.Words.WordBook w, DateTimeOffset at, bool own, Func<string, Brush> brush) => new()
+    {
+        Text = ChatTime.Time(at, Zone, w, TwentyFour), FontSize = 11, Foreground = brush("TafsDim"),
+        HorizontalAlignment = own ? HorizontalAlignment.Right : HorizontalAlignment.Left,
+    };
+
     /// <summary>
     /// A run that ended without an answer, as Android's failed line: tafs cloud's words in red as the chat's last line, and
     /// Try again under it only when <paramref name="again"/> says so (<see cref="FailedRetry.Of"/>: tafs cloud's <c>retry</c>),

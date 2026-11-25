@@ -143,8 +143,8 @@ work, where the iPad's decoder fails the thread.
   line it can't read is left off; a list entry without its session, title, start or update fails the list.
 - **No Coach, or `/v1/setup` unread:** the intro stays. A conversation that can't be read or decoded says so under the
   intro, red at 13: "The conversation couldn't be loaded:" and why (for one that doesn't decode, the app's own words).
-- **Drawn as `SetupChatView.thread`** (`CoachPanel.ShowThread`), each message once, in order: a time between parts an hour
-  apart (`gapTime`); the person's words on the right in the brand bubble, an answer as what they chose (`ownerWords`), with
+- **Drawn as `SetupChatView.thread`** (`CoachPanel.ShowThread`), each message once, in order: a header where a day starts and
+  a small time under each message (`ChatTime`, as in a taf's chat, docs/taf.md); the person's words on the right in the brand bubble, an answer as what they chose (`ownerWords`), with
   "Answered the card above"; Coach's words full width at 16 under "Worked for 12 s ›", which opens the steps in Coach's
   words (`WorkLog.rows`: "2 tries", failures only when nothing worked); a run's start as a centred line of two lines at
   most; then **While you were away** and the handed tasks' lines ("↳ Rae: …").

@@ -804,12 +804,8 @@ public sealed partial class TafPage : Page
         for (var i = 0; i < items.Count; i++)
         {
             while (asks.Count > 0 && asks.Peek().At <= items[i].At) ChatPane.Children.Add(asks.Dequeue().View());
-            if (Tafs.Core.Coach.CoachChat.GapTime(w, items, i, DateTimeOffset.Now, TimeZoneInfo.Local) is { } gap)
-            {
-                var time = CoachPanel.Words(gap, 12, "TafsDimText", HorizontalAlignment.Center);
-                time.Margin = new Thickness(0, 6, 0, 0);
-                ChatPane.Children.Add(time);
-            }
+            // A header where a day starts, in the account's zone: Today, Yesterday, or the date.
+            if (Tafs.Core.Coach.ChatTime.StartsDay(items, i, ChatViews.Zone)) ChatPane.Children.Add(ChatViews.DayHeader(w, items[i].At, Brush));
             var m = items[i].Message!;
             if (m is { From: Tafs.Core.Coach.ChatFrom.Owner, Kickoff: false })
             {
@@ -823,6 +819,8 @@ public sealed partial class TafPage : Page
                 if (m is { Answers: not null, Door: null }) said.Children.Add(ChatViews.AnsweredCardLine());
                 // The person's own words, again, as the iPad's askAgain: Send again, Edit and send, Copy. Not someone else's (a door's).
                 if (m.Door is null && m.Text.Length > 0 && opening?.Send is not null) said.ContextFlyout = AskAgain(m.Text);
+                // When it was sent, small, under it.
+                if (said.Children.Count > 0) said.Children.Add(ChatViews.SentTime(w, m.At, own: true, Brush));
                 if (said.Children.Count > 0) ChatPane.Children.Add(Own(said, m.Text));
                 continue;
             }
@@ -847,6 +845,8 @@ public sealed partial class TafPage : Page
             if (m.RunLines.Under is { } counted) lines.Children.Add(ChatViews.RunLine(counted));
             // A connection its work asked for that was refused: tafs cloud's lines, never folded.
             if (m.RefusedLines is { } refused) lines.Children.Add(ChatViews.RefusedLines(refused, Brush));
+            // When it was sent, small, under it; a run's start keeps its own line.
+            if (!m.Kickoff) lines.Children.Add(ChatViews.SentTime(w, m.At, own: false, Brush));
             ChatPane.Children.Add(lines);
         }
         while (asks.Count > 0) ChatPane.Children.Add(asks.Dequeue().View());
