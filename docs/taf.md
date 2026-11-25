@@ -19,7 +19,7 @@ Activity. The core is `Tafs.Core.Taf` (`TafScreen`, `TafActivity` and `TafSetup`
   repeats; a refresh while the last one still reads is ignored, so it stays one read of the tab per press.
 - **The Chat** (`TafChat`, the iPad's `TafChatView`): the taf's thread, read from tafs cloud each time it shows
   (`GET /v1/tafs/{id}/conversation`, Coach's thread's shape, so `CoachThread.Read` reads it), in a column 720 wide.
-  Each message once, by time. A time between parts an hour or more apart (`CoachChat.GapTime`). The person's words on
+  Each message once, by time. **When each was sent** (`ChatTime`, kiff/tafs docs/chat.md): a header where a day starts, in the account's zone (Today, Yesterday, then the date with its weekday in the language's own order, with the year only when it isn't this one), and a small time under each message, in this PC's 12- or 24-hour setting (Windows' clock setting) and the app's language; a run's start keeps its own line. It replaces the time between parts an hour apart. The person's words on
   the right in the brand bubble, with "Answered the card above" under an answer; the taf's full width at 16, with
   "Worked for 12 s ›" above them, which opens its steps in the taf's words (`TafChat.ActivityWords`, the iPad's
   `tafActivityWords`: "Reading its notes…", "Asking KIFF to run stripe refund…"); where its result went above its words

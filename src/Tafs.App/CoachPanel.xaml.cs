@@ -554,8 +554,8 @@ public sealed partial class CoachPanel : UserControl
         (waitingCard, waitingElement) = (CoachShape.Waiting(thread), null);
         for (var i = 0; i < items.Count; i++)
         {
-            if (CoachChat.GapTime(w, items, i, DateTimeOffset.Now, TimeZoneInfo.Local) is { } gap)
-                ThreadItems.Children.Add(Words(gap, 12, "TafsDimText", HorizontalAlignment.Center));
+            // A header where a day starts, in the account's zone: Today, Yesterday, or the date.
+            if (ChatTime.StartsDay(items, i, ChatViews.Zone)) ThreadItems.Children.Add(ChatViews.DayHeader(w, items[i].At, Brush));
             // A card, as the iPad's SetupComponentView: the questions card in this change; the other kinds come in their own.
             if (items[i].Card is { } shown)
             {
@@ -587,6 +587,8 @@ public sealed partial class CoachPanel : UserControl
                         if (await AttachTray.OpenAsync(c, file, read) is { } why) { chatError = why; ShowChatTools(); }
                     }));
                 if (m.Answers is not null) said.Children.Add(ChatViews.AnsweredCardLine());
+                // When it was sent, small, under it; a run's start keeps its own line.
+                if (said.Children.Count > 0 && !m.Kickoff) said.Children.Add(ChatViews.SentTime(w, m.At, own: true, Brush));
                 if (said.Children.Count > 0) ThreadItems.Children.Add(ChatPinner.Own(said, m.Text));
             }
             else
@@ -601,6 +603,8 @@ public sealed partial class CoachPanel : UserControl
                     said.Children.Add(text);
                     // The answer's menu, Report this answer, on an answer the person can report (the iPad's reportable).
                     if (AnswerReport.Can(m, kiff: report is not null)) text.ContextFlyout = said.ContextFlyout = ReportMenu(m);
+                    // When it was sent, small, under it.
+                    said.Children.Add(ChatViews.SentTime(w, m.At, own: false, Brush));
                 }
                 ThreadItems.Children.Add(said);
             }

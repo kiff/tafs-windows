@@ -129,16 +129,14 @@ public class CoachThreadTests
     public void An_answer_to_a_card_reads_as_what_the_owner_chose(string text, string? key, string? written) =>
         Assert.Equal(key is null ? written : En.Get(key), CoachChat.OwnerWords(En, text));
 
+    /// <summary>The thread's days: a header over its first message, none again the same day (<see cref="ChatTime"/>).</summary>
     [Fact]
-    public void A_time_shows_between_parts_an_hour_apart_today_s_alone_an_earlier_one_with_its_date()
+    public void The_thread_s_first_message_starts_its_day()
     {
         var items = CoachThread.Read(Json(Thread))!.Items;
-        var now = new DateTimeOffset(2026, 11, 15, 12, 0, 0, TimeSpan.Zero);
-
-        Assert.Equal("08:00", CoachChat.GapTime(En, items, 0, now, TimeZoneInfo.Utc));
-        Assert.Equal("09:00", CoachChat.GapTime(En, items, 1, now, TimeZoneInfo.Utc));
-        Assert.Null(CoachChat.GapTime(En, items, 2, now, TimeZoneInfo.Utc));
-        Assert.Equal("15 Nov 2026, 08:00", CoachChat.GapTime(En, items, 0, now.AddDays(1), TimeZoneInfo.Utc));
+        Assert.True(ChatTime.StartsDay(items, 0, TimeZoneInfo.Utc));
+        Assert.All(Enumerable.Range(1, items.Count - 1), i =>
+            Assert.Equal(items[i].At.UtcDateTime.Date != items[i - 1].At.UtcDateTime.Date, ChatTime.StartsDay(items, i, TimeZoneInfo.Utc)));
     }
 
     /// <summary>Coach's work in its own words, what it showed left out, a failed try folded into the try that worked.</summary>

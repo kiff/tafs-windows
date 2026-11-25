@@ -525,21 +525,6 @@ public static class CoachChat
         return words.Length == 0 ? tool : words;
     }
 
-    /// <summary>
-    /// A time between parts of the thread an hour or more apart, not on every line, as the iPad's <c>gapTime</c>: today's at
-    /// "14:05", an earlier one with its date.
-    /// </summary>
-    public static string? GapTime(WordBook w, IReadOnlyList<ThreadItem> items, int i, DateTimeOffset now, TimeZoneInfo zone)
-    {
-        var at = items[i].At;
-        if (i > 0 && at - items[i - 1].At < TimeSpan.FromHours(1)) return null;
-        var local = TimeZoneInfo.ConvertTime(at, zone);
-        var culture = Tafs.Core.Words.Locale.Culture(w.Language);
-        return local.Date == TimeZoneInfo.ConvertTime(now, zone).Date
-            ? local.ToString("HH:mm", CultureInfo.InvariantCulture)
-            : local.ToString("d MMM yyyy, HH:mm", culture);
-    }
-
     /// <summary>What Coach is doing, in the person's words, from the tool it calls, as the iPad's <c>activityWords</c>; none for "show".</summary>
     public static string? ActivityWords(WordBook w, string tool) => tool.Split("__")[^1] switch
     {

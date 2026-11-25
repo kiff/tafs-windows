@@ -288,6 +288,8 @@ public sealed partial class MainWindow : Window
         CoachMode.CanInstall = id => home?.Tafs.FirstOrDefault(t => t.Id == id) is { } knobTaf && InstallingFor(knobTaf) is not null;
         // The watch's days and times in the account's zone, as KIFF has it.
         CoachMode.AccountTimeZone = () => kiffAccount?.TimeZone;
+        // A chat's days and times are the account's zone, as the phones'.
+        ChatViews.AccountZone = () => kiffAccount?.TimeZone;
         CoachMode.Closed += ShowCoachWaiting;
         NeedsYouPage.CoachWaitingOpenChosen += OpenCoachWaiting;
         NeedsYouPage.SetAsideChosen += session => _ = SetAsideAsync(session);
