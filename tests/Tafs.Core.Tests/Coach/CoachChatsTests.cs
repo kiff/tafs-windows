@@ -43,7 +43,7 @@ public class CoachChatsTests
     [Fact]
     public async Task A_list_unread_says_why()
     {
-        var (rows, why) = await CoachChats.ReadAsync(En, "/v1/tafs/c/chats", _ => Task.FromResult(CloudRead.Refused(En, 503, """{"words": "Try again in a minute."}""")));
+        var (rows, why, _) = await CoachChats.ReadAsync(En, "/v1/tafs/c/chats", _ => Task.FromResult(CloudRead.Refused(En, 503, """{"words": "Try again in a minute."}""")));
         Assert.Null(rows);
         Assert.Equal("The conversation couldn't be loaded: Try again in a minute.", why);
     }

@@ -78,7 +78,18 @@ public class CoachStartTests
             body => { Did("claim"); ClaimSent = body; return Task.FromResult(Claimed); },
             () => "2026-11-15T18:00:00.123Z",
             () => current,
-            KeepsAlerts ? () => { Did("alerts"); return AlertsFail is { } e ? Task.FromException(e) : Task.CompletedTask; } : null);
+            KeepsAlerts ? () => { Did("alerts"); return AlertsFail is { } e ? Task.FromException(e) : Task.CompletedTask; } : null)
+        {
+            // What Start's screen showed: by default the start tafs cloud reads, as the person saw it.
+            Shown = Unshown ? null : Shown ?? (Setup.Answer is { } a ? FirstStart.Read(a) : null),
+            Mcp = "https://tafs.test/v1/mcp",
+        };
+
+        /// <summary>The start Start's screen showed, when it differs from what tafs cloud reads at the tap.</summary>
+        public FirstStart? Shown;
+
+        /// <summary>Start's screen showed no Card step at all.</summary>
+        public bool Unshown;
 
         public Task<StartResult> Run(KeptSession session, bool planqueReady = false) =>
             CoachStart.StartAsync(En, session, planqueReady, Calls_());
@@ -229,6 +240,54 @@ public class CoachStartTests
 
     static JsonElement Contract(string file) => ContractFile.Answer(SharedFiles.Contract(file));
 
+    /// <summary>The pair's contract with its draft's first Card changed by <paramref name="edit"/>.</summary>
+    static JsonElement WithDraft(Action<System.Text.Json.Nodes.JsonObject> edit)
+    {
+        var setup = System.Text.Json.Nodes.JsonNode.Parse(Contract("setup-start.json").GetRawText())!;
+        var draft = setup["start"]!["requests"]!.AsArray().Single(r => r!["id"]!.GetValue<string>() == "draft")!["body"]!.AsObject();
+        edit(draft["cards"]![0]!.AsObject());
+        return JsonDocument.Parse(setup.ToJsonString()).RootElement.Clone();
+    }
+
+    /// <summary>
+    /// After the Card step, only what it showed is signed, as the iPhone's startSetup: tafs cloud's read at the tap asking for
+    /// anything else (another draft), or a Card step the person never saw, signs and sends nothing; the step is drawn again.
+    /// </summary>
+    [Fact]
+    public async Task After_the_Card_step_only_what_it_showed_is_signed()
+    {
+        var changed = new StartResult(StartOutcome.Changed, "What you're asked to approve changed since it was shown. Read it again, then approve.");
+        var shown = FirstStart.Read(Contract("setup-start.json"))!;
+        var other = new Stubs { Setup = CloudRead.Of(WithDraft(c => c["aggregates"]![0]!["limit"] = 999)), Shown = shown };
+        Assert.Equal(changed, await other.Run(Session(ApprovalMode.Passkey, "AQI")));
+        Assert.Equal(["read"], other.Calls);
+
+        var unseen = new Stubs { Setup = CloudRead.Of(Contract("setup-start.json")), Unshown = true };
+        Assert.Equal(changed, await unseen.Run(Session(ApprovalMode.Passkey, "AQI")));
+        Assert.Equal(["read"], unseen.Calls);
+    }
+
+    /// <summary>
+    /// Shown = signed: a Card step whose plain list isn't exactly what its draft signs asks for no signature, even when it's
+    /// what the screen showed (a higher limit signed than shown).
+    /// </summary>
+    [Fact]
+    public async Task A_Card_step_whose_list_isn_t_its_draft_signs_nothing()
+    {
+        var tampered = WithDraft(c => c["aggregates"]![0]!["limit"] = 999);
+        var stubs = new Stubs { Setup = CloudRead.Of(tampered) };
+        Assert.Equal(StartOutcome.Changed, (await stubs.Run(Session(ApprovalMode.Passkey, "AQI"))).Outcome);
+        Assert.Equal(["read"], stubs.Calls);
+        Assert.False(FirstStart.Read(tampered)!.CardStepSigns("https://tafs.test/v1/mcp"));
+        // The batch must connect Coach's own server at this app's tafs cloud: another server signs nothing.
+        Assert.False(FirstStart.Read(Contract("setup-start.json"))!.CardStepSigns("https://elsewhere.example/v1/mcp"));
+        Assert.True(FirstStart.Read(Contract("setup-start.json"))!.CardStepSigns("https://tafs.test/v1/mcp"));
+    }
+
+    [Fact]
+    public void Coach_s_server_is_this_app_s_tafs_cloud_v1_mcp() =>
+        Assert.Equal("https://tafs.test/v1/mcp", CoachStart.Mcp(new Uri("https://tafs.test/")));
+
     static System.Text.Json.Nodes.JsonObject Node(JsonElement e) => System.Text.Json.Nodes.JsonNode.Parse(e.GetRawText())!.AsObject();
 
     /// <summary>
@@ -329,7 +388,9 @@ public class CoachStartTests
         Assert.Equal(("Coach's Card", "KIFF's line for coach-reads"), (first.Draft.CardTitle, first.Draft.Cards[0].Lines[0]));
         Assert.Equal(("Watch your tafs", "See your tafs"), (first.Groups[0].Name, first.Groups[0].Tools[0].Name));
         Assert.Equal("Each tool and its limits", first.Details);
-        Assert.Equal(new FirstStartWords("Start gives Coach the tools below. You approve them on this device.", "Start", ""), first.Words);
+        Assert.Equal(("Start gives Coach the tools below. You approve them on this device.", "Start", ""), (first.Words!.Lead, first.Words.Start, first.Words.Does));
+        // tafs cloud's first start is the Card step, with this PC's passkey button.
+        Assert.True(first.CardStep);
 
         var alone = FirstStart.Read(Contract("setup-start-draft-alone.json"))!;
         Assert.False(alone.Together);

@@ -309,7 +309,16 @@ rules and totals.
 - **Sending:** an empty message sends nothing and says nothing; one over 2000 characters says "That's longer than 2000
   characters…" and sends nothing. Otherwise it shows at once, never above the thread's latest, and goes to tafs cloud
   (`POST /v1/tafs/{id}/messages`, `{text}`). One at a time: Send is off while it goes.
-- **Until the thread has it,** it stays on screen after the thread, matched once by its id, else its words, for two
+- **A run that ended without an answer** (the conversation's `failed`, contracts/conversation-failed.json; `RunFailed`):
+  tafs cloud's words (never the agent's), in red, as the chat's last line, in a taf's chat and in Coach's; not while a run
+  is followed live, nor twice when the live end already said them. **Try again** under it, in tafs cloud's `retry_label`
+  (else Retry), only when (`FailedRetry`, as Android's `failedRetry`):
+  - tafs cloud says it's safe (`failed.retry` is `true`: nothing the run did had an effect; the app decides nothing);
+  - the code is one it sends (`ai_unavailable`, `no_credits`, `ai_consent_required`, `timeout`, `failed`);
+  - the run's own message (`<run>.in`, the person's) is in the chat as plain words: not one with files, nor a card's answer;
+  - nothing is sending or at work, and it wasn't pressed for that run already.
+  Pressed, the words go again as a new message, once, and the button goes for that run; not tried, they go back in the box.
+$1, matched once by its id, else its words, for two
   minutes at most.
 - **Not taken:** it stays in the thread where it was written, as the iPad's `UnsentBubble` (`Unsent`): the bubble faded,
   "Not sent · Too busy." in red under it (tafs cloud's words for why, else not reached), then **Edit**, which puts its

@@ -444,6 +444,8 @@ public sealed partial class MainWindow : Window
         // app's own lines (tafs cloud's line stands in its place when it sends one).
         firstHomeShot = page == "first-home";
         if (firstHomeShot && Pages.Content is OverviewPage firstHomeOverview) firstHomeOverview.ShowFirstHome(FirstHomeLines());
+        // Coach's first start for a screenshot: Start's screen is the Card step, from setup-start.json.
+        coachStartShown = page == "coach-start";
         if (page == "pair") OpenPairing();
         else if (page == "pair-why") OpenBeside(typeof(PairingPage), "why");
         else if (page == "account") OnAccount(this, new RoutedEventArgs());
@@ -455,7 +457,7 @@ public sealed partial class MainWindow : Window
             Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Calendar);
         }
         else if (page is "usage" or "usage-admin") Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().First(i => i.Tag is Screen.Usage);
-        else if (page is "coach" or "coach-chats" or "coach-wide")
+        else if (page is "coach" or "coach-chats" or "coach-wide" or "coach-start")
         {
             // Over the Overview, which stays in view beside it; with coach-chats, on Previous conversations; with coach-wide,
             // full screen, so "Taking shape" shows beside the conversation.
@@ -493,6 +495,8 @@ public sealed partial class MainWindow : Window
             // With no kiff-draft.json, the draft isn't reached, and its card says so.
             CoachMode.Drafts = _ => Task.FromResult(Tafs.Core.Approvals.KiffDrafts.Read(w, File.Exists(Path.Combine(beside, "kiff-draft.json"))
                 ? CloudRead.Of(Tafs.Core.Contracts.ContractFile.Answer(Path.Combine(beside, "kiff-draft.json"))) : CloudRead.Unreached(w)));
+            // The contracts' tafs cloud is tafs.test: its Coach server is the one their batch connects. Given before the read, which draws at once.
+            CoachMode.Mcp = Tafs.Core.Coach.CoachStart.Mcp(new Uri("https://tafs.test/"));
             CoachMode.Read = path => Task.FromResult(ContractRead(w, homeFile, path));
             // The first taf's page, its Activity from taf-activity.json beside the Home contract, its Chat from taf-conversation.json.
             if (page is "taf" or "taf-setup" or "taf-chat" && home?.Tafs.FirstOrDefault() is { } first)
@@ -1229,7 +1233,7 @@ public sealed partial class MainWindow : Window
         // A run at work picked back up: the same stream host, as the session.
         cloudResume = (path, cancel) => KiffHttp.GetStreamAsync(new Uri(Tafs.Core.Kiff.KeptSessions.TafsCloudStream, path), bearer, App.Words.Language, cancel);
         // Start, as the iPad's: off for a session that can't approve.
-        CoachMode.StartCoach = Tafs.Core.Coach.CoachStart.MayStart(session) ? () => StartCoachAsync(session) : null;
+        CoachMode.StartCoach = Tafs.Core.Coach.CoachStart.MayStart(session) ? shown => StartCoachAsync(session, shown) : null;
         // Coach's tools still to give, given from its row (P8): only a session that signs with this PC's passkey.
         CoachMode.GiveTools = Tafs.Core.Coach.CoachStart.MayStart(session) ? shown => GiveToolsAsync(session, shown) : null;
         // Signed in but can't approve: the iPad's gate line where Start would be.
@@ -1349,6 +1353,7 @@ public sealed partial class MainWindow : Window
         ShowHome(new HomeAnswer([], null));
         CoachMode.Read = null;
         CoachMode.Answer = null;
+        CoachMode.Delete = null;
         ShowNewTaf();
         (manage, capabilities, accountHalt, haltSend, cloudSend, cloudStream, cloudChange) = (null, null, Halt.Running, null, null, null, null);
         usedBy.Clear();
@@ -1399,12 +1404,12 @@ public sealed partial class MainWindow : Window
     /// <c>setUpPlanque</c> and <c>enrolPlanque</c>; then Setup's draft, signed by the device key or, in a passkey session, by
     /// this PC's passkey (its one Windows Hello), sent to KIFF; then tafs cloud claims its key.
     /// </summary>
-    async Task<Tafs.Core.Coach.StartResult> StartCoachAsync(KeptSession session)
+    async Task<Tafs.Core.Coach.StartResult> StartCoachAsync(KeptSession session, Tafs.Core.Coach.FirstStart? shown = null)
     {
         var w = App.Words;
         var bearer = session.AccessToken;
         var gen = sessions;
-        try { return await StartCoachWithKeyAsync(session, bearer, gen); }
+        try { return await StartCoachWithKeyAsync(session, bearer, gen, shown); }
         catch (Exception e) when (e is System.Security.Cryptography.CryptographicException or FormatException)
         {
             // The TPM key gone or refusing, or a kept passkey id that can't be read, as the iPad's catch covers every error:
@@ -1413,10 +1418,11 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    async Task<Tafs.Core.Coach.StartResult> StartCoachWithKeyAsync(KeptSession session, string bearer, int gen) =>
+    async Task<Tafs.Core.Coach.StartResult> StartCoachWithKeyAsync(KeptSession session, string bearer, int gen, Tafs.Core.Coach.FirstStart? shown) =>
         await WithStartCallsAsync(session, bearer, gen, async calls =>
         {
-            var started = await Tafs.Core.Coach.CoachStart.StartAsync(App.Words, session, planqueReady, calls);
+            // After a Card step, only what it showed is signed.
+            var started = await Tafs.Core.Coach.CoachStart.StartAsync(App.Words, session, planqueReady, calls with { Shown = shown });
             // Signed out meanwhile: it's no one's.
             if (gen != sessions) return new Tafs.Core.Coach.StartResult(Tafs.Core.Coach.StartOutcome.Cancelled);
             if (started.Started) planqueReady = true;
@@ -1498,6 +1504,8 @@ public sealed partial class MainWindow : Window
                     Tafs.Core.Coach.KiffAlerts.Url(HomeList.Api), () => gen == sessions);
                 if (gen == sessions) pendingAlerts = left;
             });
+        // Coach's own control server at this app's tafs cloud: the one server a tools batch may connect (shown = signed).
+        calls = calls with { Mcp = Tafs.Core.Coach.CoachStart.Mcp(HomeList.Api) };
         return await act(calls);
 
         async Task<string?> LoadDeviceAsync()
@@ -1533,6 +1541,8 @@ public sealed partial class MainWindow : Window
         mayUseCoach = Tafs.Core.Coach.CoachAccess.MayUseCoach(setup, setup is null ? capabilities : null);
         if (!mayUseCoach) return;
         CoachMode.Answer = (path, body) => CloudSendAsync(bearer, path, body);
+        // Delete a conversation for good, as the session: with the answers, for someone who may use Coach.
+        CoachMode.Delete = path => CloudChangeAsync(bearer, HttpMethod.Delete, path, null);
         // Someone who may use Coach starts tafs: Start a new taf, above Coach.
         ShowNewTaf();
         // Approve, as the iPad's Coach cards, only for someone who may use Coach, and only a session that signs with its passkey.
@@ -1942,6 +1952,9 @@ public sealed partial class MainWindow : Window
     /// taf-setup.json; Coach's from setup-coach.json, coach-chats.json and coach-conversation.json; Connect apps' from
     /// connect-apps.json. With no such file, it reads as not reached.
     /// </summary>
+    /// <summary>A screenshot of Coach's first start (coach-start): <c>/v1/setup</c> reads setup-start.json.</summary>
+    static bool coachStartShown;
+
     static CloudRead ContractRead(Tafs.Core.Words.WordBook w, string homeFile, string path)
     {
         // A taf's whole thread, when there's a stand-in for it; Coach's is read by its conversation's session.
@@ -1953,7 +1966,9 @@ public sealed partial class MainWindow : Window
                 : path.StartsWith(Tafs.Core.Files.DeliveredFiles.ListPath + "?", StringComparison.Ordinal) || path == Tafs.Core.Files.DeliveredFiles.ListPath ? "files-list.json"
                 : path.StartsWith(Tafs.Core.Files.DeliveredFiles.ListPath + "/", StringComparison.Ordinal) ? (path.EndsWith("/download") ? "files-download.json" : "files-file.json")
                 : path == Gallery.Path ? "gallery.json" : path == Gallery.HomePath ? "recipes-home.json"
-                : path.Contains("/activity?") ? "taf-activity.json" : path == "/v1/setup" ? "setup-coach.json"
+                : path.Contains("/activity?") ? "taf-activity.json"
+                // Coach's first start, the Card step (coach-start), else a Coach that exists.
+                : path == "/v1/setup" ? (coachStartShown ? "setup-start.json" : "setup-coach.json")
                 : path.StartsWith("/v1/record/cases/", StringComparison.Ordinal) ? "record-case.json"
                 : path.StartsWith("/v1/record?", StringComparison.Ordinal) ? "record-search.json"
                 : path.StartsWith(Tafs.Core.Missions.Brief.Route, StringComparison.Ordinal) ? "brief.json"

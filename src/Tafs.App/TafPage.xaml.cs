@@ -382,6 +382,25 @@ public sealed partial class TafPage : Page
     /// <summary>Why the last message or Stop didn't go through, under the thread; "You stopped Refunds." once stopped.</summary>
     string? chatNote;
     bool chatNoteIsError;
+
+    /// <summary>The failed run whose Try again was pressed: pressed once, it sends once, and the button goes for that run.</summary>
+    string? failedRetried;
+
+    /// <summary>
+    /// Try again under a failed run's line (tafs cloud's <c>retry</c>), as Android's <c>retryFailed</c>: the person's words for
+    /// that run go again as a new message, once; not tried, the words go back in the box, as any message's do.
+    /// </summary>
+    async void RetryFailed(Tafs.Core.Coach.FailedRetry again)
+    {
+        if (failedRetried == again.Run) return;
+        failedRetried = again.Run;
+        PinNext(again.Text);
+        if (await SendTextAsync(again.Text) is null)
+        {
+            Unpin();
+            if (Draft.Text.Length == 0) Draft.Text = again.Text;
+        }
+    }
     DispatcherTimer chatClock = null!;
     readonly ChatFollow chatFollow = new();
 
@@ -849,6 +868,11 @@ public sealed partial class TafPage : Page
             error.Foreground = Brush("TafsNo");
             ChatPane.Children.Add(error);
         }
+        // A run that ended without an answer: tafs cloud's words, last; Try again only when tafs cloud says it's safe, once. Not
+        // while a run is followed live, nor twice when the live end already said the same words.
+        if (chat?.Failed is { } failed && live is null && chatNote != failed.Words)
+            ChatPane.Children.Add(ChatViews.FailedLine(App.Words, failed,
+                Tafs.Core.Coach.FailedRetry.Of(failed, chat.Messages, failedRetried, sending || chat.Working is not null), Brush, RetryFailed));
         // A switch stopped a task that waited on the owner: tafs cloud's words, and Retry on its message when it's loaded.
         if (switchStopped is { } stopped)
         {

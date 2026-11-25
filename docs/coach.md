@@ -79,6 +79,30 @@ Ported from the iPad's `AppModel.startSetup`, which its Start calls (`SetupChatV
     title and lines), then every group and tool under the step's details, folded at first, or the batch's lines;
   - Start in tafs cloud's word;
   - `does` under it.
+- **The Card step** (as the iPhone's `cardStepScreen`, kiff/tafs#2112, and Android's, #2115), in place of Start's own screen
+  when every one of its lines came in tafs cloud's `start.words` (`FirstStartWords.CardStep`), this PC's button included:
+  - the title, then four lines: what the approval allows, what always waits for the person, how this PC signs
+    (`sign_passkey`: with its passkey, never the phone's line) and how to stop it;
+  - the plain list: each group of Coach's tools, each tool with what it does and its limit a day;
+  - folded under "Exactly what you sign", Coach's Cards in KIFF's own words, as signed;
+  - the box isn't drawn: tafs cloud's `locked` line stands in its place, else the app's own
+    (`coach.tools.write_after`), so it never opens for want of words;
+  - one button with the whole sentence for this PC: `buttons.passkey` ("Approve with your passkey").
+  - **Shown = signed, failing closed** (`CardStepCheck`, a port of the iPhone's): the tools marked `in_draft`, each with its
+    `tool`, `card`, `limit` and `asks`, are compared both ways with the draft the button signs. Each signed Card is read
+    on an allowlist:
+    - its id, `subject` (the draft's own agent) and `domain` (gateway);
+    - `on_exceed` (owner or refuse, with a hold's expiry only on owner);
+    - grants that name an action and nothing else;
+    - exactly one aggregate, a count a calendar day, with a whole limit.
+
+    The tools batch must connect only the step's tools, as Coach's own server at this app's tafs cloud (`{api}/v1/mcp`,
+    `mode: verify`, `control: true`). Anything else, a tool twice, or a limit or `asks` that differs is a mismatch: no
+    button, and "What you're asked to approve changed since it was shown."
+  - **Only what it showed is sent:** at the tap, `/v1/setup` is read again before Windows Hello. If its requests aren't
+    byte for byte the ones shown (`FirstStart.SignsAsShown`), or its list no longer matches, nothing is signed or sent,
+    and the step is drawn again from that read (`StartOutcome.Changed`). A Card step the person never saw is never signed.
+  - Without every line, Start's own screen is as before.
 - **Startable, as the iPad's `startable`:**
   - it's `to_give`;
   - the draft is a `POST` to `/v1/me/agent-drafts`, not for the gateway;
@@ -265,8 +289,19 @@ thread, planque's grants and KIFF's drafts) and asks no server for more; the car
     and why, at the top;
   - **Archived** at the end lists `…/chats/archived`, each reopened with a click or put back with **Put back**
     (`…/unarchive`); not taken: "Not put back." and why;
-  - none: "No conversations yet." or "Nothing archived."; a list unread: "The conversation couldn't be loaded:" and why.
-- **The box,** as the iPad's composer, for someone who may use Coach: "Ask anything about your tafs" ("Write the next
+  - **Delete** (the bin beside each, in both lists) erases a conversation for good, only in tafs cloud's words: each list
+    read's `delete` (`item`, `confirm_title`, `confirm_body`, `confirm_button`, `failed`), kept from the last read that sent
+    them. Any word missing, or an older cloud that sends none: no Delete, and no stand-ins (`ChatDeleteWords`, as the
+    iPhone's). It asks first, by name: tafs cloud's question, the conversation's title, what goes and what stays, its button or
+    Cancel. Then `DELETE …/chats/{session}` (`CoachChats.DeleteAsync`), and tafs cloud decides:
+    - taken, or 404 (not this person's, or already gone): it leaves the list, quietly; the one shown gives way to a new
+      conversation. Gone, what this PC kept goes with it, as the iPhone's and as sign-out does: the files opened from a chat
+      (`%TEMP%\tafs\attachments`) and the last chat export (`%TEMP%\tafs\export`), as far as they can be (a file held open
+      stays until sign-out);
+      conversation;
+    - 409 (its run works or waits on a card): it stays, with the refusal's own words;
+    - anything else, the network included: it stays, with tafs cloud's `failed` line, at the top;
+$1- **The box,** as the iPad's composer, for someone who may use Coach: "Ask anything about your tafs" ("Write the next
   message" while Coach works), and Send; Enter sends; Shift+Enter is a new line.
   - Checked first, as a taf's chat: nothing to send says nothing; past 2000 characters, "That's longer than 2000 characters."
   - Shown at once on the right, then `POST /v1/tafs/{coach}/messages` with `text`, and `session` for the conversation
@@ -277,7 +312,10 @@ thread, planque's grants and KIFF's drafts) and asks no server for more; the car
   - **Not taken:** it stays after the thread as not sent, as a taf's chat does (`docs/taf.md`): "Not sent · why", Edit and
     Retry, with Copy and Delete in its menu. Refused because the account is halted, it offers Resume, which closes Coach mode
     and opens Halt all. Another conversation forgets it.
-- **Words handed to Coach** (`CoachPanel.Write`): Coach opens with them in its box to edit and send, and nothing is sent.
+- **A run that ended without an answer** (the conversation's `failed`, `RunFailed`): tafs cloud's words, in red, as the
+  thread's last line, as in a taf's chat (docs/taf.md). **Try again** under it only when tafs cloud says it's safe
+  (`FailedRetry`).
+$1(`CoachPanel.Write`): Coach opens with them in its box to edit and send, and nothing is sent.
   In a new conversation for a job's Try it with Coach (the iPad's `handRecipeToCoach`), in the one shown for a brief's
   next move (its `startNextMove`).
 - **Signed out,** it's the newest conversation again, with nothing sent or chosen here.
@@ -316,6 +354,13 @@ Ported from the iPad's `ReportAnswerSheet` and `reportable`, `AppModel.canReport
   Only what the step showed is signed (`CoachTools.SignsAsShown`): the read at the tap must ask for the same requests,
   byte for byte, with the same words for Coach's Cards. Otherwise nothing is signed, the step is drawn again from that
   read with "Setup changed this request: see below" above it, and Give asks again.
+  Before Windows Hello too, once tafs cloud marks which tools the draft carries (`in_draft`), those must be exactly what
+  the draft and the batch sign (`CoachTools.DraftSigns`, `BatchSigns`, the Card step's `CardStepCheck`); a mismatch signs
+  nothing, with "What you're asked to approve changed since it was shown."
+- **No typing until they're given** (as the iPhone's `composerLocked`, `CoachTools.LocksBox`): while the tools themselves
+  are still to give (a batch to connect, alone or in the pair), the box is one locked line in tafs cloud's `row` words,
+  else "Coach's tools", which opens the step; the row over it isn't drawn twice. When only Cards for newer tools are
+  missing, typing stays open.
   Windows Hello closed says nothing. A refusal stays in the step, in KIFF's words. tafs cloud's read after says whether
   they're given, and the row goes once they are.
 

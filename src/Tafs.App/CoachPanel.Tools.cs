@@ -29,6 +29,8 @@ public sealed partial class CoachPanel
         var row = GiveTools is null ? null : tools?.Row(App.Words);
         ToolsRow.Content = row ?? "";
         ToolsRow.Visibility = row is null ? Visibility.Collapsed : Visibility.Visible;
+        // The box locks, or opens again, with what's still to give.
+        ShowChatTools();
     }
 
     async void OnToolsRow(object sender, RoutedEventArgs e)

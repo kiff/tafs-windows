@@ -48,7 +48,10 @@ public class CoachToolsTests
             (body, signature) => { Calls.Add($"batch {signature.Value}"); return Task.FromResult(Batch); },
             (body, signature) => { Calls.Add($"draft {signature.Value}"); return Task.FromResult(Draft); },
             body => Task.FromResult(CloudRead.Of(JsonDocument.Parse("{}").RootElement)),
-            () => "2026-11-17T03:00:00.000Z", () => true);
+            () => "2026-11-17T03:00:00.000Z", () => true) { Mcp = Mcp };
+
+        /// <summary>Coach's own control server at the contracts' tafs cloud: the one a batch may connect.</summary>
+        public string Mcp = "https://tafs.test/v1/mcp";
     }
 
     /// <summary>The step as the person read it.</summary>
@@ -155,5 +158,82 @@ public class CoachToolsTests
 
         // What was shown, read again as it was: it signs.
         Assert.True(Shown.SignsAsShown(CoachTools.Read(Setup())!));
+    }
+
+    /// <summary>
+    /// Coach takes no typing until its tools are approved (the iPhone's composerLocked): while the tools themselves are still to
+    /// give, the box is one locked line in tafs cloud's words, else the app's "Coach's tools"; never blank, never open.
+    /// </summary>
+    [Fact]
+    public void While_its_tools_are_to_give_Coach_s_box_is_one_locked_line()
+    {
+        var tools = CoachTools.Read(Setup())!;
+        Assert.True(tools.LocksBox);
+        Assert.Equal("Coach's tools are waiting for you · Give them", tools.LockedLine(En));
+        foreach (var blank in new[] { "", "  " })
+            Assert.Equal("Coach's tools", CoachTools.Read(Setup(change: t => t["coach_tools_step"]!["row"] = blank))!.LockedLine(En));
+        Assert.Equal("Coach's tools", CoachTools.Read(Setup(change: t => t["coach_tools_step"]!.AsObject().Remove("row")))!.LockedLine(En));
+        // Given: the box opens.
+        Assert.False(CoachTools.Read(Setup("given"))!.LocksBox);
+        // From tafs cloud's own Coach read (setup-coach.json), whose tools are to give with a batch: locked too.
+        Assert.True(CoachTools.Read(ContractFile.Answer(SharedFiles.Contract("setup-coach.json")))!.LocksBox);
+    }
+
+    [Fact]
+    public void Only_Cards_for_newer_tools_missing_leaves_typing_open()
+    {
+        // No batch to connect, alone or in the pair: only Cards to approve.
+        var cardsOnly = CoachTools.Read(Setup(change: t =>
+        {
+            var requests = t["requests"]!.AsArray();
+            var draft = requests.Single(r => r!["id"]!.GetValue<string>() == "draft")!.DeepClone();
+            t.Remove("requests");
+            t["card"] = draft;
+        }))!;
+        Assert.True(cardsOnly.ToGive);
+        Assert.Null(cardsOnly.Connect);
+        Assert.Null(cardsOnly.Together);
+        Assert.False(cardsOnly.LocksBox);
+    }
+
+    [Fact]
+    public void The_Card_step_s_locked_line_falls_back_to_the_app_s_own_never_blank()
+    {
+        var words = FirstStart.Read(ContractFile.Answer(SharedFiles.Contract("setup-start.json")))!.Words!;
+        Assert.Equal("Approve this first, then you can write to Coach.", words.LockedLine(En));
+        Assert.Equal("Approve Coach's tools first, then you can write.", (words with { Locked = "" }).LockedLine(En));
+    }
+
+    /// <summary>
+    /// A later approval of Coach's Cards, as the iPhone's draftSigns: the tools tafs cloud marks in this draft must be exactly
+    /// what it signs; a mismatch signs nothing, before Windows Hello.
+    /// </summary>
+    [Fact]
+    public async Task A_later_approval_whose_list_isn_t_its_draft_signs_nothing()
+    {
+        void Tamper(JsonObject t) =>
+            t["requests"]!.AsArray().Single(r => r!["id"]!.GetValue<string>() == "draft")!["body"]!["cards"]![0]!["aggregates"]![0]!["limit"] = 999;
+        var tampered = CoachTools.Read(Setup(change: Tamper))!;
+        Assert.False(tampered.DraftSigns);
+        var stubs = new Stubs();
+        stubs.Reads.Enqueue(Setup(change: Tamper));
+        var given = await CoachToolsGive.GiveAsync(En, stubs.Make(), tampered);
+        Assert.Equal("What you're asked to approve changed since it was shown. Read it again, then approve.", given.Why);
+        Assert.Equal(["read"], stubs.Calls);
+
+        // A batch that connects another server: nothing signed either.
+        var elsewhere = new Stubs { Mcp = "https://elsewhere.example/v1/mcp" };
+        elsewhere.Reads.Enqueue(Setup());
+        Assert.False((await CoachToolsGive.GiveAsync(En, elsewhere.Make(), Shown)).Given);
+        Assert.Equal(["read"], elsewhere.Calls);
+
+        // From a tafs cloud that doesn't mark the step's data, KIFF's own words are what's shown as signed.
+        var unmarked = CoachTools.Read(Setup(change: t =>
+        {
+            foreach (var g in t["coach_tools_step"]!["groups"]!.AsArray())
+                foreach (var tool in g!["tools"]!.AsArray()) tool!.AsObject().Remove("in_draft");
+        }))!;
+        Assert.False(unmarked.MarksDraft);
+        Assert.True(unmarked.DraftSigns);
     }
 }

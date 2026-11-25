@@ -147,6 +147,16 @@
             </StackPanel>
             <TextBlock x:Name="ChatError" FontSize="13" TextWrapping="Wrap" Foreground="{ThemeResource TafsNo}" Visibility="Collapsed" />
           </StackPanel>
+          <!-- Coach's tools still to give: the box is one locked line in tafs cloud's words that opens the step, as the iPhone's
+               lockedComposer. Coach takes no typing until its tools are approved. -->
+          <Button x:Name="ToolsLocked" Grid.Row="3" Margin="0,4,16,12" MinHeight="52" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                  Padding="16,0" Visibility="Collapsed" Click="OnToolsRow" Style="{StaticResource TafsQuietButton}"
+                  Background="{ThemeResource TafsPanel}" AutomationProperties.AutomationId="coach-composer-locked">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <FontIcon Glyph="&#xE72E;" FontSize="13" Foreground="{ThemeResource TafsDim}" AutomationProperties.AccessibilityView="Raw" />
+              <TextBlock x:Name="ToolsLockedText" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{ThemeResource TafsAmberText}" />
+            </StackPanel>
+          </Button>
           <!-- The composer, as the iPad's: "Ask anything about your tafs", and Send in Coach's colour. Ctrl+Enter sends. -->
           <Grid x:Name="CoachComposer" Grid.Row="3" Margin="0,4,16,12" ColumnSpacing="8" RowSpacing="8" Visibility="Collapsed">
             <Grid.ColumnDefinitions>
