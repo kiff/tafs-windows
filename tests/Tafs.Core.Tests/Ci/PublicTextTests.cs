@@ -125,7 +125,7 @@ public partial class PublicTextTests
     [InlineData("🤖 Generated with [Claude Code](https://claude.com/claude-code)")]
     public void Plain_text_passes(string line) => Assert.Null(Problem(line));
 
-    /// <summary>The variable a pull request's text comes in by (.github/workflows/public-text-pr.yml).</summary>
+    /// <summary>The variable a pull request's text comes in by (a pull request job).</summary>
     const string PullRequestText = "TAFS_PUBLIC_TEXT";
 
     /// <summary>
