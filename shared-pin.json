@@ -1,5 +1,5 @@
 {
   "repo": "kiff/tafs",
-  "commit": "c261f6d75c78daea833609ed7465ff54c4841049",
+  "commit": "cb20e8713c63a6424b8a6199ab79a32255ea8d8b",
   "paths": ["app/strings", "contracts", "vectors"]
 }
