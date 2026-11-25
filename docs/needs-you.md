@@ -120,6 +120,11 @@ As the iPad's `HoldAllow`, `AllowSheetView` and `AppModel`'s `openAllow`, `loadA
       cap on the held action or a total moved from its figure before to its figure after, in the same unit (and window
       when named), or one value added to the held action's scope;
     - every other term is the same, and so is a Card marked unchanged.
+    - every key of each of its Cards, as KIFF sent them, is one this check reads (`HoldAllowKeys.Known`), so a term KIFF
+      adds later is never signed unseen. The keys are kiff/tafs' `vectors/agent-draft-keys.json`, by object (a Card, the
+      Card in force, a grant, a per-call cap, a total, a scope, a `quantity_of`), the same on every app, and its cases are
+      this PC's tests over KIFF's own draft (`contracts/kiff-agent-draft-from-hold.json`). A key set to null sets
+      nothing; a Card's `id`, when sent, is the Card it revises; a `quantity_of` says what its `quantity` says.
     - Anything else reads "This change isn't what was offered.", with no button.
   - **"Let this one go out too"**, on unless the offer says. With it off, the sheet says the call still waits for its own
     answer.

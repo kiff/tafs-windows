@@ -9,6 +9,7 @@ the shared repository. This app never copies them by hand and never commits them
   tag) and the paths to read.
 - `dotnet run --project tools/Tafs.Ci -- sync` fetches those paths at that commit into `shared/`
   (ignored by git). It does nothing when `shared/` is already at the pin.
+  It fetches again when a path the pin names is missing, as after a path is added to the pin.
 - **Bumping the pin is one small PR** that changes only `shared-pin.json`. It runs **every part**: new words can
   change any screen, and a pin bump that ran only strings and contracts once left a pairing test red on main.
 
