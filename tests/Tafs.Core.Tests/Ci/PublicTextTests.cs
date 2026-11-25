@@ -35,8 +35,11 @@ public partial class PublicTextTests
         "6ce2da740ecd217f",
     ];
 
-    /// <summary>What a line may never say, names aside: the private issues, a manager's credit, a rule dated by its day.</summary>
-    [GeneratedRegex(@"kiff/work|\bthe PM\b|\bPM's\b|\(PM[ ,):]|\bPM [0-9]{1,2}:[0-9]{2}|\b(review|probe|ask|point|negatives|read) (on|of)( #[0-9]+)?\)|\bowner(?:'s|,) [0-9]{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b")]
+    /// <summary>
+    /// What a line may never say, names aside: the private issues, a manager's credit, a rule dated by its day, or a status
+    /// line's own words (the all-caps hand-off word with an arrow, a board's line).
+    /// </summary>
+    [GeneratedRegex(@"kiff/work|\bthe PM\b|\bPM's\b|\(PM[ ,):]|\bPM [0-9]{1,2}:[0-9]{2}|\b(review|probe|ask|point|negatives|read) (on|of)( #[0-9]+)?\)|\bowner(?:'s|,) [0-9]{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b|\bREADY\s*(?:→|->)|\bBOARD:")]
     private static partial Regex Said();
 
     /// <summary>
@@ -52,7 +55,7 @@ public partial class PublicTextTests
     /// <summary>Why a line can't stay, or null.</summary>
     static string? Problem(string line, bool names = true)
     {
-        if (Said().IsMatch(line)) return "a thread, a manager's credit or a dated rule";
+        if (Said().IsMatch(line)) return "a thread, a manager's credit, a dated rule or a status line";
         // Lowercased first, so a name that starts a sentence, or is written with capitals, is still a name.
         if (names && Word().Matches(line.ToLowerInvariant()).Any(m => Names.Contains(Hash(m.Value)))) return "a team's name for one of its lanes";
         return null;
@@ -84,6 +87,9 @@ public partial class PublicTextTests
     [InlineData("(a review on)")]
     [InlineData("per the read of)")]
     [InlineData("(a read on #12)")]
+    [InlineData("READY → merge")]
+    [InlineData("READY->merge")]
+    [InlineData("BOARD: two open")]
     public void A_thread_a_credit_or_a_date_is_caught(string line) => Assert.NotNull(Problem(line));
 
     [Fact]
@@ -115,7 +121,37 @@ public partial class PublicTextTests
     [InlineData("tafs-linux's table, the same as Windows'")]
     [InlineData("3 PM in the afternoon")]
     [InlineData("tafs cloud's words, read at 4:30 PM")]
+    [InlineData("The page is ready to merge.")]
+    [InlineData("🤖 Generated with [Claude Code](https://claude.com/claude-code)")]
     public void Plain_text_passes(string line) => Assert.Null(Problem(line));
+
+    /// <summary>The variable a pull request's text comes in by (a pull request job).</summary>
+    const string PullRequestText = "TAFS_PUBLIC_TEXT";
+
+    /// <summary>
+    /// A pull request's title, body and reviews are public too. The pull request job passes them in through
+    /// <see cref="PullRequestText"/> and runs only this test; anywhere else the variable is unset and there's nothing to read.
+    /// </summary>
+    [Fact]
+    public void A_pull_requests_text_names_no_lane_thread_manager_or_dated_rule()
+    {
+        var text = Environment.GetEnvironmentVariable(PullRequestText);
+        if (string.IsNullOrEmpty(text)) return;
+        var found = TextProblems(text);
+        Assert.True(found.Count == 0, "This pull request's text needs saying again, as what changed and why:\n" + string.Join("\n", found));
+    }
+
+    static List<string> TextProblems(string text) =>
+        text.Split('\n').Select((line, i) => (line, i)).Where(l => Problem(l.line) is not null)
+            .Select(l => $"line {l.i + 1}: {Problem(l.line)}: {l.line.Trim()}").ToList();
+
+    [Fact]
+    public void A_pull_requests_text_is_read_line_by_line_and_its_footer_passes()
+    {
+        Assert.Empty(TextProblems("Fix the gate\r\nThe gate now waits.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"));
+        var found = TextProblems("Fix the gate\nREADY → merge\n");
+        Assert.Equal("line 2", Assert.Single(found)[..6]);
+    }
 
     static IEnumerable<string> Files(string root)
     {
