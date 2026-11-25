@@ -19,9 +19,11 @@ order and words. The core is `ConnectAppsScreen`; the app's `ConnectAppsPage` on
   - **App:** the name (`name`, else `title`) on one line, soft for an app to set up, the subtitle under it.
   - **How it connects:** `method` where sent, else `how`.
   - **Whose:** tafs cloud's `whose`, as sent.
-  - **Status:** Connected in green, or Sign in again in amber. Under it, "Used by …" from `used_by`, for the person's
+  - **Status:** Connected in green, or Sign in again in amber. The words wrap, never cut. Under it, "Used by …" from `used_by`, for the person's
     own apps only, joined with CLDR's "and" list for the language (`Lists.And`, as the iPad's ListFormatter).
-  - **At the end:** a ✓, or Connect / Sign in again as wide as its words.
+  - **At the end:** a ✓, or Connect / Sign in again as wide as its words. With words in the Status cell (Sign in again, or
+    what to set up), the button goes under them instead (`ConnectAppsScreen.ButtonUnder`): side by side, a button as wide
+    as "Ask Coach" left the words no room and cut them.
   - `needs_setup` shows tafs cloud's `words` and no button.
 - **"Apps connect for a taf. Make one first"** heads Discover, in 13 dim, while no taf can have an app (this PC reads
   no tafs yet), as the iPad says it (`SaysMakeATaf`). It's why Connect is dimmed.

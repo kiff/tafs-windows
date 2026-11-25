@@ -132,7 +132,7 @@ public partial class App : Application
         var startedAt = screenshot is null ? Toasts.Start() : null;
 
         window = new MainWindow(screenshot, Option("--theme"), Option("--page"), options.Contains("--view-only"),
-            options.Contains("--sample"), Option("--home"), Option("--new-version"));
+            options.Contains("--sample"), Option("--home"), Option("--new-version"), Option("--size"));
         WindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(window);
         window.Activate();
         if (startedAt is not null) window.OpenHold(startedAt);

@@ -6,12 +6,9 @@
       xmlns:local="using:Tafs.App"
       Background="{ThemeResource TafsBackground}">
   <ScrollViewer>
-    <!-- Up to 980 wide with its padding of 24, from the leading edge, as on the iPad. -->
+    <local:PageColumn Kind="List">
+    <!-- Up to 980 wide with its padding of 24, centred (PageColumn). -->
     <Grid Padding="24">
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="*" MaxWidth="932" />
-        <ColumnDefinition Width="Auto" />
-      </Grid.ColumnDefinitions>
     <StackPanel Spacing="20">
       <StackPanel Spacing="4">
         <TextBlock x:Name="Heading" FontSize="30" FontWeight="Bold" Foreground="{ThemeResource TafsInk}" />
@@ -112,5 +109,6 @@
       <Frame x:Name="Recipes" Visibility="Collapsed" />
     </StackPanel>
     </Grid>
+    </local:PageColumn>
   </ScrollViewer>
 </Page>

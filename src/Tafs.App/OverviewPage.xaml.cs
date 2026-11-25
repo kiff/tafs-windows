@@ -228,7 +228,8 @@ public sealed partial class OverviewPage : Page
                 VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Style = Look("TafsInkText") };
             // Who uses it, under its name, 12 dim, for whoever manages it, as the iPad's usedBy.
             var usedBy = row.UsedBy is { Length: > 0 } who
-                ? new TextBlock { Text = who, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, Style = Look("TafsDimText") }
+                // Wrapped to a second line rather than cut ("1 person"), as the iPad's wraps; cut only past two lines.
+                ? new TextBlock { Text = who, FontSize = 12, TextWrapping = TextWrapping.Wrap, MaxLines = 2, TextTrimming = TextTrimming.CharacterEllipsis, Style = Look("TafsDimText") }
                 : null;
             if (usedBy is not null) AutomationProperties.SetAutomationId(usedBy, "taf.usedBy");
             if (row.Chips is { Count: > 0 } own)

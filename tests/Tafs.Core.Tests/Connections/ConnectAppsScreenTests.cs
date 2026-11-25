@@ -221,4 +221,16 @@ public class ConnectAppsScreenTests
         // At the least widths (App 200, then 96, 84 and 180, 12 between each) the table still fits; any narrower, rows.
         Assert.Equal(narrow, ConnectAppsScreen.Narrow(width));
     }
+
+    [Theory]
+    // Sign in again with Ask Coach: the words keep their room, the button goes under them.
+    [InlineData("Sign in again", null, "Ask Coach", true)]
+    [InlineData(null, "Needs setting up", "Connect", true)]
+    // A button alone, words alone, or neither: as before, side by side.
+    [InlineData(null, null, "Connect", false)]
+    [InlineData("Connected", null, null, false)]
+    [InlineData("", "", "Connect", false)]
+    [InlineData(null, null, null, false)]
+    public void A_button_goes_under_the_status_words_only_when_both_are_there(string? status, string? setup, string? button, bool under) =>
+        Assert.Equal(under, ConnectAppsScreen.ButtonUnder(status, setup, button));
 }

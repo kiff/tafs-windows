@@ -3,9 +3,11 @@
 <Page x:Class="Tafs.App.UsagePage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:local="using:Tafs.App"
       Background="{ThemeResource TafsBackground}">
   <ScrollViewer>
-    <StackPanel Padding="24,16,24,24" Spacing="16" MaxWidth="1180" HorizontalAlignment="Stretch">
+    <local:PageColumn Kind="Reading">
+    <StackPanel Padding="24,16,24,24" Spacing="16">
       <TextBlock x:Name="NavTitle" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{ThemeResource TafsInk}"
                  AutomationProperties.HeadingLevel="Level1" />
 
@@ -52,5 +54,6 @@
       </Border>
       <StackPanel x:Name="CreditsRows" Spacing="16" />
     </StackPanel>
+    </local:PageColumn>
   </ScrollViewer>
 </Page>

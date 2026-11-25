@@ -51,20 +51,17 @@ public class CodeSignInTests
         Assert.Equal("/v1/me/sign-in", CodeSignIn.Path);
     }
 
-    /// <summary>How tafs works says only what the person can use: Chrome where planque offers it, the code where KIFF can send one.</summary>
+    /// <summary>Each explanation sits beside its action, and only where the person can use it: Chrome where planque offers it, the code where KIFF can send one.</summary>
     [Fact]
-    public void How_tafs_works_shows_chrome_and_the_code_only_where_they_apply()
+    public void Chrome_s_line_and_the_code_s_warning_show_only_where_they_apply()
     {
-        Assert.Empty(HelpSections.Shown(En, chromeOffered: false, codeAvailable: false));
-        var both = HelpSections.Shown(En, chromeOffered: true, codeAvailable: true);
-        Assert.Equal(["chrome", "code"], both.Select(s => s.Id));
-        Assert.Equal("tafs can work in your Chrome", both[0].Title);
-        Assert.Contains("Needs you", both[0].Lead);
-        Assert.Contains("Account › Chrome", both[0].More);
-        Assert.Equal("Sign in with a code sent by email", both[1].Title);
-        Assert.Contains("Account › Sign-in", both[1].Lead);
-        Assert.Equal("Never give this code to anyone. KIFF will never ask you for it.", both[1].More);
-        Assert.Equal(["code"], HelpSections.Shown(En, chromeOffered: false, codeAvailable: true).Select(s => s.Id));
-        Assert.All(both, s => Assert.DoesNotContain("{", s.Lead + s.More));
+        Assert.Null(HelpSections.ChromeLine(En, chromeOffered: false));
+        Assert.Null(HelpSections.CodeLine(En, codeAvailable: false));
+        var chrome = HelpSections.ChromeLine(En, chromeOffered: true);
+        Assert.Contains("Needs you", chrome);
+        Assert.DoesNotContain("{", chrome);
+        // Beside the row, it no longer points to it.
+        Assert.DoesNotContain("Account › Chrome", chrome);
+        Assert.Equal("Never give this code to anyone. KIFF will never ask you for it.", HelpSections.CodeLine(En, codeAvailable: true));
     }
 }
