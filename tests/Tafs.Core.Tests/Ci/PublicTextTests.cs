@@ -39,7 +39,7 @@ public partial class PublicTextTests
     /// What a line may never say, names aside: the private issues, a manager's credit, a rule dated by its day, or a status
     /// line's own words (the all-caps hand-off word with an arrow, a board's line).
     /// </summary>
-    [GeneratedRegex(@"kiff/work|\bthe PM\b|\bPM's\b|\(PM[ ,):]|\bPM [0-9]{1,2}:[0-9]{2}|\b(review|probe|ask|point|negatives|read) (on|of)( #[0-9]+)?\)|\bowner(?:'s|,) [0-9]{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b|\bREADY\s*(?:→|->)|\bBOARD:")]
+    [GeneratedRegex(@"kiff/work|\b(?i:the) PM\b|\bPM's\b|\(PM[ ,):]|\bPM,? [0-9]{1,2}:[0-9]{2}|(?<![0-9] )\bPM:|\b(review|probe|ask|point|negatives|read) (on|of)( #[0-9]+)?\)|\bowner(?:'s|,) [0-9]{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b|\bREADY\s*(?:→|->)|\bBOARD:")]
     private static partial Regex Said();
 
     /// <summary>
@@ -90,6 +90,9 @@ public partial class PublicTextTests
     [InlineData("READY → merge")]
     [InlineData("READY->merge")]
     [InlineData("BOARD: two open")]
+    [InlineData("The PM said so")]
+    [InlineData("PM: merge it")]
+    [InlineData("PM, 16:03 Paris")]
     public void A_thread_a_credit_or_a_date_is_caught(string line) => Assert.NotNull(Problem(line));
 
     [Fact]
@@ -122,10 +125,11 @@ public partial class PublicTextTests
     [InlineData("3 PM in the afternoon")]
     [InlineData("tafs cloud's words, read at 4:30 PM")]
     [InlineData("The page is ready to merge.")]
+    [InlineData("doors open at 4:30 PM: bring a badge")]
     [InlineData("🤖 Generated with [Claude Code](https://claude.com/claude-code)")]
     public void Plain_text_passes(string line) => Assert.Null(Problem(line));
 
-    /// <summary>The variable a pull request's text comes in by (a pull request job).</summary>
+    /// <summary>The variable a pull request's text comes in by (.github/workflows/public-text-pr.yml).</summary>
     const string PullRequestText = "TAFS_PUBLIC_TEXT";
 
     /// <summary>
