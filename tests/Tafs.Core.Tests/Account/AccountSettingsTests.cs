@@ -48,14 +48,14 @@ public class AccountSettingsTests
             var turn = cases.First(c => c.Status == 403);
             var refused = CloudRead.Refused(en, turn.Status, turn.Body.GetRawText());
             Assert.True(refused.AsksConsent);
-            Assert.Equal(("1", "Your data and the AI"), (refused.Consent!.Version, refused.Consent.Words.Title));
+            Assert.Equal(("2", "Your data and the AI"), (refused.Consent!.Version, refused.Consent.Words.Title));
             Assert.Equal("Allow AI use first: Coach and your tafs need it to answer.", refused.Why);
             Assert.Equal(new Refusal(refused.Why!, null, Consent: true, Status: 403), Refusal.Of(refused, "x"));
-            Assert.Equal("1", Assert.Single(asked, c => c == refused.Consent).Version);
+            Assert.Equal("2", Assert.Single(asked, c => c == refused.Consent).Version);
 
             var older = cases.First(c => c.Status == 409);
             var newer = CloudRead.Refused(en, older.Status, older.Body.GetRawText());
-            Assert.Equal("1", newer.Consent?.Version);
+            Assert.Equal("2", newer.Consent?.Version);
             Assert.False(newer.AsksConsent);
             Assert.DoesNotContain(newer.Consent, asked);
 
