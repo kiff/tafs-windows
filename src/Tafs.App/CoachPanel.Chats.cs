@@ -171,6 +171,10 @@ public sealed partial class CoachPanel
                 HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(48, 0, 0, 0),
                 Children = { ChatViews.OwnerBubble(m.Text, Brush) },
             }, m.Text));
+        // A run that ended without an answer: tafs cloud's words, last; Try again only when tafs cloud says it's safe, once.
+        if (thread?.Failed is { } failed && coachSent.Count == 0)
+            ThreadItems.Children.Add(ChatViews.FailedLine(App.Words, failed,
+                FailedRetry.Of(failed, thread.Messages, coachFailedRetried, coachSending || CoachBusy), Brush, RetryCoachFailed));
         // How the last run ended, when the person stopped it, as the iPad's ended: "Stopped", until the next message.
         if (coachStopped && thread?.Working is null)
             ThreadItems.Children.Add(Words(App.Words.Get("taf.state.stopped"), 13, "TafsDimText"));
@@ -415,6 +419,25 @@ public sealed partial class CoachPanel
         }
         await LoadThreadAsync();
         return true;
+    }
+
+    /// <summary>The failed run whose Try again was pressed: pressed once, it sends once, and the button goes for that run.</summary>
+    string? coachFailedRetried;
+
+    /// <summary>
+    /// Try again under a failed run's line (tafs cloud's <c>retry</c>), as Android's <c>retryFailed</c>: the person's words for
+    /// that run go to Coach again as a new message, once; not tried, the words go back in the box, as any message's do.
+    /// </summary>
+    async void RetryCoachFailed(FailedRetry again)
+    {
+        if (coachFailedRetried == again.Run) return;
+        coachFailedRetried = again.Run;
+        Pinner.Next(again.Text);
+        if (await SendCoachAsync(again.Text) is null)
+        {
+            Pinner.Clear();
+            if (CoachDraft.Text.Length == 0) CoachDraft.Text = again.Text;
+        }
     }
 
     bool coachStopping;
@@ -692,7 +715,9 @@ public sealed partial class CoachPanel
         ChatsBack.Focus(FocusState.Programmatic);
         ChatsItems.Children.Clear();
         ChatsItems.Children.Add(new ProgressRing { IsActive = true, Width = 20, Height = 20, Margin = new Thickness(0, 20, 0, 0) });
-        var (rows, unread) = await CoachChats.ReadAsync(w, archived ? CoachChats.ArchivedPath(id) : CoachChats.ListPath(id), reader);
+        var (rows, unread, deleteSaid) = await CoachChats.ReadAsync(w, archived ? CoachChats.ArchivedPath(id) : CoachChats.ListPath(id), reader);
+        // Delete's words, kept from the last read that sent them, so its failed line is on hand when the network isn't.
+        if (deleteSaid is not null) deleteWords = deleteSaid;
         if (gen != generation || showingArchived != archived || ChatsView.Visibility != Visibility.Visible) return;
         ChatsItems.Children.Clear();
         if ((why ?? unread) is { } said) ChatsItems.Children.Add(Words(said, 13, "TafsNoText"));
@@ -756,19 +781,74 @@ public sealed partial class CoachPanel
                 var why = archived ? await CoachChats.PutBackAsync(w, id, row.Session, send) : await CoachChats.ArchiveAsync(w, id, row.Session, send);
                 if (gen != generation) return;
                 // The one shown, archived, gives way to a new conversation, as the iPad's.
-                if (why is null && !archived && row.Session == session)
-                {
-                    conversationGen++;
-                    (conversation, session, thread, drawnOrder) = (CoachConversation.New, null, null, null);
-                    coachSent.Clear();
-                    coachUnsent.Clear();
-                    coachQueued = null;
-                }
+                if (why is null && !archived && row.Session == session) ForgetShownConversation();
                 await ShowChatsAsync(archived, why);
             };
             grid.Children.Add(act);
         }
+        // Delete, only in tafs cloud's words: the item shows once a list read has sent them.
+        if (Delete is { } delete && deleteWords is { } said)
+        {
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var bin = new Button
+            {
+                Content = new FontIcon { Glyph = "E74D", FontSize = 14 }, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center,
+                Foreground = Brush("TafsSoft"), Style = (Style)Application.Current.Resources["TafsQuietButton"],
+            };
+            ToolTipService.SetToolTip(bin, said.Item);
+            AutomationProperties.SetName(bin, $"{said.Item}: {row.Title}");
+            AutomationProperties.SetAutomationId(bin, "chats.delete");
+            Grid.SetColumn(bin, 2);
+            bin.Click += async (_, _) =>
+            {
+                if (!await ConfirmDeleteAsync(said, row.Title)) return;
+                bin.IsEnabled = false;
+                var gen = generation;
+                var done = await CoachChats.DeleteAsync(w, said, id, row.Session, delete);
+                if (gen != generation) return;
+                if (done.Gone && row.Session == session) ForgetShownConversation();
+                await ShowChatsAsync(archived, done.Why);
+            };
+            grid.Children.Add(bin);
+        }
         return grid;
+    }
+
+    /// <summary>tafs cloud's Delete words, from the last list read that sent them; none until one does.</summary>
+    ChatDeleteWords? deleteWords;
+
+    /// <summary>
+    /// How the panel deletes a conversation for good (<c>DELETE</c>, as the session): only for someone who may use Coach; none
+    /// for the sample. Without it, or without tafs cloud's words, there's no Delete.
+    /// </summary>
+    public Func<string, Task<CloudRead>>? Delete { get; set; }
+
+    /// <summary>The conversation shown, archived or deleted, gives way to a new one, as the iPad's.</summary>
+    void ForgetShownConversation()
+    {
+        conversationGen++;
+        (conversation, session, thread, drawnOrder) = (CoachConversation.New, null, null, null);
+        coachSent.Clear();
+        coachUnsent.Clear();
+        coachQueued = null;
+    }
+
+    /// <summary>
+    /// Delete's question, by name, in tafs cloud's words: its title, the conversation's, what goes and what stays, then its
+    /// button or Cancel. Nothing is deleted before this yes.
+    /// </summary>
+    async Task<bool> ConfirmDeleteAsync(ChatDeleteWords said, string title)
+    {
+        var body = new StackPanel { Spacing = 8 };
+        var name = new TextBlock { Text = title, TextWrapping = TextWrapping.Wrap, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+        body.Children.Add(name);
+        body.Children.Add(new TextBlock { Text = said.ConfirmBody, TextWrapping = TextWrapping.Wrap });
+        var ask = new ContentDialog
+        {
+            XamlRoot = XamlRoot, Title = said.ConfirmTitle, Content = body,
+            PrimaryButtonText = said.ConfirmButton, CloseButtonText = App.Words.Get("common.cancel"), DefaultButton = ContentDialogButton.Close,
+        };
+        return await ask.ShowAsync() == ContentDialogResult.Primary;
     }
 
     /// <summary>"Archive this conversation?", and what it does, as the iPad's confirmation: Archive or Cancel.</summary>

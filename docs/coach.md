@@ -265,8 +265,16 @@ thread, planque's grants and KIFF's drafts) and asks no server for more; the car
     and why, at the top;
   - **Archived** at the end lists `…/chats/archived`, each reopened with a click or put back with **Put back**
     (`…/unarchive`); not taken: "Not put back." and why;
-  - none: "No conversations yet." or "Nothing archived."; a list unread: "The conversation couldn't be loaded:" and why.
-- **The box,** as the iPad's composer, for someone who may use Coach: "Ask anything about your tafs" ("Write the next
+  - **Delete** (the bin beside each, in both lists) erases a conversation for good, only in tafs cloud's words: each list
+    read's `delete` (`item`, `confirm_title`, `confirm_body`, `confirm_button`, `failed`), kept from the last read that sent
+    them. Any word missing, or an older cloud that sends none: no Delete, and no stand-ins (`ChatDeleteWords`, as the
+    iPhone's). It asks first, by name: tafs cloud's question, the conversation's title, what goes and what stays, its button or
+    Cancel. Then `DELETE …/chats/{session}` (`CoachChats.DeleteAsync`), and tafs cloud decides:
+    - taken, or 404 (not this person's, or already gone): it leaves the list, quietly; the one shown gives way to a new
+      conversation;
+    - 409 (its run works or waits on a card): it stays, with the refusal's own words;
+    - anything else, the network included: it stays, with tafs cloud's `failed` line, at the top;
+$1- **The box,** as the iPad's composer, for someone who may use Coach: "Ask anything about your tafs" ("Write the next
   message" while Coach works), and Send; Enter sends; Shift+Enter is a new line.
   - Checked first, as a taf's chat: nothing to send says nothing; past 2000 characters, "That's longer than 2000 characters."
   - Shown at once on the right, then `POST /v1/tafs/{coach}/messages` with `text`, and `session` for the conversation
@@ -277,7 +285,10 @@ thread, planque's grants and KIFF's drafts) and asks no server for more; the car
   - **Not taken:** it stays after the thread as not sent, as a taf's chat does (`docs/taf.md`): "Not sent · why", Edit and
     Retry, with Copy and Delete in its menu. Refused because the account is halted, it offers Resume, which closes Coach mode
     and opens Halt all. Another conversation forgets it.
-- **Words handed to Coach** (`CoachPanel.Write`): Coach opens with them in its box to edit and send, and nothing is sent.
+- **A run that ended without an answer** (the conversation's `failed`, `RunFailed`): tafs cloud's words, in red, as the
+  thread's last line, as in a taf's chat (docs/taf.md). **Try again** under it only when tafs cloud says it's safe
+  (`FailedRetry`).
+$1(`CoachPanel.Write`): Coach opens with them in its box to edit and send, and nothing is sent.
   In a new conversation for a job's Try it with Coach (the iPad's `handRecipeToCoach`), in the one shown for a brief's
   next move (its `startNextMove`).
 - **Signed out,** it's the newest conversation again, with nothing sent or chosen here.

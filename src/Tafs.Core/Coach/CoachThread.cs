@@ -129,9 +129,10 @@ public sealed record ThreadItem(ChatMessage? Message, ShownCard? Card)
 /// <summary>Coach's thread, as tafs cloud answers <c>…/conversation</c>: its messages, its cards, its lines, and the session at work.</summary>
 /// <param name="WorkingRun">The run at work (<c>working.run</c>): a message written now goes to it (<see cref="Taf.TafSteer"/>).</param>
 /// <param name="Steering">What the thread says of messages written while it works.</param>
+/// <param name="Failed">The last run, when it ended without an answer: tafs cloud's words, and whether Try again is safe (<see cref="RunFailed"/>).</param>
 public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyList<CoachLine> Lines, string? Working,
     IReadOnlyList<ShownCard>? Cards = null, string? WorkingRun = null, Taf.Steering? Steering = null,
-    IReadOnlyList<AskCoachCard>? AskCoachCards = null, IReadOnlyList<LoopCard>? LoopCardList = null)
+    IReadOnlyList<AskCoachCard>? AskCoachCards = null, IReadOnlyList<LoopCard>? LoopCardList = null, RunFailed? Failed = null)
 {
     /// <summary>The loop cards a run waits on in this chat, in the thread's order; none from a thread without them.</summary>
     public IReadOnlyList<LoopCard> LoopCards => LoopCardList ?? [];
@@ -164,7 +165,7 @@ public sealed record CoachThread(IReadOnlyList<ChatMessage> Messages, IReadOnlyL
         // A card the app can't read is left out, never the thread with it.
         var cards = ShownCard.Fold(Lenient.Array(answer, "components").Select(ShownCard.Read).OfType<ShownCard>());
         return new(messages, lines, Lenient.Text(Lenient.Field(answer, "working") ?? default, "session"), cards,
-            Taf.TafSteer.WorkingRun(answer), Taf.TafSteer.Read(answer), AskCoachRead(answer), LoopRead(answer));
+            Taf.TafSteer.WorkingRun(answer), Taf.TafSteer.Read(answer), AskCoachRead(answer), LoopRead(answer), RunFailed.Read(answer));
     }
 
     /// <summary>

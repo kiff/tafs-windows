@@ -51,12 +51,16 @@ public static class CoachChats
         TimeZoneInfo.ConvertTime(at, zone).ToString("d MMM yyyy, HH:mm",
             Tafs.Core.Words.Locale.Culture(w.Language));
 
-    /// <summary>A list read: its rows, else why it couldn't be read ("The conversation couldn't be loaded:" and why).</summary>
-    public static async Task<(IReadOnlyList<CoachChatRow>? Rows, string? Why)> ReadAsync(WordBook w, string path, Func<string, Task<CloudRead>> read)
+    /// <summary>
+    /// A list read: its rows and tafs cloud's Delete words (<see cref="ChatDeleteWords"/>, none from a cloud that sends
+    /// none), else why it couldn't be read ("The conversation couldn't be loaded:" and why).
+    /// </summary>
+    public static async Task<(IReadOnlyList<CoachChatRow>? Rows, string? Why, ChatDeleteWords? Delete)> ReadAsync(WordBook w, string path,
+        Func<string, Task<CloudRead>> read)
     {
         var r = await read(path);
-        if (r.Answer is { } a && Read(a) is { } rows) return (rows, null);
-        return (null, w.Get("coach.conversation_not_loaded", ("why", r.Answer is null ? r.Why ?? w.Get("error.offline") : w.Get("error.ours"))));
+        if (r.Answer is { } a && Read(a) is { } rows) return (rows, null, ChatDeleteWords.Read(a));
+        return (null, w.Get("coach.conversation_not_loaded", ("why", r.Answer is null ? r.Why ?? w.Get("error.offline") : w.Get("error.ours"))), null);
     }
 
     /// <summary>Archive: tafs cloud leaves it out of the list from then on. Not taken: "Not archived." and why.</summary>
@@ -71,8 +75,45 @@ public static class CoachChats
     static string? Why(WordBook w, CloudRead r, string withWhy, string without) =>
         r.Answer is { } a && Lenient.Field(a, "archived") is { ValueKind: JsonValueKind.True or JsonValueKind.False } ? null
         : r.Answer is null && r.Why is { } why ? w.Get(withWhy, ("why", why)) : w.Get(without);
+
+    /// <summary>A conversation deleted for good: <c>DELETE /v1/tafs/{coach}/chats/{session}</c>.</summary>
+    public static string DeletePath(string coach, string session) => $"{ListPath(coach)}/{CloudRead.PathPart(session)}";
+
+    /// <summary>
+    /// Delete, as the iPhone's <c>deleteSetupChat</c> and Android's <c>deleteCoachChat</c>: tafs cloud decides, the app follows
+    /// its answer. Taken (2xx): it leaves the lists. 404, not this person's or already gone: it leaves them too, with nothing
+    /// said. 409, its run works or waits on a card: it stays, with the refusal's own words. Any other failure, the network's
+    /// included: it stays, with tafs cloud's <c>failed</c> line.
+    /// </summary>
+    public static async Task<ChatDeleted> DeleteAsync(WordBook w, ChatDeleteWords words, string coach, string session,
+        Func<string, Task<CloudRead>> delete)
+    {
+        var r = await delete(DeletePath(coach, session));
+        if (r.Answer is not null || r.Status is >= 200 and <= 299) return new(true, null);
+        if (r.Status == 404) return new(true, null);
+        if (r.Status == 409 && r.Why is { Length: > 0 } why && why != w.Get("error.cloud_answered", ("status", "409"))) return new(false, why);
+        return new(false, words.Failed);
+    }
 }
 
+/// <summary>What a delete did: <see cref="Gone"/> when it left the lists; else why it stays.</summary>
+public sealed record ChatDeleted(bool Gone, string? Why);
+
+/// <summary>
+/// Delete's words, tafs cloud's (each chats-list read's <c>delete</c>): the item, the question by name, what goes and what stays,
+/// its button, and the line when it wasn't deleted. All of them, or none: Delete shows only in tafs cloud's words, as the
+/// iPhone's, with no stand-ins.
+/// </summary>
+public sealed record ChatDeleteWords(string Item, string ConfirmTitle, string ConfirmBody, string ConfirmButton, string Failed)
+{
+    public static ChatDeleteWords? Read(JsonElement answer)
+    {
+        if (Lenient.Field(answer, "delete") is not { ValueKind: JsonValueKind.Object } d) return null;
+        string? T(string key) => Lenient.Text(d, key)?.Trim() is { Length: > 0 } t ? t : null;
+        return T("item") is { } item && T("confirm_title") is { } title && T("confirm_body") is { } body
+            && T("confirm_button") is { } button && T("failed") is { } failed ? new(item, title, body, button, failed) : null;
+    }
+}
 /// <summary>
 /// A message to Coach, as the iPad's <c>deliverSetupOnce</c> without a stream: into the conversation shown, or a new one
 /// (<c>new_chat</c>); a conversation that already handed a taf over goes on in a new one (<c>new_chat_after_handover</c>),

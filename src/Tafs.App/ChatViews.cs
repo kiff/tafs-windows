@@ -54,6 +54,30 @@ static class ChatViews
     };
 
     /// <summary>
+    /// A run that ended without an answer, as Android's failed line: tafs cloud's words in red as the chat's last line, and
+    /// Try again under it only when <paramref name="again"/> says so (<see cref="FailedRetry.Of"/>: tafs cloud's <c>retry</c>),
+    /// in its words, else the app's Retry. Pressed, it goes at once, so a second click finds nothing.
+    /// </summary>
+    public static StackPanel FailedLine(Tafs.Core.Words.WordBook w, RunFailed failed, FailedRetry? again, Func<string, Brush> brush,
+        Action<FailedRetry> retry)
+    {
+        var box = new StackPanel { Spacing = 6 };
+        var words = new TextBlock { Text = failed.Words, FontSize = 13, Foreground = brush("TafsNo"), TextWrapping = TextWrapping.Wrap,
+            IsTextSelectionEnabled = true };
+        AutomationProperties.SetAutomationId(words, "chat.failed");
+        box.Children.Add(words);
+        if (again is not null)
+        {
+            var button = new HyperlinkButton { Content = again.Label ?? w.Get("chat.retry"), FontSize = 14, Padding = new Thickness(0),
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = brush("TafsInk") };
+            AutomationProperties.SetAutomationId(button, "chat.failed.retry");
+            button.Click += (_, _) => { box.Children.Remove(button); retry(again); };
+            box.Children.Add(button);
+        }
+        return box;
+    }
+
+    /// <summary>
     /// A message that wasn't taken, kept where it was written, as the iPad's <c>UnsentBubble</c>: the person's bubble faded,
     /// "Not sent · why" in red under it, then Edit (its words back in the box) and Retry (sent again once). Copy and Delete
     /// in its menu. Narrator reads it as one line, with Retry and Edit as its actions' buttons.

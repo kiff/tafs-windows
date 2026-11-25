@@ -1349,6 +1349,7 @@ public sealed partial class MainWindow : Window
         ShowHome(new HomeAnswer([], null));
         CoachMode.Read = null;
         CoachMode.Answer = null;
+        CoachMode.Delete = null;
         ShowNewTaf();
         (manage, capabilities, accountHalt, haltSend, cloudSend, cloudStream, cloudChange) = (null, null, Halt.Running, null, null, null, null);
         usedBy.Clear();
@@ -1533,6 +1534,8 @@ public sealed partial class MainWindow : Window
         mayUseCoach = Tafs.Core.Coach.CoachAccess.MayUseCoach(setup, setup is null ? capabilities : null);
         if (!mayUseCoach) return;
         CoachMode.Answer = (path, body) => CloudSendAsync(bearer, path, body);
+        // Delete a conversation for good, as the session: with the answers, for someone who may use Coach.
+        CoachMode.Delete = path => CloudChangeAsync(bearer, HttpMethod.Delete, path, null);
         // Someone who may use Coach starts tafs: Start a new taf, above Coach.
         ShowNewTaf();
         // Approve, as the iPad's Coach cards, only for someone who may use Coach, and only a session that signs with its passkey.
