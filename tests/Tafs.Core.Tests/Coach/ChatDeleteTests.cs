@@ -61,6 +61,35 @@ public class ChatDeleteTests
         Assert.Equal(new ChatDeleted(true, null), await Delete(CloudRead.Refused(En, 204, "")));
     }
 
+    /// <summary>Gone, the files opened from a chat and the last export go from this PC too; kept, they stay.</summary>
+    [Fact]
+    public async Task Gone_what_this_PC_kept_goes_with_it_and_kept_it_stays()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "tafs-delete-test-" + Guid.NewGuid().ToString("N"));
+        var opened = Path.Combine(root, "attachments");
+        var export = Path.Combine(root, "export");
+        try
+        {
+            foreach (var folder in new[] { opened, export })
+            {
+                Directory.CreateDirectory(folder);
+                File.WriteAllText(Path.Combine(folder, "a.txt"), "words");
+            }
+            Task<ChatDeleted> Ask(CloudRead answer) => CoachChats.DeleteAsync(En, Said(), "c", "s", _ => Task.FromResult(answer), [opened, export]);
+
+            Assert.False((await Ask(CloudRead.Refused(En, 409, """{"error": "It's still working."}"""))).Gone);
+            Assert.False((await Ask(CloudRead.Unreached(En))).Gone);
+            Assert.True(File.Exists(Path.Combine(opened, "a.txt")) && File.Exists(Path.Combine(export, "a.txt")));
+
+            Assert.True((await Ask(CloudRead.Refused(En, 404, ""))).Gone);
+            Assert.False(Directory.Exists(opened));
+            Assert.False(Directory.Exists(export));
+            // Nothing there is fine.
+            Assert.True((await Ask(CloudRead.Of(JsonDocument.Parse("{}").RootElement))).Gone);
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, recursive: true); }
+    }
+
     [Fact]
     public async Task Not_this_person_s_or_already_gone_leaves_quietly() =>
         Assert.Equal(new ChatDeleted(true, null), await Delete(CloudRead.Refused(En, 404, """{"error": "not found"}""")));

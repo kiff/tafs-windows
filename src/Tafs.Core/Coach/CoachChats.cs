@@ -83,14 +83,19 @@ public static class CoachChats
     /// Delete, as the iPhone's <c>deleteSetupChat</c> and Android's <c>deleteCoachChat</c>: tafs cloud decides, the app follows
     /// its answer. Taken (2xx): it leaves the lists. 404, not this person's or already gone: it leaves them too, with nothing
     /// said. 409, its run works or waits on a card: it stays, with the refusal's own words. Any other failure, the network's
-    /// included: it stays, with tafs cloud's <c>failed</c> line.
+    /// included: it stays, with tafs cloud's <c>failed</c> line. Gone, what this PC kept of it goes too, as the iPhone's
+    /// delete and as sign-out does: <paramref name="kept"/>, the folders of files opened from a chat and of the last chat
+    /// export, each emptied as far as it can be (a file held open stays until sign-out).
     /// </summary>
     public static async Task<ChatDeleted> DeleteAsync(WordBook w, ChatDeleteWords words, string coach, string session,
-        Func<string, Task<CloudRead>> delete)
+        Func<string, Task<CloudRead>> delete, IReadOnlyList<string>? kept = null)
     {
         var r = await delete(DeletePath(coach, session));
-        if (r.Answer is not null || r.Status is >= 200 and <= 299) return new(true, null);
-        if (r.Status == 404) return new(true, null);
+        if (r.Answer is not null || r.Status is >= 200 and <= 299 || r.Status == 404)
+        {
+            foreach (var folder in kept ?? []) Account.ChatsExport.Remove(folder);
+            return new(true, null);
+        }
         if (r.Status == 409 && r.Why is { Length: > 0 } why && why != w.Get("error.cloud_answered", ("status", "409"))) return new(false, why);
         return new(false, words.Failed);
     }

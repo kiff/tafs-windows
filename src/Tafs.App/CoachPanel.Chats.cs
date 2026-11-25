@@ -804,7 +804,9 @@ public sealed partial class CoachPanel
                 if (!await ConfirmDeleteAsync(said, row.Title)) return;
                 bin.IsEnabled = false;
                 var gen = generation;
-                var done = await CoachChats.DeleteAsync(w, said, id, row.Session, delete);
+                // Gone, the files opened from a chat and the last chat export go with it, as at sign-out.
+                var done = await CoachChats.DeleteAsync(w, said, id, row.Session, delete,
+                    [AttachTray.Folder, global::Tafs.Core.Account.ChatsExport.Folder]);
                 if (gen != generation) return;
                 if (done.Gone && row.Session == session) ForgetShownConversation();
                 await ShowChatsAsync(archived, done.Why);

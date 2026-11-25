@@ -271,6 +271,9 @@ thread, planque's grants and KIFF's drafts) and asks no server for more; the car
     iPhone's). It asks first, by name: tafs cloud's question, the conversation's title, what goes and what stays, its button or
     Cancel. Then `DELETE …/chats/{session}` (`CoachChats.DeleteAsync`), and tafs cloud decides:
     - taken, or 404 (not this person's, or already gone): it leaves the list, quietly; the one shown gives way to a new
+      conversation. Gone, what this PC kept goes with it, as the iPhone's and as sign-out does: the files opened from a chat
+      (`%TEMP%\tafs\attachments`) and the last chat export (`%TEMP%\tafs\export`), as far as they can be (a file held open
+      stays until sign-out);
       conversation;
     - 409 (its run works or waits on a card): it stays, with the refusal's own words;
     - anything else, the network included: it stays, with tafs cloud's `failed` line, at the top;
