@@ -100,6 +100,67 @@ public class KiffHeldTests
         Assert.Equal(new DateTimeOffset(2026, 10, 19, 19, 10, 0, TimeSpan.Zero), KiffHeld.ToHeldCall(En, odd, "s", 0).ExpiresAt);
     }
 
+    /// <summary>
+    /// A held call's arguments under Details, every case of contracts/held-arguments.json: the lines every app writes,
+    /// exactly. Nothing is ever shortened to "…" (red-team, 27 Nov: a held browse_act's steps showed as "steps: …").
+    /// </summary>
+    [Fact]
+    public void A_held_calls_arguments_are_the_contracts_lines_exactly()
+    {
+        var file = JsonDocument.Parse(File.ReadAllText(SharedFiles.Contract("held-arguments.json"))).RootElement;
+        foreach (var c in file.GetProperty("cases").EnumerateArray())
+        {
+            var held = $$"""{"exceptions":[{"id":"ce_c","subject":"a","action":"x","entity_id":"e","status":"held","breaches":[],"created_at":"2026-11-27T16:00:00Z","arguments":{{c.GetProperty("arguments").GetRawText()}}}]}""";
+            var want = c.GetProperty("lines").EnumerateArray().Select(x => x.GetString()!).ToList();
+            Assert.Equal(want, KiffHeld.Details(One(held)));
+        }
+    }
+
+    /// <summary>
+    /// Case 7: a number whose plain form would pass 100 digits is written as sent, byte for byte, at once (a taf's
+    /// 1e999999999 is never a billion zeros), and anything shorter is written out from its own text, nothing rounded.
+    /// </summary>
+    [Fact]
+    public void A_number_past_a_hundred_digits_is_written_as_sent()
+    {
+        Assert.Equal("1" + new string('0', 99), KiffHeld.PlainLiteral("1e99"));
+        Assert.Equal("0." + new string('0', 98) + "1", KiffHeld.PlainLiteral("1e-99"));
+        Assert.Equal("0." + new string('0', 98) + "1", KiffHeld.PlainLiteral("1.000e-99"));
+        Assert.Equal("1234567890" + new string('0', 90), KiffHeld.PlainLiteral("1234567890e90"));
+        foreach (var sent in new[] { "1e100", "1e-100", "1e400", "1e-400", "-1E+400", "1e999999999", "-2.5E+999999999",
+                     "1000e2147483647", "1e99999999999999999999", "1234567890e91" })
+            Assert.Equal(sent, KiffHeld.PlainLiteral(sent));
+        // Zero however it's sent, and digits past any decimal type kept whole.
+        Assert.Equal("0", KiffHeld.PlainLiteral("0e500"));
+        Assert.Equal("0", KiffHeld.PlainLiteral("0e99999999999999999999"));
+        Assert.Equal("0", KiffHeld.PlainLiteral("-0.0"));
+        Assert.Equal("0.1234567890123456789012345678901234", KiffHeld.PlainLiteral("0.12345678901234567890123456789012340"));
+        Assert.Equal("1.5", KiffHeld.PlainLiteral("1.50"));
+        Assert.Equal("1000", KiffHeld.PlainLiteral("1E+3"));
+        Assert.Equal("-0.5", KiffHeld.PlainLiteral("-0.5"));
+    }
+
+    /// <summary>
+    /// A number out of a double's range in one call's arguments (a taf's <c>1e400</c>) never fails the held list: every call
+    /// is still listed, and Details writes it as sent.
+    /// </summary>
+    [Fact]
+    public void A_number_out_of_a_doubles_range_never_empties_the_held_list()
+    {
+        const string held = """{"exceptions":[{"id":"ce_a","subject":"a","action":"x","entity_id":"e","status":"held","breaches":[],"created_at":"2026-11-27T16:00:00Z","arguments":{"huge":1e400,"small":-1e-400,"amount":2550,"rate":1.5e-05}},{"id":"ce_b","subject":"b","action":"y","entity_id":"f","status":"held","breaches":[],"created_at":"2026-11-27T16:00:00Z"}]}""";
+        var list = KiffHeld.Read(JsonDocument.Parse(held).RootElement)!;
+        Assert.Equal(["ce_a", "ce_b"], list.Select(h => h.Id));
+        Assert.Equal(["amount: 2550", "huge: 1e400", "rate: 0.000015", "small: -1e-400"], KiffHeld.Details(list[0]));
+    }
+
+    /// <summary>A key sent twice shows the last, which is what runs, at the top and nested; the read never fails on it.</summary>
+    [Fact]
+    public void A_key_sent_twice_shows_the_last()
+    {
+        var held = """{"exceptions":[{"id":"ce_c","subject":"a","action":"x","entity_id":"e","status":"held","breaches":[],"created_at":"2026-11-27T16:00:00Z","arguments":{"to":"first","to":"last","n":{"a":1,"a":2}}}]}""";
+        Assert.Equal(["n:", "  a: 2", "to: last"], KiffHeld.Details(One(held)));
+    }
+
     /// <summary>The iPad's testADecimalArgumentIsWrittenPlainly: never in exponent form.</summary>
     [Fact]
     public void A_decimal_argument_is_written_plainly()
