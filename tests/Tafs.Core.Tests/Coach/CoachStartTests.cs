@@ -388,7 +388,10 @@ public class CoachStartTests
         Assert.Equal(("Coach's Card", "KIFF's line for coach-reads"), (first.Draft.CardTitle, first.Draft.Cards[0].Lines[0]));
         Assert.Equal(("Watch your tafs", "See your tafs"), (first.Groups[0].Name, first.Groups[0].Tools[0].Name));
         Assert.Equal("Each tool and its limits", first.Details);
-        Assert.Equal(("Start gives Coach the tools below. You approve them on this device.", "Start", ""), (first.Words!.Lead, first.Words.Start, first.Words.Does));
+        // tafs cloud's line on why it asks before it starts (kiff/tafs#2174), carried as the contract has it.
+        Assert.Equal(("Start gives Coach the tools below. You approve them on this device.", "Start",
+            "Coach asks for your fingerprint, face or passkey before it starts, to give Coach its Card, so it can act only within what you approve."),
+            (first.Words!.Lead, first.Words.Start, first.Words.Does));
         // tafs cloud's first start is the Card step, with this PC's passkey button.
         Assert.True(first.CardStep);
 
