@@ -323,12 +323,16 @@ public static class KiffHeld
         }
     }
 
-    /// <summary>A number exactly as sent, written plainly: an integer past 2^53 whole, "1.5e-05" as "0.000015".</summary>
+    /// <summary>
+    /// A number as sent, written plainly: an integer past 2^53 whole, "1.5e-05" as "0.000015", and no trailing zero after
+    /// the point ("1.50" as "1.5", "2.0" as "2"), as every app writes it.
+    /// </summary>
     static string ExactNumber(JsonElement v)
     {
         if (v.TryGetInt64(out var i)) return i.ToString(CultureInfo.InvariantCulture);
-        if (decimal.TryParse(v.GetRawText(), NumberStyles.Float, CultureInfo.InvariantCulture, out var m)) return m.ToString(CultureInfo.InvariantCulture);
-        return v.GetRawText();
+        if (!decimal.TryParse(v.GetRawText(), NumberStyles.Float, CultureInfo.InvariantCulture, out var m)) return v.GetRawText();
+        var text = m.ToString(CultureInfo.InvariantCulture);
+        return text.Contains('.') ? text.TrimEnd('0').TrimEnd('.') : text;
     }
 
     /// <summary>
