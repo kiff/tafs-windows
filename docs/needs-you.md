@@ -245,7 +245,11 @@ at sign-in, when Coach asks for Home, and with **F5** on Needs you, the Windows 
 - **The ordinal** ("the 2nd") is written as Apple's formatter writes digits in each shipped language (1st, 1er, 2.,
   2.º, 2º, 2e). .NET has no ordinal formatter.
 - **Details:** what it's on, one line an argument as KIFF keeps them ("payment_intent: pi_…"), folded under Details as
-  the iPad's. Not the amount, and not KIFF's own arguments (`kiff_operation_id`, `kiff_about`, `kiff_reason`).
+  the iPad's. Not the amount, and not KIFF's own arguments (`kiff_operation_id`, `kiff_about`, `kiff_reason`). A list or
+  object is written out in full, never "…": its items (1, 2, …) and fields below its name, two spaces deeper each level,
+  keys in code point order at every level, an empty string below the top as `""`, a number exactly as sent, a direction
+  mark dropped and a line break as a space (`KiffHeld.Details`), so a held browser call's `steps` are what the owner
+  reads. Every app writes the same lines, from kiff/tafs `contracts/held-arguments.json`.
 - **The taf's own words:** one plain line each, control and format characters and breaks as spaces, cut at 120 and 280
   with "…". They're never KIFF's amount, rule or action.
 - **When it lapses:** KIFF's `expires_at`, else ten minutes after it was held.

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using Tafs.Core.Approvals;
 using Tafs.Core.Coach;
@@ -24,6 +25,8 @@ public sealed record KiffHold(
 {
     public string? Title { get; init; }
     public IReadOnlyDictionary<string, string>? Arguments { get; init; }
+    /// <summary>Each argument whole, as KIFF keeps it: Details writes a list or object in full (contracts/held-arguments.json).</summary>
+    public IReadOnlyDictionary<string, JsonElement>? ArgumentValues { get; init; }
     public string? ProposalId { get; init; }
     public string? ReasonText { get; init; }
     public bool? CanApproveOnce { get; init; }
@@ -87,13 +90,15 @@ public static class KiffHeld
             ? u.EnumerateObject().ToDictionary(x => x.Name, x => (x.Value.GetProperty("unit").GetString()!, (int)Whole(x.Value.GetProperty("scale")))) : null;
         Dictionary<string, string>? arguments = e.TryGetProperty("arguments", out var a) && a.ValueKind == JsonValueKind.Object
             ? a.EnumerateObject().ToDictionary(x => x.Name, x => ArgumentText(x.Value)) : null;
+        Dictionary<string, JsonElement>? argumentValues = a.ValueKind == JsonValueKind.Object && arguments is not null
+            ? a.EnumerateObject().ToDictionary(x => x.Name, x => x.Value.Clone()) : null;
         List<string>? next = e.TryGetProperty("next_steps", out var n) && n.ValueKind == JsonValueKind.Array
             ? n.EnumerateArray().Select(x => x.GetString()!).ToList() : null;
         return new(S("id")!, S("subject")!, S("action")!, S("entity_id")!, S("status")!, breaches, parameters, S("reason"), units, next,
             KiffActivity.Parse(S("created_at")!)!.Value, S("expires_at") is { } expires ? KiffActivity.Parse(expires) : null,
             (int?)Long(e, "accounting_version"))
         {
-            Title = S("title"), Arguments = arguments, ProposalId = S("proposal_id"), ReasonText = S("reason_text"),
+            Title = S("title"), Arguments = arguments, ArgumentValues = argumentValues, ProposalId = S("proposal_id"), ReasonText = S("reason_text"),
             CanApproveOnce = Flag(e, "can_approve_once"), TafAbout = S("taf_about"), TafReason = S("taf_reason"), Kind = S("kind"),
             NeedsRelease = Fill(e), Browser = BrowserOf(e),
         };
@@ -267,17 +272,95 @@ public static class KiffHeld
     }
 
     /// <summary>
-    /// What a held gateway call is on, one line an argument ("payment_intent: pi_…"), as the iPad's <c>details</c>: not the
-    /// amount, which shows above, nor KIFF's own arguments.
+    /// What a held gateway call is on, as KIFF keeps its arguments ("payment_intent: pi_…"), as the iPad's <c>details</c>:
+    /// one line an argument, and a list or object written out in full below its name, each item (1, 2, …) or field on its
+    /// own line, two spaces deeper each level, keys in code point order at every level (contracts/held-arguments.json).
+    /// Nothing the call carries is ever folded to "…": a held browser call's <c>steps</c> are what the owner signs
+    /// (red-team, 27 Nov). Not the amount, which shows above, nor KIFF's own arguments; an empty string at the top says
+    /// nothing.
     /// </summary>
     public static IReadOnlyList<string> Details(KiffHold e)
     {
-        if (e.Arguments is not { } arguments) return [];
         var shown = new HashSet<string>((e.ParameterUnits?.Keys ?? []).Concat(e.Parameters?.Keys ?? []).Select(k => k.ToLowerInvariant()));
-        return arguments.Keys.Order(StringComparer.Ordinal)
-            .Where(k => !shown.Contains(k.ToLowerInvariant()) && !KiffOwnArguments.Contains(k.ToLowerInvariant()) && arguments[k].Length > 0)
-            .Select(k => $"{k}: {arguments[k]}").ToList();
+        bool Listed(string k) => !shown.Contains(k.ToLowerInvariant()) && !KiffOwnArguments.Contains(k.ToLowerInvariant());
+        if (e.ArgumentValues is { } values)
+            return values.Keys.Order(CodePoints).Where(Listed)
+                .Where(k => !(values[k].ValueKind == JsonValueKind.String && values[k].GetString()!.Length == 0))
+                .SelectMany(k => ArgumentLines(Visible(k), values[k], 0)).ToList();
+        if (e.Arguments is not { } arguments) return [];
+        return arguments.Keys.Order(CodePoints).Where(k => Listed(k) && arguments[k].Length > 0)
+            .Select(k => $"{Visible(k)}: {Visible(arguments[k])}").ToList();
     }
+
+    /// <summary>
+    /// <paramref name="label"/>'s value as lines, as every app writes them: a plain value on its label's line; a list's items
+    /// (1, 2, …) and an object's fields below it, two spaces deeper each level. An empty string below the top is written
+    /// <c>""</c>, so a fill with nothing still shows.
+    /// </summary>
+    public static IEnumerable<string> ArgumentLines(string label, JsonElement v, int depth)
+    {
+        var pad = new string(' ', depth * 2);
+        switch (v.ValueKind)
+        {
+            case JsonValueKind.Array when v.GetArrayLength() == 0:
+                return [$"{pad}{label}: []"];
+            case JsonValueKind.Array:
+                return v.EnumerateArray().Select((item, i) => ArgumentLines((i + 1).ToString(CultureInfo.InvariantCulture), item, depth + 1))
+                    .SelectMany(x => x).Prepend($"{pad}{label}:");
+            case JsonValueKind.Object when !v.EnumerateObject().Any():
+                return [$"{pad}{label}: {{}}"];
+            case JsonValueKind.Object:
+                var fields = v.EnumerateObject().ToDictionary(x => x.Name, x => x.Value);
+                return fields.Keys.Order(CodePoints).SelectMany(k => ArgumentLines(Visible(k), fields[k], depth + 1)).Prepend($"{pad}{label}:");
+            case JsonValueKind.String when v.GetString()!.Length == 0:
+                return [$"{pad}{label}: \"\""];
+            case JsonValueKind.Null:
+                return [$"{pad}{label}: null"];
+            case JsonValueKind.Number:
+                return [$"{pad}{label}: {ExactNumber(v)}"];
+            default:
+                return [$"{pad}{label}: {Visible(ArgumentText(v))}"];
+        }
+    }
+
+    /// <summary>A number exactly as sent, written plainly: an integer past 2^53 whole, "1.5e-05" as "0.000015".</summary>
+    static string ExactNumber(JsonElement v)
+    {
+        if (v.TryGetInt64(out var i)) return i.ToString(CultureInfo.InvariantCulture);
+        if (decimal.TryParse(v.GetRawText(), NumberStyles.Float, CultureInfo.InvariantCulture, out var m)) return m.ToString(CultureInfo.InvariantCulture);
+        return v.GetRawText();
+    }
+
+    /// <summary>
+    /// A line from KIFF or a taf as Details draws it: no direction mark, so nothing can reorder what's beside it, and any
+    /// other control character (a line break) as a space, so a value can't draw a line of its own.
+    /// </summary>
+    public static string Visible(string text)
+    {
+        var b = new System.Text.StringBuilder(text.Length);
+        foreach (var r in text.EnumerateRunes())
+        {
+            if (Tafs.Core.Files.FileText.IsDirection(r.Value)) continue;
+            if (Rune.GetUnicodeCategory(r) == UnicodeCategory.Control) b.Append(' ');
+            else b.Append(r.ToString());
+        }
+        return b.ToString();
+    }
+
+    /// <summary>Keys in Unicode code point order, the same on every app (ordinal order sorts by UTF-16 units).</summary>
+    static readonly Comparer<string> CodePoints = Comparer<string>.Create((x, y) =>
+    {
+        using var a = x.EnumerateRunes().GetEnumerator();
+        using var b = y.EnumerateRunes().GetEnumerator();
+        while (true)
+        {
+            var more = a.MoveNext();
+            var moreY = b.MoveNext();
+            if (!more || !moreY) return more.CompareTo(moreY);
+            var c = a.Current.Value.CompareTo(b.Current.Value);
+            if (c != 0) return c;
+        }
+    });
 
     /// <summary>What a breach's outcome means, in the Card's words (the iPad's <c>outcomeText</c>).</summary>
     public static string OutcomeText(WordBook w, string? outcome) => w.Get(outcome switch

@@ -100,6 +100,22 @@ public class KiffHeldTests
         Assert.Equal(new DateTimeOffset(2026, 10, 19, 19, 10, 0, TimeSpan.Zero), KiffHeld.ToHeldCall(En, odd, "s", 0).ExpiresAt);
     }
 
+    /// <summary>
+    /// A held call's arguments under Details, every case of contracts/held-arguments.json: the lines every app writes,
+    /// exactly. Nothing is ever shortened to "…" (red-team, 27 Nov: a held browse_act's steps showed as "steps: …").
+    /// </summary>
+    [Fact]
+    public void A_held_calls_arguments_are_the_contracts_lines_exactly()
+    {
+        var file = JsonDocument.Parse(File.ReadAllText(SharedFiles.Contract("held-arguments.json"))).RootElement;
+        foreach (var c in file.GetProperty("cases").EnumerateArray())
+        {
+            var held = $$"""{"exceptions":[{"id":"ce_c","subject":"a","action":"x","entity_id":"e","status":"held","breaches":[],"created_at":"2026-11-27T16:00:00Z","arguments":{{c.GetProperty("arguments").GetRawText()}}}]}""";
+            var want = c.GetProperty("lines").EnumerateArray().Select(x => x.GetString()!).ToList();
+            Assert.Equal(want, KiffHeld.Details(One(held)));
+        }
+    }
+
     /// <summary>The iPad's testADecimalArgumentIsWrittenPlainly: never in exponent form.</summary>
     [Fact]
     public void A_decimal_argument_is_written_plainly()
