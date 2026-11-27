@@ -116,6 +116,37 @@ public class KiffHeldTests
         }
     }
 
+    /// <summary>
+    /// Case 7: a number whose plain form would pass 100 digits is written as sent, byte for byte, at once (a taf's
+    /// 1e999999999 is never a billion zeros), and anything shorter is written out from its own text, nothing rounded.
+    /// </summary>
+    [Fact]
+    public void A_number_past_a_hundred_digits_is_written_as_sent()
+    {
+        Assert.Equal("1" + new string('0', 99), KiffHeld.PlainLiteral("1e99"));
+        Assert.Equal("0." + new string('0', 98) + "1", KiffHeld.PlainLiteral("1e-99"));
+        Assert.Equal("0." + new string('0', 98) + "1", KiffHeld.PlainLiteral("1.000e-99"));
+        Assert.Equal("1234567890" + new string('0', 90), KiffHeld.PlainLiteral("1234567890e90"));
+        foreach (var sent in new[] { "1e100", "1e-100", "1e400", "1e-400", "-1E+400", "1e999999999", "-2.5E+999999999",
+                     "1000e2147483647", "1e99999999999999999999", "1234567890e91" })
+            Assert.Equal(sent, KiffHeld.PlainLiteral(sent));
+        // Zero however it's sent, and digits past any decimal type kept whole.
+        Assert.Equal("0", KiffHeld.PlainLiteral("0e500"));
+        Assert.Equal("0", KiffHeld.PlainLiteral("-0.0"));
+        Assert.Equal("0.1234567890123456789012345678901234", KiffHeld.PlainLiteral("0.12345678901234567890123456789012340"));
+        Assert.Equal("1.5", KiffHeld.PlainLiteral("1.50"));
+        Assert.Equal("1000", KiffHeld.PlainLiteral("1E+3"));
+        Assert.Equal("-0.5", KiffHeld.PlainLiteral("-0.5"));
+    }
+
+    /// <summary>A key sent twice shows the last, which is what runs, at the top and nested; the read never fails on it.</summary>
+    [Fact]
+    public void A_key_sent_twice_shows_the_last()
+    {
+        var held = """{"exceptions":[{"id":"ce_c","subject":"a","action":"x","entity_id":"e","status":"held","breaches":[],"created_at":"2026-11-27T16:00:00Z","arguments":{"to":"first","to":"last","n":{"a":1,"a":2}}}]}""";
+        Assert.Equal(["n:", "  a: 2", "to: last"], KiffHeld.Details(One(held)));
+    }
+
     /// <summary>The iPad's testADecimalArgumentIsWrittenPlainly: never in exponent form.</summary>
     [Fact]
     public void A_decimal_argument_is_written_plainly()

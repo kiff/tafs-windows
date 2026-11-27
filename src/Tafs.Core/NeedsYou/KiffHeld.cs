@@ -89,9 +89,9 @@ public static class KiffHeld
         Dictionary<string, (string, int)>? units = e.TryGetProperty("parameter_units", out var u) && u.ValueKind == JsonValueKind.Object
             ? u.EnumerateObject().ToDictionary(x => x.Name, x => (x.Value.GetProperty("unit").GetString()!, (int)Whole(x.Value.GetProperty("scale")))) : null;
         Dictionary<string, string>? arguments = e.TryGetProperty("arguments", out var a) && a.ValueKind == JsonValueKind.Object
-            ? a.EnumerateObject().ToDictionary(x => x.Name, x => ArgumentText(x.Value)) : null;
+            ? LastWins(a, ArgumentText) : null;
         Dictionary<string, JsonElement>? argumentValues = a.ValueKind == JsonValueKind.Object && arguments is not null
-            ? a.EnumerateObject().ToDictionary(x => x.Name, x => x.Value.Clone()) : null;
+            ? LastWins(a, x => x.Clone()) : null;
         List<string>? next = e.TryGetProperty("next_steps", out var n) && n.ValueKind == JsonValueKind.Array
             ? n.EnumerateArray().Select(x => x.GetString()!).ToList() : null;
         return new(S("id")!, S("subject")!, S("action")!, S("entity_id")!, S("status")!, breaches, parameters, S("reason"), units, next,
@@ -310,7 +310,7 @@ public static class KiffHeld
             case JsonValueKind.Object when !v.EnumerateObject().Any():
                 return [$"{pad}{label}: {{}}"];
             case JsonValueKind.Object:
-                var fields = v.EnumerateObject().ToDictionary(x => x.Name, x => x.Value);
+                var fields = LastWins(v, x => x);
                 return fields.Keys.Order(CodePoints).SelectMany(k => ArgumentLines(Visible(k), fields[k], depth + 1)).Prepend($"{pad}{label}:");
             case JsonValueKind.String when v.GetString()!.Length == 0:
                 return [$"{pad}{label}: \"\""];
@@ -324,15 +324,58 @@ public static class KiffHeld
     }
 
     /// <summary>
-    /// A number as sent, written plainly: an integer past 2^53 whole, "1.5e-05" as "0.000015", and no trailing zero after
-    /// the point ("1.50" as "1.5", "2.0" as "2"), as every app writes it.
+    /// An object's fields by name, a key sent twice keeping the last, which is what runs (KIFF's decoder keeps the last). A
+    /// repeated key never fails the read.
     /// </summary>
-    static string ExactNumber(JsonElement v)
+    static Dictionary<string, T> LastWins<T>(JsonElement obj, Func<JsonElement, T> value)
     {
-        if (v.TryGetInt64(out var i)) return i.ToString(CultureInfo.InvariantCulture);
-        if (!decimal.TryParse(v.GetRawText(), NumberStyles.Float, CultureInfo.InvariantCulture, out var m)) return v.GetRawText();
-        var text = m.ToString(CultureInfo.InvariantCulture);
-        return text.Contains('.') ? text.TrimEnd('0').TrimEnd('.') : text;
+        var d = new Dictionary<string, T>();
+        foreach (var x in obj.EnumerateObject()) d[x.Name] = value(x.Value);
+        return d;
+    }
+
+    /// <summary>The most digits a number is written out in; past it, the number shows as sent (case 7 of the contract).</summary>
+    const long PlainDigitsMax = 100;
+
+    /// <summary>
+    /// A number as sent, written plainly from its own text, every digit kept: no exponent ("1.5e-05" as "0.000015"), and no
+    /// trailing zero after the point ("1.50" as "1.5", "2.0" as "2"). One whose plain form would take more than
+    /// <see cref="PlainDigitsMax"/> digits (the 0 before a point and the zeros after it counted) is written as sent: "1e99"
+    /// is written out, "1e100" and "1e-400" stay, and a taf's 1e999999999 is never a billion zeros. No number type is
+    /// involved, so nothing is rounded.
+    /// </summary>
+    internal static string ExactNumber(JsonElement v) => PlainLiteral(v.GetRawText());
+
+    internal static string PlainLiteral(string sent)
+    {
+        var n = sent;
+        var sign = "";
+        if (n.StartsWith('-')) (sign, n) = ("-", n[1..]);
+        var mant = n;
+        long exp = 0;
+        var e = n.IndexOfAny(['e', 'E']);
+        if (e >= 0)
+        {
+            if (!long.TryParse(n[(e + 1)..], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out exp)) return sent;
+            mant = n[..e];
+        }
+        var point = mant.IndexOf('.');
+        var whole = point >= 0 ? mant[..point] : mant;
+        var frac = point >= 0 ? mant[(point + 1)..] : "";
+        var digits = (whole + frac).TrimStart('0');
+        // A zero is 0 however it's sent ("0e500" too).
+        if (digits.Length == 0) return "0";
+        // Past these, the number can't be written in PlainDigitsMax digits: no arithmetic on an exponent that large.
+        if (exp > PlainDigitsMax + mant.Length || exp < -PlainDigitsMax - mant.Length) return sent;
+        var scale = frac.Length - exp;
+        var significant = digits.TrimEnd('0');
+        scale -= digits.Length - significant.Length;
+        digits = significant;
+        var written = scale <= 0 ? digits.Length - scale : Math.Max(digits.Length, scale + 1);
+        if (written > PlainDigitsMax) return sent;
+        if (scale <= 0) return sign + digits + new string('0', (int)-scale);
+        if (scale >= digits.Length) return sign + "0." + new string('0', (int)scale - digits.Length) + digits;
+        return sign + digits[..^(int)scale] + "." + digits[^(int)scale..];
     }
 
     /// <summary>
