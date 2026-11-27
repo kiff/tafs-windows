@@ -99,8 +99,8 @@ public static class Onboarding
             (w.Get("onboarding.kiff_privacy"), KiffPage(w.Language, "privacy")), (w.Get("onboarding.tafs_privacy"), SignInScreen.Privacy(w.Language)));
 
     /// <summary>
-    /// The last card's lead, naming how this PC approves: on the phone, or with Windows Hello once paired
-    /// (<c>onboarding.control_lead_desktop</c>, every desktop's).
+    /// The last card's lead, naming how this PC approves: on the phone, or on this PC when it was signed in with a
+    /// passkey (Windows Hello) or security key (<c>onboarding.control_lead_desktop</c>, every desktop's).
     /// </summary>
     public static string ControlLead(WordBook w) => w.Get("onboarding.control_lead_desktop");
 
