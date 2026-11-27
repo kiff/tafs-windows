@@ -176,21 +176,19 @@ public static class KiffHeld
         e.TryGetProperty(name, out var v) && v.ValueKind is JsonValueKind.True or JsonValueKind.False ? v.GetBoolean() : null;
 
     /// <summary>
-    /// An argument as text, as the iPad's <c>ArgumentText</c>: a string as it is, an integer or a flag written out, a decimal
-    /// plainly ("0.000015", never "1.5e-05"), anything else "…".
+    /// An argument as text, as the iPad's <c>ArgumentText</c>: a string as it is, a number written plainly from its own text
+    /// (<see cref="PlainLiteral"/>: "0.000015", never "1.5e-05"; past 100 digits, as sent), a flag written out, anything else
+    /// "…". Never through a double: <c>GetDouble</c> throws on a number out of its range (a taf's <c>1e400</c>), and one such
+    /// argument would fail the whole held list's read.
     /// </summary>
     public static string ArgumentText(JsonElement v) => v.ValueKind switch
     {
         JsonValueKind.String => v.GetString()!,
-        JsonValueKind.Number when v.TryGetInt64(out var i) => i.ToString(CultureInfo.InvariantCulture),
-        JsonValueKind.Number => Plain(v.GetDouble()),
+        JsonValueKind.Number => PlainLiteral(v.GetRawText()),
         JsonValueKind.True => "true",
         JsonValueKind.False => "false",
         _ => "…",
     };
-
-    static string Plain(double d) => decimal.TryParse(d.ToString("G15", CultureInfo.InvariantCulture), NumberStyles.Float, CultureInfo.InvariantCulture, out var m)
-        ? m.ToString(CultureInfo.InvariantCulture) : d.ToString("G15", CultureInfo.InvariantCulture);
 
     /// <summary>
     /// A held call's name, as the iPad's <c>KIFFMapping.says</c>: its title, with its action in words unless the title names

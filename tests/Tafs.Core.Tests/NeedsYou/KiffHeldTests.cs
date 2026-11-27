@@ -140,6 +140,19 @@ public class KiffHeldTests
         Assert.Equal("-0.5", KiffHeld.PlainLiteral("-0.5"));
     }
 
+    /// <summary>
+    /// A number out of a double's range in one call's arguments (a taf's <c>1e400</c>) never fails the held list: every call
+    /// is still listed, and Details writes it as sent.
+    /// </summary>
+    [Fact]
+    public void A_number_out_of_a_doubles_range_never_empties_the_held_list()
+    {
+        const string held = """{"exceptions":[{"id":"ce_a","subject":"a","action":"x","entity_id":"e","status":"held","breaches":[],"created_at":"2026-11-27T16:00:00Z","arguments":{"huge":1e400,"small":-1e-400,"amount":2550,"rate":1.5e-05}},{"id":"ce_b","subject":"b","action":"y","entity_id":"f","status":"held","breaches":[],"created_at":"2026-11-27T16:00:00Z"}]}""";
+        var list = KiffHeld.Read(JsonDocument.Parse(held).RootElement)!;
+        Assert.Equal(["ce_a", "ce_b"], list.Select(h => h.Id));
+        Assert.Equal(["amount: 2550", "huge: 1e400", "rate: 0.000015", "small: -1e-400"], KiffHeld.Details(list[0]));
+    }
+
     /// <summary>A key sent twice shows the last, which is what runs, at the top and nested; the read never fails on it.</summary>
     [Fact]
     public void A_key_sent_twice_shows_the_last()
