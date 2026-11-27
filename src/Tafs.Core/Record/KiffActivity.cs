@@ -113,9 +113,12 @@ public static class KiffActivity
         {
             if (c.ActorId is null || tafOf(c.ActorId) is not { } taf) continue;
             var allowed = c.Outcome == "allowed";
+            // Approved once only when KIFF carries the owner's approval as the call's answer (kiff/tafs#2225): a held call
+            // that went through because its Card changed has none, and is the Card's, as KIFF's own trail says.
+            var approvedOnce = c.Held && c.Answer is { Decision: not "refused" };
             var (kind, detail) = c.Outcome switch
             {
-                "allowed" => Executed(w, c.Tool, c.Held, Counted(c)),
+                "allowed" => Executed(w, c.Tool, approvedOnce, Counted(c)),
                 "owner_required" or "approval_required" => (EntryKind.Held, w.Get("record.waiting_for_you")),
                 // KIFF's own words for why, when it has them.
                 _ => (EntryKind.Refused, c.Reason is { } why ? w.Get("record.not_sent_because", ("reason", why)) : w.Get("record.not_sent")),
@@ -123,7 +126,7 @@ public static class KiffActivity
             if (allowed && c.Tool is { Status: "refused_by_tool", RefusedBy: "connection", Code: not null })
                 detail = c.Detail ?? w.Get("record.connection_refused_before_sending");
             if (c.Receipt is not null || c.Answer is not null)
-                detail = Decided(w, c.Answer, kind, allowed && c.Held) + " · " + Result(w, kind);
+                detail = Decided(w, c.Answer, kind, allowed && approvedOnce) + " · " + Result(w, kind);
             var name = Name(c.ActionName, c.Title);
             var amount = AmountText(w, c.Amount);
             lines.Add(new RecordEntry(taf.Name, taf.Colour, kind, amount is null ? name : $"{name} · {amount}", detail, c.CreatedAt, amount, c));

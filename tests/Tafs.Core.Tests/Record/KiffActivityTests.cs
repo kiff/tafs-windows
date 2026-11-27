@@ -67,9 +67,10 @@ public class KiffActivityTests
     /// <summary>As the iPad's executed: done only when the tool said so; each other status in its own words.</summary>
     [Theory]
     [InlineData("""{"status": "done"}""", false, EntryKind.Done, "Done, within its Card")]
-    [InlineData("""{"status": "done"}""", true, EntryKind.Approved, "Approved by you, then done")]
+    // Held, then allowed with no answer from the owner (its Card changed): the Card's, never "approved by you" (kiff/tafs#2225).
+    [InlineData("""{"status": "done"}""", true, EntryKind.Done, "Done, within its Card")]
     [InlineData("""{"status": "not_sent", "message": "timeout"}""", false, EntryKind.NotDone, "Allowed by its Card, but it couldn't be sent: nothing reached the app: timeout")]
-    [InlineData("""{"status": "sending"}""", true, EntryKind.Sending, "Approved by you, and sent: waiting for the app's answer")]
+    [InlineData("""{"status": "sending"}""", true, EntryKind.Sending, "Allowed by its Card, and sent: waiting for the app's answer")]
     [InlineData("""{"status": "unknown"}""", false, EntryKind.Unknown, "Allowed by its Card, and sent, but the app's answer was lost: check the app's own records")]
     [InlineData("""{"status": "not_recorded"}""", false, EntryKind.Unknown, "Allowed by its Card, but whether the app did it wasn't recorded: check the app's own records")]
     [InlineData("""{"status": "later"}""", false, EntryKind.Unknown, "Allowed by its Card, but whether the app did it wasn't recorded: check the app's own records")]
@@ -142,7 +143,8 @@ public class KiffActivityTests
     [InlineData(""", "outcome": "denied", "answer": {"decision": "refused", "by": "billing_lead"}""", "refused by someone with the role billing lead · nothing sent")]
     [InlineData(""", "outcome": "denied", "answer": {"decision": "refused"}""", "refused by someone else · nothing sent")]
     [InlineData(""", "tool_outcome": {"status": "done"}, "receipt": {"trace_id": "t", "status": "pending"}""", "within its Card · done")]
-    [InlineData(""", "held": true, "tool_outcome": {"status": "sending"}, "receipt": {"trace_id": "t", "status": "pending"}""", "approved by you · sent, no answer yet")]
+    [InlineData(""", "held": true, "tool_outcome": {"status": "sending"}, "receipt": {"trace_id": "t", "status": "pending"}""", "within its Card · sent, no answer yet")]
+    [InlineData(""", "held": true, "tool_outcome": {"status": "done"}, "answer": {"decision": "approved_once", "you": true}""", "approved by you · done")]
     [InlineData(""", "outcome": "denied", "receipt": {"trace_id": "t", "status": "signed"}""", "refused by its Card · nothing sent")]
     [InlineData(""", "outcome": "owner_required", "receipt": {"trace_id": "t", "status": "pending"}""", "waiting for you · nothing sent yet")]
     public void Who_decided_and_what_became_of_it(string more, string detail) => Assert.Equal(detail, Line(more).Detail);

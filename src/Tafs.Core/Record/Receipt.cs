@@ -143,8 +143,8 @@ public static class Receipt
         });
     }
 
-    /// <summary>Allowed after the person approved it, held first.</summary>
-    static bool OwnerApproved(RecordEntry e) => e.Call is { Outcome: "allowed", Held: true };
+    /// <summary>Allowed after the person approved it, held first: KIFF carries their approval as its answer (kiff/tafs#2225).</summary>
+    static bool OwnerApproved(RecordEntry e) => e.Call is { Outcome: "allowed", Held: true, Answer: { Decision: not "refused" } };
 
     /// <summary>
     /// Where the line and KIFF's signed steps disagree, as the iPad's <c>onMismatch</c>, <c>amountMismatch</c> and <c>answerMismatch</c>, in that
