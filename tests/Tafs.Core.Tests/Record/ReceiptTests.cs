@@ -59,7 +59,9 @@ public class ReceiptTests
     /// <summary>The sheet's head, Outcome, the receipt's decision and Decided by, as the iPad's stateLabel, outcome, decisionWords and decidedBy.</summary>
     [Theory]
     [InlineData(EntryKind.Done, "", "€150", "Done within the Card", "Done. €150 moved.", "allowed by the Card", "KIFF, against the Card")]
-    [InlineData(EntryKind.Approved, """, "held": true""", null, "Approved once by you", "Done.", "held → approved by you", "You, approving once")]
+    [InlineData(EntryKind.Approved, """, "held": true, "answer": {"decision": "approved_once", "you": true}""", null, "Approved once by you", "Done.", "held → approved once by you", "You")]
+    // Held, then allowed with no answer (its Card changed): the Card's (kiff/tafs#2225).
+    [InlineData(EntryKind.Done, """, "held": true""", null, "Done within the Card", "Done.", "allowed by the Card", "KIFF, against the Card")]
     [InlineData(EntryKind.Approved, """, "held": true, "answer": {"decision": "approved", "by": "admin", "signed": true, "device": "iPad"}""", null,
         "Approved once by an admin", "Done.", "held → approved once by an admin", "An admin, signed on iPad")]
     [InlineData(EntryKind.Approved, """, "held": true, "answer": {"decision": "approved", "you": true, "signed": true}""", null,
