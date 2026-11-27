@@ -351,20 +351,16 @@ public static class KiffHeld
         var n = sent;
         var sign = "";
         if (n.StartsWith('-')) (sign, n) = ("-", n[1..]);
-        var mant = n;
-        long exp = 0;
         var e = n.IndexOfAny(['e', 'E']);
-        if (e >= 0)
-        {
-            if (!long.TryParse(n[(e + 1)..], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out exp)) return sent;
-            mant = n[..e];
-        }
+        var mant = e >= 0 ? n[..e] : n;
         var point = mant.IndexOf('.');
         var whole = point >= 0 ? mant[..point] : mant;
         var frac = point >= 0 ? mant[(point + 1)..] : "";
         var digits = (whole + frac).TrimStart('0');
-        // A zero is 0 however it's sent ("0e500" too).
+        // A zero is 0 however it's sent ("0e500", and one whose exponent is past Int64, too).
         if (digits.Length == 0) return "0";
+        long exp = 0;
+        if (e >= 0 && !long.TryParse(n[(e + 1)..], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out exp)) return sent;
         // Past these, the number can't be written in PlainDigitsMax digits: no arithmetic on an exponent that large.
         if (exp > PlainDigitsMax + mant.Length || exp < -PlainDigitsMax - mant.Length) return sent;
         var scale = frac.Length - exp;

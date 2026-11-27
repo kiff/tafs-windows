@@ -132,6 +132,7 @@ public class KiffHeldTests
             Assert.Equal(sent, KiffHeld.PlainLiteral(sent));
         // Zero however it's sent, and digits past any decimal type kept whole.
         Assert.Equal("0", KiffHeld.PlainLiteral("0e500"));
+        Assert.Equal("0", KiffHeld.PlainLiteral("0e99999999999999999999"));
         Assert.Equal("0", KiffHeld.PlainLiteral("-0.0"));
         Assert.Equal("0.1234567890123456789012345678901234", KiffHeld.PlainLiteral("0.12345678901234567890123456789012340"));
         Assert.Equal("1.5", KiffHeld.PlainLiteral("1.50"));
